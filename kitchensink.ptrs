@@ -7,6 +7,17 @@ obj.bar = "world";
 var obj2 = obj; //obj points to the same object
 obj2.full = obj2.foo + " " + obj2["bar"];
 
+//note that sizeof is an operator so both sizeof(value) and sizeof value are valid
+var typeSize = sizeof(var); //the size needed to allocate one variable
+typeSize == sizeof intval; //true
+var objSize = sizeof(obj); //the size needed to hold
+var barLen = sizeof(obj.bar); //aka strlen(obj.bar); - length of the string
+
+typeof intval; //"integer"
+typeof floatval; //"float" - even though its an IEEE 754 double precision float
+typeof obj; //"object"
+typeof obj.bar; //"string"
+
 intval == "3"; //typeerror
 intval == obj; //typeerror
 obj.foo == "hello" //compare strings

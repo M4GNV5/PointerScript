@@ -42,6 +42,8 @@ ptrs_var_t *ptrs_dump_op_mul(ptrs_ast_t *node);
 ptrs_var_t *ptrs_dump_op_div(ptrs_ast_t *node);
 ptrs_var_t *ptrs_dump_op_mod(ptrs_ast_t *node);
 
+ptrs_var_t *ptrs_dump_prefix_sizeof(ptrs_ast_t *node);
+ptrs_var_t *ptrs_dump_prefix_typeof(ptrs_ast_t *node);
 ptrs_var_t *ptrs_dump_prefix_inc(ptrs_ast_t *node);
 ptrs_var_t *ptrs_dump_prefix_dec(ptrs_ast_t *node);
 ptrs_var_t *ptrs_dump_prefix_logicnot(ptrs_ast_t *node);
@@ -95,6 +97,8 @@ ptrs_var_t *ptrs_dump_suffix_dec(ptrs_ast_t *node);
 #define PTRS_HANDLE_OP_DIV ptrs_dump_op_div
 #define PTRS_HANDLE_OP_MOD ptrs_dump_op_mod
 
+#define PTRS_HANDLE_OP_SIZEOF ptrs_dump_prefix_sizeof
+#define PTRS_HANDLE_OP_TYPEOF ptrs_dump_prefix_typeof
 #define PTRS_HANDLE_PREFIX_INC ptrs_dump_prefix_inc
 #define PTRS_HANDLE_PREFIX_DEC ptrs_dump_prefix_dec
 #define PTRS_HANDLE_PREFIX_LOGICNOT ptrs_dump_prefix_logicnot

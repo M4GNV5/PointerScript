@@ -179,6 +179,8 @@ ptrs_var_t ptrs_dump_op_div(ptrs_ast_t *node) { dump_binary(node, "/"); }
 ptrs_var_t ptrs_dump_op_mod(ptrs_ast_t *node) { dump_binary(node, "%"); }
 
 const char *prefixExpression = "PrefixExpression";
+ptrs_var_t *ptrs_dump_prefix_sizeof(ptrs_ast_t *node) { dump_unary(node, prefixExpression, "sizeof"); }
+ptrs_var_t *ptrs_dump_prefix_typeof(ptrs_ast_t *node) { dump_unary(node, prefixExpression, "typeof"); }
 ptrs_var_t *ptrs_dump_prefix_inc(ptrs_ast_t *node) { dump_unary(node, prefixExpression, "++"); }
 ptrs_var_t *ptrs_dump_prefix_dec(ptrs_ast_t *node) { dump_unary(node, prefixExpression, "--"); }
 ptrs_var_t *ptrs_dump_prefix_logicnot(ptrs_ast_t *node) { dump_unary(node, prefixExpression, "!"); }
