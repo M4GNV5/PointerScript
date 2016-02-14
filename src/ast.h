@@ -41,13 +41,13 @@ struct ptrs_ast_body
 	struct ptrs_astlist *nodes;
 };
 
-struct ptrs_ast_controlstatement
+struct ptrs_ast_control
 {
 	struct ptrs_ast *condition;
 	struct ptrs_ast *body;
 };
 
-struct ptrs_ast_forstatement
+struct ptrs_ast_for
 {
 	struct ptrs_ast *init;
 	struct ptrs_ast *condition;

@@ -78,7 +78,7 @@ ptrs_var_t *ptrs_dump_if(ptrs_ast_t *node)
 	printf("IfStatement\n");
 	indentCount++;
 
-	struct ptrs_ast_controlstatement control = node->arg.control;
+	struct ptrs_ast_control control = node->arg.control;
 
 	indent();
 	printf("condition:\n");
