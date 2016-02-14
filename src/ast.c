@@ -251,12 +251,13 @@ ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 ptrs_ast_t *parseUnaryExpr(code_t *code)
 {
 	char curr = code->curr;
-	ptrs_ast_t *ast = talloc(ptrs_ast_t);
+	ptrs_ast_t *ast;
 
 	for(int i = 0; i < prefixOpCount; i++)
 	{
 		if(lookahead(code, prefixOps[i].op))
 		{
+			ast = talloc(ptrs_ast_t);
 			ast->arg.astval = parseUnaryExpr(code);
 			ast->handler = prefixOps[i].handler;
 			return ast;
@@ -265,6 +266,7 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 
 	if(isalpha(curr) || curr == '_')
 	{
+		ast = talloc(ptrs_ast_t);
 		ast->arg.strval = readIdentifier(code);
 		ast->handler = PTRS_HANDLE_IDENTIFIER;
 
@@ -284,6 +286,7 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 	else if(isdigit(curr) || curr == '.')
 	{
 		int startPos = code->pos;
+		ast = talloc(ptrs_ast_t);
 		ast->arg.intval = readInt(code, 10);
 
 		if(code->curr == '.' || code->curr == 'e')
@@ -301,6 +304,7 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 	else if(curr == '\'')
 	{
 		consumec(code, '\'');
+		ast = talloc(ptrs_ast_t);
 		ast->arg.intval = readEscapeSequence(code);
 		ast->handler = PTRS_HANDLE_INTEGER;
 		consumec(code, '\'');
@@ -308,19 +312,28 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 	else if(curr == '"')
 	{
 		consumec(code, '"');
+		ast = talloc(ptrs_ast_t);
 		ast->arg.strval = readString(code);
 		ast->handler = PTRS_HANDLE_STRING;
 		consumec(code, '"');
 	}
 	else if(curr == '(')
 	{
-		ast->handler = PTRS_HANDLE_CAST;
-
 		consumec(code, '(');
-		ast->arg.cast.type = readTypeName(code);
-		consumec(code, ')');
+		ptrs_vartype_t type = readTypeName(code);
 
-		ast->arg.cast.value = parseUnaryExpr(code);
+		if(lookahead(code, ")") && type != PTRS_TYPE_UNDEFINED)
+		{
+			ast = talloc(ptrs_ast_t);
+			ast->handler = PTRS_HANDLE_CAST;
+			ast->arg.cast.type = type;
+			ast->arg.cast.value = parseUnaryExpr(code);
+		}
+		else
+		{
+			ast = parseExpression(code);
+			consumec(code, ')');
+		}
 	}
 	else
 	{
@@ -392,8 +405,6 @@ ptrs_vartype_t readTypeName(code_t *code)
 		}
 	}
 
-	if(type == PTRS_TYPE_UNDEFINED)
-		unexpected(code, "TypeName");
 	return type;
 }
 
