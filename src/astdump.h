@@ -6,6 +6,7 @@ ptrs_var_t *ptrs_dump_define(ptrs_ast_t *node);
 ptrs_var_t *ptrs_dump_if(ptrs_ast_t *node);
 ptrs_var_t *ptrs_dump_exprstatement(ptrs_ast_t *node);
 ptrs_var_t *ptrs_dump_call(ptrs_ast_t *node);
+ptrs_var_t *ptrs_dump_index(ptrs_ast_t *node);
 ptrs_var_t *ptrs_dump_identifier(ptrs_ast_t *node);
 ptrs_var_t *ptrs_dump_string(ptrs_ast_t *node);
 ptrs_var_t *ptrs_dump_int(ptrs_ast_t *node);
@@ -61,6 +62,7 @@ ptrs_var_t *ptrs_dump_suffix_dec(ptrs_ast_t *node);
 #define PTRS_HANDLE_IF ptrs_dump_if
 #define PTRS_HANDLE_EXPRSTATEMENT ptrs_dump_exprstatement
 #define PTRS_HANDLE_CALL ptrs_dump_call
+#define PTRS_HANDLE_INDEX ptrs_dump_index
 #define PTRS_HANDLE_CAST ptrs_dump_cast
 #define PTRS_HANDLE_IDENTIFIER ptrs_dump_identifier
 #define PTRS_HANDLE_STRING ptrs_dump_string

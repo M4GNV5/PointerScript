@@ -101,6 +101,29 @@ ptrs_var_t *ptrs_dump_call(ptrs_ast_t *node)
 	indentCount--;
 }
 
+ptrs_var_t *ptrs_dump_index(ptrs_ast_t *node)
+{
+	indent();
+	printf("IndexExpression\n");
+	indentCount++;
+
+	struct ptrs_ast_binary expr = node->arg.binary;
+
+	indent();
+	printf("value:\n");
+	indentCount++;
+	expr.left->handler(expr.left);
+	indentCount--;
+
+	indent();
+	printf("index:\n");
+	indentCount++;
+	expr.right->handler(expr.right);
+	indentCount--;
+
+	indentCount--;
+}
+
 ptrs_var_t *ptrs_dump_identifier(ptrs_ast_t *node)
 {
 	indent();

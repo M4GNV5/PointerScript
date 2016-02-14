@@ -269,19 +269,6 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 		ast = talloc(ptrs_ast_t);
 		ast->arg.strval = readIdentifier(code);
 		ast->handler = PTRS_HANDLE_IDENTIFIER;
-
-		if(code->curr == '(')
-		{
-			consumec(code, '(');
-			ptrs_ast_t *call = talloc(ptrs_ast_t);
-			call->handler = PTRS_HANDLE_CALL;
-
-			call->arg.call.value = ast;
-			call->arg.call.arguments = parseExpressionList(code, ')');
-
-			ast = call;
-			consumec(code, ')');
-		}
 	}
 	else if(isdigit(curr) || curr == '.')
 	{
@@ -338,6 +325,32 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 	else
 	{
 		return NULL;
+	}
+
+	curr = code->curr;
+	if(curr == '(')
+	{
+		consumec(code, '(');
+		ptrs_ast_t *call = talloc(ptrs_ast_t);
+		call->handler = PTRS_HANDLE_CALL;
+
+		call->arg.call.value = ast;
+		call->arg.call.arguments = parseExpressionList(code, ')');
+
+		ast = call;
+		consumec(code, ')');
+	}
+	else if(curr == '[')
+	{
+		consumec(code, '[');
+		ptrs_ast_t *indexExpr = talloc(ptrs_ast_t);
+		indexExpr->handler = PTRS_HANDLE_INDEX;
+
+		indexExpr->arg.binary.left = ast;
+		indexExpr->arg.binary.right = parseExpression(code);
+
+		ast = indexExpr;
+		consumec(code, ']');
 	}
 
 	for(int i = 0; i < suffixedOpCount; i++)
