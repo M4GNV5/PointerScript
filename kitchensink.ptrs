@@ -24,7 +24,7 @@ obj.foo == "hello" //compare strings
 obj == obj2; //compare pointer
 intval == floatval; //compare values
 
-import printf, scanf from "libc";
+import "printf", "malloc" from "libc";
 printf("Hello World!");
 
 var strval = "hello ";
@@ -33,4 +33,9 @@ printf(strval + intval); //prints "hello 3"
 var rawstr = (raw)strval; //rawstr will be a pointer to 'raw' memory
 printf(rawstr + intval); //prints "llo "
 
-printf("%d", strval); //prints the address of strval
+var arrayval = malloc(sizeof(var) * 10);
+for(var i = 0; i < 10; i++)
+{
+	arrayval[i] = i;
+}
+printf("%d", arrayval[3]);
