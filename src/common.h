@@ -14,11 +14,21 @@ typedef enum type
 	PTRS_TYPE_OBJECT
 } ptrs_vartype_t;
 
+typedef struct object
+{
+	char *name;
+	ptrs_var_t *value;
+	struct object *next;
+} ptrs_object_t;
+
 typedef union val
 {
 	int64_t intval;
 	double floatval;
-	void *ptrval;
+	void *rawval;
+	char *strval;
+	ptrs_var_t *ptrval;
+	ptrs_object_t *objval;
 } ptrs_val_t;
 
 typedef struct var
