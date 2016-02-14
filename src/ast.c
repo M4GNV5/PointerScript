@@ -374,7 +374,6 @@ struct typeName typeNames[] = {
 	{"raw", PTRS_TYPE_RAW},
 	{"string", PTRS_TYPE_STRING},
 	{"pointer", PTRS_TYPE_POINTER},
-	{"list", PTRS_TYPE_ARRAY},
 	{"object", PTRS_TYPE_OBJECT}
 };
 int typeNameCount = sizeof(typeNames) / sizeof(struct typeName);

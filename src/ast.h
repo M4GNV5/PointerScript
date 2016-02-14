@@ -1,6 +1,8 @@
 #ifndef _PTRS_AST
 #define _PTRS_AST
 
+#include "common.h"
+
 struct ptrs_ast;
 struct ptrs_astlist;
 
