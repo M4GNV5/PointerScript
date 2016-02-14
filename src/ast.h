@@ -12,6 +12,12 @@ struct ptrs_ast_define
 	struct ptrs_ast *value;
 };
 
+struct ptrs_ast_import
+{
+	struct ptrs_astlist *fields;
+	struct ptrs_ast *from;
+};
+
 struct ptrs_ast_binary
 {
 	struct ptrs_ast *left;
@@ -57,6 +63,7 @@ union ptrs_ast_arg
 	struct ptrs_ast *astval;
 
 	struct ptrs_ast_define define;
+	struct ptrs_ast_import import;
 	struct ptrs_ast_cast cast;
 	struct ptrs_ast_binary binary;
 	struct ptrs_ast_call call;

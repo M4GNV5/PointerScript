@@ -47,6 +47,31 @@ ptrs_var_t *ptrs_dump_define(ptrs_ast_t *node)
 	indentCount--;
 }
 
+ptrs_var_t *ptrs_dump_import(ptrs_ast_t *node)
+{
+	indent();
+	printf("ImportStatement\n");
+	indentCount++;
+
+	struct ptrs_ast_import stmt = node->arg.import;
+
+	indent();
+	printf("fields:\n");
+	indentCount++;
+	dump_astlist(stmt.fields);
+	indentCount--;
+
+	if(stmt.from != NULL)
+	{
+		indent();
+		printf("from:\n");
+		indentCount++;
+		stmt.from->handler(stmt.from);
+		indentCount--;
+	}
+	indentCount--;
+}
+
 ptrs_var_t *ptrs_dump_if(ptrs_ast_t *node)
 {
 	indent();

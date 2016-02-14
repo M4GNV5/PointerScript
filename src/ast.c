@@ -105,6 +105,18 @@ ptrs_ast_t *parseStatement(code_t *code)
 
 		consumec(code, ';');
 	}
+	else if(lookahead(code, "import"))
+	{
+		stmt->handler = PTRS_HANDLE_IMPORT;
+		stmt->arg.import.fields = parseExpressionList(code, 0);
+
+		if(lookahead(code, "from"))
+			stmt->arg.import.from = parseExpression(code);
+		else
+			stmt->arg.import.from = NULL;
+
+		consumec(code, ';');
+	}
 	else if(lookahead(code, "if"))
 	{
 		stmt->handler = PTRS_HANDLE_IF;
