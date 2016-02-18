@@ -2,6 +2,7 @@
 #define _PTRS_AST
 
 #include "common.h"
+#include "../interpreter/lib/scope.h"
 
 struct ptrs_ast;
 struct ptrs_astlist;
@@ -36,11 +37,6 @@ struct ptrs_ast_call
 	struct ptrs_astlist *arguments;
 };
 
-struct ptrs_ast_body
-{
-	struct ptrs_astlist *nodes;
-};
-
 struct ptrs_ast_control
 {
 	struct ptrs_ast *condition;
@@ -61,15 +57,15 @@ union ptrs_ast_arg
 	int64_t intval;
 	double floatval;
 	struct ptrs_ast *astval;
+	struct ptrs_astlist *astlist;
 
 	struct ptrs_ast_define define;
 	struct ptrs_ast_import import;
 	struct ptrs_ast_cast cast;
 	struct ptrs_ast_binary binary;
 	struct ptrs_ast_call call;
-	struct ptrs_ast_body body;
-	struct ptrs_ast_controlstatement control;
-	struct ptrs_ast_forstatement forstatement;
+	struct ptrs_ast_control control;
+	struct ptrs_ast_for forstatement;
 };
 
 typedef ptrs_var_t* (*ptrs_asthandler_t)(struct ptrs_ast*);

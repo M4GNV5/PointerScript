@@ -67,12 +67,12 @@ ptrs_ast_t *parseStmtList(code_t *code, char end)
 	if(code->curr == end || code->curr == 0)
 	{
 		next(code);
-		elem->arg.body.nodes = NULL;
+		elem->arg.astlist = NULL;
 		return elem;
 	}
 
 	struct ptrs_astlist *curr = talloc(struct ptrs_astlist);
-	elem->arg.body.nodes = curr;
+	elem->arg.astlist = curr;
 
 	for(;;)
 	{
