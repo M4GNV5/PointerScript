@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+struct ptrs_var;
+
 typedef enum type
 {
 	PTRS_TYPE_UNDEFINED,
@@ -17,7 +19,7 @@ typedef enum type
 typedef struct object
 {
 	char *name;
-	ptrs_var_t *value;
+	struct ptrs_var *value;
 	struct object *next;
 } ptrs_object_t;
 
@@ -26,14 +28,15 @@ typedef union val
 	int64_t intval;
 	double floatval;
 	signed char *strval;
-	ptrs_var_t *ptrval;
+	struct ptrs_var *ptrval;
 	ptrs_object_t *objval;
 } ptrs_val_t;
 
-typedef struct var
+struct ptrs_var
 {
 	ptrs_vartype_t type;
 	ptrs_val_t value;
-} ptrs_var_t;
+};
+typedef struct ptrs_var ptrs_var_t;
 
 #endif
