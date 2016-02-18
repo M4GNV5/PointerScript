@@ -25,8 +25,7 @@ typedef union val
 {
 	int64_t intval;
 	double floatval;
-	void *rawval;
-	char *strval;
+	signed char *strval;
 	ptrs_var_t *ptrval;
 	ptrs_object_t *objval;
 } ptrs_val_t;
