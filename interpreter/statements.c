@@ -36,24 +36,28 @@ ptrs_var_t *ptrs_handle_import(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 {
 	ptrs_var_t valuev;
 	ptrs_var_t *value;
+	char name[128];
 
 	struct ptrs_ast_import import = node->arg.import;
 
-	char from[128];
+	void *handle;
 	if(import.from != NULL)
 	{
 		value = import.from->handler(import.from, &valuev, scope);
-		ptrs_vartoa(value, from);
+		ptrs_vartoa(value, name);
+		handle = dlopen(name, RTLD_LAZY);
+	}
+	else
+	{
+		handle = dlopen(NULL, RTLD_LAZY);
 	}
 
-	void *handle = dlopen(from, RTLD_LAZY);
 	if(handle == NULL)
 		ptrs_error(node, "%s", dlerror());
 
 	struct ptrs_astlist *list = import.fields;
 	while(list != NULL)
 	{
-		char name[32];
 		value = list->entry->handler(list->entry, &valuev, scope);
 		ptrs_vartoa(value, name);
 
