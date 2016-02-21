@@ -304,8 +304,18 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 	{
 		consumec(code, '\'');
 		ast = talloc(ptrs_ast_t);
-		ast->arg.intval = readEscapeSequence(code);
 		ast->handler = PTRS_HANDLE_INTEGER;
+		
+		if(curr == '\\')
+		{
+			rawnext(code);
+			ast->arg.intval = readEscapeSequence(code);
+		}
+		else
+		{
+			ast->arg.intval = code->curr;
+		}
+		rawnext(code);
 		consumec(code, '\'');
 	}
 	else if(curr == '"')
