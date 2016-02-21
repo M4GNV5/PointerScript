@@ -40,7 +40,7 @@ ptrs_var_t *ptrs_handle_call(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 	{
 		//TODO
 	}
-	else if(func->type == PTRS_TYPE_NATIVEFUNC)
+	else if(func->type == PTRS_TYPE_NATIVE)
 	{
 		result->type = PTRS_TYPE_INT;
 		result->value.intval = ptrs_callnative(func->value.nativefunc, len, args);
