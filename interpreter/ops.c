@@ -115,30 +115,55 @@ handle_assign(andassign, ptrs_handle_op_and)
 handle_assign(xorassign, ptrs_handle_op_or)
 handle_assign(orassign, ptrs_handle_op_or)
 
-#define handle_prefix(name, operator) \
+#define handle_prefix(name, operator, opLabel, handlefloat, handleptr) \
 	ptrs_var_t *ptrs_handle_prefix_##name(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope) \
 	{ \
-		/*TODO*/ \
-		ptrs_error(node, "Operator not yet supported"); \
+		ptrs_var_t valuev; \
+		ptrs_var_t *value = node->arg.astval->handler(node->arg.astval, result, scope); \
+		ptrs_vartype_t type = value->type; \
+		\
+		result->type = type; \
+		if(type == PTRS_TYPE_INT) \
+			result->value.intval = operator value->value.intval; \
+		handlefloat \
+		handleptr \
+		else \
+			ptrs_error(node, "Cannot use prefixed operator %s on variable of type %s", opLabel, ptrs_typetoa(type)); \
+		\
 		return result; \
 	}
 
-handle_prefix(inc, ++)
-handle_prefix(dec, --)
-handle_prefix(logicnot, ~)
-handle_prefix(not, !)
-handle_prefix(address, &)
-handle_prefix(dereference, *)
-handle_prefix(plus, +)
-handle_prefix(minus, -)
+#define handle_prefix_ptr(operator) else if(type == PTRS_TYPE_RAW || type == PTRS_TYPE_POINTER) \
+	result->value.strval = operator value->value.strval;
+#define handle_prefix_float(operator) else if(type == PTRS_TYPE_FLOAT) \
+	result->value.floatval = operator value->value.floatval;
 
-#define handle_suffix(name, operator) \
+handle_prefix(inc, ++, "++", handle_prefix_float(++), handle_prefix_ptr(++))
+handle_prefix(dec, --, "--", handle_prefix_float(--), handle_prefix_ptr(--))
+handle_prefix(logicnot, ~, "~", /*nothing*/, /*nothing*/)
+handle_prefix(not, !, "!", handle_prefix_float(!), /*nothing*/)
+handle_prefix(plus, +, "+", handle_prefix_float(+), /*nothing*/)
+handle_prefix(minus, -, "-", handle_prefix_float(-), /*nothing*/)
+
+#define handle_suffix(name, operator, opLabel) \
 	ptrs_var_t *ptrs_handle_suffix_##name(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope) \
 	{ \
-		/*TODO*/ \
-		ptrs_error(node, "Operator not yet supported"); \
+		ptrs_var_t valuev; \
+		ptrs_var_t *value = node->arg.astval->handler(node->arg.astval, result, scope); \
+		ptrs_vartype_t type = value->type; \
+		\
+		result->type = type; \
+		if(type == PTRS_TYPE_INT) \
+			result->value.intval = value->value.intval operator; \
+		else if(type == PTRS_TYPE_FLOAT) \
+			result->value.floatval = value->value.floatval operator; \
+		else if(type == PTRS_TYPE_RAW || type == PTRS_TYPE_POINTER) \
+			result->value.strval = value->value.strval operator; \
+		else \
+			ptrs_error(node, "Cannot use suffixed operator %s on variable of type %s", opLabel, ptrs_typetoa(type)); \
+		\
 		return result; \
 	}
 
-handle_suffix(inc, ++)
-handle_suffix(dec, --)
+handle_suffix(inc, ++, "++")
+handle_suffix(dec, --, "--")
