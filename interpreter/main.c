@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "ast.h"
+#include "../parser/ast.h"
+#include "../parser/common.h"
+#include "include/scope.h"
 
 int main(int argc, char **argv)
 {
@@ -27,8 +29,13 @@ int main(int argc, char **argv)
 		fclose(fd);
 		src[fsize] = 0;
 
+		ptrs_scope_t *scope = malloc(sizeof(ptrs_scope_t));
+		scope->current = NULL;
+		scope->outer = NULL;
+
 		ptrs_ast_t *ast = parse(src);
-		ast->handler(ast);
+		ptrs_var_t resultv;
+		ptrs_var_t *result = ast->handler(ast, &resultv, scope);
 	}
 
 	return 0;

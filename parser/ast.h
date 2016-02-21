@@ -1,11 +1,11 @@
 #ifndef _PTRS_AST
 #define _PTRS_AST
 
-#include "common.h"
-#include "../interpreter/lib/scope.h"
-
 struct ptrs_ast;
 struct ptrs_astlist;
+
+#include "common.h"
+#include "../interpreter/include/scope.h"
 
 struct ptrs_ast_define
 {
@@ -68,12 +68,14 @@ union ptrs_ast_arg
 	struct ptrs_ast_for forstatement;
 };
 
-typedef ptrs_var_t* (*ptrs_asthandler_t)(struct ptrs_ast*);
+typedef ptrs_var_t* (*ptrs_asthandler_t)(struct ptrs_ast *, ptrs_var_t *, ptrs_scope_t *);
 
 struct ptrs_ast
 {
 	union ptrs_ast_arg arg;
 	ptrs_asthandler_t handler;
+	int codepos;
+	char *code;
 };
 typedef struct ptrs_ast ptrs_ast_t;
 

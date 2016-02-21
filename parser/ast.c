@@ -5,8 +5,8 @@
 #include <string.h>
 
 #include "common.h"
+#include "../interpreter/interpreter.h"
 #include "ast.h"
-#include "../config.h"
 
 #define talloc(type) malloc(sizeof(type))
 
@@ -305,7 +305,7 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 		consumec(code, '\'');
 		ast = talloc(ptrs_ast_t);
 		ast->handler = PTRS_HANDLE_INTEGER;
-		
+
 		if(curr == '\\')
 		{
 			rawnext(code);
