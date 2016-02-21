@@ -136,6 +136,69 @@ ptrs_ast_t *parseStatement(code_t *code)
 			consumec(code, ';');
 		}
 	}
+	else if(lookahead(code, "while"))
+	{
+		stmt->handler = PTRS_HANDLE_WHILE;
+
+		consumec(code, '(');
+		stmt->arg.control.condition = parseExpression(code);
+		consumec(code, ')');
+
+		if(lookahead(code, "{"))
+		{
+			stmt->arg.control.body = parseStmtList(code, '}');
+			consumec(code, '}');
+		}
+		else
+		{
+			stmt->arg.control.body = parseStatement(code);
+			consumec(code, ';');
+		}
+	}
+	else if(lookahead(code, "do"))
+	{
+		stmt->handler = PTRS_HANDLE_DOWHILE;
+
+		if(lookahead(code, "{"))
+		{
+			stmt->arg.control.body = parseStmtList(code, '}');
+			consumec(code, '}');
+		}
+		else
+		{
+			stmt->arg.control.body = parseStatement(code);
+			consumec(code, ';');
+		}
+
+		consume(code, "while");
+
+		consumec(code, '(');
+		stmt->arg.control.condition = parseExpression(code);
+		consumec(code, ')');
+		consumec(code, ';');
+	}
+	else if(lookahead(code, "for"))
+	{
+		stmt->handler = PTRS_HANDLE_FOR;
+
+		consumec(code, '(');
+		stmt->arg.forstatement.init = parseStatement(code);
+		stmt->arg.forstatement.condition = parseExpression(code);
+		consumec(code, ';');
+		stmt->arg.forstatement.step = parseExpression(code);
+		consumec(code, ')');
+
+		if(lookahead(code, "{"))
+		{
+			stmt->arg.forstatement.body = parseStmtList(code, '}');
+			consumec(code, '}');
+		}
+		else
+		{
+			stmt->arg.forstatement.body = parseStatement(code);
+			consumec(code, ';');
+		}
+	}
 	else
 	{
 		stmt->handler = PTRS_HANDLE_EXPRSTATEMENT;
@@ -608,9 +671,9 @@ bool skipSpaces(code_t *code)
 {
 	int pos = code->pos;
 	char curr = code->src[pos];
-	if(curr == ' ' || curr == '\n')
+	if(isspace(curr))
 	{
-		while(curr == ' ' || curr == '\n')
+		while(isspace(curr))
 		{
 			pos++;
 			curr = code->src[pos];

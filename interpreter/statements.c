@@ -91,6 +91,68 @@ ptrs_var_t *ptrs_handle_if(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *s
 	return result;
 }
 
+ptrs_var_t *ptrs_handle_while(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	ptrs_var_t conditionv;
+	ptrs_var_t *condition;
+	ptrs_var_t *_result = result;
+
+	struct ptrs_ast_control stmt = node->arg.control;
+
+	for(;;)
+	{
+		condition = stmt.condition->handler(stmt.condition, &conditionv, scope);
+		if(!ptrs_vartob(condition))
+			break;
+
+		result = _result;
+		result = stmt.body->handler(stmt.body, result, scope);
+	}
+
+	return result;
+}
+
+ptrs_var_t *ptrs_handle_dowhile(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	ptrs_var_t conditionv;
+	ptrs_var_t *condition;
+	ptrs_var_t *_result = result;
+
+	struct ptrs_ast_control stmt = node->arg.control;
+
+	do
+	{
+		result = _result;
+		result = stmt.body->handler(stmt.body, result, scope);
+
+		condition = stmt.condition->handler(stmt.condition, &conditionv, scope);
+	} while(ptrs_vartob(condition));
+
+	return result;
+}
+
+ptrs_var_t *ptrs_handle_for(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	ptrs_var_t conditionv;
+	ptrs_var_t *condition;
+
+	struct ptrs_ast_for stmt = node->arg.forstatement;
+
+	stmt.init->handler(stmt.init, result, scope);
+
+	for(;;)
+	{
+		condition = stmt.condition->handler(stmt.condition, &conditionv, scope);
+		if(!ptrs_vartob(condition))
+			break;
+
+		stmt.body->handler(stmt.body, result, scope);
+		stmt.step->handler(stmt.step, result, scope);
+	}
+
+	return result;
+}
+
 ptrs_var_t *ptrs_handle_exprstatement(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	ptrs_ast_t *expr = node->arg.astval;
