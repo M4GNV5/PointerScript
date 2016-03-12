@@ -163,27 +163,6 @@ ptrs_var_t *ptrs_handle_float(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	return result;
 }
 
-ptrs_var_t *ptrs_handle_prefix_sizeof(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
-{
-	if(node->arg.astval->handler == ptrs_handle_identifier
-		&& strcmp(node->arg.astval->arg.strval, "var") == 0)
-	{
-		result->type = PTRS_TYPE_INT;
-		result->value.intval = sizeof(ptrs_var_t);
-		return result;
-	}
-
-	ptrs_var_t *val = node->arg.astval->handler(node->arg.astval, result, scope);
-	ptrs_vartype_t type = val->type;
-
-	result->type = PTRS_TYPE_INT;
-	if(type == PTRS_TYPE_STRING)
-		result->value.intval = strlen(val->value.strval) + 1;
-	else
-		result->value.intval = sizeof(ptrs_var_t);
-	return result;
-}
-
 ptrs_var_t *ptrs_handle_prefix_typeof(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	ptrs_var_t *val = node->arg.astval->handler(node->arg.astval, result, scope);
