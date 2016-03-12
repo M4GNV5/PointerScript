@@ -43,7 +43,7 @@ ptrs_var_t *ptrs_handle_call(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 	else if(func->type == PTRS_TYPE_NATIVE)
 	{
 		result->type = PTRS_TYPE_INT;
-		result->value.intval = ptrs_callnative(func->value.nativefunc, len, args);
+		result->value.intval = ptrs_callnative(func->value.nativeval, len, args);
 	}
 	else
 	{
@@ -69,7 +69,7 @@ ptrs_var_t *ptrs_handle_prefix_dereference(ptrs_ast_t *node, ptrs_var_t *result,
 	ptrs_var_t *val = node->arg.astval->handler(node->arg.astval, result, scope);
 	ptrs_vartype_t valuet = val->type;
 
-	if(valuet == PTRS_TYPE_RAW)
+	if(valuet == PTRS_TYPE_NATIVE)
 	{
 		result->type = PTRS_TYPE_INT;
 		result->value.intval = *val->value.strval;
@@ -104,7 +104,7 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		{
 			return &(value->value.ptrval[_index]);
 		}
-		else if(valuet == PTRS_TYPE_RAW || valuet == PTRS_TYPE_STRING)
+		else if(valuet == PTRS_TYPE_NATIVE || valuet == PTRS_TYPE_STRING)
 		{
 			result->type = PTRS_TYPE_INT;
 			result->value.intval = value->value.strval[_index];

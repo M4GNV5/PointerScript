@@ -484,7 +484,7 @@ struct typeName
 struct typeName typeNames[] = {
 	{"int", PTRS_TYPE_INT},
 	{"float", PTRS_TYPE_FLOAT},
-	{"raw", PTRS_TYPE_RAW},
+	{"native", PTRS_TYPE_NATIVE},
 	{"string", PTRS_TYPE_STRING},
 	{"pointer", PTRS_TYPE_POINTER},
 	{"object", PTRS_TYPE_OBJECT}

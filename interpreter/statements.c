@@ -63,7 +63,7 @@ ptrs_var_t *ptrs_handle_import(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 
 		ptrs_var_t *func = ptrs_alloc();
 		func->type = PTRS_TYPE_NATIVE;
-		func->value.nativefunc = dlsym(handle, name);
+		func->value.nativeval = dlsym(handle, name);
 
 		char *error = dlerror();
 		if(error != NULL)

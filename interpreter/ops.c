@@ -47,8 +47,8 @@ void binary_typeerror(ptrs_ast_t *node, const char *op, ptrs_vartype_t tleft, pt
 			result->value.intval = left->value.intval operator right->value.intval; \
 		} \
 		floatop \
-		else if((tleft == PTRS_TYPE_INT || tleft == PTRS_TYPE_POINTER || tleft == PTRS_TYPE_RAW) \
-			&& (tright == PTRS_TYPE_INT || tright == PTRS_TYPE_POINTER || tright == PTRS_TYPE_RAW)) \
+		else if((tleft == PTRS_TYPE_INT || tleft == PTRS_TYPE_POINTER || tleft == PTRS_TYPE_NATIVE) \
+			&& (tright == PTRS_TYPE_INT || tright == PTRS_TYPE_POINTER || tright == PTRS_TYPE_NATIVE)) \
 		{ \
 			ptrs_vartype_t rtype = tleft != PTRS_TYPE_INT && tright != PTRS_TYPE_INT ? ptrptr : ptrint; \
 			if(rtype == PTRS_TYPE_UNDEFINED) \
@@ -133,10 +133,15 @@ handle_assign(orassign, ptrs_handle_op_or)
 		return result; \
 	}
 
-#define handle_prefix_ptr(operator) else if(type == PTRS_TYPE_RAW || type == PTRS_TYPE_POINTER) \
-	result->value.strval = operator value->value.strval;
-#define handle_prefix_float(operator) else if(type == PTRS_TYPE_FLOAT) \
-	result->value.floatval = operator value->value.floatval;
+#define handle_prefix_ptr(operator) \
+	else if(type == PTRS_TYPE_NATIVE) \
+		result->value.strval = operator value->value.strval; \
+	else if(type == PTRS_TYPE_POINTER) \
+		result->value.ptrval = value->value.ptrval operator;
+
+#define handle_prefix_float(operator) \
+	else if(type == PTRS_TYPE_FLOAT) \
+		result->value.floatval = operator value->value.floatval;
 
 handle_prefix(inc, ++, "++", handle_prefix_float(++), handle_prefix_ptr(++))
 handle_prefix(dec, --, "--", handle_prefix_float(--), handle_prefix_ptr(--))
@@ -157,8 +162,10 @@ handle_prefix(minus, -, "-", handle_prefix_float(-), /*nothing*/)
 			result->value.intval = value->value.intval operator; \
 		else if(type == PTRS_TYPE_FLOAT) \
 			result->value.floatval = value->value.floatval operator; \
-		else if(type == PTRS_TYPE_RAW || type == PTRS_TYPE_POINTER) \
+		else if(type == PTRS_TYPE_NATIVE) \
 			result->value.strval = value->value.strval operator; \
+		else if(type == PTRS_TYPE_POINTER) \
+			result->value.ptrval = value->value.ptrval operator; \
 		else \
 			ptrs_error(node, "Cannot use suffixed operator %s on variable of type %s", opLabel, ptrs_typetoa(type)); \
 		\

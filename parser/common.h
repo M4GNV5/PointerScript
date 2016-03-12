@@ -10,11 +10,10 @@ typedef enum type
 	PTRS_TYPE_UNDEFINED,
 	PTRS_TYPE_INT,
 	PTRS_TYPE_FLOAT,
-	PTRS_TYPE_RAW,
+	PTRS_TYPE_NATIVE,
 	PTRS_TYPE_STRING,
 	PTRS_TYPE_POINTER,
 	PTRS_TYPE_FUNCTION,
-	PTRS_TYPE_NATIVE,
 	PTRS_TYPE_OBJECT
 } ptrs_vartype_t;
 
@@ -33,7 +32,7 @@ typedef union val
 	double floatval;
 	signed char *strval;
 	struct ptrs_var *ptrval;
-	ptrs_nativefunc_t *nativefunc;
+	void *nativeval;
 	ptrs_object_t *objval;
 } ptrs_val_t;
 
