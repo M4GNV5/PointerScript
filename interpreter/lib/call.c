@@ -47,7 +47,19 @@ intptr_t ptrs_callnative(ptrs_nativefunc_t func, int argc, ptrs_var_t *argv)
 
 	for(int i = 0; i < argc; i++)
 	{
-		args[i] = (intptr_t)argv[i].value.strval;
+		switch(argv[i].type)
+		{
+			case PTRS_TYPE_INT: // TODO test what happens here when compiling to non 64bit
+			case PTRS_TYPE_FLOAT:
+				args[i] = (intptr_t)argv[i].value.intval;
+				break;
+			case PTRS_TYPE_POINTER:
+				args[i] = (intptr_t)&(argv[i].value.ptrval->value);
+				break;
+			default:
+				args[i] = (intptr_t)argv[i].value.strval;
+				break;
+		}
 	}
 
 	return caller[argc](func, args);
