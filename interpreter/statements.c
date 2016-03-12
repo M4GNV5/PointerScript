@@ -11,13 +11,14 @@
 ptrs_var_t *ptrs_handle_body(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_astlist *list = node->arg.astlist;
+	ptrs_var_t *_result;
 
 	while(list)
 	{
-		result = list->entry->handler(list->entry, result, scope);
+		_result = list->entry->handler(list->entry, result, scope);
 		list = list->next;
 	}
-	return result;
+	return _result;
 }
 
 ptrs_var_t *ptrs_handle_define(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
@@ -44,7 +45,7 @@ ptrs_var_t *ptrs_handle_import(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	if(import.from != NULL)
 	{
 		value = import.from->handler(import.from, &valuev, scope);
-		ptrs_vartoa(value, name);
+		ptrs_vartoa(value, name, 128);
 		handle = dlopen(name, RTLD_LAZY);
 	}
 	else
@@ -59,7 +60,7 @@ ptrs_var_t *ptrs_handle_import(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	while(list != NULL)
 	{
 		value = list->entry->handler(list->entry, &valuev, scope);
-		ptrs_vartoa(value, name);
+		ptrs_vartoa(value, name, 128);
 
 		ptrs_var_t *func = ptrs_alloc();
 		func->type = PTRS_TYPE_NATIVE;

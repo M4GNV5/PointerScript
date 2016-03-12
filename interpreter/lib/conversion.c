@@ -66,11 +66,11 @@ double ptrs_vartof(ptrs_var_t *val)
 	}
 }
 
-void ptrs_vartoa(ptrs_var_t *val, char *buff)
+void ptrs_vartoa(ptrs_var_t *val, char *buff, size_t maxlen)
 {
 	if(val == NULL)
 	{
-		strcpy(buff, "undefined");
+		strncpy(buff, "undefined", maxlen);
 		return;
 	}
 
@@ -78,21 +78,22 @@ void ptrs_vartoa(ptrs_var_t *val, char *buff)
 	switch(type)
 	{
 		case PTRS_TYPE_UNDEFINED:
-			strcpy(buff, "undefined");
+			strncpy(buff, "undefined", maxlen);
 			break;
 		case PTRS_TYPE_INT:
-			sprintf(buff, "%d", val->value.intval);
+			snprintf(buff, maxlen, "%d", val->value.intval);
 			break;
 		case PTRS_TYPE_FLOAT:
-			sprintf(buff, "%f", val->value.floatval);
+			snprintf(buff, maxlen, "%f", val->value.floatval);
 			break;
 		case PTRS_TYPE_STRING:
-			strcpy(buff, val->value.strval);
+			strncpy(buff, val->value.strval, maxlen);
 			break;
 		default: //pointer type
-			sprintf(buff, "%p", val->value.strval);
+			snprintf(buff, maxlen, "%p", val->value.strval);
 			break;
 	}
+	buff[maxlen - 1] = 0;
 }
 
 const char *typeofStrings[] = {
