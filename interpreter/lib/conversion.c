@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
 
@@ -10,8 +11,7 @@ bool ptrs_vartob(ptrs_var_t *val)
 	if(val == NULL)
 		return false;
 
-	ptrs_vartype_t type = val->type;
-	switch(type)
+	switch(val->type)
 	{
 		case PTRS_TYPE_UNDEFINED:
 			return false;
@@ -23,6 +23,46 @@ bool ptrs_vartob(ptrs_var_t *val)
 			return *(val->value.strval) != 0;
 		default: //pointer type
 			return val->value.strval != NULL;
+	}
+}
+
+int64_t ptrs_vartoi(ptrs_var_t *val)
+{
+	if(val == NULL)
+		return 0;
+
+	switch(val->type)
+	{
+		case PTRS_TYPE_UNDEFINED:
+			return 0;
+		case PTRS_TYPE_INT:
+			return val->value.intval;
+		case PTRS_TYPE_FLOAT:
+			return val->value.floatval;
+		case PTRS_TYPE_STRING:
+			return atoi(val->value.strval);
+		default: //pointer type
+			return (intptr_t)val->value.strval;
+	}
+}
+
+double ptrs_vartof(ptrs_var_t *val)
+{
+	if(val == NULL)
+		return 0;
+
+	switch(val->type)
+	{
+		case PTRS_TYPE_UNDEFINED:
+			return 0;
+		case PTRS_TYPE_INT:
+			return val->value.intval;
+		case PTRS_TYPE_FLOAT:
+			return val->value.floatval;
+		case PTRS_TYPE_STRING:
+			return atof(val->value.strval);
+		default: //pointer type
+			return (intptr_t)val->value.strval;
 	}
 }
 
