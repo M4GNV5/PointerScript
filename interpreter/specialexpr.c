@@ -94,31 +94,22 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	ptrs_var_t *value = expr.left->handler(expr.left, &valuev, scope);
 	ptrs_var_t *index = expr.right->handler(expr.right, &indexv, scope);
 
-	ptrs_vartype_t indext = index->type;
 	ptrs_vartype_t valuet = value->type;
+	int64_t _index = ptrs_vartoi(index);
 
-	if(indext == PTRS_TYPE_INT)
+	if(valuet == PTRS_TYPE_POINTER)
 	{
-		int64_t _index = index->value.intval;
-
-		if(valuet == PTRS_TYPE_POINTER)
-		{
-			return &(value->value.ptrval[_index]);
-		}
-		else if(valuet == PTRS_TYPE_NATIVE || valuet == PTRS_TYPE_STRING)
-		{
-			result->type = PTRS_TYPE_INT;
-			result->value.intval = value->value.strval[_index];
-			return result;
-		}
-		else
-		{
-			ptrs_error(expr.left, "Cannot get index %d of type %s", _index, ptrs_typetoa(valuet));
-		}
+		return &(value->value.ptrval[_index]);
+	}
+	else if(valuet == PTRS_TYPE_NATIVE || valuet == PTRS_TYPE_STRING)
+	{
+		result->type = valuet;
+		result->value.intval = value->value.strval[_index];
+		return result;
 	}
 	else
 	{
-		ptrs_error(expr.right, "Index has invalid type %s", ptrs_typetoa(indext));
+		ptrs_error(expr.left, "Cannot get index %d of type %s", _index, ptrs_typetoa(valuet));
 	}
 }
 
