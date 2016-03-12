@@ -52,7 +52,6 @@ ptrs_var_t *ptrs_handle_op_mul(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 ptrs_var_t *ptrs_handle_op_div(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_op_mod(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 
-ptrs_var_t *ptrs_handle_prefix_sizeof(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_prefix_typeof(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_prefix_inc(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_prefix_dec(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
@@ -115,7 +114,6 @@ ptrs_var_t *ptrs_handle_suffix_dec(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 #define PTRS_HANDLE_OP_DIV ptrs_handle_op_div
 #define PTRS_HANDLE_OP_MOD ptrs_handle_op_mod
 
-#define PTRS_HANDLE_OP_SIZEOF ptrs_handle_prefix_sizeof
 #define PTRS_HANDLE_OP_TYPEOF ptrs_handle_prefix_typeof
 #define PTRS_HANDLE_PREFIX_INC ptrs_handle_prefix_inc
 #define PTRS_HANDLE_PREFIX_DEC ptrs_handle_prefix_dec
