@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
 
 #include "../../parser/common.h"
 #include "../../parser/ast.h"
@@ -11,12 +12,14 @@ void print_pos(ptrs_ast_t *ast)
 	{
 		int line = 1;
 		int column = 1;
+		char *currLine = ast->code;
 		for(int i = 0; i < ast->codepos; i++)
 		{
 			if(ast->code[i] == '\n')
 			{
 				line++;
 				column = 1;
+				currLine = &(ast->code[i + 1]);
 			}
 			else
 			{
@@ -24,7 +27,15 @@ void print_pos(ptrs_ast_t *ast)
 			}
 		}
 
-		printf(" at line %d column %d\n", line, column);
+		int linelen = strchr(currLine, '\n') - currLine - 1;
+		fprintf(stderr, " at line %d column %d\n%.*s\n", line, column, linelen, currLine);
+		
+		int linePos = (ast->code + ast->codepos) - currLine;
+		for(int i = 0; i < linePos; i++)
+		{
+			fprintf(stderr, currLine[i] == '\t' ? "\t" : " ");
+		}
+		fprintf(stderr, "^\n");
 	}
 	else
 	{
