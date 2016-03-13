@@ -81,7 +81,7 @@ void ptrs_vartoa(ptrs_var_t *val, char *buff, size_t maxlen)
 			strncpy(buff, "undefined", maxlen);
 			break;
 		case PTRS_TYPE_INT:
-			snprintf(buff, maxlen, "%d", val->value.intval);
+			snprintf(buff, maxlen, "%ld", val->value.intval);
 			break;
 		case PTRS_TYPE_FLOAT:
 			snprintf(buff, maxlen, "%f", val->value.floatval);

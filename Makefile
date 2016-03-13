@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = --std=gnu99 -g2
+CFLAGS = -Wall --std=gnu99 -g2
 BIN = bin
 
 SHARED_OBJECTS += $(BIN)/ast.o

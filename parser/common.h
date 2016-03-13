@@ -30,7 +30,7 @@ typedef union val
 {
 	int64_t intval;
 	double floatval;
-	signed char *strval;
+	char *strval;
 	struct ptrs_var *ptrval;
 	void *nativeval;
 	ptrs_object_t *objval;

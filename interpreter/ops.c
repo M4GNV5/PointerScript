@@ -86,15 +86,15 @@ handle_binary(mod, %, "%", /*nothing*/, PTRS_TYPE_UNDEFINED, PTRS_TYPE_UNDEFINED
 
 ptrs_var_t *ptrs_handle_op_assign(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	ptrs_var_t leftv;
 	ptrs_var_t rightv;
 	struct ptrs_ast_binary expr = node->arg.binary;
 
-	ptrs_var_t *left = expr.left->handler(expr.left, &leftv, scope);
+	ptrs_var_t *left = expr.left->handler(expr.left, result, scope);
 	ptrs_var_t *right = expr.right->handler(expr.right, &rightv, scope);
 
 	left->type = right->type;
 	left->value = right->value;
+	return left;
 }
 
 #define handle_assign(name, opfunc) \
@@ -118,7 +118,6 @@ handle_assign(orassign, ptrs_handle_op_or)
 #define handle_prefix(name, operator, opLabel, handlefloat, handleptr) \
 	ptrs_var_t *ptrs_handle_prefix_##name(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope) \
 	{ \
-		ptrs_var_t valuev; \
 		ptrs_var_t *value = node->arg.astval->handler(node->arg.astval, result, scope); \
 		ptrs_vartype_t type = value->type; \
 		\
@@ -153,7 +152,6 @@ handle_prefix(minus, -, "-", handle_prefix_float(-), /*nothing*/)
 #define handle_suffix(name, operator, opLabel) \
 	ptrs_var_t *ptrs_handle_suffix_##name(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope) \
 	{ \
-		ptrs_var_t valuev; \
 		ptrs_var_t *value = node->arg.astval->handler(node->arg.astval, result, scope); \
 		ptrs_vartype_t type = value->type; \
 		\

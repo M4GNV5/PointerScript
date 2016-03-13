@@ -63,6 +63,7 @@ ptrs_var_t *ptrs_handle_prefix_address(ptrs_ast_t *node, ptrs_var_t *result, ptr
 
 	result->type = PTRS_TYPE_POINTER;
 	result->value.ptrval = val;
+	return result;
 }
 
 ptrs_var_t *ptrs_handle_prefix_dereference(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
@@ -83,6 +84,7 @@ ptrs_var_t *ptrs_handle_prefix_dereference(ptrs_ast_t *node, ptrs_var_t *result,
 	{
 		ptrs_error(node, "Cannot dereference variable of type %s", ptrs_typetoa(valuet));
 	}
+	return result;
 }
 
 ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
@@ -105,12 +107,12 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	{
 		result->type = valuet;
 		result->value.intval = value->value.strval[_index];
-		return result;
 	}
 	else
 	{
 		ptrs_error(expr.left, "Cannot get index %d of type %s", _index, ptrs_typetoa(valuet));
 	}
+	return result;
 }
 
 ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
