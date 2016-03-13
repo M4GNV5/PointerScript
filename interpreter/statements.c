@@ -27,6 +27,8 @@ ptrs_var_t *ptrs_handle_define(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 
 	if(stmt.value != NULL)
 		result = stmt.value->handler(stmt.value, result, scope);
+	else
+		result->type = PTRS_TYPE_UNDEFINED;
 
 	ptrs_scope_set(scope, stmt.name, ptrs_vardup(result));
 
