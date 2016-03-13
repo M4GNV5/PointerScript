@@ -3,22 +3,25 @@ Wild mixture of C and Javascript
 
 ##Example code
 ```javascript
-import "printf", "malloc", "free" from "libc.so.6";
+//this program prints the fibonacci sequence from 0 to n
+//n will be read from stdin
 
-var answer = 6 * 7;
-printf("THE answer = %d\n", answer);
+//import printf for output and scanf for input
+import "printf", "scanf" from "libc.so.6";
 
-var names = malloc(sizeof(var) * 4);
-names = (pointer)names; //return values of native functiosn are saved in ints
-names[0] = "Linus";
-names[1] = "Magnus";
-names[2] = "rand";
+//read fibonacci count from stdin
+var count = 0;
+printf("Fibonacci count: ");
+scanf("%d", &count);
 
-var libc = "libc.so.6";
-import names[2] from libc;
-
-var index = rand();
-printf("random name = %s\n", names[index]);
-
-free(names); //for good measure
+var curr = 1;
+var old = 0;
+for(var i = 0; i <= count; i++)
+{
+	printf("Fibonacci %d = %d\n", i, curr);
+	
+	var tmp = old + curr;
+	old = curr;
+	curr = tmp;
+}
 ```
