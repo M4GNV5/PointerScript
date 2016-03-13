@@ -93,6 +93,9 @@ ptrs_ast_t *parseStmtList(code_t *code, char end)
 ptrs_ast_t *parseStatement(code_t *code)
 {
 	ptrs_ast_t *stmt = talloc(ptrs_ast_t);
+	stmt->codepos = code->pos;
+	stmt->code = code->src;
+	
 	if(lookahead(code, "var"))
 	{
 		stmt->arg.define.name = readIdentifier(code);
@@ -303,6 +306,7 @@ ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 	while(ahead != NULL && ahead->precendence >= minPrec)
 	{
 		struct opinfo *op = ahead;
+		int pos = code->pos;
 		consume(code, ahead->op);
 		ptrs_ast_t *right = parseUnaryExpr(code);
 		ahead = peekBinaryOp(code);
@@ -318,6 +322,8 @@ ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 		left->handler = op->handler;
 		left->arg.binary.left = _left;
 		left->arg.binary.right = right;
+		left->codepos = pos;
+		left->code = code->src;
 	}
 	return left;
 }
@@ -325,6 +331,7 @@ ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 ptrs_ast_t *parseUnaryExpr(code_t *code)
 {
 	char curr = code->curr;
+	int pos = code->pos;
 	ptrs_ast_t *ast;
 
 	for(int i = 0; i < prefixOpCount; i++)
@@ -334,6 +341,8 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 			ast = talloc(ptrs_ast_t);
 			ast->arg.astval = parseUnaryExpr(code);
 			ast->handler = prefixOps[i].handler;
+			ast->codepos = pos;
+			ast->code = code->src;
 			return ast;
 		}
 	}
@@ -410,13 +419,17 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 	{
 		return NULL;
 	}
-
+	
+	ast->codepos = pos;
+	ast->code = code->src;
 	curr = code->curr;
 	if(curr == '(')
 	{
-		consumec(code, '(');
 		ptrs_ast_t *call = talloc(ptrs_ast_t);
 		call->handler = PTRS_HANDLE_CALL;
+		call->codepos = code->pos;
+		call->code = code->src;
+		consumec(code, '(');
 
 		call->arg.call.value = ast;
 		call->arg.call.arguments = parseExpressionList(code, ')');
@@ -426,9 +439,11 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 	}
 	else if(curr == '[')
 	{
-		consumec(code, '[');
 		ptrs_ast_t *indexExpr = talloc(ptrs_ast_t);
 		indexExpr->handler = PTRS_HANDLE_INDEX;
+		indexExpr->codepos = code->pos;
+		indexExpr->code = code->src;
+		consumec(code, '[');
 
 		indexExpr->arg.binary.left = ast;
 		indexExpr->arg.binary.right = parseExpression(code);
@@ -437,11 +452,14 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 		consumec(code, ']');
 	}
 
+	pos = code->pos;
 	for(int i = 0; i < suffixedOpCount; i++)
 	{
 		if(lookahead(code, suffixedOps[i].op))
 		{
 			ptrs_ast_t *opAst = talloc(ptrs_ast_t);
+			opAst->codepos = pos;
+			opAst->code = code->src;
 			opAst->arg.astval = ast;
 			opAst->handler = suffixedOps[i].handler;
 			return opAst;
