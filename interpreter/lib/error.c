@@ -27,7 +27,7 @@ void print_pos(ptrs_ast_t *ast)
 			}
 		}
 
-		int linelen = strchr(currLine, '\n') - currLine - 1;
+		int linelen = strchr(currLine, '\n') - currLine;
 		fprintf(stderr, " at line %d column %d\n%.*s\n", line, column, linelen, currLine);
 		
 		int linePos = (ast->code + ast->codepos) - currLine;
