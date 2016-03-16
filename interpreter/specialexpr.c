@@ -136,24 +136,9 @@ ptrs_var_t *ptrs_handle_identifier(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 	return result;
 }
 
-ptrs_var_t *ptrs_handle_string(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+ptrs_var_t *ptrs_handle_constant(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	result->type = PTRS_TYPE_STRING;
-	result->value.strval = node->arg.strval;
-	return result;
-}
-
-ptrs_var_t *ptrs_handle_int(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
-{
-	result->type = PTRS_TYPE_INT;
-	result->value.intval = node->arg.intval;
-	return result;
-}
-
-ptrs_var_t *ptrs_handle_float(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
-{
-	result->type = PTRS_TYPE_FLOAT;
-	result->value.floatval = node->arg.floatval;
+	memcpy(result, &(node->arg.constval), sizeof(ptrs_var_t));
 	return result;
 }
 

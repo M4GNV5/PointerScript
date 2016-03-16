@@ -324,6 +324,21 @@ ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 	return left;
 }
 
+struct constinfo
+{
+	char *text;
+	ptrs_vartype_t type;
+	ptrs_val_t value;
+};
+struct constinfo constants[] = {
+	{"true", PTRS_TYPE_INT, {true}},
+	{"false", PTRS_TYPE_INT, {false}},
+	{"NULL", PTRS_TYPE_NATIVE, {NULL}},
+	{"null", PTRS_TYPE_POINTER, {NULL}},
+	{"undefined", PTRS_TYPE_UNDEFINED, {42}}
+};
+int constantCount = sizeof(constants) / sizeof(struct constinfo);
+
 ptrs_ast_t *parseUnaryExpr(code_t *code)
 {
 	char curr = code->curr;
@@ -343,6 +358,18 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 		}
 	}
 
+	for(int i = 0; i < constantCount; i++)
+	{
+		if(lookahead(code, constants[i].text))
+		{
+			ast = talloc(ptrs_ast_t);
+			ast->arg.constval.type = constants[i].type;
+			ast->arg.constval.value = constants[i].value;
+			ast->handler = PTRS_HANDLE_CONSTANT;
+			return ast;
+		}
+	}
+
 	if(isalpha(curr) || curr == '_')
 	{
 		ast = talloc(ptrs_ast_t);
@@ -353,34 +380,34 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 	{
 		int startPos = code->pos;
 		ast = talloc(ptrs_ast_t);
-		ast->arg.intval = readInt(code, 10);
+		ast->handler = PTRS_HANDLE_CONSTANT;
+		
+		ast->arg.constval.type = PTRS_TYPE_INT;
+		ast->arg.constval.value.intval = readInt(code, 10);
 
 		if(code->curr == '.' || code->curr == 'e')
 		{
 			code->pos = startPos;
 			code->curr = code->src[code->pos];
-			ast->arg.floatval = readDouble(code);
-			ast->handler = PTRS_HANDLE_FLOAT;
-		}
-		else
-		{
-			ast->handler = PTRS_HANDLE_INTEGER;
+			ast->arg.constval.type = PTRS_TYPE_FLOAT;
+			ast->arg.constval.value.floatval = readDouble(code);
 		}
 	}
 	else if(curr == '\'')
 	{
 		consumec(code, '\'');
 		ast = talloc(ptrs_ast_t);
-		ast->handler = PTRS_HANDLE_INTEGER;
+		ast->handler = PTRS_HANDLE_CONSTANT;
+		ast->arg.constval.type = PTRS_TYPE_INT;
 
 		if(curr == '\\')
 		{
 			rawnext(code);
-			ast->arg.intval = readEscapeSequence(code);
+			ast->arg.constval.value.intval = readEscapeSequence(code);
 		}
 		else
 		{
-			ast->arg.intval = code->curr;
+			ast->arg.constval.value.intval = code->curr;
 		}
 		rawnext(code);
 		consumec(code, '\'');
@@ -389,8 +416,9 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 	{
 		consumec(code, '"');
 		ast = talloc(ptrs_ast_t);
-		ast->arg.strval = readString(code);
-		ast->handler = PTRS_HANDLE_STRING;
+		ast->arg.constval.type = PTRS_TYPE_STRING;
+		ast->arg.constval.value.strval = readString(code);
+		ast->handler = PTRS_HANDLE_CONSTANT;
 		consumec(code, '"');
 	}
 	else if(curr == '(')
