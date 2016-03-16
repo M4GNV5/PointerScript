@@ -139,7 +139,7 @@ ptrs_var_t *ptrs_handle_identifier(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 ptrs_var_t *ptrs_handle_string(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	result->type = PTRS_TYPE_STRING;
-	result->value.strval = strdup(node->arg.strval);
+	result->value.strval = node->arg.strval;
 	return result;
 }
 
@@ -160,7 +160,7 @@ ptrs_var_t *ptrs_handle_float(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 ptrs_var_t *ptrs_handle_prefix_typeof(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	ptrs_var_t *val = node->arg.astval->handler(node->arg.astval, result, scope);
-	result->value.strval = strdup(ptrs_typetoa(val->type));
+	result->value.strval = ptrs_typetoa(val->type);
 	result->type = PTRS_TYPE_STRING;
 	return result;
 }
