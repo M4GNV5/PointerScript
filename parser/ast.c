@@ -333,8 +333,9 @@ struct constinfo
 struct constinfo constants[] = {
 	{"true", PTRS_TYPE_INT, {true}},
 	{"false", PTRS_TYPE_INT, {false}},
-	{"NULL", PTRS_TYPE_NATIVE, {NULL}},
-	{"null", PTRS_TYPE_POINTER, {NULL}},
+	{"NULL", PTRS_TYPE_NATIVE, {(int64_t)NULL}},
+	{"null", PTRS_TYPE_POINTER, {(int64_t)NULL}},
+	{"VARSIZE", PTRS_TYPE_INT, {sizeof(ptrs_var_t)}},
 	{"undefined", PTRS_TYPE_UNDEFINED, {42}}
 };
 int constantCount = sizeof(constants) / sizeof(struct constinfo);
