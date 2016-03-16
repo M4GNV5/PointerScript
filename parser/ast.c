@@ -136,7 +136,6 @@ ptrs_ast_t *parseStatement(code_t *code)
 		else
 		{
 			stmt->arg.control.body = parseStatement(code);
-			consumec(code, ';');
 		}
 	}
 	else if(lookahead(code, "while"))
@@ -155,7 +154,6 @@ ptrs_ast_t *parseStatement(code_t *code)
 		else
 		{
 			stmt->arg.control.body = parseStatement(code);
-			consumec(code, ';');
 		}
 	}
 	else if(lookahead(code, "do"))
@@ -170,7 +168,6 @@ ptrs_ast_t *parseStatement(code_t *code)
 		else
 		{
 			stmt->arg.control.body = parseStatement(code);
-			consumec(code, ';');
 		}
 
 		consume(code, "while");
@@ -199,7 +196,6 @@ ptrs_ast_t *parseStatement(code_t *code)
 		else
 		{
 			stmt->arg.forstatement.body = parseStatement(code);
-			consumec(code, ';');
 		}
 	}
 	else
