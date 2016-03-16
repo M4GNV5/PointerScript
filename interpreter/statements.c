@@ -83,13 +83,13 @@ ptrs_var_t *ptrs_handle_import(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 
 ptrs_var_t *ptrs_handle_if(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_control stmt = node->arg.control;
+	struct ptrs_ast_ifelse stmt = node->arg.ifelse;
 	result = stmt.condition->handler(stmt.condition, result, scope);
 
 	if(ptrs_vartob(result))
-	{
-		result = stmt.body->handler(stmt.body, result, scope);
-	}
+		result = stmt.ifBody->handler(stmt.ifBody, result, scope);
+	else if(stmt.elseBody != NULL)
+		result = stmt.elseBody->handler(stmt.elseBody, result, scope);
 
 	return result;
 }

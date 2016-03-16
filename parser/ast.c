@@ -125,17 +125,31 @@ ptrs_ast_t *parseStatement(code_t *code)
 		stmt->handler = PTRS_HANDLE_IF;
 
 		consumec(code, '(');
-		stmt->arg.control.condition = parseExpression(code);
+		stmt->arg.ifelse.condition = parseExpression(code);
 		consumec(code, ')');
 
 		if(lookahead(code, "{"))
 		{
-			stmt->arg.control.body = parseStmtList(code, '}');
+			stmt->arg.ifelse.ifBody = parseStmtList(code, '}');
 			consumec(code, '}');
 		}
 		else
 		{
-			stmt->arg.control.body = parseStatement(code);
+			stmt->arg.ifelse.ifBody = parseStatement(code);
+		}
+		
+		stmt->arg.ifelse.elseBody = NULL;
+		if(lookahead(code, "else"))
+		{
+			if(lookahead(code, "{"))
+			{
+				stmt->arg.ifelse.elseBody = parseStmtList(code, '}');
+				consumec(code, '}');
+			}
+			else
+			{
+				stmt->arg.ifelse.elseBody = parseStatement(code);
+			}
 		}
 	}
 	else if(lookahead(code, "while"))

@@ -37,6 +37,13 @@ struct ptrs_ast_call
 	struct ptrs_astlist *arguments;
 };
 
+struct ptrs_ast_ifelse
+{
+	struct ptrs_ast *condition;
+	struct ptrs_ast *ifBody;
+	struct ptrs_ast *elseBody;
+};
+
 struct ptrs_ast_control
 {
 	struct ptrs_ast *condition;
@@ -64,6 +71,7 @@ union ptrs_ast_arg
 	struct ptrs_ast_cast cast;
 	struct ptrs_ast_binary binary;
 	struct ptrs_ast_call call;
+	struct ptrs_ast_ifelse ifelse;
 	struct ptrs_ast_control control;
 	struct ptrs_ast_for forstatement;
 };
