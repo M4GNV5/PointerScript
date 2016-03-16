@@ -395,7 +395,7 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 	}
 	else if(curr == '\'')
 	{
-		consumec(code, '\'');
+		rawnext(code);
 		ast = talloc(ptrs_ast_t);
 		ast->handler = PTRS_HANDLE_CONSTANT;
 		ast->arg.constval.type = PTRS_TYPE_INT;
@@ -414,7 +414,7 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 	}
 	else if(curr == '"')
 	{
-		consumec(code, '"');
+		rawnext(code);
 		ast = talloc(ptrs_ast_t);
 		ast->arg.constval.type = PTRS_TYPE_STRING;
 		ast->arg.constval.value.strval = readString(code);
