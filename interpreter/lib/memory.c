@@ -14,10 +14,10 @@ ptrs_var_t *ptrs_alloc()
 	if(ptrs_heap == NULL)
 	{
 		ptrs_heap_start = malloc(PTRS_VARSPACE_SIZE);
-		ptrs_heap = ptrs_heap_start - sizeof(ptrs_var_t);
+		ptrs_heap = ptrs_heap_start - 1;
 	}
 
-	ptrs_heap += sizeof(ptrs_var_t);
+	ptrs_heap++;
 	if(ptrs_heap - ptrs_heap_start >= PTRS_VARSPACE_SIZE)
 	{
 		// TODO garbage collection
