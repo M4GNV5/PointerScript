@@ -120,6 +120,43 @@ ptrs_ast_t *parseStatement(code_t *code)
 
 		consumec(code, ';');
 	}
+	else if(lookahead(code, "function"))
+	{
+		stmt->handler = PTRS_HANDLE_FUNCTION;
+		stmt->arg.function.name = readIdentifier(code);
+		
+		int pos = code->pos;
+		
+		int argc = 0;
+		while(code->curr != ')')
+		{
+			next(code);
+			argc++;
+			while(code->curr != ')' && code->curr != ',')
+				next(code);
+		}
+		
+		char **args = malloc(sizeof(char *) * argc);
+		code->pos = pos;
+		code->curr = code->src[pos];
+
+		consumec(code, '(');
+		for(int i = 0; i < argc; i++)
+		{
+			args[i] = readIdentifier(code);
+			
+			if(i != argc - 1)
+				consumec(code, ',');
+		}
+		consumec(code, ')');
+		
+		stmt->arg.function.argc = argc;
+		stmt->arg.function.args = args;
+		
+		consumec(code, '{');
+		stmt->arg.function.body = parseStmtList(code, '}');
+		consumec(code, '}');
+	}
 	else if(lookahead(code, "if"))
 	{
 		stmt->handler = PTRS_HANDLE_IF;

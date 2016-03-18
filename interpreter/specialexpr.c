@@ -38,7 +38,7 @@ ptrs_var_t *ptrs_handle_call(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 
 	if(func->type == PTRS_TYPE_FUNCTION)
 	{
-		//TODO
+		result = ptrs_callfunc(func->value.funcval, result, len, args);
 	}
 	else if(func->type == PTRS_TYPE_NATIVE)
 	{

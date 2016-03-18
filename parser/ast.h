@@ -19,6 +19,14 @@ struct ptrs_ast_import
 	struct ptrs_ast *from;
 };
 
+struct ptrs_ast_function
+{
+	char *name;
+	int argc;
+	char **args;
+	struct ptrs_ast *body;
+};
+
 struct ptrs_ast_binary
 {
 	struct ptrs_ast *left;
@@ -68,6 +76,7 @@ union ptrs_ast_arg
 
 	struct ptrs_ast_define define;
 	struct ptrs_ast_import import;
+	struct ptrs_ast_function function;
 	struct ptrs_ast_cast cast;
 	struct ptrs_ast_binary binary;
 	struct ptrs_ast_call call;

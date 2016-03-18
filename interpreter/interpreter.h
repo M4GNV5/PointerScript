@@ -8,6 +8,7 @@
 ptrs_var_t *ptrs_handle_body(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_define(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_import(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_function(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_if(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_while(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_dowhile(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
@@ -68,6 +69,7 @@ ptrs_var_t *ptrs_handle_suffix_dec(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 #define PTRS_HANDLE_BODY ptrs_handle_body
 #define PTRS_HANDLE_DEFINE ptrs_handle_define
 #define PTRS_HANDLE_IMPORT ptrs_handle_import
+#define PTRS_HANDLE_FUNCTION ptrs_handle_function
 #define PTRS_HANDLE_IF ptrs_handle_if
 #define PTRS_HANDLE_WHILE ptrs_handle_while
 #define PTRS_HANDLE_DOWHILE ptrs_handle_dowhile

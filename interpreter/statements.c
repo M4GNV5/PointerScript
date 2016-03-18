@@ -81,6 +81,25 @@ ptrs_var_t *ptrs_handle_import(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	return result;
 }
 
+ptrs_var_t *ptrs_handle_function(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_function astfunc = node->arg.function;
+	
+	ptrs_function_t *func = malloc(sizeof(ptrs_function_t));
+	func->name = astfunc.name;
+	func->argc = astfunc.argc;
+	func->args = astfunc.args;
+	func->body = astfunc.body;
+	func->scope = scope;
+	
+	ptrs_var_t *var = ptrs_alloc();
+	var->type = PTRS_TYPE_FUNCTION;
+	var->value.funcval = func;
+	
+	ptrs_scope_set(scope, astfunc.name, var);
+	return var;
+}
+
 ptrs_var_t *ptrs_handle_if(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_ifelse stmt = node->arg.ifelse;

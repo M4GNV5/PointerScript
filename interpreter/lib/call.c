@@ -4,6 +4,17 @@
 #include "../include/error.h"
 #include "../../parser/common.h"
 
+ptrs_var_t *ptrs_callfunc(ptrs_function_t *func, ptrs_var_t *result, int argc, ptrs_var_t *argv)
+{
+	for(int i = 0; i < argc && i < func->argc; i++)
+	{
+		ptrs_scope_set(func->scope, func->args[i], &argv[i]);
+	}
+	
+	result = func->body->handler(func->body, result, func->scope);
+	return result;
+}
+
 #define nativecaller_create(n, ...)\
 	intptr_t ptrs_callnative_##n(ptrs_nativefunc_t func, intptr_t *args) \
 	{ \

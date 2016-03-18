@@ -24,6 +24,21 @@ typedef struct object
 	struct object *next;
 } ptrs_object_t;
 
+typedef struct ptrs_scope
+{
+	struct ptrs_scope *outer;
+	ptrs_object_t *current;
+} ptrs_scope_t;
+
+typedef struct function
+{
+	char *name;
+	char **args;
+	int argc;
+	struct ptrs_ast *body;
+	ptrs_scope_t *scope;
+} ptrs_function_t;
+
 typedef intptr_t (*ptrs_nativefunc_t)(intptr_t arg0, ...);
 
 typedef union val
@@ -33,6 +48,7 @@ typedef union val
 	const char *strval;
 	struct ptrs_var *ptrval;
 	void *nativeval;
+	ptrs_function_t *funcval;
 	ptrs_object_t *objval;
 } ptrs_val_t;
 
