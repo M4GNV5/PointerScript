@@ -1,5 +1,6 @@
 CC = gcc
 CFLAGS = -Wall --std=gnu99 -g2
+NASMFLAGS = -f elf64
 BIN = bin
 
 SHARED_OBJECTS += $(BIN)/ast.o
@@ -12,6 +13,7 @@ RUN_LIB_OBJECTS += $(BIN)/error.o
 RUN_LIB_OBJECTS += $(BIN)/memory.o
 RUN_LIB_OBJECTS += $(BIN)/object.o
 RUN_LIB_OBJECTS += $(BIN)/scope.o
+RUN_LIB_OBJECTS += $(BIN)/callhelper.o
 RUN_LIB_OBJECTS += $(BIN)/call.o
 
 RUN_OBJECTS += $(BIN)/statements.o
@@ -34,6 +36,9 @@ $(BIN)/%.o: parser/%.c
 
 $(BIN)/%.o: interpreter/lib/%.c
 	gcc $(CFLAGS) -c $< -o $@
+	
+$(BIN)/%.o: interpreter/lib/%.asm
+	nasm $(NASMFLAGS) $< -o $@
 
 $(BIN)/%.o: interpreter/%.c
 	gcc $(CFLAGS) -c $< -o $@

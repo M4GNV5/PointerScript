@@ -49,29 +49,39 @@ nativecaller_t caller[] = {
 	ptrs_callnative_10,
 };
 
+//see callhelper.asm
+intptr_t ptrs_call_amd64ABI(void *func, int64_t *intArgv, uint8_t floatArgc, double *floatArgv);
+
 intptr_t ptrs_callnative(ptrs_nativefunc_t func, int argc, ptrs_var_t *argv)
 {
-	intptr_t args[10];
-
-	if(argc > 10)
-		ptrs_error(NULL, "Cannot call a native method with more than 10 arguments");
+	intptr_t intArgv[6];
+	uint8_t intArgc = 0;
+	
+	double floatArgv[8];
+	uint8_t floatArgc = 0;
 
 	for(int i = 0; i < argc; i++)
 	{
 		switch(argv[i].type)
 		{
-			case PTRS_TYPE_INT: // TODO test what happens here when compiling to non 64bit
 			case PTRS_TYPE_FLOAT:
-				args[i] = (intptr_t)argv[i].value.intval;
+				floatArgv[floatArgc] = argv[i].value.floatval;
+				floatArgc++;
+				break;
+			case PTRS_TYPE_INT:
+				intArgv[intArgc] = (intptr_t)argv[i].value.intval;	//this could be done by the default: case but
+				intArgc++;											//just to be sure about esoteric byte aligns
 				break;
 			case PTRS_TYPE_POINTER:
-				args[i] = (intptr_t)&(argv[i].value.ptrval->value);
+				intArgv[intArgc] = (intptr_t)&(argv[i].value.ptrval->value);
+				intArgc++;
 				break;
 			default:
-				args[i] = (intptr_t)argv[i].value.strval;
+				intArgv[intArgc] = (intptr_t)argv[i].value.strval;
+				intArgc++;
 				break;
-		}
+		}	
 	}
 
-	return caller[argc](func, args);
+	return ptrs_call_amd64ABI(func, intArgv, floatArgc, floatArgv);
 }
