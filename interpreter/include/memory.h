@@ -6,5 +6,6 @@
 
 ptrs_var_t *ptrs_alloc();
 ptrs_var_t *ptrs_vardup(ptrs_var_t *value);
+extern void *ptrs_stack;
 
 #endif

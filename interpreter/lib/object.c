@@ -24,7 +24,7 @@ ptrs_object_t *ptrs_object_set(ptrs_object_t *obj, char *key, ptrs_var_t *value)
 		}
 	}
 
-	ptrs_object_t *new = malloc(sizeof(ptrs_object_t));
+	ptrs_object_t *new = ptrs_alloc(sizeof(ptrs_object_t));
 	if(obj == NULL)
 		startObj = new;
 	else

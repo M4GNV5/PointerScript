@@ -4,33 +4,33 @@
 #include "../../parser/common.h"
 #include "../include/error.h"
 
+//TODO rework this to more dynamic memory management
 #define PTRS_VARSPACE_SIZE 1024 * 1024
 
-ptrs_var_t *ptrs_heap_start;
-ptrs_var_t *ptrs_heap;
+void *ptrs_stack_start = NULL;
+void *ptrs_stack = NULL;
 
-ptrs_var_t *ptrs_alloc()
+void *ptrs_alloc(size_t size)
 {
-	if(ptrs_heap == NULL)
+	if(ptrs_stack == NULL)
 	{
-		ptrs_heap_start = malloc(PTRS_VARSPACE_SIZE);
-		ptrs_heap = ptrs_heap_start - 1;
+		ptrs_stack_start = malloc(PTRS_VARSPACE_SIZE);
+		ptrs_stack = ptrs_stack_start - size;
 	}
 
-	ptrs_heap++;
-	if(ptrs_heap - ptrs_heap_start >= PTRS_VARSPACE_SIZE)
+	ptrs_stack += size;
+	if(ptrs_stack - ptrs_stack_start >= PTRS_VARSPACE_SIZE)
 	{
-		// TODO garbage collection
 		ptrs_error(NULL, "Out of memory");
 		return NULL;
 	}
 
-	return ptrs_heap;
+	return ptrs_stack;
 }
 
 ptrs_var_t *ptrs_vardup(ptrs_var_t *value)
 {
-	ptrs_var_t *dup = ptrs_alloc();
+	ptrs_var_t *dup = ptrs_alloc(sizeof(ptrs_var_t));
 	memcpy(dup, value, sizeof(ptrs_var_t));
 	return dup;
 }
