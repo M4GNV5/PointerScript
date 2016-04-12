@@ -107,8 +107,11 @@ const char *typeofStrings[] = {
 	"function",
 	"object"
 };
+int numTypes = sizeof(typeofStrings) / sizeof(char *);
 
 const char *ptrs_typetoa(ptrs_vartype_t type)
 {
+	if(type < 0 || type >= numTypes)
+		return "unknown";
 	return typeofStrings[type];
 }
