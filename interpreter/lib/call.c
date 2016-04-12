@@ -21,6 +21,7 @@ intptr_t ptrs_callnative(ptrs_ast_t *ast, void *func, int argc, ptrs_var_t *argv
 	ffi_cif cif;
 	ffi_type *types[32];
 	void *values[32];
+	void *pointer[32];
 
 	for(int i = 0; i < argc; i++)
 	{
@@ -33,6 +34,11 @@ intptr_t ptrs_callnative(ptrs_ast_t *ast, void *func, int argc, ptrs_var_t *argv
 			case PTRS_TYPE_INT:
 				types[i] = &ffi_type_sint64;
 				values[i] = &argv[i].value.intval;
+				break;
+			case PTRS_TYPE_POINTER:
+				types[i] = &ffi_type_pointer;
+				pointer[i] = &(argv[i].value.ptrval->value);
+				values[i] = &pointer[i];
 				break;
 			default:
 				types[i] = &ffi_type_pointer;
