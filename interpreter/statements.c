@@ -30,7 +30,7 @@ ptrs_var_t *ptrs_handle_define(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	else
 		result->type = PTRS_TYPE_UNDEFINED;
 
-	ptrs_scope_set(scope, stmt.name, ptrs_vardup(result));
+	ptrs_scope_set(scope, stmt.name, result);
 
 	return result;
 }
@@ -64,15 +64,15 @@ ptrs_var_t *ptrs_handle_import(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 		value = list->entry->handler(list->entry, &valuev, scope);
 		ptrs_vartoa(value, name, 128);
 
-		ptrs_var_t *func = ptrs_alloc(sizeof(ptrs_var_t));
-		func->type = PTRS_TYPE_NATIVE;
-		func->value.nativeval = dlsym(handle, name);
+		ptrs_var_t func;
+		func.type = PTRS_TYPE_NATIVE;
+		func.value.nativeval = dlsym(handle, name);
 
 		char *error = dlerror();
 		if(error != NULL)
 			ptrs_error(list->entry, "%s", error);
 
-		ptrs_scope_set(scope, name, func);
+		ptrs_scope_set(scope, name, &func);
 
 		list = list->next;
 	}
@@ -92,12 +92,11 @@ ptrs_var_t *ptrs_handle_function(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 	func->body = astfunc.body;
 	func->scope = scope;
 	
-	ptrs_var_t *var = ptrs_alloc(sizeof(ptrs_var_t));
-	var->type = PTRS_TYPE_FUNCTION;
-	var->value.funcval = func;
+	result->type = PTRS_TYPE_FUNCTION;
+	result->value.funcval = func;
 	
-	ptrs_scope_set(scope, astfunc.name, var);
-	return var;
+	ptrs_scope_set(scope, astfunc.name, result);
+	return result;
 }
 
 ptrs_var_t *ptrs_handle_if(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
