@@ -39,8 +39,6 @@ typedef struct function
 	ptrs_scope_t *scope;
 } ptrs_function_t;
 
-typedef intptr_t (*ptrs_nativefunc_t)(intptr_t arg0, ...);
-
 typedef union val
 {
 	int64_t intval;

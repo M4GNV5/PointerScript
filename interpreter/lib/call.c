@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdint.h>
+#include <ffi.h>
 
 #include "../include/error.h"
 #include "../../parser/common.h"
@@ -15,39 +16,35 @@ ptrs_var_t *ptrs_callfunc(ptrs_function_t *func, ptrs_var_t *result, int argc, p
 	return result;
 }
 
-//see callhelper.asm
-intptr_t ptrs_call_amd64ABI(void *func, int64_t *intArgv, uint8_t floatArgc, double *floatArgv);
-
-intptr_t ptrs_callnative(ptrs_nativefunc_t func, int argc, ptrs_var_t *argv)
+intptr_t ptrs_callnative(ptrs_ast_t *ast, void *func, int argc, ptrs_var_t *argv)
 {
-	intptr_t intArgv[6];
-	uint8_t intArgc = 0;
-	
-	double floatArgv[8];
-	uint8_t floatArgc = 0;
+	ffi_cif cif;
+	ffi_type *types[32];
+	void *values[32];
 
 	for(int i = 0; i < argc; i++)
 	{
 		switch(argv[i].type)
 		{
 			case PTRS_TYPE_FLOAT:
-				floatArgv[floatArgc] = argv[i].value.floatval;
-				floatArgc++;
+				types[i] = &ffi_type_double;
+				values[i] = &argv[i].value.floatval;
 				break;
 			case PTRS_TYPE_INT:
-				intArgv[intArgc] = (intptr_t)argv[i].value.intval;	//this could be done by the default: case but
-				intArgc++;											//just to be sure about esoteric byte aligns
-				break;
-			case PTRS_TYPE_POINTER:
-				intArgv[intArgc] = (intptr_t)&(argv[i].value.ptrval->value);
-				intArgc++;
+				types[i] = &ffi_type_sint64;
+				values[i] = &argv[i].value.intval;
 				break;
 			default:
-				intArgv[intArgc] = (intptr_t)argv[i].value.strval;
-				intArgc++;
+				types[i] = &ffi_type_pointer;
+				values[i] = &argv[i].value.strval;
 				break;
 		}	
 	}
-
-	return ptrs_call_amd64ABI(func, intArgv, floatArgc, floatArgv);
+	
+	if(ffi_prep_cif(&cif, FFI_DEFAULT_ABI, argc, &ffi_type_pointer, types) != FFI_OK)
+		ptrs_error(ast, "Could not call native function %p", func);
+		
+	int64_t retVal = 0;
+	ffi_call(&cif, func, &retVal, values);
+	return retVal;
 }

@@ -1,5 +1,6 @@
 CC = gcc
-CFLAGS = -Wall --std=gnu99 -g2
+FFI_DIR = /usr/include/x86_64-linux-gnu/
+CFLAGS = -Wall --std=gnu99 -g -I$(FFI_DIR)
 NASMFLAGS = -f elf64
 BIN = bin
 
@@ -12,7 +13,6 @@ RUN_LIB_OBJECTS += $(BIN)/conversion.o
 RUN_LIB_OBJECTS += $(BIN)/error.o
 RUN_LIB_OBJECTS += $(BIN)/object.o
 RUN_LIB_OBJECTS += $(BIN)/scope.o
-RUN_LIB_OBJECTS += $(BIN)/callhelper.o
 RUN_LIB_OBJECTS += $(BIN)/call.o
 
 RUN_OBJECTS += $(BIN)/statements.o
@@ -25,7 +25,7 @@ clean:
 	rm bin -r
 
 $(RUN): $(BIN) $(SHARED_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS)
-	gcc $(SHARED_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) -o $(BIN)/ptrs -ldl
+	gcc $(SHARED_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) -o $(BIN)/ptrs -ldl -lffi
 
 $(BIN):
 	mkdir $(BIN)
