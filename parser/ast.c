@@ -95,7 +95,7 @@ ptrs_ast_t *parseStatement(code_t *code)
 	ptrs_ast_t *stmt = talloc(ptrs_ast_t);
 	stmt->codepos = code->pos;
 	stmt->code = code->src;
-	
+
 	if(lookahead(code, "var"))
 	{
 		stmt->arg.define.name = readIdentifier(code);
@@ -124,9 +124,9 @@ ptrs_ast_t *parseStatement(code_t *code)
 	{
 		stmt->handler = PTRS_HANDLE_FUNCTION;
 		stmt->arg.function.name = readIdentifier(code);
-		
+
 		int pos = code->pos;
-		
+
 		int argc = 0;
 		while(code->curr != ')')
 		{
@@ -135,7 +135,7 @@ ptrs_ast_t *parseStatement(code_t *code)
 			while(code->curr != ')' && code->curr != ',')
 				next(code);
 		}
-		
+
 		char **args = malloc(sizeof(char *) * argc);
 		code->pos = pos;
 		code->curr = code->src[pos];
@@ -144,15 +144,15 @@ ptrs_ast_t *parseStatement(code_t *code)
 		for(int i = 0; i < argc; i++)
 		{
 			args[i] = readIdentifier(code);
-			
+
 			if(i != argc - 1)
 				consumec(code, ',');
 		}
 		consumec(code, ')');
-		
+
 		stmt->arg.function.argc = argc;
 		stmt->arg.function.args = args;
-		
+
 		consumec(code, '{');
 		stmt->arg.function.body = parseStmtList(code, '}');
 		consumec(code, '}');
@@ -174,7 +174,7 @@ ptrs_ast_t *parseStatement(code_t *code)
 		{
 			stmt->arg.ifelse.ifBody = parseStatement(code);
 		}
-		
+
 		stmt->arg.ifelse.elseBody = NULL;
 		if(lookahead(code, "else"))
 		{
@@ -433,7 +433,7 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 		int startPos = code->pos;
 		ast = talloc(ptrs_ast_t);
 		ast->handler = PTRS_HANDLE_CONSTANT;
-		
+
 		ast->arg.constval.type = PTRS_TYPE_INT;
 		ast->arg.constval.value.intval = readInt(code, 10);
 
@@ -495,7 +495,7 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 	{
 		return NULL;
 	}
-	
+
 	ast->codepos = pos;
 	ast->code = code->src;
 	curr = code->curr;

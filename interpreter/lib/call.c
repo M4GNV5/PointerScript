@@ -11,7 +11,7 @@ ptrs_var_t *ptrs_callfunc(ptrs_function_t *func, ptrs_var_t *result, int argc, p
 	{
 		ptrs_scope_set(func->scope, func->args[i], &argv[i]);
 	}
-	
+
 	result = func->body->handler(func->body, result, func->scope);
 	return result;
 }
@@ -44,12 +44,12 @@ intptr_t ptrs_callnative(ptrs_ast_t *ast, void *func, int argc, ptrs_var_t *argv
 				types[i] = &ffi_type_pointer;
 				values[i] = &argv[i].value.strval;
 				break;
-		}	
+		}
 	}
-	
+
 	if(ffi_prep_cif(&cif, FFI_DEFAULT_ABI, argc, &ffi_type_pointer, types) != FFI_OK)
 		ptrs_error(ast, "Could not call native function %p", func);
-		
+
 	int64_t retVal = 0;
 	ffi_call(&cif, func, &retVal, values);
 	return retVal;

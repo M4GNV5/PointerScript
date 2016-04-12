@@ -70,7 +70,7 @@ union ptrs_ast_arg
 {
 	char *strval;
 	ptrs_var_t constval;
-	
+
 	struct ptrs_ast *astval;
 	struct ptrs_astlist *astlist;
 

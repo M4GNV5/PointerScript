@@ -35,7 +35,7 @@ $(BIN)/%.o: parser/%.c
 
 $(BIN)/%.o: interpreter/lib/%.c
 	gcc $(CFLAGS) -c $< -o $@
-	
+
 $(BIN)/%.o: interpreter/lib/%.asm
 	nasm $(NASMFLAGS) $< -o $@
 
