@@ -19,9 +19,9 @@ ptrs_var_t *ptrs_callfunc(ptrs_function_t *func, ptrs_var_t *result, int argc, p
 intptr_t ptrs_callnative(ptrs_ast_t *ast, void *func, int argc, ptrs_var_t *argv)
 {
 	ffi_cif cif;
-	ffi_type *types[32];
-	void *values[32];
-	void *pointer[32];
+	ffi_type *types[argc];
+	void *values[argc];
+	void *pointer[argc];
 
 	for(int i = 0; i < argc; i++)
 	{

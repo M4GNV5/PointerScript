@@ -22,7 +22,7 @@ ptrs_var_t *ptrs_handle_call(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 	}
 
 	ptrs_var_t *arg;
-	ptrs_var_t *args = malloc(sizeof(ptrs_var_t) * len);
+	ptrs_var_t args[len];
 	list = expr.arguments;
 	for(int i = 0; i < len; i++)
 	{
@@ -50,7 +50,6 @@ ptrs_var_t *ptrs_handle_call(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 		ptrs_error(expr.value, "Cannot call value of type %s", ptrs_typetoa(func->type));
 	}
 
-	free(args);
 	return result;
 }
 
