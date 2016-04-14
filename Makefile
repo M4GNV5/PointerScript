@@ -14,6 +14,7 @@ RUN_LIB_OBJECTS += $(BIN)/error.o
 RUN_LIB_OBJECTS += $(BIN)/object.o
 RUN_LIB_OBJECTS += $(BIN)/scope.o
 RUN_LIB_OBJECTS += $(BIN)/call.o
+RUN_LIB_OBJECTS += $(BIN)/stack.o
 
 RUN_OBJECTS += $(BIN)/statements.o
 RUN_OBJECTS += $(BIN)/specialexpr.o

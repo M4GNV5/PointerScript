@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "../../parser/common.h"
+#include "../include/stack.h"
 
 ptrs_object_t *ptrs_object_set(ptrs_object_t *obj, char *key, ptrs_var_t *value)
 {
@@ -23,7 +24,7 @@ ptrs_object_t *ptrs_object_set(ptrs_object_t *obj, char *key, ptrs_var_t *value)
 		}
 	}
 
-	ptrs_object_t *new = malloc(sizeof(ptrs_object_t));
+	ptrs_object_t *new = ptrs_alloc(sizeof(ptrs_object_t));
 	if(obj == NULL)
 		startObj = new;
 	else
@@ -32,7 +33,7 @@ ptrs_object_t *ptrs_object_set(ptrs_object_t *obj, char *key, ptrs_var_t *value)
 	new->next = NULL;
 	new->key = strdup(key);
 
-	new->value = malloc(sizeof(ptrs_var_t));
+	new->value = ptrs_alloc(sizeof(ptrs_var_t));
 	memcpy(new->value, value, sizeof(ptrs_var_t));
 
 	return startObj;

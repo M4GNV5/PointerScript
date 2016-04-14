@@ -3,6 +3,7 @@
 #include <ffi.h>
 
 #include "../include/error.h"
+#include "../include/stack.h"
 #include "../../parser/common.h"
 
 ptrs_var_t *ptrs_callfunc(ptrs_function_t *func, ptrs_var_t *result, int argc, ptrs_var_t *argv)
@@ -12,7 +13,14 @@ ptrs_var_t *ptrs_callfunc(ptrs_function_t *func, ptrs_var_t *result, int argc, p
 		ptrs_scope_set(func->scope, func->args[i], &argv[i]);
 	}
 
-	result = func->body->handler(func->body, result, func->scope);
+	void *sp = ptrs_stack;
+	ptrs_scope_t *scope = ptrs_alloc(sizeof(ptrs_scope_t));
+	scope->current = NULL;
+	scope->outer = func->scope;
+
+	result = func->body->handler(func->body, result, scope);
+
+	ptrs_stack = sp;
 	return result;
 }
 
