@@ -120,6 +120,22 @@ ptrs_ast_t *parseStatement(code_t *code)
 
 		consumec(code, ';');
 	}
+	else if(lookahead(code, "return"))
+	{
+		stmt->handler = PTRS_HANDLE_RETURN;
+		stmt->arg.astval = parseExpression(code);
+		consumec(code, ';');
+	}
+	else if(lookahead(code, "break"))
+	{
+		stmt->handler = PTRS_HANDLE_BREAK;
+		consumec(code, ';');
+	}
+	else if(lookahead(code, "continue"))
+	{
+		stmt->handler = PTRS_HANDLE_CONTINUE;
+		consumec(code, ';');
+	}
 	else if(lookahead(code, "function"))
 	{
 		stmt->handler = PTRS_HANDLE_FUNCTION;

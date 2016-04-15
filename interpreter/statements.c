@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include <dlfcn.h>
 
 #include "../parser/ast.h"
@@ -12,10 +13,19 @@ ptrs_var_t *ptrs_handle_body(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 {
 	struct ptrs_astlist *list = node->arg.astlist;
 	ptrs_var_t *_result;
+	result->exit = 0;
 
 	while(list)
 	{
 		_result = list->entry->handler(list->entry, result, scope);
+
+		if(_result->exit != 0)
+		{
+			if(_result->exit == 1)
+				_result->exit = 0;
+			return _result;
+		}
+
 		list = list->next;
 	}
 	return _result;
@@ -80,6 +90,30 @@ ptrs_var_t *ptrs_handle_import(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	return result;
 }
 
+ptrs_var_t *ptrs_handle_return(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	ptrs_ast_t *ast = node->arg.astval;
+	ptrs_var_t *val = ast->handler(ast, result, scope);
+
+	if(val != result)
+		memcpy(result, val, sizeof(ptrs_var_t));
+
+	result->exit = 3;
+	return result;
+}
+
+ptrs_var_t *ptrs_handle_break(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	result->exit = 2;
+	return result;
+}
+
+ptrs_var_t *ptrs_handle_continue(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	result->exit = 1;
+	return result;
+}
+
 ptrs_var_t *ptrs_handle_function(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_function astfunc = node->arg.function;
@@ -127,6 +161,13 @@ ptrs_var_t *ptrs_handle_while(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 
 		result = _result;
 		result = stmt.body->handler(stmt.body, result, scope);
+
+		if(result->exit != 0)
+		{
+			if(result->exit == 2)
+				result->exit = 0;
+			return result;
+		}
 	}
 
 	return result;
@@ -144,6 +185,13 @@ ptrs_var_t *ptrs_handle_dowhile(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope
 	{
 		result = _result;
 		result = stmt.body->handler(stmt.body, result, scope);
+
+		if(result->exit != 0)
+		{
+			if(result->exit == 2)
+				result->exit = 0;
+			return result;
+		}
 
 		condition = stmt.condition->handler(stmt.condition, &conditionv, scope);
 	} while(ptrs_vartob(condition));
@@ -167,6 +215,14 @@ ptrs_var_t *ptrs_handle_for(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 			break;
 
 		stmt.body->handler(stmt.body, result, scope);
+
+		if(result->exit != 0)
+		{
+			if(result->exit == 2)
+				result->exit = 0;
+			return result;
+		}
+
 		stmt.step->handler(stmt.step, result, scope);
 	}
 

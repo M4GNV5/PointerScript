@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 #include <ffi.h>
 
 #include "../include/error.h"
@@ -18,8 +19,14 @@ ptrs_var_t *ptrs_callfunc(ptrs_function_t *func, ptrs_var_t *result, int argc, p
 	scope->current = NULL;
 	scope->outer = func->scope;
 
-	result = func->body->handler(func->body, result, scope);
+	ptrs_var_t *_result = func->body->handler(func->body, result, scope);
 
+	if(_result->exit != 3)
+		result->type = PTRS_TYPE_UNDEFINED;
+	else
+		result = _result;
+
+	result->exit = 0;
 	ptrs_stack = sp;
 	return result;
 }
