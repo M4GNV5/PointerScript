@@ -435,7 +435,7 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 		ast->handler = PTRS_HANDLE_CONSTANT;
 
 		ast->arg.constval.type = PTRS_TYPE_INT;
-		ast->arg.constval.value.intval = readInt(code, 10);
+		ast->arg.constval.value.intval = readInt(code, 0);
 
 		if(code->curr == '.' || code->curr == 'e')
 		{
