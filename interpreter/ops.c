@@ -14,22 +14,67 @@ void binary_typeerror(ptrs_ast_t *node, const char *op, ptrs_vartype_t tleft, pt
 		op, ptrs_typetoa(tleft), ptrs_typetoa(tright));
 }
 
-#define binary_floatop(operator, oplabel) \
+#define binary_floatop(operator) \
 	else if(tleft == PTRS_TYPE_FLOAT || tright == PTRS_TYPE_FLOAT) \
 	{ \
-		if(tleft == PTRS_TYPE_FLOAT && tright == PTRS_TYPE_FLOAT) \
-			result->value.floatval = left->value.floatval operator right->value.floatval; \
-		else if(tleft == PTRS_TYPE_INT && tright == PTRS_TYPE_FLOAT) \
-			result->value.floatval = left->value.intval operator right->value.floatval; \
-		else if(tleft == PTRS_TYPE_FLOAT && tright == PTRS_TYPE_INT) \
-			result->value.floatval = left->value.floatval operator right->value.intval; \
-		else \
-			binary_typeerror(node, oplabel, tleft, tright); \
+		float fleft = tleft == PTRS_TYPE_FLOAT ? left->value.floatval : left->value.intval; \
+		float fright = tright == PTRS_TYPE_FLOAT ? right->value.floatval : right->value.intval; \
 		\
 		result->type = PTRS_TYPE_FLOAT; \
+		result->value.floatval = fleft operator fright; \
 	}
 
-#define handle_binary(name, operator, oplabel, floatop, ptrptr, ptrint) \
+#define binary_pointer_compare(operator) \
+	else if((tleft == PTRS_TYPE_INT || tleft == PTRS_TYPE_POINTER || tleft == PTRS_TYPE_NATIVE) \
+		&& (tright == PTRS_TYPE_INT || tright == PTRS_TYPE_POINTER || tright == PTRS_TYPE_NATIVE)) \
+	{ \
+		result->type = PTRS_TYPE_INT; \
+		result->value.intval = left->value.intval operator right->value.intval; \
+	} \
+
+#define binary_pointer_add() \
+	else if(((tleft == PTRS_TYPE_NATIVE) ^ (tright == PTRS_TYPE_NATIVE)) \
+	 	&& (tleft == PTRS_TYPE_INT || tright == PTRS_TYPE_INT)) \
+	{ \
+		result->type = PTRS_TYPE_NATIVE; \
+		result->value.intval = left->value.intval + left->value.intval; \
+	} \
+	else if(tleft == PTRS_TYPE_POINTER && tright == PTRS_TYPE_INT) \
+	{ \
+		result->type = PTRS_TYPE_POINTER; \
+		result->value.ptrval = left->value.ptrval + left->value.intval; \
+	} \
+	else if(tleft == PTRS_TYPE_INT && tright == PTRS_TYPE_POINTER) \
+	{ \
+		result->type = PTRS_TYPE_POINTER; \
+		result->value.ptrval = left->value.intval + left->value.ptrval; \
+	}
+
+#define binary_pointer_sub() \
+	else if(((tleft == PTRS_TYPE_NATIVE) ^ (tright == PTRS_TYPE_NATIVE)) \
+		&& (tleft == PTRS_TYPE_INT || tright == PTRS_TYPE_INT)) \
+	{ \
+		result->type = PTRS_TYPE_NATIVE; \
+		result->value.intval = left->value.intval - left->value.intval; \
+	} \
+	else if(tleft == PTRS_TYPE_NATIVE && tright == PTRS_TYPE_NATIVE) \
+	{ \
+		result->type = PTRS_TYPE_INT; \
+		result->value.intval = left->value.strval - left->value.strval; \
+	} \
+	else if(tleft == PTRS_TYPE_POINTER && tright == PTRS_TYPE_INT) \
+	{ \
+		result->type = PTRS_TYPE_POINTER; \
+		result->value.ptrval = left->value.ptrval - left->value.intval; \
+	} \
+	else if(tleft == PTRS_TYPE_POINTER && tright == PTRS_TYPE_POINTER) \
+	{ \
+		result->type = PTRS_TYPE_INT; \
+		result->value.intval = left->value.ptrval - left->value.ptrval; \
+	}
+
+
+#define handle_binary(name, operator, oplabel, ...) \
 	ptrs_var_t *ptrs_handle_op_##name(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope) \
 	{ \
 		ptrs_var_t leftv; \
@@ -46,17 +91,7 @@ void binary_typeerror(ptrs_ast_t *node, const char *op, ptrs_vartype_t tleft, pt
 			result->type = PTRS_TYPE_INT; \
 			result->value.intval = left->value.intval operator right->value.intval; \
 		} \
-		floatop \
-		else if((tleft == PTRS_TYPE_INT || tleft == PTRS_TYPE_POINTER || tleft == PTRS_TYPE_NATIVE) \
-			&& (tright == PTRS_TYPE_INT || tright == PTRS_TYPE_POINTER || tright == PTRS_TYPE_NATIVE)) \
-		{ \
-			ptrs_vartype_t rtype = tleft != PTRS_TYPE_INT && tright != PTRS_TYPE_INT ? ptrptr : ptrint; \
-			if(rtype == PTRS_TYPE_UNDEFINED) \
-				binary_typeerror(node, oplabel, tleft, tright); \
-			\
-			result->value.intval = left->value.intval operator right->value.intval; \
-			result->type = rtype; \
-		} \
+		__VA_ARGS__ \
 		else \
 		{ \
 			binary_typeerror(node, oplabel, tleft, tright); \
@@ -65,24 +100,24 @@ void binary_typeerror(ptrs_ast_t *node, const char *op, ptrs_vartype_t tleft, pt
 		return result; \
 	} \
 
-handle_binary(equal, ==, "==", binary_floatop(==, "=="), PTRS_TYPE_INT, PTRS_TYPE_INT)
-handle_binary(inequal, !=, "!=", binary_floatop(!=, "!="), PTRS_TYPE_INT, PTRS_TYPE_INT)
-handle_binary(lessequal, <=, "<=", binary_floatop(<=, "<="), PTRS_TYPE_INT, PTRS_TYPE_INT)
-handle_binary(greaterequal, >=, ">=", binary_floatop(>=, ">="), PTRS_TYPE_INT, PTRS_TYPE_INT)
-handle_binary(less, <, "<", binary_floatop(<, "<"), PTRS_TYPE_INT, PTRS_TYPE_INT)
-handle_binary(greater, >, ">", binary_floatop(>, ">"), PTRS_TYPE_INT, PTRS_TYPE_INT)
-handle_binary(logicor, ||, "||", binary_floatop(||, "||"), PTRS_TYPE_INT, PTRS_TYPE_INT)
-handle_binary(logicand, &&, "&&", binary_floatop(&&, "&&"), PTRS_TYPE_INT, PTRS_TYPE_INT)
-handle_binary(or, |, "|", /*nothing*/, tleft, PTRS_TYPE_INT)
-handle_binary(xor, ^, "^", /*nothing*/, tleft, PTRS_TYPE_INT)
-handle_binary(and, &, "&", /*nothing*/, tleft, PTRS_TYPE_INT)
-handle_binary(shr, >>, ">>", /*nothing*/, PTRS_TYPE_UNDEFINED, PTRS_TYPE_INT)
-handle_binary(shl, <<, "<<", /*nothing*/, PTRS_TYPE_UNDEFINED, PTRS_TYPE_INT)
-handle_binary(add, +, "+", binary_floatop(+, "+"), PTRS_TYPE_UNDEFINED, PTRS_TYPE_INT)
-handle_binary(sub, -, "-", binary_floatop(-, "-"), tleft, tleft)
-handle_binary(mul, *, "*", binary_floatop(*, "*"), PTRS_TYPE_UNDEFINED, PTRS_TYPE_UNDEFINED)
-handle_binary(div, /, "/", binary_floatop(/, "/"), PTRS_TYPE_UNDEFINED, PTRS_TYPE_UNDEFINED)
-handle_binary(mod, %, "%", /*nothing*/, PTRS_TYPE_UNDEFINED, PTRS_TYPE_UNDEFINED)
+handle_binary(equal, ==, "==", binary_floatop(==) binary_pointer_compare(==))
+handle_binary(inequal, !=, "!=", binary_floatop(!=) binary_pointer_compare(!=))
+handle_binary(lessequal, <=, "<=", binary_floatop(<=) binary_pointer_compare(<=))
+handle_binary(greaterequal, >=, ">=", binary_floatop(>=) binary_pointer_compare(>=))
+handle_binary(less, <, "<", binary_floatop(<) binary_pointer_compare(<))
+handle_binary(greater, >, ">", binary_floatop(>) binary_pointer_compare(>))
+handle_binary(logicor, ||, "||", binary_floatop(||) binary_pointer_compare(||))
+handle_binary(logicand, &&, "&&", binary_floatop(&&) binary_pointer_compare(&&))
+handle_binary(or, |, "|")
+handle_binary(xor, ^, "^")
+handle_binary(and, &, "&")
+handle_binary(shr, >>, ">>")
+handle_binary(shl, <<, "<<")
+handle_binary(add, +, "+", binary_floatop(+) binary_pointer_add())
+handle_binary(sub, -, "-", binary_floatop(-) binary_pointer_sub())
+handle_binary(mul, *, "*", binary_floatop(*))
+handle_binary(div, /, "/", binary_floatop(/))
+handle_binary(mod, %, "%")
 
 ptrs_var_t *ptrs_handle_op_assign(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
