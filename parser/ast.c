@@ -737,7 +737,8 @@ bool lookahead(code_t *code, const char *str)
 		rawnext(code);
 	}
 
-	if(isalpha(code->curr) || code->curr == '_')
+	str--;
+	if((isalpha(*str) || *str == '_') && (isalpha(code->curr) || code->curr == '_'))
 	{
 		code->pos = start;
 		code->curr = code->src[start];
