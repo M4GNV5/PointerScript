@@ -52,8 +52,8 @@ typedef union val
 
 struct ptrs_var
 {
-	ptrs_vartype_t type;
 	ptrs_val_t value;
+	ptrs_vartype_t type;
 };
 typedef struct ptrs_var ptrs_var_t;
 
