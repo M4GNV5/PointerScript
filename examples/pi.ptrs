@@ -1,0 +1,15 @@
+import "printf" from "libc.so.6";
+
+var interations = 100000;
+var pi = 0.0;
+var sign = 1;
+var step = 1.0;
+
+for(var i = 0; i < interations; i++)
+{
+	pi += sign * 4 / step;
+	step += 2;
+	sign = -sign;
+}
+
+printf("pi = %f\n", pi);

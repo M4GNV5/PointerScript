@@ -1,0 +1,21 @@
+//this program prints the fibonacci sequence from 0 to n
+//n will be read from stdin
+
+//import printf for output and scanf for input
+import "printf", "scanf" from "libc.so.6";
+
+//read fibonacci count from stdin
+var count = 0;
+printf("Fibonacci count: ");
+scanf("%d", &count);
+
+var curr = 1;
+var old = 0;
+for(var i = 0; i <= count; i++)
+{
+    printf("Fibonacci %d = %d\n", i, curr);
+
+    var tmp = old + curr;
+    old = curr;
+    curr = tmp;
+}
