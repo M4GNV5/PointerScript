@@ -736,6 +736,14 @@ bool lookahead(code_t *code, const char *str)
 		str++;
 		rawnext(code);
 	}
+
+	if(isalpha(code->curr) || code->curr == '_')
+	{
+		code->pos = start;
+		code->curr = code->src[start];
+		return false;
+	}
+
 	skipSpaces(code);
 	return true;
 }
