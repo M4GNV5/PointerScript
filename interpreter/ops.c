@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "../parser/ast.h"
 #include "../parser/common.h"
@@ -74,7 +75,7 @@ void binary_typeerror(ptrs_ast_t *node, const char *op, ptrs_vartype_t tleft, pt
 	}
 
 
-#define handle_binary(name, operator, oplabel, ...) \
+#define handle_binary(name, operator, oplabel, isAssign, ...) \
 	ptrs_var_t *ptrs_handle_op_##name(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope) \
 	{ \
 		ptrs_var_t leftv; \
@@ -97,27 +98,43 @@ void binary_typeerror(ptrs_ast_t *node, const char *op, ptrs_vartype_t tleft, pt
 			binary_typeerror(node, oplabel, tleft, tright); \
 		} \
 		\
+		if(isAssign) \
+		{ \
+			memcpy(left, result, sizeof(ptrs_var_t)); \
+			return left; \
+		} \
+		\
 		return result; \
 	} \
 
-handle_binary(equal, ==, "==", binary_floatop(==) binary_pointer_compare(==))
-handle_binary(inequal, !=, "!=", binary_floatop(!=) binary_pointer_compare(!=))
-handle_binary(lessequal, <=, "<=", binary_floatop(<=) binary_pointer_compare(<=))
-handle_binary(greaterequal, >=, ">=", binary_floatop(>=) binary_pointer_compare(>=))
-handle_binary(less, <, "<", binary_floatop(<) binary_pointer_compare(<))
-handle_binary(greater, >, ">", binary_floatop(>) binary_pointer_compare(>))
-handle_binary(logicor, ||, "||", binary_floatop(||) binary_pointer_compare(||))
-handle_binary(logicand, &&, "&&", binary_floatop(&&) binary_pointer_compare(&&))
-handle_binary(or, |, "|")
-handle_binary(xor, ^, "^")
-handle_binary(and, &, "&")
-handle_binary(shr, >>, ">>")
-handle_binary(shl, <<, "<<")
-handle_binary(add, +, "+", binary_floatop(+) binary_pointer_add())
-handle_binary(sub, -, "-", binary_floatop(-) binary_pointer_sub())
-handle_binary(mul, *, "*", binary_floatop(*))
-handle_binary(div, /, "/", binary_floatop(/))
-handle_binary(mod, %, "%")
+handle_binary(equal, ==, "==", false, binary_floatop(==) binary_pointer_compare(==))
+handle_binary(inequal, !=, "!=", false, binary_floatop(!=) binary_pointer_compare(!=))
+handle_binary(lessequal, <=, "<=", false, binary_floatop(<=) binary_pointer_compare(<=))
+handle_binary(greaterequal, >=, ">=", false, binary_floatop(>=) binary_pointer_compare(>=))
+handle_binary(less, <, "<", false, binary_floatop(<) binary_pointer_compare(<))
+handle_binary(greater, >, ">", false, binary_floatop(>) binary_pointer_compare(>))
+handle_binary(logicor, ||, "||", false, binary_floatop(||) binary_pointer_compare(||))
+handle_binary(logicand, &&, "&&", false, binary_floatop(&&) binary_pointer_compare(&&))
+handle_binary(or, |, "|", false)
+handle_binary(xor, ^, "^", false)
+handle_binary(and, &, "&", false)
+handle_binary(shr, >>, ">>", false)
+handle_binary(shl, <<, "<<", false)
+handle_binary(add, +, "+", false, binary_floatop(+) binary_pointer_add())
+handle_binary(sub, -, "-", false, binary_floatop(-) binary_pointer_sub())
+handle_binary(mul, *, "*", false, binary_floatop(*))
+handle_binary(div, /, "/", false, binary_floatop(/))
+handle_binary(mod, %, "%", false)
+handle_binary(addassign, +=, "+=", true, binary_floatop(+=))
+handle_binary(subassign, -=, "-=", true, binary_floatop(-=))
+handle_binary(mulassign, *=, "*=", true, binary_floatop(*=))
+handle_binary(divassign, /=, "/=", true, binary_floatop(/=))
+handle_binary(modassign, %=, "%=", true)
+handle_binary(shrassign, >>=, ">>=", true)
+handle_binary(shlassign, <<=, "<<=", true)
+handle_binary(andassign, &=, "&=", true)
+handle_binary(xorassign, ^=, "^=", true)
+handle_binary(orassign, |=, "|=", true)
 
 ptrs_var_t *ptrs_handle_op_assign(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
@@ -127,28 +144,9 @@ ptrs_var_t *ptrs_handle_op_assign(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sco
 	ptrs_var_t *left = expr.left->handler(expr.left, result, scope);
 	ptrs_var_t *right = expr.right->handler(expr.right, &rightv, scope);
 
-	left->type = right->type;
-	left->value = right->value;
+	memcpy(left, right, sizeof(ptrs_var_t));
 	return left;
 }
-
-#define handle_assign(name, opfunc) \
-	ptrs_var_t *ptrs_handle_op_##name(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope) \
-	{ \
-		/*TODO*/ \
-		ptrs_error(node, "Operator not yet supported"); \
-		return result; \
-	}
-handle_assign(addassign, ptrs_handle_op_add)
-handle_assign(subassign, ptrs_handle_op_sub)
-handle_assign(mulassign, ptrs_handle_op_mul)
-handle_assign(divassign, ptrs_handle_op_div)
-handle_assign(modassign, ptrs_handle_op_mod)
-handle_assign(shrassign, ptrs_handle_op_shr)
-handle_assign(shlassign, ptrs_handle_op_shl)
-handle_assign(andassign, ptrs_handle_op_and)
-handle_assign(xorassign, ptrs_handle_op_or)
-handle_assign(orassign, ptrs_handle_op_or)
 
 #define handle_prefix(name, operator, opLabel, handlefloat, handleptr) \
 	ptrs_var_t *ptrs_handle_prefix_##name(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope) \
