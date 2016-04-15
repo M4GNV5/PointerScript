@@ -77,7 +77,6 @@ ptrs_var_t *ptrs_handle_import(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 		list = list->next;
 	}
 
-	dlclose(handle);
 	return result;
 }
 
