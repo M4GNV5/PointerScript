@@ -1,11 +1,14 @@
-import "malloc", "free", "printf", "strcmp" from "libc.so.6";
-
-//calculate the size of a variable
-var varsize = (int)((pointer)0 + 1);
+import "malloc", "free", "exit", "printf", "strcmp" from "libc.so.6";
 
 //malloc an array of 3 variables
 var len = 3;
-var parts = (pointer)malloc(varsize * len);
+var parts = (pointer)malloc(VARSIZE * len);
+
+if(parts == NULL)
+{
+	printf("Out of memory\n");
+	exit(1);
+}
 
 parts[0] = "erdowie";
 parts[1] = "erdowo";
@@ -30,3 +33,5 @@ for(var i = 0; i < len; i++)
 	printf("%s ", parts[i]);
 }
 printf("\n");
+
+free(parts);
