@@ -38,17 +38,17 @@ void binary_typeerror(ptrs_ast_t *node, const char *op, ptrs_vartype_t tleft, pt
 	 	&& (tleft == PTRS_TYPE_INT || tright == PTRS_TYPE_INT)) \
 	{ \
 		result->type = PTRS_TYPE_NATIVE; \
-		result->value.intval = left->value.intval + left->value.intval; \
+		result->value.intval = left->value.intval + right->value.intval; \
 	} \
 	else if(tleft == PTRS_TYPE_POINTER && tright == PTRS_TYPE_INT) \
 	{ \
 		result->type = PTRS_TYPE_POINTER; \
-		result->value.ptrval = left->value.ptrval + left->value.intval; \
+		result->value.ptrval = left->value.ptrval + right->value.intval; \
 	} \
 	else if(tleft == PTRS_TYPE_INT && tright == PTRS_TYPE_POINTER) \
 	{ \
 		result->type = PTRS_TYPE_POINTER; \
-		result->value.ptrval = left->value.intval + left->value.ptrval; \
+		result->value.ptrval = left->value.intval + right->value.ptrval; \
 	}
 
 #define binary_pointer_sub() \
@@ -56,22 +56,22 @@ void binary_typeerror(ptrs_ast_t *node, const char *op, ptrs_vartype_t tleft, pt
 		&& (tleft == PTRS_TYPE_INT || tright == PTRS_TYPE_INT)) \
 	{ \
 		result->type = PTRS_TYPE_NATIVE; \
-		result->value.intval = left->value.intval - left->value.intval; \
+		result->value.intval = left->value.intval - right->value.intval; \
 	} \
 	else if(tleft == PTRS_TYPE_NATIVE && tright == PTRS_TYPE_NATIVE) \
 	{ \
 		result->type = PTRS_TYPE_INT; \
-		result->value.intval = left->value.strval - left->value.strval; \
+		result->value.intval = left->value.strval - right->value.strval; \
 	} \
 	else if(tleft == PTRS_TYPE_POINTER && tright == PTRS_TYPE_INT) \
 	{ \
 		result->type = PTRS_TYPE_POINTER; \
-		result->value.ptrval = left->value.ptrval - left->value.intval; \
+		result->value.ptrval = left->value.ptrval - right->value.intval; \
 	} \
 	else if(tleft == PTRS_TYPE_POINTER && tright == PTRS_TYPE_POINTER) \
 	{ \
 		result->type = PTRS_TYPE_INT; \
-		result->value.intval = left->value.ptrval - left->value.ptrval; \
+		result->value.intval = left->value.ptrval - right->value.ptrval; \
 	}
 
 
