@@ -1,0 +1,32 @@
+import "malloc", "free", "printf", "strcmp" from "libc.so.6";
+
+//calculate the size of a variable
+var varsize = (int)((pointer)0 + 1);
+
+//malloc an array of 3 variables
+var len = 3;
+var parts = (pointer)malloc(varsize * len);
+
+parts[0] = "erdowie";
+parts[1] = "erdowo";
+parts[2] = "erdogan";
+
+//simple bubble sort
+for(var i = 0; i < len - 1; i++)
+{
+	for(var j = 0; j < len - i - 1; j++)
+	{
+		if(strcmp(parts[i], parts[j]) > 0)
+		{
+			var tmp = parts[j];
+			parts[j] = parts[j + 1];
+			parts[j + 1] = tmp;
+		}
+	}
+}
+
+for(var i = 0; i < len; i++)
+{
+	printf("%s ", parts[i]);
+}
+printf("\n");
