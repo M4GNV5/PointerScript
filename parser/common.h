@@ -28,6 +28,7 @@ typedef struct ptrs_scope
 {
 	struct ptrs_scope *outer;
 	ptrs_object_t *current;
+	uint8_t exit : 2; // 00 = nothing   01 = exit block (continue)   10 = exit loop (break)   11 = exit function (return)
 } ptrs_scope_t;
 
 typedef struct function
@@ -54,7 +55,6 @@ struct ptrs_var
 {
 	ptrs_val_t value;
 	ptrs_vartype_t type;
-	uint8_t exit : 2; // 00 = nothing   01 = exit block (continue)   10 = exit loop (break)   11 = exit function (return)
 };
 typedef struct ptrs_var ptrs_var_t;
 

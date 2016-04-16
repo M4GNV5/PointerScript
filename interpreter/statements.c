@@ -13,16 +13,15 @@ ptrs_var_t *ptrs_handle_body(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 {
 	struct ptrs_astlist *list = node->arg.astlist;
 	ptrs_var_t *_result;
-	result->exit = 0;
 
 	while(list)
 	{
 		_result = list->entry->handler(list->entry, result, scope);
 
-		if(_result->exit != 0)
+		if(scope->exit != 0)
 		{
-			if(_result->exit == 1)
-				_result->exit = 0;
+			if(scope->exit == 1)
+				scope->exit = 0;
 			return _result;
 		}
 
@@ -98,19 +97,19 @@ ptrs_var_t *ptrs_handle_return(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	if(val != result)
 		memcpy(result, val, sizeof(ptrs_var_t));
 
-	result->exit = 3;
+	scope->exit = 3;
 	return result;
 }
 
 ptrs_var_t *ptrs_handle_break(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	result->exit = 2;
+	scope->exit = 2;
 	return result;
 }
 
 ptrs_var_t *ptrs_handle_continue(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	result->exit = 1;
+	scope->exit = 1;
 	return result;
 }
 
@@ -162,10 +161,10 @@ ptrs_var_t *ptrs_handle_while(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		result = _result;
 		result = stmt.body->handler(stmt.body, result, scope);
 
-		if(result->exit != 0)
+		if(scope->exit != 0)
 		{
-			if(result->exit == 2)
-				result->exit = 0;
+			if(scope->exit == 2)
+				scope->exit = 0;
 			return result;
 		}
 	}
@@ -186,10 +185,10 @@ ptrs_var_t *ptrs_handle_dowhile(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope
 		result = _result;
 		result = stmt.body->handler(stmt.body, result, scope);
 
-		if(result->exit != 0)
+		if(scope->exit != 0)
 		{
-			if(result->exit == 2)
-				result->exit = 0;
+			if(scope->exit == 2)
+				scope->exit = 0;
 			return result;
 		}
 
@@ -216,10 +215,10 @@ ptrs_var_t *ptrs_handle_for(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 
 		stmt.body->handler(stmt.body, result, scope);
 
-		if(result->exit != 0)
+		if(scope->exit != 0)
 		{
-			if(result->exit == 2)
-				result->exit = 0;
+			if(scope->exit == 2)
+				scope->exit = 0;
 			return result;
 		}
 

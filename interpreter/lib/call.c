@@ -21,12 +21,11 @@ ptrs_var_t *ptrs_callfunc(ptrs_function_t *func, ptrs_var_t *result, int argc, p
 
 	ptrs_var_t *_result = func->body->handler(func->body, result, scope);
 
-	if(_result->exit != 3)
+	if(scope->exit != 3)
 		result->type = PTRS_TYPE_UNDEFINED;
 	else
 		result = _result;
 
-	result->exit = 0;
 	ptrs_stack = sp;
 	return result;
 }
