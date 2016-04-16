@@ -9,15 +9,19 @@
 
 ptrs_var_t *ptrs_callfunc(ptrs_function_t *func, ptrs_var_t *result, int argc, ptrs_var_t *argv)
 {
-	for(int i = 0; i < argc && i < func->argc; i++)
-	{
-		ptrs_scope_set(func->scope, func->args[i], &argv[i]);
-	}
-
 	void *sp = ptrs_stack;
 	ptrs_scope_t *scope = ptrs_alloc(sizeof(ptrs_scope_t));
 	scope->current = NULL;
 	scope->outer = func->scope;
+
+	ptrs_var_t undefined = {{42}, PTRS_TYPE_UNDEFINED};
+	for(int i = 0; i < func->argc; i++)
+	{
+		if(i < argc)
+			ptrs_scope_set(scope, func->args[i], &argv[i]);
+		else
+			ptrs_scope_set(scope, func->args[i], &undefined);
+	}
 
 	ptrs_var_t *_result = func->body->handler(func->body, result, scope);
 
