@@ -5,11 +5,11 @@ function log(val)
 	var type = typeof val;
 	printf("%s - ", type);
 
-	if(strcmp(type, "int") == 0)
+	if(type == "int")
 		printf("%ld\n", val);
-	else if(strcmp(type, "float") == 0)
+	else if(type == "float")
 		printf("%f\n", val);
-	else if(strcmp(type, "string") == 0)
+	else if(type == "string")
 		printf("%s\n", val);
 	else
 		printf("%p\n", val);

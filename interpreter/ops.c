@@ -74,6 +74,27 @@ void binary_typeerror(ptrs_ast_t *node, const char *op, ptrs_vartype_t tleft, pt
 		result->value.intval = left->value.ptrval - right->value.ptrval; \
 	}
 
+#define binary_string_equal() \
+	else if(tleft == PTRS_TYPE_STRING || tright == PTRS_TYPE_STRING) \
+	{ \
+		char buff[32]; \
+		const char *strleft = left->value.strval; \
+		const char *strright = right->value.strval; \
+		if(tleft != PTRS_TYPE_STRING) \
+		{ \
+			ptrs_vartoa(left, buff, 32); \
+			strleft = buff; \
+		} \
+		else if(tright != PTRS_TYPE_STRING) \
+		{ \
+			ptrs_vartoa(right, buff, 32); \
+			strright = buff; \
+		} \
+		\
+		result->type = PTRS_TYPE_INT; \
+		result->value.intval = strcmp(strleft, strright) == 0; \
+	}
+
 
 #define handle_binary(name, operator, oplabel, isAssign, ...) \
 	ptrs_var_t *ptrs_handle_op_##name(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope) \
@@ -107,7 +128,7 @@ void binary_typeerror(ptrs_ast_t *node, const char *op, ptrs_vartype_t tleft, pt
 		return result; \
 	} \
 
-handle_binary(equal, ==, "==", false, binary_floatop(==) binary_pointer_compare(==))
+handle_binary(equal, ==, "==", false, binary_floatop(==) binary_pointer_compare(==) binary_string_equal())
 handle_binary(inequal, !=, "!=", false, binary_floatop(!=) binary_pointer_compare(!=))
 handle_binary(lessequal, <=, "<=", false, binary_floatop(<=) binary_pointer_compare(<=))
 handle_binary(greaterequal, >=, ">=", false, binary_floatop(>=) binary_pointer_compare(>=))
