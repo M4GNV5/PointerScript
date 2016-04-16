@@ -142,33 +142,43 @@ ptrs_ast_t *parseStatement(code_t *code)
 		stmt->arg.function.name = readIdentifier(code);
 
 		int pos = code->pos;
-
 		int argc = 0;
-		while(code->curr != ')')
+		consumec(code, '(');
+
+		if(code->curr == ')')
 		{
 			next(code);
-			argc++;
-			while(code->curr != ')' && code->curr != ',')
-				next(code);
+			stmt->arg.function.args = NULL;
 		}
-
-		char **args = malloc(sizeof(char *) * argc);
-		code->pos = pos;
-		code->curr = code->src[pos];
-
-		consumec(code, '(');
-		for(int i = 0; i < argc; i++)
+		else
 		{
-			args[i] = readIdentifier(code);
+			argc = 1;
+			while(code->curr != ')')
+			{
+				if(code->curr == ',')
+					argc++;
+				next(code);
+			}
 
-			if(i != argc - 1)
-				consumec(code, ',');
+			char **args = malloc(sizeof(char *) * argc);
+			code->pos = pos;
+			code->curr = code->src[pos];
+
+			consumec(code, '(');
+			for(int i = 0; i < argc; i++)
+			{
+				args[i] = readIdentifier(code);
+
+				if(i != argc - 1)
+					consumec(code, ',');
+			}
+			consumec(code, ')');
+
+
+			stmt->arg.function.args = args;
 		}
-		consumec(code, ')');
 
 		stmt->arg.function.argc = argc;
-		stmt->arg.function.args = args;
-
 		consumec(code, '{');
 		stmt->arg.function.body = parseStmtList(code, '}');
 		consumec(code, '}');
