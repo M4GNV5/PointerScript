@@ -66,7 +66,6 @@ ptrs_ast_t *parseStmtList(code_t *code, char end)
 	elem->handler = PTRS_HANDLE_BODY;
 	if(code->curr == end || code->curr == 0)
 	{
-		next(code);
 		elem->arg.astlist = NULL;
 		return elem;
 	}
