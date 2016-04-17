@@ -478,6 +478,12 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 			code->curr = code->src[code->pos];
 			ast->arg.constval.type = PTRS_TYPE_FLOAT;
 			ast->arg.constval.value.floatval = readDouble(code);
+			lookahead(code, "f");
+		}
+		else if(lookahead(code, "f"))
+		{
+			ast->arg.constval.type = PTRS_TYPE_FLOAT;
+			ast->arg.constval.value.floatval = ast->arg.constval.value.intval;
 		}
 	}
 	else if(curr == '\'')
