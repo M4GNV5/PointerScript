@@ -8,6 +8,7 @@
 #include "include/conversion.h"
 #include "include/stack.h"
 #include "include/scope.h"
+#include "include/object.h"
 
 ptrs_var_t *ptrs_handle_body(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
@@ -41,6 +42,30 @@ ptrs_var_t *ptrs_handle_define(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 
 	ptrs_scope_set(scope, stmt.name, result);
 
+	return result;
+}
+
+ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_define stmt = node->arg.define;
+
+	ptrs_var_t *val = ptrs_object_get(scope->current, stmt.name);
+	if(val != NULL)
+		ptrs_warn(node, "defining array multiple times in one scope");
+
+	val = stmt.value->handler(stmt.value, result, scope);
+	int size = ptrs_vartoi(val);
+
+	if(size <= 0 || size > PTRS_STACK_SIZE)
+		ptrs_error(node, "Trying to create array of size %d", size);
+
+	if(size % sizeof(ptrs_var_t) == 0)
+		result->type = PTRS_TYPE_POINTER;
+	else
+		result->type = PTRS_TYPE_NATIVE;
+		
+	result->value.nativeval = ptrs_alloc(size);
+	ptrs_scope_set(scope, stmt.name, result);
 	return result;
 }
 

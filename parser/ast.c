@@ -97,13 +97,23 @@ ptrs_ast_t *parseStatement(code_t *code)
 
 	if(lookahead(code, "var"))
 	{
-		stmt->arg.define.name = readIdentifier(code);
 		stmt->handler = PTRS_HANDLE_DEFINE;
+		stmt->arg.define.name = readIdentifier(code);
 
-		if(lookahead(code, "="))
+		if(lookahead(code, "["))
+		{
+			stmt->handler = PTRS_HANDLE_ARRAY;
 			stmt->arg.define.value = parseExpression(code);
+			consumec(code, ']');
+		}
+		else if(lookahead(code, "="))
+		{
+			stmt->arg.define.value = parseExpression(code);
+		}
 		else
+		{
 			stmt->arg.define.value = NULL;
+		}
 
 		consumec(code, ';');
 	}
