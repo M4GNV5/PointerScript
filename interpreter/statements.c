@@ -63,7 +63,7 @@ ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		result->type = PTRS_TYPE_POINTER;
 	else
 		result->type = PTRS_TYPE_NATIVE;
-		
+
 	result->value.nativeval = ptrs_alloc(size);
 	ptrs_scope_set(scope, stmt.name, result);
 	return result;
@@ -153,6 +153,15 @@ ptrs_var_t *ptrs_handle_function(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 	result->value.funcval = func;
 
 	ptrs_scope_set(scope, astfunc.name, result);
+	return result;
+}
+
+ptrs_var_t *ptrs_handle_struct(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	result->type = PTRS_TYPE_STRUCT;
+	result->value.structval = &node->arg.structval;
+	result->value.structval->scope = scope;
+	ptrs_scope_set(scope, node->arg.structval.name, result);
 	return result;
 }
 

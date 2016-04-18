@@ -14,7 +14,7 @@ typedef enum type
 	PTRS_TYPE_STRING,
 	PTRS_TYPE_POINTER,
 	PTRS_TYPE_FUNCTION,
-	PTRS_TYPE_OBJECT
+	PTRS_TYPE_STRUCT
 } ptrs_vartype_t;
 
 typedef struct object
@@ -40,6 +40,22 @@ typedef struct function
 	ptrs_scope_t *scope;
 } ptrs_function_t;
 
+struct ptrs_structlist
+{
+	char *name;
+	unsigned int offset;
+	ptrs_function_t *function;
+	struct ptrs_structlist *next;
+};
+typedef struct struc
+{
+	char *name;
+	struct ptrs_structlist *member;
+	ptrs_scope_t *scope;
+	int size;
+	void *data;
+} ptrs_struct_t;
+
 typedef union val
 {
 	int64_t intval;
@@ -48,7 +64,7 @@ typedef union val
 	struct ptrs_var *ptrval;
 	void *nativeval;
 	ptrs_function_t *funcval;
-	ptrs_object_t *objval;
+	ptrs_struct_t *structval;
 } ptrs_val_t;
 
 struct ptrs_var

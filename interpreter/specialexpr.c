@@ -12,45 +12,66 @@
 ptrs_var_t *ptrs_handle_call(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_call expr = node->arg.call;
-
-	int len = 0;
-	struct ptrs_astlist *list = expr.arguments;
-	while(list)
-	{
-		len++;
-		list = list->next;
-	}
-
-	ptrs_var_t *arg;
-	ptrs_var_t args[len];
-	list = expr.arguments;
-	for(int i = 0; i < len; i++)
-	{
-		arg = list->entry->handler(list->entry, &args[i], scope);
-
-		if(arg != &args[i])
-			memcpy(&args[i], arg, sizeof(ptrs_var_t));
-
-		list = list->next;
-	}
-
 	ptrs_var_t *func = expr.value->handler(expr.value, result, scope);
-
-	if(func->type == PTRS_TYPE_FUNCTION)
-	{
-		result = ptrs_callfunc(func->value.funcval, result, len, args);
-	}
-	else if(func->type == PTRS_TYPE_NATIVE)
-	{
-		result->type = PTRS_TYPE_INT;
-		result->value.intval = ptrs_callnative(expr.value, func->value.nativeval, len, args);
-	}
-	else
-	{
-		ptrs_error(expr.value, "Cannot call value of type %s", ptrs_typetoa(func->type));
-	}
+	result = ptrs_call(expr.value, func, result, expr.arguments, scope);
 
 	return result;
+}
+
+ptrs_var_t *ptrs_handle_new(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_call expr = node->arg.call;
+	ptrs_var_t *constructor = expr.value->handler(expr.value, result, scope);
+	ptrs_struct_t *type = constructor->value.structval;
+
+	if(constructor->type != PTRS_TYPE_STRUCT || type->data != NULL)
+		ptrs_error(node, "Variable of type %s is not a constructor", ptrs_typetoa(constructor->type));
+
+	ptrs_struct_t *instance = malloc(sizeof(ptrs_struct_t) + type->size);
+	memcpy(instance, type, sizeof(ptrs_struct_t));
+	instance->data = instance + 1;
+
+	struct ptrs_structlist *curr = instance->member;
+	while(curr != NULL)
+	{
+		if(curr->function != NULL)
+		{
+			ptrs_var_t *func = instance->data + curr->offset;
+			func->type = PTRS_TYPE_FUNCTION;
+			func->value.funcval = curr->function;
+			func->value.funcval->scope = type->scope;
+
+			if(strcmp(curr->name, "constructor") == 0)
+				ptrs_call(node, func, result, expr.arguments, scope);
+		}
+		curr = curr->next;
+	}
+
+	result->type = PTRS_TYPE_STRUCT;
+	result->value.structval = instance;
+	return result;
+}
+
+ptrs_var_t *ptrs_handle_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_define expr = node->arg.define;
+	ptrs_var_t *base = expr.value->handler(expr.value, result, scope);
+
+	if(base->type != PTRS_TYPE_STRUCT)
+		ptrs_error(node, "Cannot read property '%s' of type %s", expr.name, ptrs_typetoa(base->type));
+
+	ptrs_struct_t *struc = base->value.structval;
+
+	struct ptrs_structlist *curr = struc->member;
+	while(curr != NULL)
+	{
+		if(strcmp(curr->name, expr.name) == 0)
+			return struc->data + curr->offset;
+		curr = curr->next;
+	}
+
+	ptrs_error(node, "Struct of type %s has no property named '%s'", struc->name, expr.name);
+	return NULL;
 }
 
 ptrs_var_t *ptrs_handle_prefix_address(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)

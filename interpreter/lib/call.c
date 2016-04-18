@@ -4,11 +4,54 @@
 #include <ffi.h>
 
 #include "../include/error.h"
+#include "../include/conversion.h"
 #include "../include/stack.h"
+#include "../include/call.h"
 #include "../../parser/common.h"
 
-ptrs_var_t *ptrs_callfunc(ptrs_function_t *func, ptrs_var_t *result, int argc, ptrs_var_t *argv)
+ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_var_t *func, ptrs_var_t *result, struct ptrs_astlist *arguments, ptrs_scope_t *scope)
 {
+	int len = 0;
+	struct ptrs_astlist *list = arguments;
+	while(list)
+	{
+		len++;
+		list = list->next;
+	}
+
+	ptrs_var_t *arg;
+	ptrs_var_t args[len];
+	list = arguments;
+	for(int i = 0; i < len; i++)
+	{
+		arg = list->entry->handler(list->entry, &args[i], scope);
+
+		if(arg != &args[i])
+			memcpy(&args[i], arg, sizeof(ptrs_var_t));
+
+		list = list->next;
+	}
+
+	if(func->type == PTRS_TYPE_FUNCTION)
+	{
+		result = ptrs_callfunc(func, result, len, args);
+	}
+	else if(func->type == PTRS_TYPE_NATIVE)
+	{
+		result->type = PTRS_TYPE_INT;
+		result->value.intval = ptrs_callnative(ast, func->value.nativeval, len, args);
+	}
+	else
+	{
+		ptrs_error(ast, "Cannot call value of type %s", ptrs_typetoa(func->type));
+	}
+
+	return result;
+}
+
+ptrs_var_t *ptrs_callfunc(ptrs_var_t *funcvar, ptrs_var_t *result, int argc, ptrs_var_t *argv)
+{
+	ptrs_function_t *func = funcvar->value.funcval;
 	void *sp = ptrs_stack;
 	ptrs_scope_t *scope = ptrs_alloc(sizeof(ptrs_scope_t));
 	scope->current = NULL;

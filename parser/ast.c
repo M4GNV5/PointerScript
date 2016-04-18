@@ -89,6 +89,46 @@ ptrs_ast_t *parseStmtList(code_t *code, char end)
 	return elem;
 }
 
+char **parseArgumentDefinitionList(code_t *code, int *argc)
+{
+	int pos = code->pos;
+	*argc = 0;
+	consumec(code, '(');
+
+	if(code->curr == ')')
+	{
+		next(code);
+		return NULL;
+	}
+	else
+	{
+		*argc = 1;
+		while(code->curr != ')')
+		{
+			if(code->curr == ',')
+				++*argc;
+			next(code);
+		}
+
+		char **args = malloc(sizeof(char *) * *argc);
+		code->pos = pos;
+		code->curr = code->src[pos];
+
+		consumec(code, '(');
+		for(int i = 0; i < *argc; i++)
+		{
+			args[i] = readIdentifier(code);
+
+			if(i != *argc - 1)
+				consumec(code, ',');
+		}
+		consumec(code, ')');
+
+
+		return args;
+	}
+}
+
 ptrs_ast_t *parseStatement(code_t *code)
 {
 	ptrs_ast_t *stmt = talloc(ptrs_ast_t);
@@ -149,48 +189,53 @@ ptrs_ast_t *parseStatement(code_t *code)
 	{
 		stmt->handler = PTRS_HANDLE_FUNCTION;
 		stmt->arg.function.name = readIdentifier(code);
+		stmt->arg.function.args = parseArgumentDefinitionList(code, &stmt->arg.function.argc);
 
-		int pos = code->pos;
-		int argc = 0;
-		consumec(code, '(');
-
-		if(code->curr == ')')
-		{
-			next(code);
-			stmt->arg.function.args = NULL;
-		}
-		else
-		{
-			argc = 1;
-			while(code->curr != ')')
-			{
-				if(code->curr == ',')
-					argc++;
-				next(code);
-			}
-
-			char **args = malloc(sizeof(char *) * argc);
-			code->pos = pos;
-			code->curr = code->src[pos];
-
-			consumec(code, '(');
-			for(int i = 0; i < argc; i++)
-			{
-				args[i] = readIdentifier(code);
-
-				if(i != argc - 1)
-					consumec(code, ',');
-			}
-			consumec(code, ')');
-
-
-			stmt->arg.function.args = args;
-		}
-
-		stmt->arg.function.argc = argc;
 		consumec(code, '{');
 		stmt->arg.function.body = parseStmtList(code, '}');
 		consumec(code, '}');
+	}
+	else if(lookahead(code, "struct"))
+	{
+		stmt->handler = PTRS_HANDLE_STRUCT;
+		stmt->arg.structval.name = readIdentifier(code);
+		stmt->arg.structval.size = 0;
+		stmt->arg.structval.data = NULL;
+		consumec(code, '{');
+
+		struct ptrs_structlist *curr = talloc(struct ptrs_structlist);
+		stmt->arg.structval.member = curr;
+		for(;;)
+		{
+			curr->name = readIdentifier(code);
+			if(code->curr == '(')
+			{
+				ptrs_function_t *func = talloc(ptrs_function_t);
+				func->name = curr->name;
+				func->args = parseArgumentDefinitionList(code, &func->argc);
+				consumec(code, '{');
+				func->body = parseStmtList(code, '}');
+				consumec(code, '}');
+
+				curr->function = func;
+			}
+			else
+			{
+				curr->function = NULL;
+			}
+			curr->offset = stmt->arg.structval.size;
+			stmt->arg.structval.size += sizeof(ptrs_var_t);
+			consumec(code, ';');
+
+			if(code->curr == '}')
+				break;
+
+			struct ptrs_structlist *next = talloc(struct ptrs_structlist);
+			curr->next = next;
+			curr = next;
+		}
+		consumec(code, '}');
+		consumec(code, ';');
 	}
 	else if(lookahead(code, "if"))
 	{
@@ -457,7 +502,22 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 		}
 	}
 
-	if(isalpha(curr) || curr == '_')
+	if(lookahead(code, "new"))
+	{
+		ptrs_ast_t *val = talloc(ptrs_ast_t);
+		val->handler = PTRS_HANDLE_IDENTIFIER;
+		val->codepos = code->pos;
+		val->code = code->src;
+		val->arg.strval = readIdentifier(code);
+
+		consumec(code, '(');
+		ast = talloc(ptrs_ast_t);
+		ast->handler = PTRS_HANDLE_NEW;
+		ast->arg.call.value = val;
+		ast->arg.call.arguments = parseExpressionList(code, ')');
+		consumec(code, ')');
+	}
+	else if(isalpha(curr) || curr == '_')
 	{
 		ast = talloc(ptrs_ast_t);
 		ast->arg.strval = readIdentifier(code);
@@ -540,6 +600,20 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 	ast->codepos = pos;
 	ast->code = code->src;
 	curr = code->curr;
+
+	if(curr == '.')
+	{
+		ptrs_ast_t *member = talloc(ptrs_ast_t);
+		member->handler = PTRS_HANDLE_MEMBER;
+		member->codepos = code->pos;
+		member->code = code->src;
+
+		consumec(code, '.');
+		member->arg.define.value = ast;
+		member->arg.define.name = readIdentifier(code);
+
+		ast = member;
+	}
 	if(curr == '(')
 	{
 		ptrs_ast_t *call = talloc(ptrs_ast_t);
@@ -621,7 +695,7 @@ struct typeName typeNames[] = {
 	{"native", PTRS_TYPE_NATIVE},
 	{"string", PTRS_TYPE_STRING},
 	{"pointer", PTRS_TYPE_POINTER},
-	{"object", PTRS_TYPE_OBJECT}
+	{"struct", PTRS_TYPE_STRUCT}
 };
 int typeNameCount = sizeof(typeNames) / sizeof(struct typeName);
 

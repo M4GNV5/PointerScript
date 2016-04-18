@@ -104,8 +104,7 @@ const char *typeofStrings[] = {
 	"string",
 	"pointer",
 	"function",
-	"function",
-	"object"
+	"struct"
 };
 int numTypes = sizeof(typeofStrings) / sizeof(char *);
 
