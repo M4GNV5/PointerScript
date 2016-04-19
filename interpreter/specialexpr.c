@@ -9,6 +9,31 @@
 #include "include/scope.h"
 #include "include/call.h"
 
+ptrs_var_t *ptrs_struct_get(ptrs_struct_t *struc, ptrs_var_t *result, const char *key)
+{
+	struct ptrs_structlist *curr = struc->member;
+	while(curr != NULL)
+	{
+		if(strcmp(curr->name, key) == 0)
+		{
+			if(curr->function != NULL)
+			{
+				result->type = PTRS_TYPE_FUNCTION;
+				result->value.funcval = curr->function;
+				return result;
+			}
+			else
+			{
+				return struc->data + curr->offset;
+			}
+		}
+		curr = curr->next;
+	}
+
+	result->type = PTRS_TYPE_UNDEFINED;
+	return result;
+}
+
 ptrs_var_t *ptrs_handle_call(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_call expr = node->arg.call;
@@ -52,29 +77,7 @@ ptrs_var_t *ptrs_handle_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	if(base->type != PTRS_TYPE_STRUCT)
 		ptrs_error(node, "Cannot read property '%s' of type %s", expr.name, ptrs_typetoa(base->type));
 
-	ptrs_struct_t *struc = base->value.structval;
-
-	struct ptrs_structlist *curr = struc->member;
-	while(curr != NULL)
-	{
-		if(strcmp(curr->name, expr.name) == 0)
-		{
-			if(curr->function)
-			{
-				result->type = PTRS_TYPE_FUNCTION;
-				result->value.funcval = curr->function;
-				return result;
-			}
-			else
-			{
-				return struc->data + curr->offset;
-			}
-		}
-		curr = curr->next;
-	}
-
-	ptrs_error(node, "Struct of type %s has no property named '%s'", struc->name, expr.name);
-	return NULL;
+	return ptrs_struct_get(base->value.structval, result, expr.name);
 }
 
 ptrs_var_t *ptrs_handle_prefix_address(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
@@ -112,6 +115,7 @@ ptrs_var_t *ptrs_handle_prefix_dereference(ptrs_ast_t *node, ptrs_var_t *result,
 
 ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
+	char buff[32];
 	ptrs_var_t valuev;
 	ptrs_var_t indexv;
 	struct ptrs_ast_binary expr = node->arg.binary;
@@ -120,20 +124,32 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	ptrs_var_t *index = expr.right->handler(expr.right, &indexv, scope);
 
 	ptrs_vartype_t valuet = value->type;
-	int64_t _index = ptrs_vartoi(index);
 
 	if(valuet == PTRS_TYPE_POINTER)
 	{
+		int64_t _index = ptrs_vartoi(index);
 		return &(value->value.ptrval[_index]);
 	}
 	else if(valuet == PTRS_TYPE_NATIVE || valuet == PTRS_TYPE_STRING)
 	{
+		int64_t _index = ptrs_vartoi(index);
 		result->type = PTRS_TYPE_INT;
 		result->value.intval = value->value.strval[_index];
 	}
+	else if(valuet == PTRS_TYPE_STRUCT)
+	{
+		const char *key = buff;
+		if(index->type == PTRS_TYPE_STRING)
+			key = index->value.strval;
+		else
+			ptrs_vartoa(index, buff, 32);
+
+		return ptrs_struct_get(value->value.structval, result, key);
+	}
 	else
 	{
-		ptrs_error(expr.left, "Cannot get index %d of type %s", _index, ptrs_typetoa(valuet));
+		ptrs_vartoa(index, buff, 32);
+		ptrs_error(expr.left, "Cannot get index '%s' of type %s", buff, ptrs_typetoa(valuet));
 	}
 	return result;
 }
