@@ -56,6 +56,7 @@ ptrs_var_t *ptrs_callfunc(ptrs_var_t *funcvar, ptrs_var_t *result, int argc, ptr
 	ptrs_scope_t *scope = ptrs_alloc(sizeof(ptrs_scope_t));
 	scope->current = NULL;
 	scope->outer = func->scope;
+	scope->exit = 0;
 
 	ptrs_var_t undefined = {{42}, PTRS_TYPE_UNDEFINED};
 	for(int i = 0; i < func->argc; i++)
