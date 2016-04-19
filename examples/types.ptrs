@@ -8,7 +8,7 @@ function log(val)
 	if(type == "int")
 		printf("%ld\n", val);
 	else if(type == "float")
-		printf("%f\n", val);
+		printf("%g\n", val);
 	else if(type == "string")
 		printf("%s\n", val);
 	else

@@ -12,4 +12,4 @@ for(var i = 0; i < interations; i++)
 	sign = -sign;
 }
 
-printf("pi = %f\n", pi);
+printf("pi = %g\n", pi);

@@ -6,5 +6,5 @@ for(var i = 0; i < 10; i++)
 {
 	var area = i * i * pi;
 	var circumference = 2 * i * pi;
-	printf("r = %ld\t\tC = %f\t\tA = %f\n", i, circumference, area);
+	printf("r = %-20ldC = %-20gA = %g\n", i, circumference, area);
 }
