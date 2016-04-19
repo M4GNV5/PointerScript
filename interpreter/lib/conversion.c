@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <math.h>
 
 #include "../../parser/common.h"
 
@@ -54,7 +55,7 @@ double ptrs_vartof(ptrs_var_t *val)
 	switch(val->type)
 	{
 		case PTRS_TYPE_UNDEFINED:
-			return 0;
+			return NAN;
 		case PTRS_TYPE_INT:
 			return val->value.intval;
 		case PTRS_TYPE_FLOAT:
@@ -84,7 +85,7 @@ void ptrs_vartoa(ptrs_var_t *val, char *buff, size_t maxlen)
 			snprintf(buff, maxlen, "%ld", val->value.intval);
 			break;
 		case PTRS_TYPE_FLOAT:
-			snprintf(buff, maxlen, "%f", val->value.floatval);
+			snprintf(buff, maxlen, "%g", val->value.floatval);
 			break;
 		case PTRS_TYPE_STRING:
 			strncpy(buff, val->value.strval, maxlen);
