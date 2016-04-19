@@ -160,7 +160,15 @@ ptrs_var_t *ptrs_handle_struct(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 {
 	result->type = PTRS_TYPE_STRUCT;
 	result->value.structval = &node->arg.structval;
-	result->value.structval->scope = scope;
+
+	struct ptrs_structlist *curr = node->arg.structval.member;
+	while(curr != NULL)
+	{
+		if(curr->function != NULL)
+			curr->function->scope = scope;
+		curr = curr->next;
+	}
+
 	ptrs_scope_set(scope, node->arg.structval.name, result);
 	return result;
 }

@@ -31,20 +31,12 @@ ptrs_var_t *ptrs_handle_new(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 	memcpy(instance, type, sizeof(ptrs_struct_t));
 	instance->data = instance + 1;
 
-	struct ptrs_structlist *curr = instance->member;
-	while(curr != NULL)
+	if(instance->constructor != NULL)
 	{
-		if(curr->function != NULL)
-		{
-			ptrs_var_t *func = instance->data + curr->offset;
-			func->type = PTRS_TYPE_FUNCTION;
-			func->value.funcval = curr->function;
-			func->value.funcval->scope = type->scope;
-
-			if(strcmp(curr->name, "constructor") == 0)
-				ptrs_call(node, func, result, expr.arguments, scope);
-		}
-		curr = curr->next;
+		ptrs_var_t ctor;
+		ctor.type = PTRS_TYPE_FUNCTION;
+		ctor.value.funcval = instance->constructor;
+		ptrs_call(node, &ctor, result, expr.arguments, scope);
 	}
 
 	result->type = PTRS_TYPE_STRUCT;
@@ -66,7 +58,18 @@ ptrs_var_t *ptrs_handle_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	while(curr != NULL)
 	{
 		if(strcmp(curr->name, expr.name) == 0)
-			return struc->data + curr->offset;
+		{
+			if(curr->function)
+			{
+				result->type = PTRS_TYPE_FUNCTION;
+				result->value.funcval = curr->function;
+				return result;
+			}
+			else
+			{
+				return struc->data + curr->offset;
+			}
+		}
 		curr = curr->next;
 	}
 

@@ -51,7 +51,7 @@ typedef struct struc
 {
 	char *name;
 	struct ptrs_structlist *member;
-	ptrs_scope_t *scope;
+	ptrs_function_t *constructor;
 	int size;
 	void *data;
 } ptrs_struct_t;

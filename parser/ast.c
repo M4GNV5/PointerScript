@@ -200,6 +200,7 @@ ptrs_ast_t *parseStatement(code_t *code)
 	{
 		stmt->handler = PTRS_HANDLE_STRUCT;
 		stmt->arg.structval.name = readIdentifier(code);
+		stmt->arg.structval.constructor = NULL;
 		stmt->arg.structval.size = 0;
 		stmt->arg.structval.data = NULL;
 		consumec(code, '{');
@@ -218,14 +219,22 @@ ptrs_ast_t *parseStatement(code_t *code)
 				func->body = parseStmtList(code, '}');
 				consumec(code, '}');
 
+				if(strcmp(curr->name, "constructor") == 0)
+				{
+					stmt->arg.structval.constructor = func;
+					free(curr->name);
+					continue;
+				}
+
 				curr->function = func;
+				curr->offset = 0;
 			}
 			else
 			{
 				curr->function = NULL;
+				curr->offset = stmt->arg.structval.size;
+				stmt->arg.structval.size += sizeof(ptrs_var_t);
 			}
-			curr->offset = stmt->arg.structval.size;
-			stmt->arg.structval.size += sizeof(ptrs_var_t);
 			consumec(code, ';');
 
 			if(code->curr == '}')
