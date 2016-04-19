@@ -28,6 +28,7 @@ ptrs_ast_t *parseStatement(code_t *code);
 ptrs_ast_t *parseExpression(code_t *code);
 ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec);
 ptrs_ast_t *parseUnaryExpr(code_t *code);
+ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast);
 ptrs_ast_t *parseUnary(code_t *code);
 struct ptrs_astlist *parseExpressionList(code_t *code, char end);
 
@@ -599,8 +600,19 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 
 	ast->codepos = pos;
 	ast->code = code->src;
-	curr = code->curr;
 
+	ptrs_ast_t *old;
+	do {
+		old = ast;
+		ast = parseUnaryExtension(code, ast);
+	} while(ast != old);
+
+	return ast;
+}
+
+ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast)
+{
+	char curr = code->curr;
 	if(curr == '.')
 	{
 		ptrs_ast_t *member = talloc(ptrs_ast_t);
@@ -614,7 +626,7 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 
 		ast = member;
 	}
-	if(curr == '(')
+	else if(curr == '(')
 	{
 		ptrs_ast_t *call = talloc(ptrs_ast_t);
 		call->handler = PTRS_HANDLE_CALL;
@@ -642,18 +654,20 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 		ast = indexExpr;
 		consumec(code, ']');
 	}
-
-	pos = code->pos;
-	for(int i = 0; i < suffixedOpCount; i++)
+	else
 	{
-		if(lookahead(code, suffixedOps[i].op))
+		int pos = code->pos;
+		for(int i = 0; i < suffixedOpCount; i++)
 		{
-			ptrs_ast_t *opAst = talloc(ptrs_ast_t);
-			opAst->codepos = pos;
-			opAst->code = code->src;
-			opAst->arg.astval = ast;
-			opAst->handler = suffixedOps[i].handler;
-			return opAst;
+			if(lookahead(code, suffixedOps[i].op))
+			{
+				ptrs_ast_t *opAst = talloc(ptrs_ast_t);
+				opAst->codepos = pos;
+				opAst->code = code->src;
+				opAst->arg.astval = ast;
+				opAst->handler = suffixedOps[i].handler;
+				return opAst;
+			}
 		}
 	}
 
