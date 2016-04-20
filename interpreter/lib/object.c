@@ -31,7 +31,7 @@ ptrs_object_t *ptrs_object_set(ptrs_object_t *obj, const char *key, ptrs_var_t *
 		obj->next = new;
 
 	new->next = NULL;
-	new->key = strdup(key);
+	new->key = key;
 
 	new->value = ptrs_alloc(sizeof(ptrs_var_t));
 	memcpy(new->value, value, sizeof(ptrs_var_t));

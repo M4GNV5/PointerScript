@@ -107,7 +107,10 @@ ptrs_var_t *ptrs_handle_import(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 		if(error != NULL)
 			ptrs_error(list->entry, "%s", error);
 
-		ptrs_scope_set(scope, name, &func);
+		size_t len = strlen(name) + 1;
+		char *_name = ptrs_alloc(len);
+		memcpy(_name, name, len);
+		ptrs_scope_set(scope, _name, &func);
 
 		list = list->next;
 	}

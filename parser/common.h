@@ -19,7 +19,7 @@ typedef enum type
 
 typedef struct object
 {
-	char *key;
+	const char *key;
 	struct ptrs_var *value;
 	struct object *next;
 } ptrs_object_t;
