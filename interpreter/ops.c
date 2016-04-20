@@ -18,8 +18,8 @@ void binary_typeerror(ptrs_ast_t *node, const char *op, ptrs_vartype_t tleft, pt
 #define binary_floatop(operator) \
 	else if(tleft == PTRS_TYPE_FLOAT || tright == PTRS_TYPE_FLOAT) \
 	{ \
-		float fleft = tleft == PTRS_TYPE_FLOAT ? left->value.floatval : left->value.intval; \
-		float fright = tright == PTRS_TYPE_FLOAT ? right->value.floatval : right->value.intval; \
+		float fleft = ptrs_vartof(left); \
+		float fright = ptrs_vartof(right); \
 		\
 		result->type = PTRS_TYPE_FLOAT; \
 		result->value.floatval = fleft operator fright; \
@@ -78,18 +78,8 @@ void binary_typeerror(ptrs_ast_t *node, const char *op, ptrs_vartype_t tleft, pt
 	else if(tleft == PTRS_TYPE_STRING || tright == PTRS_TYPE_STRING) \
 	{ \
 		char buff[32]; \
-		const char *strleft = left->value.strval; \
-		const char *strright = right->value.strval; \
-		if(tleft != PTRS_TYPE_STRING) \
-		{ \
-			ptrs_vartoa(left, buff, 32); \
-			strleft = buff; \
-		} \
-		else if(tright != PTRS_TYPE_STRING) \
-		{ \
-			ptrs_vartoa(right, buff, 32); \
-			strright = buff; \
-		} \
+		const char *strleft = ptrs_vartoa(left, buff, 32);; \
+		const char *strright =ptrs_vartoa(right, buff, 32); \
 		\
 		result->type = PTRS_TYPE_INT; \
 		result->value.intval = strcmp(strleft, strright) == 0; \

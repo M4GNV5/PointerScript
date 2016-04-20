@@ -67,18 +67,16 @@ double ptrs_vartof(ptrs_var_t *val)
 	}
 }
 
-void ptrs_vartoa(ptrs_var_t *val, char *buff, size_t maxlen)
+const char *ptrs_vartoa(ptrs_var_t *val, char *buff, size_t maxlen)
 {
 	if(val == NULL)
-	{
-		strncpy(buff, "undefined", maxlen);
-		return;
-	}
+		return "undefined";
 
 	ptrs_vartype_t type = val->type;
 	switch(type)
 	{
 		case PTRS_TYPE_UNDEFINED:
+			return "undefined";
 			strncpy(buff, "undefined", maxlen);
 			break;
 		case PTRS_TYPE_INT:
@@ -88,13 +86,14 @@ void ptrs_vartoa(ptrs_var_t *val, char *buff, size_t maxlen)
 			snprintf(buff, maxlen, "%g", val->value.floatval);
 			break;
 		case PTRS_TYPE_STRING:
-			strncpy(buff, val->value.strval, maxlen);
+			return val->value.strval;
 			break;
 		default: //pointer type
 			snprintf(buff, maxlen, "%p", val->value.strval);
 			break;
 	}
 	buff[maxlen - 1] = 0;
+	return buff;
 }
 
 const char *typeofStrings[] = {

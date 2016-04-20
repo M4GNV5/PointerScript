@@ -62,8 +62,7 @@ int main(int argc, char **argv)
 			fgets(buff, 1024, stdin);
 			ptrs_eval(buff, &result, scope);
 
-			ptrs_vartoa(&result, buff, 1024);
-			printf("< %s\n", buff);
+			printf("< %s\n", ptrs_vartoa(&result, buff, 1024));
 		}
 	}
 	else if(argc == 2)

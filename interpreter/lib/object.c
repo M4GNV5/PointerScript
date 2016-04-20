@@ -4,7 +4,7 @@
 #include "../../parser/common.h"
 #include "../include/stack.h"
 
-ptrs_object_t *ptrs_object_set(ptrs_object_t *obj, char *key, ptrs_var_t *value)
+ptrs_object_t *ptrs_object_set(ptrs_object_t *obj, const char *key, ptrs_var_t *value)
 {
 	ptrs_object_t *startObj = obj;
 	if(obj != NULL)
@@ -39,7 +39,7 @@ ptrs_object_t *ptrs_object_set(ptrs_object_t *obj, char *key, ptrs_var_t *value)
 	return startObj;
 }
 
-ptrs_var_t *ptrs_object_get(ptrs_object_t *obj, char *key)
+ptrs_var_t *ptrs_object_get(ptrs_object_t *obj, const char *key)
 {
 	while(obj != NULL)
 	{

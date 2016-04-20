@@ -138,18 +138,13 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	}
 	else if(valuet == PTRS_TYPE_STRUCT)
 	{
-		const char *key = buff;
-		if(index->type == PTRS_TYPE_STRING)
-			key = index->value.strval;
-		else
-			ptrs_vartoa(index, buff, 32);
-
+		const char *key = ptrs_vartoa(index, buff, 32);
 		return ptrs_struct_get(value->value.structval, result, key);
 	}
 	else
 	{
-		ptrs_vartoa(index, buff, 32);
-		ptrs_error(expr.left, "Cannot get index '%s' of type %s", buff, ptrs_typetoa(valuet));
+		const char *key = ptrs_vartoa(index, buff, 32);
+		ptrs_error(expr.left, "Cannot get index '%s' of type %s", key, ptrs_typetoa(valuet));
 	}
 	return result;
 }
