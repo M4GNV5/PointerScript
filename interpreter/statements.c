@@ -75,6 +75,7 @@ ptrs_var_t *ptrs_handle_import(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	ptrs_var_t *value;
 	char namebuff[128];
 	const char *name;
+	const char *error;
 
 	struct ptrs_ast_import import = node->arg.import;
 
@@ -87,11 +88,12 @@ ptrs_var_t *ptrs_handle_import(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	}
 	else
 	{
-		handle = RTLD_DEFAULT;
+		handle = NULL;
 	}
 
-	if(handle == NULL)
-		ptrs_error(node, "%s", dlerror());
+	error = dlerror();
+	if(error != NULL)
+		ptrs_error(node, "%s", error);
 
 	struct ptrs_astlist *list = import.fields;
 	while(list != NULL)
@@ -103,7 +105,7 @@ ptrs_var_t *ptrs_handle_import(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 		func.type = PTRS_TYPE_NATIVE;
 		func.value.nativeval = dlsym(handle, name);
 
-		char *error = dlerror();
+		error = dlerror();
 		if(error != NULL)
 			ptrs_error(list->entry, "%s", error);
 
