@@ -78,6 +78,7 @@ ptrs_var_t *ptrs_handle_import(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	const char *error;
 
 	struct ptrs_ast_import import = node->arg.import;
+	dlerror();
 
 	void *handle;
 	if(import.from != NULL)
@@ -93,7 +94,7 @@ ptrs_var_t *ptrs_handle_import(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 
 	error = dlerror();
 	if(error != NULL)
-		ptrs_error(node, "%s", error);
+		ptrs_error(import.from == NULL ? node : import.from, "%s", error);
 
 	struct ptrs_astlist *list = import.fields;
 	while(list != NULL)
