@@ -1,0 +1,16 @@
+import "printf", "sprintf", "fork", "system", "sleep", "getpid", "getppid";
+
+printf("pid: %5d ppid: %5d\n", getpid(), getppid());
+var k = fork();
+printf("pid: %5d ppid: %5d result of fork: %5d\n", getpid(), getppid(), k);
+
+if(k == 0)
+{
+	sleep(1);
+}
+else
+{
+	var buff[64];
+	sprintf(buff, "pstree -a -p %ld", getppid());
+	system(buff);
+}
