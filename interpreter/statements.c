@@ -9,6 +9,7 @@
 #include "include/stack.h"
 #include "include/scope.h"
 #include "include/object.h"
+#include "include/run.h"
 
 ptrs_var_t *ptrs_handle_body(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
@@ -69,7 +70,7 @@ ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	return result;
 }
 
-ptrs_var_t *ptrs_handle_import(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+void importNative(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 {
 	ptrs_var_t valuev;
 	ptrs_var_t *value;
@@ -77,26 +78,19 @@ ptrs_var_t *ptrs_handle_import(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	const char *name;
 	const char *error;
 
-	struct ptrs_ast_import import = node->arg.import;
 	dlerror();
 
-	void *handle;
-	if(import.from != NULL)
+	void *handle = NULL;
+	if(from != NULL)
 	{
-		value = import.from->handler(import.from, &valuev, scope);
-		name = ptrs_vartoa(value, namebuff, 128);
-		handle = dlopen(name, RTLD_LAZY);
-	}
-	else
-	{
-		handle = NULL;
+		handle = dlopen(from, RTLD_LAZY);
+
+		error = dlerror();
+		if(error != NULL)
+			ptrs_error(node->arg.import.from, "%s", error);
 	}
 
-	error = dlerror();
-	if(error != NULL)
-		ptrs_error(import.from == NULL ? node : import.from, "%s", error);
-
-	struct ptrs_astlist *list = import.fields;
+	struct ptrs_astlist *list = node->arg.import.fields;
 	while(list != NULL)
 	{
 		value = list->entry->handler(list->entry, &valuev, scope);
@@ -110,12 +104,78 @@ ptrs_var_t *ptrs_handle_import(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 		if(error != NULL)
 			ptrs_error(list->entry, "%s", error);
 
-		size_t len = strlen(name) + 1;
-		char *_name = ptrs_alloc(len);
-		memcpy(_name, name, len);
-		ptrs_scope_set(scope, _name, &func);
+		if(name == namebuff)
+		{
+			size_t len = strlen(name) + 1;
+			char *_name = ptrs_alloc(len);
+			memcpy(_name, name, len);
+			name = _name;
+		}
+
+		ptrs_scope_set(scope, name, &func);
 
 		list = list->next;
+	}
+}
+
+void importScript(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
+{
+	ptrs_var_t valuev;
+	ptrs_var_t *value;
+	char namebuff[128];
+	const char *name;
+
+	ptrs_scope_t *_scope = ptrs_alloc(sizeof(ptrs_scope_t));
+	_scope->current = NULL;
+	_scope->outer = NULL;
+	_scope->exit = 0;
+
+	ptrs_dofile(from, &valuev, _scope);
+
+	struct ptrs_astlist *list = node->arg.import.fields;
+	while(list != NULL)
+	{
+		value = list->entry->handler(list->entry, &valuev, scope);
+		name = ptrs_vartoa(value, namebuff, 128);
+
+		ptrs_var_t *val = ptrs_scope_get(_scope, name);
+		if(val == NULL)
+			ptrs_error(list->entry, "Script '%s' has no property '%s'", from, name);
+
+		if(name == namebuff)
+		{
+			size_t len = strlen(name) + 1;
+			char *_name = ptrs_alloc(len);
+			memcpy(_name, name, len);
+			name = _name;
+		}
+
+		ptrs_scope_set(scope, name, val);
+
+		list = list->next;
+	}
+}
+
+ptrs_var_t *ptrs_handle_import(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	char buff[128];
+	const char *name;
+	struct ptrs_ast_import import = node->arg.import;
+
+	if(import.from != NULL)
+	{
+		ptrs_var_t *from = import.from->handler(import.from, result, scope);
+		name = ptrs_vartoa(from, buff, 128);
+
+		char *ending = strrchr(name, '.');
+		if(strcmp(ending, ".ptrs") == 0)
+			importScript(name, node, scope);
+		else
+			importNative(name, node, scope);
+	}
+	else
+	{
+		importNative(NULL, node, scope);
 	}
 
 	return result;
