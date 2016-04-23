@@ -158,6 +158,7 @@ ptrs_var_t *ptrs_handle_function(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 
 	result->type = PTRS_TYPE_FUNCTION;
 	result->value.funcval = func;
+	result->meta.this = NULL;
 
 	ptrs_scope_set(scope, astfunc.name, result);
 	return result;

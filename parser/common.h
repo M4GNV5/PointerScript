@@ -67,10 +67,16 @@ typedef union val
 	ptrs_struct_t *structval;
 } ptrs_val_t;
 
+typedef union meta
+{
+	ptrs_struct_t *this;
+} ptrs_meta_t;
+
 struct ptrs_var
 {
 	ptrs_val_t value;
 	ptrs_vartype_t type;
+	ptrs_meta_t meta;
 };
 typedef struct ptrs_var ptrs_var_t;
 
