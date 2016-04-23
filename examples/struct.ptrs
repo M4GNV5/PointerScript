@@ -1,0 +1,39 @@
+import "printf", "asprintf", "free" from "libc.so.6";
+
+function toString(val)
+{
+	var ptr = "";
+	if(typeof val == "int")
+		asprintf(&ptr, "%ld", val);
+	else if(typeof val == "float")
+		asprintf(&ptr, "%f", val);
+	else if(typeof val == "string")
+		asprintf(&ptr, "%s", val);
+	else
+		asprintf(&ptr, "%s:%p", typeof val, val);
+	return ptr;
+}
+
+struct Foo
+{
+	bar;
+	tar;
+	hololo()
+	{
+		this.bar += this.tar;
+		this.dump();
+	};
+	dump()
+	{
+		//TODO free strings alloc'ed by toString
+		printf("%-20s%-20s%-20s\n", typeof this, typeof this.bar, typeof this.tar);
+		printf("%-20p%-20s%-20s\n", this, toString(this.bar), toString(this.tar));
+	};
+};
+
+var bla = new Foo();
+bla.bar = 42;
+bla.tar = 3.1415;
+bla.dump();
+bla.hololo();
+free(bla);
