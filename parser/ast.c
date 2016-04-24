@@ -314,9 +314,42 @@ ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "for"))
 	{
+		consumec(code, '(');
+		int pos = code->pos;
+
+		if(lookahead(code, "var"))
+			stmt->arg.forin.newvar = true;
+		else
+			stmt->arg.forin.newvar = false;
+
+		if(isalpha(code->curr) || code->curr == '_')
+		{
+			stmt->arg.forin.varname = readIdentifier(code);
+
+			if(lookahead(code, "in"))
+			{
+				stmt->arg.forin.value = parseExpression(code);
+				stmt->handler = PTRS_HANDLE_FORIN;
+				consumec(code, ')');
+
+				if(lookahead(code, "{"))
+				{
+					stmt->arg.forin.body = parseStmtList(code, '}');
+					consumec(code, '}');
+				}
+				else
+				{
+					stmt->arg.forin.body = parseStatement(code);
+				}
+
+				return stmt;
+			}
+		}
+
+		code->pos = pos;
+		code->curr = code->src[pos];
 		stmt->handler = PTRS_HANDLE_FOR;
 
-		consumec(code, '(');
 		stmt->arg.forstatement.init = parseStatement(code);
 		stmt->arg.forstatement.condition = parseExpression(code);
 		consumec(code, ';');

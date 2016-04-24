@@ -338,6 +338,36 @@ ptrs_var_t *ptrs_handle_for(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 	return result;
 }
 
+ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_forin stmt = node->arg.forin;
+
+	ptrs_var_t *val = stmt.value->handler(stmt.value, result, scope);
+
+	if(val->type != PTRS_TYPE_STRUCT)
+		ptrs_error(stmt.value, "Cannot iterate over variable of type %s", ptrs_typetoa(val->type));
+
+	if(stmt.newvar)
+		ptrs_scope_set(scope, stmt.varname, result);
+	ptrs_var_t *iterval = ptrs_scope_get(scope, stmt.varname);
+
+	if(iterval == NULL)
+		ptrs_error(node, "Unknown identifier %s", stmt.varname);
+
+	struct ptrs_structlist *curr = val->value.structval->member;
+	while(curr != NULL)
+	{
+		iterval->type = PTRS_TYPE_STRING;
+		iterval->value.strval = curr->name;
+
+		stmt.body->handler(stmt.body, result, scope);
+
+		curr = curr->next;
+	}
+
+	return result;
+}
+
 ptrs_var_t *ptrs_handle_exprstatement(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	ptrs_ast_t *expr = node->arg.astval;

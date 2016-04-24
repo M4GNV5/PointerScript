@@ -18,6 +18,7 @@ ptrs_var_t *ptrs_handle_if(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *s
 ptrs_var_t *ptrs_handle_while(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_dowhile(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_for(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_exprstatement(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 
 ptrs_var_t *ptrs_handle_call(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
@@ -86,6 +87,7 @@ ptrs_var_t *ptrs_handle_suffix_dec(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 #define PTRS_HANDLE_WHILE ptrs_handle_while
 #define PTRS_HANDLE_DOWHILE ptrs_handle_dowhile
 #define PTRS_HANDLE_FOR ptrs_handle_for
+#define PTRS_HANDLE_FORIN ptrs_handle_forin
 #define PTRS_HANDLE_EXPRSTATEMENT ptrs_handle_exprstatement
 
 #define PTRS_HANDLE_CALL ptrs_handle_call

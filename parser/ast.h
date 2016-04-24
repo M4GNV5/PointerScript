@@ -1,6 +1,8 @@
 #ifndef _PTRS_AST
 #define _PTRS_AST
 
+#include <stdbool.h>
+
 struct ptrs_ast;
 struct ptrs_astlist;
 
@@ -66,6 +68,14 @@ struct ptrs_ast_for
 	struct ptrs_ast *body;
 };
 
+struct ptrs_ast_forin
+{
+	bool newvar;
+	char *varname;
+	struct ptrs_ast *value;
+	struct ptrs_ast *body;
+};
+
 union ptrs_ast_arg
 {
 	char *strval;
@@ -84,6 +94,7 @@ union ptrs_ast_arg
 	struct ptrs_ast_ifelse ifelse;
 	struct ptrs_ast_control control;
 	struct ptrs_ast_for forstatement;
+	struct ptrs_ast_forin forin;
 };
 
 typedef ptrs_var_t* (*ptrs_asthandler_t)(struct ptrs_ast *, ptrs_var_t *, ptrs_scope_t *);
