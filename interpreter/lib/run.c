@@ -6,6 +6,8 @@
 #include "../../parser/common.h"
 #include "../include/scope.h"
 
+const char *ptrs_file = NULL;
+
 void ptrs_eval(char *src, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	if(scope == NULL)
@@ -42,5 +44,8 @@ void ptrs_dofile(const char *file, ptrs_var_t *result, ptrs_scope_t *scope)
 	fclose(fd);
 	src[fsize] = 0;
 
+	const char *oldFile = ptrs_file;
+	ptrs_file = file;
 	ptrs_eval(src, result, scope);
+	ptrs_file = oldFile;
 }
