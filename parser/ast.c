@@ -6,6 +6,7 @@
 
 #include "common.h"
 #include "../interpreter/interpreter.h"
+#include "../interpreter/include/error.h"
 #include "ast.h"
 
 #define talloc(type) malloc(sizeof(type))
@@ -16,12 +17,6 @@ typedef struct code
 	char curr;
 	int pos;
 } code_t;
-
-typedef struct codepos
-{
-	int line;
-	int column;
-} codepos_t;
 
 ptrs_ast_t *parseStmtList(code_t *code, char end);
 ptrs_ast_t *parseStatement(code_t *code);
@@ -48,7 +43,6 @@ void rawnext(code_t *code);
 bool skipSpaces(code_t *code);
 bool skipComments(code_t *code);
 
-void getPos(code_t *code, codepos_t *pos);
 void unexpected(code_t *code, const char *expected);
 
 ptrs_ast_t *parse(char *src)
@@ -957,30 +951,11 @@ void rawnext(code_t *code)
 	code->curr = code->src[code->pos];
 }
 
-void getPos(code_t *code, codepos_t *pos)
-{
-	pos->line = 1;
-	pos->column = 1;
-	for(int i = 0; i < code->pos; i++)
-	{
-		char curr = code->src[i];
-		if(curr == '\n')
-		{
-			pos->line++;
-			pos->column = 1;
-		}
-		else
-		{
-			pos->column++;
-		}
-	}
-}
-
 void unexpected(code_t *code, const char *expected)
 {
-	codepos_t pos;
-	getPos(code, &pos);
+	ptrs_ast_t node;
+	node.codepos = code->pos;
+	node.code = code->src;
 
-	fprintf(stderr, "Expecting %s got '%c' at line %d column %d\n", expected, code->curr, pos.line, pos.column);
-	exit(1);
+	ptrs_error(&node, "Expecting %s got '%c'", expected, code->curr);
 }
