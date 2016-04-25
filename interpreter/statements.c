@@ -8,7 +8,6 @@
 #include "include/conversion.h"
 #include "include/stack.h"
 #include "include/scope.h"
-#include "include/object.h"
 #include "include/run.h"
 
 ptrs_var_t *ptrs_handle_body(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
@@ -50,11 +49,7 @@ ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 {
 	struct ptrs_ast_define stmt = node->arg.define;
 
-	ptrs_var_t *val = ptrs_object_get(scope->current, stmt.name);
-	if(val != NULL)
-		ptrs_warn(node, "defining array multiple times in one scope");
-
-	val = stmt.value->handler(stmt.value, result, scope);
+	ptrs_var_t *val = stmt.value->handler(stmt.value, result, scope);
 	int size = ptrs_vartoi(val);
 
 	if(size <= 0 || size > PTRS_STACK_SIZE)
