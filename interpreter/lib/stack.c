@@ -1,22 +1,20 @@
 #include <stdlib.h>
 #include "../include/stack.h"
+#include "../include/scope.h"
 #include "../include/error.h"
 
-void *ptrs_stack = NULL;
-void *ptrs_stackstart = NULL;
-
-void *ptrs_alloc(size_t size)
+void *ptrs_alloc(ptrs_scope_t *scope, size_t size)
 {
-	if(ptrs_stackstart == NULL)
+	if(scope->sp == NULL)
 	{
-		ptrs_stackstart = malloc(PTRS_STACK_SIZE);
-		ptrs_stack = ptrs_stackstart;
+		scope->sp = malloc(PTRS_STACK_SIZE);
+		scope->stackstart = scope->sp;
 	}
 
-	if(ptrs_stack + size >= ptrs_stackstart + PTRS_STACK_SIZE)
+	if(scope->sp + size >= scope->stackstart + PTRS_STACK_SIZE)
 		ptrs_error(NULL, "Out of memory");
 
-	void *ptr = ptrs_stack;
-	ptrs_stack += size;
+	void *ptr = scope->sp;
+	scope->sp += size;
 	return ptr;
 }

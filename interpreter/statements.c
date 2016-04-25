@@ -60,7 +60,7 @@ ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	else
 		result->type = PTRS_TYPE_NATIVE;
 
-	result->value.nativeval = ptrs_alloc(size);
+	result->value.nativeval = ptrs_alloc(scope, size);
 	ptrs_scope_set(scope, stmt.name, result);
 	return result;
 }
@@ -102,7 +102,7 @@ void importNative(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 		if(name == namebuff)
 		{
 			size_t len = strlen(name) + 1;
-			char *_name = ptrs_alloc(len);
+			char *_name = ptrs_alloc(scope, len);
 			memcpy(_name, name, len);
 			name = _name;
 		}
@@ -120,7 +120,7 @@ void importScript(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 	char namebuff[128];
 	const char *name;
 
-	ptrs_scope_t *_scope = ptrs_alloc(sizeof(ptrs_scope_t));
+	ptrs_scope_t *_scope = ptrs_alloc(scope, sizeof(ptrs_scope_t));
 	_scope->current = NULL;
 	_scope->outer = NULL;
 	_scope->exit = 0;
@@ -140,7 +140,7 @@ void importScript(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 		if(name == namebuff)
 		{
 			size_t len = strlen(name) + 1;
-			char *_name = ptrs_alloc(len);
+			char *_name = ptrs_alloc(scope, len);
 			memcpy(_name, name, len);
 			name = _name;
 		}
@@ -204,7 +204,7 @@ ptrs_var_t *ptrs_handle_function(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 {
 	struct ptrs_ast_function astfunc = node->arg.function;
 
-	ptrs_function_t *func = ptrs_alloc(sizeof(ptrs_function_t));
+	ptrs_function_t *func = ptrs_alloc(scope, sizeof(ptrs_function_t));
 	func->name = astfunc.name;
 	func->argc = astfunc.argc;
 	func->args = astfunc.args;
