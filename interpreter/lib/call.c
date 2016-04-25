@@ -54,6 +54,7 @@ ptrs_var_t *ptrs_callfunc(ptrs_var_t *funcvar, ptrs_var_t *result, ptrs_scope_t 
 	ptrs_function_t *func = funcvar->value.funcval;
 	ptrs_scope_t scope;
 	memcpy(&scope, callScope, sizeof(ptrs_scope_t));
+	scope.current = NULL;
 	scope.outer = func->scope;
 
 	ptrs_var_t val;
