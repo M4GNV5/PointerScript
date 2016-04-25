@@ -1,0 +1,35 @@
+import "printf", "exit", "free", "time", "ptrs_bundle", "ptrs_callbundle";
+import "pthread_create", "pthread_join" from "libpthread.so.0";
+
+function addNumbers(arg)
+{
+	var sum = 0;
+	for(var i = arg; i < arg + 10000000; i++)
+	{
+		sum += i;
+	}
+	printf("start = %ld sum = %ld\n", arg, sum);
+	return sum;
+}
+
+var threads[VARSIZE * 4];
+var bundles[VARSIZE * 4];
+
+for(var i = 0; i < 4; i++)
+{
+	var start = i * 10000000;
+	bundles[i] = ptrs_bundle(&addNumbers, &start);
+	if(pthread_create(&threads[i], NULL, ptrs_callbundle, bundles[i]) != 0)
+	{
+		printf("Error creating thread %d\n", i);
+		exit(1);
+	}
+}
+
+for(var i = 0; i < 4; i++)
+{
+	var result;
+	pthread_join(threads[i], &result);
+	printf("Thread %d joined with result: %ld\n", i, *(pointer)result);
+	free(bundles[i]);
+}

@@ -49,6 +49,32 @@ ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_var_t *func, ptrs_var_t *result, str
 	return result;
 }
 
+typedef struct bundle
+{
+	ptrs_var_t func;
+	ptrs_var_t result;
+	ptrs_var_t arg;
+	ptrs_scope_t scope;
+} ptrs_bundle_t;
+
+ptrs_bundle_t *ptrs_bundle(ptrs_var_t *func, ptrs_var_t *arg)
+{
+	ptrs_bundle_t *bundle = malloc(sizeof(ptrs_bundle_t));
+	memcpy(&bundle->func, func, sizeof(ptrs_var_t));
+	memcpy(&bundle->arg, arg, sizeof(ptrs_var_t));
+	memset(&bundle->scope, 0, sizeof(ptrs_scope_t));
+	return bundle;
+}
+
+ptrs_var_t *ptrs_callbundle(ptrs_bundle_t *bundle)
+{
+	ptrs_var_t *result = ptrs_callfunc(&bundle->func, &bundle->result, &bundle->scope, 1, &bundle->arg);
+	if(result != &bundle->result)
+		memcpy(&bundle->result, result, sizeof(ptrs_var_t));
+
+	return &bundle->result;
+}
+
 ptrs_var_t *ptrs_callfunc(ptrs_var_t *funcvar, ptrs_var_t *result, ptrs_scope_t *callScope, int argc, ptrs_var_t *argv)
 {
 	ptrs_function_t *func = funcvar->value.funcval;
