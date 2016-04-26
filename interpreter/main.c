@@ -6,10 +6,12 @@
 #include "include/scope.h"
 #include "include/conversion.h"
 #include "include/run.h"
+#include "include/error.h"
 
 int main(int argc, char **argv)
 {
 	ptrs_var_t result;
+	ptrs_handle_signals();
 
 	if(argc == 1)
 	{

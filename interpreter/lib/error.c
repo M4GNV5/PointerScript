@@ -2,15 +2,28 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <signal.h>
 
 #include "../include/run.h"
 #include "../../parser/common.h"
 #include "../../parser/ast.h"
 
+ptrs_ast_t *ptrs_lastast = NULL;
+
 void print_pos(ptrs_ast_t *ast)
 {
-	if(ast != NULL)
+	if(ast != NULL || ptrs_lastast != NULL)
 	{
+		if(ast == NULL)
+		{
+			ast = ptrs_lastast;
+			fprintf(stderr, "\nLast tracked position: ");
+		}
+		else
+		{
+			fprintf(stderr, " at ");
+		}
+
 		int line = 1;
 		int column = 1;
 		char *currLine = ast->code;
@@ -29,7 +42,7 @@ void print_pos(ptrs_ast_t *ast)
 		}
 
 		int linelen = strchr(currLine, '\n') - currLine;
-		fprintf(stderr, " at line %d column %d", line, column);
+		fprintf(stderr, "line %d column %d", line, column);
 
 		if(ptrs_file != NULL)
 			fprintf(stderr, " in %s", ptrs_file);
@@ -47,6 +60,25 @@ void print_pos(ptrs_ast_t *ast)
 	{
 		printf("\n");
 	}
+}
+
+void ptrs_handle_sig(int sig)
+{
+	fprintf(stderr, "Received signal: %s", strsignal(sig));
+	print_pos(NULL);
+	exit(3);
+}
+
+void ptrs_handle_signals()
+{
+	signal(SIGINT, ptrs_handle_sig);
+	signal(SIGQUIT, ptrs_handle_sig);
+	signal(SIGILL, ptrs_handle_sig);
+	signal(SIGABRT, ptrs_handle_sig);
+	signal(SIGFPE, ptrs_handle_sig);
+	signal(SIGKILL, ptrs_handle_sig);
+	signal(SIGSEGV, ptrs_handle_sig);
+	signal(SIGPIPE, ptrs_handle_sig);
 }
 
 void ptrs_warn(ptrs_ast_t *ast, const char *msg, ...)

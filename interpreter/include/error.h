@@ -4,7 +4,10 @@
 #include "../../parser/ast.h"
 #include "../../parser/common.h"
 
+extern ptrs_ast_t *ptrs_lastast;
+
 void ptrs_warn(ptrs_ast_t *ast, const char *msg, ...);
 void ptrs_error(ptrs_ast_t *ast, const char *msg, ...);
+void ptrs_handle_signals();
 
 #endif
