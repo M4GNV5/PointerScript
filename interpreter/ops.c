@@ -79,7 +79,7 @@ void binary_typeerror(ptrs_ast_t *node, const char *op, ptrs_vartype_t tleft, pt
 	{ \
 		char buff[32]; \
 		const char *strleft = ptrs_vartoa(left, buff, 32);; \
-		const char *strright =ptrs_vartoa(right, buff, 32); \
+		const char *strright = ptrs_vartoa(right, buff, 32); \
 		\
 		result->type = PTRS_TYPE_INT; \
 		result->value.intval = strcmp(strleft, strright) == 0; \
@@ -104,6 +104,14 @@ void binary_typeerror(ptrs_ast_t *node, const char *op, ptrs_vartype_t tleft, pt
 			result->value.intval = left->value.intval operator right->value.intval; \
 		} \
 		__VA_ARGS__ \
+		else if(tleft == PTRS_TYPE_INT || tright == PTRS_TYPE_INT) \
+		{ \
+			int64_t ileft = ptrs_vartoi(left); \
+			int64_t iright = ptrs_vartoi(right); \
+			\
+			result->type = PTRS_TYPE_INT; \
+			result->value.intval = ileft operator iright; \
+		} \
 		else \
 		{ \
 			binary_typeerror(node, oplabel, tleft, tright); \
@@ -124,8 +132,6 @@ handle_binary(lessequal, <=, "<=", false, binary_floatop(<=) binary_pointer_comp
 handle_binary(greaterequal, >=, ">=", false, binary_floatop(>=) binary_pointer_compare(>=))
 handle_binary(less, <, "<", false, binary_floatop(<) binary_pointer_compare(<))
 handle_binary(greater, >, ">", false, binary_floatop(>) binary_pointer_compare(>))
-handle_binary(logicor, ||, "||", false, binary_floatop(||) binary_pointer_compare(||))
-handle_binary(logicand, &&, "&&", false, binary_floatop(&&) binary_pointer_compare(&&))
 handle_binary(or, |, "|", false)
 handle_binary(xor, ^, "^", false)
 handle_binary(and, &, "&", false)
@@ -159,6 +165,36 @@ ptrs_var_t *ptrs_handle_op_assign(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sco
 	return left;
 }
 
+ptrs_var_t *ptrs_handle_op_logicor(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_binary expr = node->arg.binary;
+	ptrs_var_t *left = expr.left->handler(expr.left, result, scope);
+
+	if(ptrs_vartob(left))
+		return left;
+	else
+		return expr.right->handler(expr.right, result, scope);
+}
+
+ptrs_var_t *ptrs_handle_op_logicand(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_binary expr = node->arg.binary;
+	ptrs_var_t *left = expr.left->handler(expr.left, result, scope);
+
+	if(!ptrs_vartob(left))
+		return left;
+	else
+		return expr.right->handler(expr.right, result, scope);
+}
+
+ptrs_var_t *ptrs_handle_prefix_logicnot(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	ptrs_var_t *value = node->arg.astval->handler(node->arg.astval, result, scope);
+	result->type = PTRS_TYPE_INT;
+	result->value.intval = !ptrs_vartob(value);
+	return result;
+}
+
 #define handle_prefix(name, operator, opLabel, handlefloat, handleptr) \
 	ptrs_var_t *ptrs_handle_prefix_##name(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope) \
 	{ \
@@ -180,7 +216,7 @@ ptrs_var_t *ptrs_handle_op_assign(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sco
 	else if(type == PTRS_TYPE_NATIVE) \
 		result->value.strval = operator value->value.strval; \
 	else if(type == PTRS_TYPE_POINTER) \
-		result->value.ptrval = value->value.ptrval operator;
+		result->value.ptrval = operator value->value.ptrval;
 
 #define handle_prefix_float(operator) \
 	else if(type == PTRS_TYPE_FLOAT) \
@@ -188,8 +224,7 @@ ptrs_var_t *ptrs_handle_op_assign(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sco
 
 handle_prefix(inc, ++, "++", handle_prefix_float(++), handle_prefix_ptr(++))
 handle_prefix(dec, --, "--", handle_prefix_float(--), handle_prefix_ptr(--))
-handle_prefix(logicnot, ~, "~", /*nothing*/, /*nothing*/)
-handle_prefix(not, !, "!", handle_prefix_float(!), /*nothing*/)
+handle_prefix(not, ~, "~", /*nothing*/, /*nothing*/)
 handle_prefix(plus, +, "+", handle_prefix_float(+), /*nothing*/)
 handle_prefix(minus, -, "-", handle_prefix_float(-), /*nothing*/)
 
