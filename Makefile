@@ -20,7 +20,12 @@ RUN_OBJECTS += $(BIN)/statements.o
 RUN_OBJECTS += $(BIN)/specialexpr.o
 RUN_OBJECTS += $(BIN)/ops.o
 
-all: $(RUN)
+all: debug
+
+debug: $(RUN)
+
+release: CFLAGS = --std=gnu99 -O2 -I$(FFI_DIR)
+release: $(RUN)
 
 clean:
 	rm bin -r
