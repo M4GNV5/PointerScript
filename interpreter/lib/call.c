@@ -78,31 +78,29 @@ ptrs_var_t *ptrs_callbundle(ptrs_bundle_t *bundle)
 ptrs_var_t *ptrs_callfunc(ptrs_var_t *funcvar, ptrs_var_t *result, ptrs_scope_t *callScope, int argc, ptrs_var_t *argv)
 {
 	ptrs_function_t *func = funcvar->value.funcval;
-	ptrs_scope_t scope;
-	memcpy(&scope, callScope, sizeof(ptrs_scope_t));
-	scope.current = NULL;
-	scope.outer = func->scope;
+	ptrs_scope_t *scope = ptrs_scope_increase(callScope);
+	scope->outer = func->scope;
 
 	ptrs_var_t val;
 	val.type = PTRS_TYPE_UNDEFINED;
 	for(int i = 0; i < func->argc; i++)
 	{
 		if(i < argc)
-			ptrs_scope_set(&scope, func->args[i], &argv[i]);
+			ptrs_scope_set(scope, func->args[i], &argv[i]);
 		else
-			ptrs_scope_set(&scope, func->args[i], &val);
+			ptrs_scope_set(scope, func->args[i], &val);
 	}
 
 	if(funcvar->meta.this != NULL)
 	{
 		val.type = PTRS_TYPE_STRUCT;
 		val.value.structval = funcvar->meta.this;
-		ptrs_scope_set(&scope, "this", &val);
+		ptrs_scope_set(scope, "this", &val);
 	}
 
-	ptrs_var_t *_result = func->body->handler(func->body, result, &scope);
+	ptrs_var_t *_result = func->body->handler(func->body, result, scope);
 
-	if(scope.exit != 3)
+	if(scope->exit != 3)
 		result->type = PTRS_TYPE_UNDEFINED;
 	else
 		result = _result;

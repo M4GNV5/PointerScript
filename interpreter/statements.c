@@ -239,12 +239,14 @@ ptrs_var_t *ptrs_handle_struct(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 ptrs_var_t *ptrs_handle_if(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_ifelse stmt = node->arg.ifelse;
+
 	result = stmt.condition->handler(stmt.condition, result, scope);
+	ptrs_scope_t *stmtScope = ptrs_scope_increase(scope);
 
 	if(ptrs_vartob(result))
-		result = stmt.ifBody->handler(stmt.ifBody, result, scope);
+		result = stmt.ifBody->handler(stmt.ifBody, result, stmtScope);
 	else if(stmt.elseBody != NULL)
-		result = stmt.elseBody->handler(stmt.elseBody, result, scope);
+		result = stmt.elseBody->handler(stmt.elseBody, result, stmtScope);
 
 	return result;
 }
@@ -256,6 +258,7 @@ ptrs_var_t *ptrs_handle_while(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	ptrs_var_t *_result = result;
 
 	struct ptrs_ast_control stmt = node->arg.control;
+	ptrs_scope_t *stmtScope = ptrs_scope_increase(scope);
 
 	for(;;)
 	{
@@ -264,14 +267,10 @@ ptrs_var_t *ptrs_handle_while(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 			break;
 
 		result = _result;
-		result = stmt.body->handler(stmt.body, result, scope);
+		result = stmt.body->handler(stmt.body, result, stmtScope);
 
-		if(scope->exit != 0)
-		{
-			if(scope->exit == 2)
-				scope->exit = 0;
+		if(stmtScope->exit != 0)
 			return result;
-		}
 	}
 
 	return result;
@@ -284,20 +283,17 @@ ptrs_var_t *ptrs_handle_dowhile(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope
 	ptrs_var_t *_result = result;
 
 	struct ptrs_ast_control stmt = node->arg.control;
+	ptrs_scope_t *stmtScope = ptrs_scope_increase(scope);
 
 	do
 	{
 		result = _result;
-		result = stmt.body->handler(stmt.body, result, scope);
+		result = stmt.body->handler(stmt.body, result, stmtScope);
 
-		if(scope->exit != 0)
-		{
-			if(scope->exit == 2)
-				scope->exit = 0;
+		if(stmtScope->exit != 0)
 			return result;
-		}
 
-		condition = stmt.condition->handler(stmt.condition, &conditionv, scope);
+		condition = stmt.condition->handler(stmt.condition, &conditionv, stmtScope);
 	} while(ptrs_vartob(condition));
 
 	return result;
@@ -309,25 +305,22 @@ ptrs_var_t *ptrs_handle_for(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 	ptrs_var_t *condition;
 
 	struct ptrs_ast_for stmt = node->arg.forstatement;
+	ptrs_scope_t *stmtScope = ptrs_scope_increase(scope);
 
-	stmt.init->handler(stmt.init, result, scope);
+	stmt.init->handler(stmt.init, result, stmtScope);
 
 	for(;;)
 	{
-		condition = stmt.condition->handler(stmt.condition, &conditionv, scope);
+		condition = stmt.condition->handler(stmt.condition, &conditionv, stmtScope);
 		if(!ptrs_vartob(condition))
 			break;
 
-		stmt.body->handler(stmt.body, result, scope);
+		stmt.body->handler(stmt.body, result, stmtScope);
 
-		if(scope->exit != 0)
-		{
-			if(scope->exit == 2)
-				scope->exit = 0;
+		if(stmtScope->exit != 0)
 			return result;
-		}
 
-		stmt.step->handler(stmt.step, result, scope);
+		stmt.step->handler(stmt.step, result, stmtScope);
 	}
 
 	return result;
@@ -342,9 +335,10 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	if(val->type != PTRS_TYPE_STRUCT)
 		ptrs_error(stmt.value, "Cannot iterate over variable of type %s", ptrs_typetoa(val->type));
 
+	ptrs_scope_t *stmtScope = ptrs_scope_increase(scope);
 	if(stmt.newvar)
-		ptrs_scope_set(scope, stmt.varname, result);
-	ptrs_var_t *iterval = ptrs_scope_get(scope, stmt.varname);
+		ptrs_scope_set(stmtScope, stmt.varname, result);
+	ptrs_var_t *iterval = ptrs_scope_get(stmtScope, stmt.varname);
 
 	if(iterval == NULL)
 		ptrs_error(node, "Unknown identifier %s", stmt.varname);
@@ -355,7 +349,10 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		iterval->type = PTRS_TYPE_STRING;
 		iterval->value.strval = curr->name;
 
-		stmt.body->handler(stmt.body, result, scope);
+		stmt.body->handler(stmt.body, result, stmtScope);
+
+		if(stmtScope->exit != 0)
+			return result;
 
 		curr = curr->next;
 	}

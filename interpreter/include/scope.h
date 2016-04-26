@@ -6,5 +6,6 @@
 
 ptrs_var_t *ptrs_scope_get(ptrs_scope_t *scope, const char *name);
 void ptrs_scope_set(ptrs_scope_t *scope, const char *name, ptrs_var_t *value);
+ptrs_scope_t *ptrs_scope_increase(ptrs_scope_t *outer);
 
 #endif

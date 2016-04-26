@@ -68,3 +68,16 @@ ptrs_var_t *ptrs_scope_get(ptrs_scope_t *scope, const char *key)
 	}
 	return NULL;
 }
+
+ptrs_scope_t *ptrs_scope_increase(ptrs_scope_t *outer)
+{
+	void *sp = outer->sp;
+	ptrs_scope_t *scope = ptrs_alloc(outer, sizeof(ptrs_scope_t));
+	memcpy(scope, outer, sizeof(ptrs_scope_t));
+
+	scope->current = NULL;
+	scope->outer = outer;
+	outer->sp = sp;
+
+	return scope;
+}
