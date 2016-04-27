@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <string.h>
 #include <math.h>
@@ -80,7 +81,7 @@ const char *ptrs_vartoa(ptrs_var_t *val, char *buff, size_t maxlen)
 			strncpy(buff, "undefined", maxlen);
 			break;
 		case PTRS_TYPE_INT:
-			snprintf(buff, maxlen, "%ld", val->value.intval);
+			snprintf(buff, maxlen, "%"PRId64, val->value.intval);
 			break;
 		case PTRS_TYPE_FLOAT:
 			snprintf(buff, maxlen, "%g", val->value.floatval);
