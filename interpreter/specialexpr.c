@@ -152,12 +152,23 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 
 ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	ptrs_var_t valuev;
-	ptrs_var_t *value = &valuev;
 	struct ptrs_ast_cast expr = node->arg.cast;
+	ptrs_var_t *value = expr.value->handler(expr.value, result, scope);;
 
-	value = expr.value->handler(expr.value, value, scope);
-	memcpy(result, value, sizeof(ptrs_var_t));
+	switch(expr.type)
+	{
+		case PTRS_TYPE_UNDEFINED:
+			ptrs_error(node, "Cannot cast to undefined");
+			break;
+		case PTRS_TYPE_INT:
+			result->value.intval = ptrs_vartoi(value);
+			break;
+		case PTRS_TYPE_FLOAT:
+			result->value.floatval = ptrs_vartof(value);
+			break;
+		default:
+			memcpy(result, value, sizeof(ptrs_var_t));
+	}
 
 	result->type = expr.type;
 	return result;
