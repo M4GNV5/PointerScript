@@ -590,7 +590,7 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 		ast->handler = PTRS_HANDLE_CONSTANT;
 		ast->arg.constval.type = PTRS_TYPE_INT;
 
-		if(curr == '\\')
+		if(code->curr == '\\')
 		{
 			rawnext(code);
 			ast->arg.constval.value.intval = readEscapeSequence(code);
