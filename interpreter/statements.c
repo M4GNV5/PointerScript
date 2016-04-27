@@ -249,6 +249,8 @@ ptrs_var_t *ptrs_handle_if(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *s
 	else if(stmt.elseBody != NULL)
 		result = stmt.elseBody->handler(stmt.elseBody, result, stmtScope);
 
+	scope->exit = stmtScope->exit;
+
 	return result;
 }
 
@@ -270,6 +272,8 @@ ptrs_var_t *ptrs_handle_while(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		result = _result;
 		result = stmt.body->handler(stmt.body, result, stmtScope);
 
+		if(stmtScope->exit == 3)
+			scope->exit = 3;
 		if(stmtScope->exit != 0)
 			return result;
 	}
@@ -291,6 +295,8 @@ ptrs_var_t *ptrs_handle_dowhile(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope
 		result = _result;
 		result = stmt.body->handler(stmt.body, result, stmtScope);
 
+		if(stmtScope->exit == 3)
+			scope->exit = 3;
 		if(stmtScope->exit != 0)
 			return result;
 
@@ -318,6 +324,8 @@ ptrs_var_t *ptrs_handle_for(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 
 		stmt.body->handler(stmt.body, result, stmtScope);
 
+		if(stmtScope->exit == 3)
+			scope->exit = 3;
 		if(stmtScope->exit != 0)
 			return result;
 
@@ -352,6 +360,8 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 
 		stmt.body->handler(stmt.body, result, stmtScope);
 
+		if(stmtScope->exit == 3)
+			scope->exit = 3;
 		if(stmtScope->exit != 0)
 			return result;
 
