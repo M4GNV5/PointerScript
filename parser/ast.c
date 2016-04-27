@@ -910,7 +910,9 @@ bool lookahead(code_t *code, const char *str)
 		return false;
 	}
 
-	skipSpaces(code);
+	code->pos--;
+	code->curr = code->src[start];
+	next(code);
 	return true;
 }
 
