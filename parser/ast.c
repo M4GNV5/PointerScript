@@ -384,6 +384,10 @@ struct opinfo
 };
 
 struct opinfo binaryOps[] = {
+	// >> and << need to be before > and < or we will always lookahead greater / less
+	{">>", 9, false, PTRS_HANDLE_OP_SHR}, //shift right
+	{"<<", 9, false, PTRS_HANDLE_OP_SHL}, //shift left
+
 	// == needs to be before = or we will always lookahead assign
 	{"==", 8, false, PTRS_HANDLE_OP_EQUAL},
 	{"!=", 8, false, PTRS_HANDLE_OP_INEQUAL},
@@ -412,9 +416,6 @@ struct opinfo binaryOps[] = {
 	{"|", 5, false, PTRS_HANDLE_OP_OR},
 	{"^", 6, false, PTRS_HANDLE_OP_XOR},
 	{"&", 7, false, PTRS_HANDLE_OP_AND},
-
-	{">>", 9, false, PTRS_HANDLE_OP_SHR}, //shift right
-	{"<<", 9, false, PTRS_HANDLE_OP_SHL}, //shift left
 
 	{"+", 10, false, PTRS_HANDLE_OP_ADD},
 	{"-", 10, false, PTRS_HANDLE_OP_SUB},
