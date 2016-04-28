@@ -228,8 +228,8 @@ ptrs_ast_t *parseStatement(code_t *code)
 				curr->function = NULL;
 				curr->offset = stmt->arg.structval.size;
 				stmt->arg.structval.size += sizeof(ptrs_var_t);
+				consumec(code, ';');
 			}
-			consumec(code, ';');
 
 			if(code->curr == '}')
 				break;

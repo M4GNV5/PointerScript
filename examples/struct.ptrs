@@ -22,13 +22,13 @@ struct Foo
 	{
 		this.bar += this.tar;
 		this.dump();
-	};
+	}
 	dump()
 	{
 		//TODO free strings alloc'ed by toString
 		printf("%-20s%-20s%-20s\n", typeof this, typeof this.bar, typeof this.tar);
 		printf("%-20p%-20s%-20s\n", this, toString(this.bar), toString(this.tar));
-	};
+	}
 };
 
 var bla = new Foo();
