@@ -20,7 +20,7 @@ ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_var_t *func, ptrs_var_t *result, str
 	}
 
 	ptrs_var_t *arg;
-	ptrs_var_t args[len];
+	ptrs_var_t args[len + 1];
 	list = arguments;
 	for(int i = 0; i < len; i++)
 	{
@@ -31,6 +31,8 @@ ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_var_t *func, ptrs_var_t *result, str
 
 		list = list->next;
 	}
+	args[len].type = PTRS_TYPE_NATIVE;
+	args[len].value.nativeval = NULL;
 
 	if(func->type == PTRS_TYPE_FUNCTION)
 	{
@@ -97,6 +99,10 @@ ptrs_var_t *ptrs_callfunc(ptrs_var_t *funcvar, ptrs_var_t *result, ptrs_scope_t 
 		val.value.structval = funcvar->meta.this;
 		ptrs_scope_set(scope, "this", &val);
 	}
+
+	val.type = PTRS_TYPE_POINTER;
+	val.value.ptrval = argv;
+	ptrs_scope_set(scope, "arguments", &val);
 
 	ptrs_var_t *_result = func->body->handler(func->body, result, scope);
 
