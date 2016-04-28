@@ -26,8 +26,8 @@ void binary_typeerror(ptrs_ast_t *node, const char *op, ptrs_vartype_t tleft, pt
 	}
 
 #define binary_pointer_compare(operator) \
-	else if((tleft == PTRS_TYPE_INT || tleft == PTRS_TYPE_POINTER || tleft == PTRS_TYPE_NATIVE) \
-		&& (tright == PTRS_TYPE_INT || tright == PTRS_TYPE_POINTER || tright == PTRS_TYPE_NATIVE)) \
+	else if((tleft == PTRS_TYPE_INT || tleft > PTRS_TYPE_FLOAT) \
+		&& (tright == PTRS_TYPE_INT || tright > PTRS_TYPE_FLOAT)) \
 	{ \
 		result->type = PTRS_TYPE_INT; \
 		result->value.intval = left->value.intval operator right->value.intval; \
