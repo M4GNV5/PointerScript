@@ -41,11 +41,11 @@ ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_var_t *func, ptrs_var_t *result, str
 	else if(func->type == PTRS_TYPE_NATIVE)
 	{
 		result->type = PTRS_TYPE_INT;
-		result->value.intval = ptrs_callnative(ast, func->value.nativeval, len, args);
+		result->value.intval = ptrs_callnative(ast, scope, func->value.nativeval, len, args);
 	}
 	else
 	{
-		ptrs_error(ast, "Cannot call value of type %s", ptrs_typetoa(func->type));
+		ptrs_error(ast, scope, "Cannot call value of type %s", ptrs_typetoa(func->type));
 	}
 
 	return result;
@@ -117,7 +117,7 @@ ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t 
 	return result;
 }
 
-intptr_t ptrs_callnative(ptrs_ast_t *ast, void *func, int argc, ptrs_var_t *argv)
+intptr_t ptrs_callnative(ptrs_ast_t *ast, ptrs_scope_t *scope, void *func, int argc, ptrs_var_t *argv)
 {
 	ffi_cif cif;
 	ffi_type *types[argc];
@@ -143,9 +143,9 @@ intptr_t ptrs_callnative(ptrs_ast_t *ast, void *func, int argc, ptrs_var_t *argv
 	}
 
 	if(ffi_prep_cif(&cif, FFI_DEFAULT_ABI, argc, &ffi_type_pointer, types) != FFI_OK)
-		ptrs_error(ast, "Could not call native function %p", func);
+		ptrs_error(ast, scope, "Could not call native function %p", func);
 
-	int64_t retVal = 0;
+	intptr_t retVal = 0;
 	ffi_call(&cif, func, &retVal, values);
 	return retVal;
 }

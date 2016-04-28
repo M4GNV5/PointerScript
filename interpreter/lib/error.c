@@ -111,12 +111,17 @@ void ptrs_warn(ptrs_ast_t *ast, const char *msg, ...)
 	ptrs_printstack(ast, ptrs_lastscope);
 }
 
-void ptrs_error(ptrs_ast_t *ast, const char *msg, ...)
+void ptrs_error(ptrs_ast_t *ast, ptrs_scope_t *scope, const char *msg, ...)
 {
 	va_list ap;
 	va_start(ap, msg);
 	vfprintf(stderr, msg, ap);
 	va_end(ap);
-	ptrs_printstack(ast, ptrs_lastscope);
+
+	if(ast == NULL)
+		ast = ptrs_lastast;
+	if(scope == NULL)
+		scope = ptrs_lastscope;
+	ptrs_printstack(ast, scope);
 	exit(3);
 }

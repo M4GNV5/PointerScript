@@ -993,5 +993,5 @@ void unexpected(code_t *code, const char *expected)
 	node.codepos = code->pos;
 	node.code = code->src;
 
-	ptrs_error(&node, "Expecting %s got '%c'", expected, code->curr);
+	ptrs_error(&node, NULL, "Expecting %s got '%c'", expected, code->curr);
 }

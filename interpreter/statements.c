@@ -55,7 +55,7 @@ ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	int size = ptrs_vartoi(val);
 
 	if(size <= 0 || size > PTRS_STACK_SIZE)
-		ptrs_error(node, "Trying to create array of size %d", size);
+		ptrs_error(node, scope, "Trying to create array of size %d", size);
 
 	if(size % sizeof(ptrs_var_t) == 0)
 		result->type = PTRS_TYPE_POINTER;
@@ -84,7 +84,7 @@ void importNative(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 
 		error = dlerror();
 		if(error != NULL)
-			ptrs_error(node->arg.import.from, "%s", error);
+			ptrs_error(node->arg.import.from, scope, "%s", error);
 	}
 
 	struct ptrs_astlist *list = node->arg.import.fields;
@@ -99,7 +99,7 @@ void importNative(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 
 		error = dlerror();
 		if(error != NULL)
-			ptrs_error(list->entry, "%s", error);
+			ptrs_error(list->entry, scope, "%s", error);
 
 		if(name == namebuff)
 		{
@@ -137,7 +137,7 @@ void importScript(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 
 		ptrs_var_t *val = ptrs_scope_get(_scope, name);
 		if(val == NULL)
-			ptrs_error(list->entry, "Script '%s' has no property '%s'", from, name);
+			ptrs_error(list->entry, scope, "Script '%s' has no property '%s'", from, name);
 
 		if(name == namebuff)
 		{
@@ -347,7 +347,7 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	ptrs_var_t *val = stmt.value->handler(stmt.value, result, scope);
 
 	if(val->type != PTRS_TYPE_STRUCT)
-		ptrs_error(stmt.value, "Cannot iterate over variable of type %s", ptrs_typetoa(val->type));
+		ptrs_error(stmt.value, scope, "Cannot iterate over variable of type %s", ptrs_typetoa(val->type));
 
 	ptrs_scope_t *stmtScope = ptrs_scope_increase(scope);
 	if(stmt.newvar)
@@ -355,7 +355,7 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	ptrs_var_t *iterval = ptrs_scope_get(stmtScope, stmt.varname);
 
 	if(iterval == NULL)
-		ptrs_error(node, "Unknown identifier %s", stmt.varname);
+		ptrs_error(node, scope, "Unknown identifier %s", stmt.varname);
 
 	struct ptrs_structlist *curr = val->value.structval->member;
 	while(curr != NULL)

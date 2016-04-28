@@ -9,9 +9,9 @@
 #include "include/conversion.h"
 #include "include/scope.h"
 
-void binary_typeerror(ptrs_ast_t *node, const char *op, ptrs_vartype_t tleft, ptrs_vartype_t tright)
+void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *op, ptrs_vartype_t tleft, ptrs_vartype_t tright)
 {
-	ptrs_error(node, "Cannot use operator %s on variables of type %s and %s",
+	ptrs_error(node, scope, "Cannot use operator %s on variables of type %s and %s",
 		op, ptrs_typetoa(tleft), ptrs_typetoa(tright));
 }
 
@@ -114,7 +114,7 @@ void binary_typeerror(ptrs_ast_t *node, const char *op, ptrs_vartype_t tleft, pt
 		} \
 		else \
 		{ \
-			binary_typeerror(node, oplabel, tleft, tright); \
+			binary_typeerror(node, scope, oplabel, tleft, tright); \
 		} \
 		\
 		if(isAssign) \
@@ -207,7 +207,7 @@ ptrs_var_t *ptrs_handle_prefix_logicnot(ptrs_ast_t *node, ptrs_var_t *result, pt
 		handlefloat \
 		handleptr \
 		else \
-			ptrs_error(node, "Cannot use prefixed operator %s on variable of type %s", opLabel, ptrs_typetoa(type)); \
+			ptrs_error(node, scope, "Cannot use prefixed operator %s on variable of type %s", opLabel, ptrs_typetoa(type)); \
 		\
 		return result; \
 	}
@@ -244,7 +244,7 @@ handle_prefix(minus, -, "-", handle_prefix_float(-), /*nothing*/)
 		else if(type == PTRS_TYPE_POINTER) \
 			result->value.ptrval = value->value.ptrval operator; \
 		else \
-			ptrs_error(node, "Cannot use suffixed operator %s on variable of type %s", opLabel, ptrs_typetoa(type)); \
+			ptrs_error(node, scope, "Cannot use suffixed operator %s on variable of type %s", opLabel, ptrs_typetoa(type)); \
 		\
 		return result; \
 	}

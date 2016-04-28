@@ -51,7 +51,7 @@ ptrs_var_t *ptrs_handle_new(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 	ptrs_struct_t *type = constructor->value.structval;
 
 	if(constructor->type != PTRS_TYPE_STRUCT || type->data != NULL)
-		ptrs_error(node, "Variable of type %s is not a constructor", ptrs_typetoa(constructor->type));
+		ptrs_error(node, scope, "Variable of type %s is not a constructor", ptrs_typetoa(constructor->type));
 
 	ptrs_struct_t *instance = malloc(sizeof(ptrs_struct_t) + type->size);
 	memcpy(instance, type, sizeof(ptrs_struct_t));
@@ -77,7 +77,7 @@ ptrs_var_t *ptrs_handle_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	ptrs_var_t *base = expr.value->handler(expr.value, result, scope);
 
 	if(base->type != PTRS_TYPE_STRUCT)
-		ptrs_error(node, "Cannot read property '%s' of type %s", expr.name, ptrs_typetoa(base->type));
+		ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr.name, ptrs_typetoa(base->type));
 
 	return ptrs_struct_get(base->value.structval, result, expr.name);
 }
@@ -87,7 +87,7 @@ ptrs_var_t *ptrs_handle_prefix_address(ptrs_ast_t *node, ptrs_var_t *result, ptr
 	ptrs_var_t *val = node->arg.astval->handler(node->arg.astval, result, scope);
 
 	if(val == result)
-		ptrs_error(node, "Cannot get address from static expression");
+		ptrs_error(node, scope, "Cannot get address from static expression");
 
 	result->type = PTRS_TYPE_POINTER;
 	result->value.ptrval = val;
@@ -110,7 +110,7 @@ ptrs_var_t *ptrs_handle_prefix_dereference(ptrs_ast_t *node, ptrs_var_t *result,
 	}
 	else
 	{
-		ptrs_error(node, "Cannot dereference variable of type %s", ptrs_typetoa(valuet));
+		ptrs_error(node, scope, "Cannot dereference variable of type %s", ptrs_typetoa(valuet));
 	}
 	return result;
 }
@@ -146,7 +146,7 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	else
 	{
 		const char *key = ptrs_vartoa(index, buff, 32);
-		ptrs_error(expr.left, "Cannot get index '%s' of type %s", key, ptrs_typetoa(valuet));
+		ptrs_error(expr.left, scope, "Cannot get index '%s' of type %s", key, ptrs_typetoa(valuet));
 	}
 	return result;
 }
@@ -159,7 +159,7 @@ ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 	switch(expr.type)
 	{
 		case PTRS_TYPE_UNDEFINED:
-			ptrs_error(node, "Cannot cast to undefined");
+			ptrs_error(node, scope, "Cannot cast to undefined");
 			break;
 		case PTRS_TYPE_INT:
 			result->value.intval = ptrs_vartoi(value);
@@ -179,7 +179,7 @@ ptrs_var_t *ptrs_handle_identifier(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 {
 	result = ptrs_scope_get(scope, node->arg.strval);
 	if(result == NULL)
-		ptrs_error(node, "Unknown identifier %s", node->arg.strval);
+		ptrs_error(node, scope, "Unknown identifier %s", node->arg.strval);
 	return result;
 }
 
