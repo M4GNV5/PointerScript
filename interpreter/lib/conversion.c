@@ -101,7 +101,7 @@ const char *typeofStrings[] = {
 	"undefined",
 	"int",
 	"float",
-	"raw",
+	"native",
 	"string",
 	"pointer",
 	"function",
