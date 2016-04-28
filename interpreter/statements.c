@@ -223,9 +223,10 @@ ptrs_var_t *ptrs_handle_function(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 ptrs_var_t *ptrs_handle_struct(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	result->type = PTRS_TYPE_STRUCT;
-	result->value.structval = &node->arg.structval;
+	ptrs_struct_t *struc = &node->arg.structval;
+	result->value.structval = struc;
 
-	struct ptrs_structlist *curr = node->arg.structval.member;
+	struct ptrs_structlist *curr = struc->member;
 	while(curr != NULL)
 	{
 		if(curr->function != NULL)
@@ -233,7 +234,10 @@ ptrs_var_t *ptrs_handle_struct(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 		curr = curr->next;
 	}
 
-	ptrs_scope_set(scope, node->arg.structval.name, result);
+	if(struc->constructor != NULL)
+		struc->constructor->scope = scope;
+
+	ptrs_scope_set(scope, struc->name, result);
 	return result;
 }
 

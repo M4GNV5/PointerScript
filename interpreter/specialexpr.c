@@ -62,6 +62,7 @@ ptrs_var_t *ptrs_handle_new(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 		ptrs_var_t ctor;
 		ctor.type = PTRS_TYPE_FUNCTION;
 		ctor.value.funcval = instance->constructor;
+		ctor.meta.this = instance;
 		ptrs_call(node, &ctor, result, expr.arguments, scope);
 	}
 
