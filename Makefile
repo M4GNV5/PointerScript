@@ -1,6 +1,6 @@
 CC = gcc
 FFI_DIR = /usr/include/x86_64-linux-gnu/
-CFLAGS = -Wall --std=gnu99 -g -I$(FFI_DIR)
+CFLAGS = -Wall -D_GNU_SOURCE --std=gnu99 -g -I$(FFI_DIR)
 NASMFLAGS = -f elf64
 BIN = bin
 

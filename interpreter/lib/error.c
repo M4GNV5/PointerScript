@@ -3,10 +3,13 @@
 #include <stdarg.h>
 #include <string.h>
 #include <signal.h>
+#include <execinfo.h>
+#include <dlfcn.h>
 
 #include "../include/run.h"
 #include "../../parser/common.h"
 #include "../../parser/ast.h"
+#include "../include/call.h"
 
 ptrs_ast_t *ptrs_lastast = NULL;
 ptrs_scope_t *ptrs_lastscope = NULL;
@@ -70,6 +73,29 @@ void ptrs_showpos(ptrs_ast_t *ast)
 void ptrs_printstack(ptrs_ast_t *pos, ptrs_scope_t *scope)
 {
 	ptrs_showpos(pos);
+
+#ifdef _GNU_SOURCE
+	void *buff[32];
+	int count = backtrace(buff, 32);
+	Dl_info infos[count];
+
+	for(int i = 0; i < count; i++)
+	{
+		dladdr(buff[i], &infos[i]);
+		if(infos[i].dli_saddr == ptrs_callnative)
+		{
+			for(int j = 2; j < i; j++)
+			{
+				if(infos[j].dli_sname != NULL && infos[j].dli_fname != NULL)
+					fprintf(stderr, "    at %s (%s)\n", infos[j].dli_sname, infos[j].dli_fname);
+				else
+					fprintf(stderr, "    at %p (unknown)\n", buff[j]);
+			}
+			break;
+		}
+	}
+#endif
+
 	while(scope != NULL)
 	{
 		fprintf(stderr, "    at %s ", scope->calleeName);
