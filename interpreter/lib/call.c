@@ -36,7 +36,7 @@ ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_var_t *func, ptrs_var_t *result, str
 
 	if(func->type == PTRS_TYPE_FUNCTION)
 	{
-		result = ptrs_callfunc(func, result, scope, len, args);
+		result = ptrs_callfunc(ast, result, scope, func, len, args);
 	}
 	else if(func->type == PTRS_TYPE_NATIVE)
 	{
@@ -70,18 +70,21 @@ ptrs_bundle_t *ptrs_bundle(ptrs_var_t *func, ptrs_var_t *arg)
 
 ptrs_var_t *ptrs_callbundle(ptrs_bundle_t *bundle)
 {
-	ptrs_var_t *result = ptrs_callfunc(&bundle->func, &bundle->result, &bundle->scope, 1, &bundle->arg);
+	ptrs_var_t *result = ptrs_callfunc(NULL, &bundle->result, &bundle->scope, &bundle->func, 1, &bundle->arg);
 	if(result != &bundle->result)
 		memcpy(&bundle->result, result, sizeof(ptrs_var_t));
 
 	return &bundle->result;
 }
 
-ptrs_var_t *ptrs_callfunc(ptrs_var_t *funcvar, ptrs_var_t *result, ptrs_scope_t *callScope, int argc, ptrs_var_t *argv)
+ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t *callScope, ptrs_var_t *funcvar, int argc, ptrs_var_t *argv)
 {
 	ptrs_function_t *func = funcvar->value.funcval;
 	ptrs_scope_t *scope = ptrs_scope_increase(callScope);
 	scope->outer = func->scope;
+	scope->callScope = callScope;
+	scope->callAst = callAst;
+	scope->calleeName = func->name;
 
 	ptrs_var_t val;
 	val.type = PTRS_TYPE_UNDEFINED;

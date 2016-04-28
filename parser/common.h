@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 struct ptrs_var;
+struct ptrs_ast;
 
 typedef enum type
 {
@@ -30,6 +31,9 @@ typedef struct ptrs_scope
 	ptrs_object_t *current;
 	void *stackstart;
 	void *sp;
+	struct ptrs_ast *callAst;
+	struct ptrs_scope *callScope;
+	const char *calleeName;
 	uint8_t exit : 2; // 00 = nothing   01 = exit block (continue)   10 = exit loop (break)   11 = exit function (return)
 } ptrs_scope_t;
 

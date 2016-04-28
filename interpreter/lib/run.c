@@ -11,12 +11,8 @@ const char *ptrs_file = NULL;
 void ptrs_eval(char *src, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	if(scope == NULL)
-	{
-		scope = malloc(sizeof(ptrs_scope_t));
-		scope->current = NULL;
-		scope->outer = NULL;
-		scope->exit = 0;
-	}
+		scope = calloc(1, sizeof(ptrs_scope_t));
+	scope->calleeName = "(root)";
 
 	ptrs_ast_t *ast = parse(src);
 	ptrs_var_t *_result = ast->handler(ast, result, scope);

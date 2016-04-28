@@ -18,6 +18,7 @@ ptrs_var_t *ptrs_handle_body(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 	while(list)
 	{
 		ptrs_lastast = list->entry;
+		ptrs_lastscope = scope;
 		_result = list->entry->handler(list->entry, result, scope);
 
 		if(scope->exit != 0)
