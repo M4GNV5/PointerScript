@@ -1,5 +1,7 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <libgen.h>
 #include <dlfcn.h>
 
 #include "../parser/ast.h"
@@ -115,25 +117,60 @@ void importNative(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 	}
 }
 
+typedef struct ptrs_cache
+{
+	const char *path;
+	ptrs_scope_t *scope;
+	struct ptrs_cache *next;
+} ptrs_cache_t;
+ptrs_cache_t *ptrs_cache = NULL;
+ptrs_scope_t *importCachedScript(const char *path, ptrs_ast_t *node, ptrs_scope_t *scope)
+{
+	char buff[1024];
+	if(realpath(path, buff) == NULL)
+		ptrs_error(node, scope, "Could not resolve path '%s'", path);
+
+	ptrs_cache_t *cache = ptrs_cache;
+	while(cache != NULL)
+	{
+		if(strcmp(cache->path, buff) == 0)
+			return cache->scope;
+		cache = cache->next;
+	}
+
+	ptrs_scope_t *_scope = calloc(1, sizeof(ptrs_scope_t));
+	ptrs_var_t valuev;
+	ptrs_dofile(buff, &valuev, _scope);
+
+	cache = malloc(sizeof(ptrs_cache_t));
+	cache->path = strdup(buff);
+	cache->scope = _scope;
+	cache->next = ptrs_cache;
+	ptrs_cache = cache;
+	return _scope;
+}
+
 void importScript(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 {
 	ptrs_var_t valuev;
 	ptrs_var_t *value;
-	char namebuff[128];
+	char namebuff[1024];
 	const char *name;
 
-	ptrs_scope_t *_scope = ptrs_alloc(scope, sizeof(ptrs_scope_t));
-	_scope->current = NULL;
-	_scope->outer = NULL;
-	_scope->exit = 0;
-
-	ptrs_dofile(from, &valuev, _scope);
+	if(from[0] != '/')
+	{
+		strcpy(namebuff, ptrs_file);
+		char *dir = dirname(namebuff);
+		snprintf(namebuff, 1024, "%s/%s", dir, from);
+		from = namebuff;
+	}
+	ptrs_scope_t *_scope = importCachedScript(from, node, scope);
 
 	struct ptrs_astlist *list = node->arg.import.fields;
 	while(list != NULL)
 	{
 		value = list->entry->handler(list->entry, &valuev, scope);
-		name = ptrs_vartoa(value, namebuff, 128);
+		name = ptrs_vartoa(value, namebuff, 1024);
 
 		ptrs_var_t *val = ptrs_scope_get(_scope, name);
 		if(val == NULL)
