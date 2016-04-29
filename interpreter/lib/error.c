@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <string.h>
 #include <signal.h>
 #include <execinfo.h>
@@ -70,7 +71,7 @@ void ptrs_showpos(ptrs_ast_t *ast)
 	fprintf(stderr, "^\n\n");
 }
 
-void ptrs_printstack(ptrs_ast_t *pos, ptrs_scope_t *scope)
+void ptrs_printstack(ptrs_ast_t *pos, ptrs_scope_t *scope, bool gotSig)
 {
 	ptrs_showpos(pos);
 
@@ -84,7 +85,7 @@ void ptrs_printstack(ptrs_ast_t *pos, ptrs_scope_t *scope)
 		dladdr(buff[i], &infos[i]);
 		if(infos[i].dli_saddr == ptrs_callnative)
 		{
-			for(int j = 3; j < i - 2; j++)
+			for(int j = gotSig ? 3 : 2; j < i - 2; j++)
 			{
 				if(infos[j].dli_sname != NULL && infos[j].dli_fname != NULL)
 					fprintf(stderr, "    at %s (%s)\n", infos[j].dli_sname, infos[j].dli_fname);
@@ -117,7 +118,7 @@ void ptrs_printstack(ptrs_ast_t *pos, ptrs_scope_t *scope)
 void ptrs_handle_sig(int sig)
 {
 	fprintf(stderr, "Received signal: %s", strsignal(sig));
-	ptrs_printstack(ptrs_lastast, ptrs_lastscope);
+	ptrs_printstack(ptrs_lastast, ptrs_lastscope, true);
 	exit(3);
 }
 
@@ -144,6 +145,6 @@ void ptrs_error(ptrs_ast_t *ast, ptrs_scope_t *scope, const char *msg, ...)
 		ast = ptrs_lastast;
 	if(scope == NULL)
 		scope = ptrs_lastscope;
-	ptrs_printstack(ast, scope);
+	ptrs_printstack(ast, scope, false);
 	exit(3);
 }
