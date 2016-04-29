@@ -84,7 +84,7 @@ void ptrs_printstack(ptrs_ast_t *pos, ptrs_scope_t *scope)
 		dladdr(buff[i], &infos[i]);
 		if(infos[i].dli_saddr == ptrs_callnative)
 		{
-			for(int j = 2; j < i; j++)
+			for(int j = 3; j < i - 2; j++)
 			{
 				if(infos[j].dli_sname != NULL && infos[j].dli_fname != NULL)
 					fprintf(stderr, "    at %s (%s)\n", infos[j].dli_sname, infos[j].dli_fname);
@@ -96,9 +96,14 @@ void ptrs_printstack(ptrs_ast_t *pos, ptrs_scope_t *scope)
 	}
 #endif
 
+	ptrs_scope_t *start = scope;
 	while(scope != NULL)
 	{
-		fprintf(stderr, "    at %s ", scope->calleeName);
+		if(scope == start)
+			fprintf(stderr, "    >> ");
+		else
+			fprintf(stderr, "    at ");
+		fprintf(stderr, "%s ", scope->calleeName);
 		if(pos != NULL)
 			ptrs_printpos(pos);
 		else
@@ -126,15 +131,6 @@ void ptrs_handle_signals()
 	signal(SIGKILL, ptrs_handle_sig);
 	signal(SIGSEGV, ptrs_handle_sig);
 	signal(SIGPIPE, ptrs_handle_sig);
-}
-
-void ptrs_warn(ptrs_ast_t *ast, const char *msg, ...)
-{
-	va_list ap;
-	va_start(ap, msg);
-	vfprintf(stderr, msg, ap);
-	va_end(ap);
-	ptrs_printstack(ast, ptrs_lastscope);
 }
 
 void ptrs_error(ptrs_ast_t *ast, ptrs_scope_t *scope, const char *msg, ...)
