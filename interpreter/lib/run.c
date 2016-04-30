@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "../../parser/ast.h"
 #include "../../parser/common.h"
@@ -37,6 +38,12 @@ void ptrs_dofile(const char *file, ptrs_var_t *result, ptrs_scope_t *scope)
 	fread(src, fsize, 1, fd);
 	fclose(fd);
 	src[fsize] = 0;
+
+	char cwd[1024];
+	getcwd(cwd, 1024);
+	int len = strlen(cwd);
+	if(strncmp(cwd, file, len) == 0)
+		file += len + 1;
 
 	ptrs_eval(src, strdup(file), result, scope);
 }
