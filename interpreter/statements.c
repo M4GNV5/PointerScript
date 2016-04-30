@@ -160,7 +160,7 @@ void importScript(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 	if(from[0] != '/')
 	{
 		char dirbuff[1024];
-		strcpy(dirbuff, ptrs_file);
+		strcpy(dirbuff, node->file);
 		char *dir = dirname(dirbuff);
 		snprintf(namebuff, 1024, "%s/%s", dir, from);
 		from = namebuff;

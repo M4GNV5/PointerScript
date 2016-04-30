@@ -13,6 +13,7 @@
 
 typedef struct code
 {
+	const char *filename;
 	char *src;
 	char curr;
 	int pos;
@@ -45,9 +46,10 @@ bool skipComments(code_t *code);
 
 void unexpected(code_t *code, const char *expected);
 
-ptrs_ast_t *parse(char *src)
+ptrs_ast_t *parse(char *src, const char *filename)
 {
 	code_t code;
+	code.filename = filename;
 	code.src = src;
 	code.pos = -1;
 	next(&code);
@@ -129,6 +131,7 @@ ptrs_ast_t *parseStatement(code_t *code)
 	ptrs_ast_t *stmt = talloc(ptrs_ast_t);
 	stmt->codepos = code->pos;
 	stmt->code = code->src;
+	stmt->file = code->filename;
 
 	if(lookahead(code, "var"))
 	{
@@ -489,6 +492,7 @@ ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 		left->arg.binary.right = right;
 		left->codepos = pos;
 		left->code = code->src;
+		left->file = code->filename;
 	}
 	return left;
 }
@@ -524,6 +528,7 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 			ast->handler = prefixOps[i].handler;
 			ast->codepos = pos;
 			ast->code = code->src;
+			ast->file = code->filename;
 			return ast;
 		}
 	}
@@ -546,6 +551,7 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 		val->handler = PTRS_HANDLE_IDENTIFIER;
 		val->codepos = code->pos;
 		val->code = code->src;
+		val->file = code->filename;
 		val->arg.strval = readIdentifier(code);
 
 		consumec(code, '(');
@@ -645,6 +651,7 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 
 	ast->codepos = pos;
 	ast->code = code->src;
+	ast->file = code->filename;
 
 	ptrs_ast_t *old;
 	do {
@@ -664,6 +671,7 @@ ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast)
 		member->handler = PTRS_HANDLE_MEMBER;
 		member->codepos = code->pos;
 		member->code = code->src;
+		member->file = code->filename;
 
 		consumec(code, '.');
 		member->arg.define.value = ast;
@@ -677,6 +685,7 @@ ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast)
 		call->handler = PTRS_HANDLE_CALL;
 		call->codepos = code->pos;
 		call->code = code->src;
+		call->file = code->filename;
 		consumec(code, '(');
 
 		call->arg.call.value = ast;
@@ -691,6 +700,7 @@ ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast)
 		indexExpr->handler = PTRS_HANDLE_INDEX;
 		indexExpr->codepos = code->pos;
 		indexExpr->code = code->src;
+		indexExpr->file = code->filename;
 		consumec(code, '[');
 
 		indexExpr->arg.binary.left = ast;
@@ -709,6 +719,7 @@ ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast)
 				ptrs_ast_t *opAst = talloc(ptrs_ast_t);
 				opAst->codepos = pos;
 				opAst->code = code->src;
+				opAst->file = code->filename;
 				opAst->arg.astval = ast;
 				opAst->handler = suffixedOps[i].handler;
 				return opAst;
@@ -1000,6 +1011,7 @@ void unexpected(code_t *code, const char *expected)
 	ptrs_ast_t node;
 	node.codepos = code->pos;
 	node.code = code->src;
+	node.file = code->filename;
 
 	ptrs_error(&node, NULL, "Expecting %s got '%c'", expected, code->curr);
 }

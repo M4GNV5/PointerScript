@@ -105,6 +105,7 @@ struct ptrs_ast
 	ptrs_asthandler_t handler;
 	int codepos;
 	char *code;
+	const char *file;
 };
 typedef struct ptrs_ast ptrs_ast_t;
 
@@ -114,6 +115,6 @@ struct ptrs_astlist
 	struct ptrs_astlist *next;
 };
 
-ptrs_ast_t *parse(char *code);
+ptrs_ast_t *parse(char *src, const char *filename);
 
 #endif

@@ -7,7 +7,6 @@
 #include <execinfo.h>
 #include <dlfcn.h>
 
-#include "../include/run.h"
 #include "../../parser/common.h"
 #include "../../parser/ast.h"
 #include "../include/call.h"
@@ -17,7 +16,6 @@ ptrs_scope_t *ptrs_lastscope = NULL;
 
 typedef struct codepos
 {
-	const char *file;
 	char *currLine;
 	int line;
 	int column;
@@ -42,7 +40,6 @@ void ptrs_getpos(codepos_t *pos, ptrs_ast_t *ast)
 		}
 	}
 
-	pos->file = ptrs_file;
 	pos->currLine = currLine;
 	pos->line = line;
 	pos->column = column;
@@ -52,7 +49,7 @@ void ptrs_printpos(ptrs_ast_t *ast)
 {
 	codepos_t pos;
 	ptrs_getpos(&pos, ast);
-	fprintf(stderr, "(%s:%d:%d)\n", pos.file, pos.line, pos.column);
+	fprintf(stderr, "(%s:%d:%d)\n", ast->file, pos.line, pos.column);
 }
 
 void ptrs_showpos(ptrs_ast_t *ast)
