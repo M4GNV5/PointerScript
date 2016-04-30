@@ -44,6 +44,33 @@ ptrs_var_t *ptrs_handle_call(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 	return result;
 }
 
+ptrs_var_t *ptrs_handle_arrayexpr(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_astlist *list = node->arg.astlist;
+	int len = 0;
+	while(list != NULL)
+	{
+		len++;
+		list = list->next;
+	}
+
+	ptrs_var_t *array = malloc(sizeof(ptrs_var_t) * (len + 1));
+	list = node->arg.astlist;
+	for(int i = 0; i < len; i++)
+	{
+		ptrs_var_t *val = list->entry->handler(list->entry, &array[i], scope);
+		if(val != &array[i])
+			memcpy(&array[i], val, sizeof(ptrs_var_t));
+		list = list->next;
+	}
+
+	array[len].type = PTRS_TYPE_NATIVE;
+	array[len].value.nativeval = NULL;
+	result->type = PTRS_TYPE_POINTER;
+	result->value.ptrval = array;
+	return result;
+}
+
 ptrs_var_t *ptrs_handle_new(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_call expr = node->arg.call;
