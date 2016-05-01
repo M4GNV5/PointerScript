@@ -13,8 +13,7 @@ int main(int argc, char **argv)
 	ptrs_var_t result;
 	ptrs_handle_signals();
 
-	ptrs_scope_t *scope = malloc(sizeof(ptrs_scope_t));
-	memset(scope, 0, sizeof(ptrs_scope_t));
+	ptrs_scope_t *scope = calloc(1, sizeof(ptrs_scope_t));
 
 	ptrs_var_t arguments[argc + 1];
 	for(int i = 0; i < argc; i++)
@@ -29,23 +28,10 @@ int main(int argc, char **argv)
 	result.value.ptrval = arguments;
 	ptrs_scope_set(scope, "arguments", &result);
 
-	if(argc == 1)
-	{
-		for(;;)
-		{
-			result.type = PTRS_TYPE_UNDEFINED;
-			printf("> ");
-			char buff[1024];
-			fgets(buff, 1024, stdin);
-			ptrs_eval(buff, &result, scope);
-
-			printf("< %s\n", ptrs_vartoa(&result, buff, 1024));
-		}
-	}
-	else if(argc > 1)
-	{
+	if(argc < 2)
+		printf("Usage: ptrs <file> [arguments...]\n");
+	else
 		ptrs_dofile(argv[1], &result, scope);
-	}
 
 	return 0;
 }
