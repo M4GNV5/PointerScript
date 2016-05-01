@@ -89,6 +89,12 @@ const char *ptrs_vartoa(ptrs_var_t *val, char *buff, size_t maxlen)
 		case PTRS_TYPE_STRING:
 			return val->value.strval;
 			break;
+		case PTRS_TYPE_FUNCTION:
+			snprintf(buff, maxlen, "function:%s", val->value.funcval->name);
+			break;
+		case PTRS_TYPE_STRUCT:
+			snprintf(buff, maxlen, "struct:%s", val->value.structval->name);
+			break;
 		default: //pointer type
 			snprintf(buff, maxlen, "%p", val->value.strval);
 			break;
