@@ -76,6 +76,7 @@ typedef union val
 typedef union meta
 {
 	ptrs_struct_t *this;
+	int8_t *pointer;
 } ptrs_meta_t;
 
 struct ptrs_var

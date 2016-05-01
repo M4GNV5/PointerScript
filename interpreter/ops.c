@@ -9,6 +9,23 @@
 #include "include/conversion.h"
 #include "include/scope.h"
 
+ptrs_var_t *ptrs_assign(ptrs_ast_t *node, ptrs_scope_t *scope, ptrs_var_t *orginal, ptrs_var_t *left, ptrs_var_t *right)
+{
+	if(orginal == left)
+	{
+		if(left->meta.pointer != NULL && right->type == PTRS_TYPE_INT)
+			*(left->meta.pointer) = right->value.intval;
+		else
+			ptrs_error(node, scope, "Cannot assign static expression");
+	}
+	else
+	{
+		memcpy(left, right, sizeof(ptrs_var_t));
+	}
+
+	return left;
+}
+
 void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *op, ptrs_vartype_t tleft, ptrs_vartype_t tright)
 {
 	ptrs_error(node, scope, "Cannot use operator %s on variables of type %s and %s",
@@ -121,10 +138,7 @@ void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *op, ptr
 		} \
 		\
 		if(isAssign) \
-		{ \
-			memcpy(left, result, sizeof(ptrs_var_t)); \
-			return left; \
-		} \
+			return ptrs_assign(node, scope, &leftv, left, result); \
 		\
 		return result; \
 	} \
@@ -164,8 +178,7 @@ ptrs_var_t *ptrs_handle_op_assign(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sco
 	ptrs_var_t *left = expr.left->handler(expr.left, result, scope);
 	ptrs_var_t *right = expr.right->handler(expr.right, &rightv, scope);
 
-	memcpy(left, right, sizeof(ptrs_var_t));
-	return left;
+	return ptrs_assign(node, scope, result, left, right);
 }
 
 ptrs_var_t *ptrs_handle_op_logicor(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
