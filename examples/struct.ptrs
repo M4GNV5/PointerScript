@@ -1,19 +1,5 @@
 import "printf", "asprintf", "free" from "libc.so.6";
 
-function toString(val)
-{
-	var ptr = "";
-	if(typeof val == "int")
-		asprintf(&ptr, "%ld", val);
-	else if(typeof val == "float")
-		asprintf(&ptr, "%f", val);
-	else if(typeof val == "string")
-		asprintf(&ptr, "%s", val);
-	else
-		asprintf(&ptr, "%s:%p", typeof val, val);
-	return ptr;
-}
-
 struct Foo
 {
 	bar;
@@ -25,9 +11,8 @@ struct Foo
 	}
 	dump()
 	{
-		//TODO free strings alloc'ed by toString
 		printf("%-20s%-20s%-20s\n", typeof this, typeof this.bar, typeof this.tar);
-		printf("%-20p%-20s%-20s\n", this, toString(this.bar), toString(this.tar));
+		printf("%-20p%-20g%-20g\n", this, (float)this.bar, (float)this.tar);
 	}
 };
 
