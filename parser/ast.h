@@ -21,6 +21,14 @@ struct ptrs_ast_import
 	struct ptrs_ast *from;
 };
 
+struct ptrs_ast_trycatch
+{
+	struct ptrs_ast *tryBody;
+	struct ptrs_ast *catchBody;
+	int argc;
+	char **argv;
+};
+
 struct ptrs_ast_function
 {
 	char *name;
@@ -87,6 +95,7 @@ union ptrs_ast_arg
 
 	struct ptrs_ast_define define;
 	struct ptrs_ast_import import;
+	struct ptrs_ast_trycatch trycatch;
 	struct ptrs_ast_function function;
 	struct ptrs_ast_cast cast;
 	struct ptrs_ast_binary binary;

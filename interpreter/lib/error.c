@@ -5,11 +5,13 @@
 #include <string.h>
 #include <signal.h>
 #include <execinfo.h>
+#include <setjmp.h>
 #include <dlfcn.h>
 
 #include "../../parser/common.h"
 #include "../../parser/ast.h"
 #include "../include/call.h"
+#include "../include/error.h"
 
 ptrs_ast_t *ptrs_lastast = NULL;
 ptrs_scope_t *ptrs_lastscope = NULL;
@@ -45,11 +47,57 @@ void ptrs_getpos(codepos_t *pos, ptrs_ast_t *ast)
 	pos->column = column;
 }
 
-void ptrs_printpos(ptrs_ast_t *ast)
+int ptrs_printpos(char *buff, ptrs_ast_t *ast)
 {
 	codepos_t pos;
 	ptrs_getpos(&pos, ast);
-	fprintf(stderr, "(%s:%d:%d)\n", ast->file, pos.line, pos.column);
+	return sprintf(buff, "(%s:%d:%d)\n", ast->file, pos.line, pos.column);
+}
+
+char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative)
+{
+	char buff[1024];
+	char *buffptr = buff;
+
+#ifdef _GNU_SOURCE
+	void *trace[32];
+	int count = backtrace(trace, 32);
+	Dl_info infos[count];
+
+	for(int i = 0; i < count; i++)
+	{
+		dladdr(trace[i], &infos[i]);
+		if(infos[i].dli_saddr == ptrs_callnative)
+		{
+			for(int j = skipNative; j < i - 2; j++)
+			{
+				if(infos[j].dli_sname != NULL && infos[j].dli_fname != NULL)
+					buffptr += sprintf(buffptr, "    at %s (%s)\n", infos[j].dli_sname, infos[j].dli_fname);
+				else
+					buffptr += sprintf(buffptr, "    at %p (unknown)\n", trace[j]);
+			}
+			break;
+		}
+	}
+#endif
+
+	ptrs_scope_t *start = scope;
+	while(scope != NULL)
+	{
+		if(scope == start)
+			buffptr += sprintf(buffptr, "    >> ");
+		else
+			buffptr += sprintf(buffptr, "    at ");
+		buffptr += sprintf(buffptr, "%s ", scope->calleeName);
+		if(pos != NULL)
+			buffptr += ptrs_printpos(buffptr, pos);
+		else
+			*buffptr++ = '\n';
+
+		pos = scope->callAst;
+		scope = scope->callScope;
+	}
+	return strdup(buff);
 }
 
 void ptrs_showpos(ptrs_ast_t *ast)
@@ -68,54 +116,59 @@ void ptrs_showpos(ptrs_ast_t *ast)
 	fprintf(stderr, "^\n\n");
 }
 
-void ptrs_printstack(ptrs_ast_t *pos, ptrs_scope_t *scope, bool gotSig)
+void ptrs_vthrow(ptrs_ast_t *ast, ptrs_scope_t *scope, const char *format, va_list ap)
 {
-	ptrs_showpos(pos);
+	ptrs_error_t *error = malloc(sizeof(ptrs_error_t));
 
-#ifdef _GNU_SOURCE
-	void *buff[32];
-	int count = backtrace(buff, 32);
-	Dl_info infos[count];
+	va_list ap2;
+	va_copy(ap2, ap);
+	int msglen = vsnprintf(NULL, 0, format, ap2);
+	va_end(ap2);
 
-	for(int i = 0; i < count; i++)
+	char *msg = malloc(msglen + 1);
+	vsprintf(msg, format, ap);
+	va_end(ap);
+
+	codepos_t pos;
+	ptrs_getpos(&pos, ast);
+
+	error->message = msg;
+	error->stack = ptrs_backtrace(ast, scope, 5);
+	error->file = ast->file;
+	error->line = pos.line;
+	error->column = pos.column;
+
+	sigjmp_buf *env = (sigjmp_buf *)scope->error;
+	while(scope->error == env)
 	{
-		dladdr(buff[i], &infos[i]);
-		if(infos[i].dli_saddr == ptrs_callnative)
-		{
-			for(int j = gotSig ? 3 : 2; j < i - 2; j++)
-			{
-				if(infos[j].dli_sname != NULL && infos[j].dli_fname != NULL)
-					fprintf(stderr, "    at %s (%s)\n", infos[j].dli_sname, infos[j].dli_fname);
-				else
-					fprintf(stderr, "    at %p (unknown)\n", buff[j]);
-			}
-			break;
-		}
-	}
-#endif
-
-	ptrs_scope_t *start = scope;
-	while(scope != NULL)
-	{
-		if(scope == start)
-			fprintf(stderr, "    >> ");
+		scope->error = error;
+		if(scope->callScope != NULL && scope->callScope->error == env)
+			scope = scope->callScope;
 		else
-			fprintf(stderr, "    at ");
-		fprintf(stderr, "%s ", scope->calleeName);
-		if(pos != NULL)
-			ptrs_printpos(pos);
-		else
-			fprintf(stderr, "\n");
-
-		pos = scope->callAst;
-		scope = scope->callScope;
+			scope = scope->outer;
 	}
+
+	siglongjmp(*env, 1);
+}
+
+void ptrs_throw(ptrs_ast_t *ast, ptrs_scope_t *scope, const char *msg, ...)
+{
+	va_list ap;
+	va_start(ap, msg);
+	ptrs_vthrow(ast, scope, msg, ap);
 }
 
 void ptrs_handle_sig(int sig)
 {
+	if(ptrs_lastscope->error != NULL)
+	{
+		signal(sig, ptrs_handle_sig);
+		ptrs_throw(ptrs_lastast, ptrs_lastscope, "Received signal: %s", strsignal(sig));
+	}
+
 	fprintf(stderr, "Received signal: %s", strsignal(sig));
-	ptrs_printstack(ptrs_lastast, ptrs_lastscope, true);
+	ptrs_showpos(ptrs_lastast);
+	fprintf(stderr, "%s", ptrs_backtrace(ptrs_lastast, ptrs_lastscope, 3));
 	exit(3);
 }
 
@@ -135,13 +188,23 @@ void ptrs_error(ptrs_ast_t *ast, ptrs_scope_t *scope, const char *msg, ...)
 {
 	va_list ap;
 	va_start(ap, msg);
-	vfprintf(stderr, msg, ap);
-	va_end(ap);
 
 	if(ast == NULL)
 		ast = ptrs_lastast;
 	if(scope == NULL)
 		scope = ptrs_lastscope;
-	ptrs_printstack(ast, scope, false);
+
+	if(scope != NULL && scope->error != NULL)
+		ptrs_vthrow(ast, scope, msg, ap);
+
+	vfprintf(stderr, msg, ap);
+	va_end(ap);
+
+	if(ast != NULL)
+	{
+		ptrs_showpos(ast);
+		if(scope != NULL)
+			fprintf(stderr, "%s\n", ptrs_backtrace(ast, scope, 2));
+	}
 	exit(3);
 }

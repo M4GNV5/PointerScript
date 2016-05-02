@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <libgen.h>
+#include <setjmp.h>
 #include <dlfcn.h>
 
 #include "../parser/ast.h"
@@ -237,6 +238,74 @@ ptrs_var_t *ptrs_handle_break(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 ptrs_var_t *ptrs_handle_continue(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	scope->exit = 1;
+	return result;
+}
+
+ptrs_var_t *ptrs_handle_throw(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	ptrs_ast_t *ast = node->arg.astval;
+	ptrs_var_t *val = ast->handler(ast, result, scope);
+
+	char buff[32];
+	const char *msg = ptrs_vartoa(val, buff, 32);
+	ptrs_error(node, scope, "%s", msg);
+	return val;
+}
+
+ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_trycatch stmt = node->arg.trycatch;
+	ptrs_scope_t *tryScope = ptrs_scope_increase(scope);
+	sigjmp_buf env;
+	tryScope->error = &env;
+	int k = sigsetjmp(env, 1);
+
+	if(k == 0)
+	{
+		return stmt.tryBody->handler(stmt.tryBody, result, tryScope);
+	}
+	else if(stmt.catchBody != NULL)
+	{
+		ptrs_error_t *error = tryScope->error;
+
+		ptrs_scope_t *catchScope = ptrs_scope_increase(scope);
+		ptrs_var_t val;
+
+		val.type = PTRS_TYPE_STRING;
+		if(stmt.argc > 0)
+		{
+			val.value.strval = error->message;
+			ptrs_scope_set(catchScope, stmt.argv[0], &val);
+		}
+		if(stmt.argc > 1)
+		{
+			val.value.strval = error->stack;
+			ptrs_scope_set(catchScope, stmt.argv[1], &val);
+		}
+		if(stmt.argc > 2)
+		{
+			val.value.strval = error->file;
+			ptrs_scope_set(catchScope, stmt.argv[2], &val);
+		}
+
+		val.type = PTRS_TYPE_INT;
+		if(stmt.argc > 3)
+		{
+			val.value.intval = error->line;
+			ptrs_scope_set(catchScope, stmt.argv[3], &val);
+		}
+		if(stmt.argc > 4)
+		{
+			val.value.intval = error->column;
+			ptrs_scope_set(catchScope, stmt.argv[4], &val);
+		}
+
+		result = stmt.catchBody->handler(stmt.catchBody, result, catchScope);
+
+		free(error->stack);
+		free(error->message);
+		free(error);
+	}
 	return result;
 }
 

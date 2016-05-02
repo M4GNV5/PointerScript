@@ -183,6 +183,31 @@ ptrs_ast_t *parseStatement(code_t *code)
 		stmt->handler = PTRS_HANDLE_CONTINUE;
 		consumec(code, ';');
 	}
+	else if(lookahead(code, "throw"))
+	{
+		stmt->handler = PTRS_HANDLE_THROW;
+		stmt->arg.astval = parseExpression(code);
+		consumec(code, ';');
+	}
+	else if(lookahead(code, "try"))
+	{
+		stmt->handler = PTRS_HANDLE_TRYCATCH;
+		consumec(code, '{');
+		stmt->arg.trycatch.tryBody = parseStmtList(code, '}');
+		consumec(code, '}');
+
+		if(lookahead(code, "catch"))
+		{
+			stmt->arg.trycatch.argv = parseArgumentDefinitionList(code, &stmt->arg.trycatch.argc);
+			consumec(code, '{');
+			stmt->arg.trycatch.catchBody = parseStmtList(code, '}');
+			consumec(code, '}');
+		}
+		else
+		{
+			stmt->arg.trycatch.catchBody = NULL;
+		}
+	}
 	else if(lookahead(code, "function"))
 	{
 		stmt->handler = PTRS_HANDLE_FUNCTION;
