@@ -353,10 +353,10 @@ ptrs_var_t *ptrs_handle_if(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *s
 {
 	struct ptrs_ast_ifelse stmt = node->arg.ifelse;
 
-	result = stmt.condition->handler(stmt.condition, result, scope);
+	ptrs_var_t *condition = stmt.condition->handler(stmt.condition, result, scope);
 	ptrs_scope_t *stmtScope = ptrs_scope_increase(scope);
 
-	if(ptrs_vartob(result))
+	if(ptrs_vartob(condition))
 		result = stmt.ifBody->handler(stmt.ifBody, result, stmtScope);
 	else if(stmt.elseBody != NULL)
 		result = stmt.elseBody->handler(stmt.elseBody, result, stmtScope);
