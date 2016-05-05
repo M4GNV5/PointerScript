@@ -1,3 +1,5 @@
+#!/bin/bash
+
 function runExample
 {
 	echo Running example $1
