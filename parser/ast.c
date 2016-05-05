@@ -814,7 +814,7 @@ char *readIdentifier(code_t *code)
 	char val[128];
 	int i = 0;
 
-	while(isalpha(code->curr) || code->curr == '_')
+	while(isalpha(code->curr) || isdigit(code->curr) ||  code->curr == '_')
 	{
 		val[i] = code->curr;
 		i++;
