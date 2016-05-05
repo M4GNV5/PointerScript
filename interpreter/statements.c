@@ -373,7 +373,6 @@ ptrs_var_t *ptrs_handle_while(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	ptrs_var_t *_result = result;
 
 	struct ptrs_ast_control stmt = node->arg.control;
-	ptrs_scope_t *stmtScope = ptrs_scope_increase(scope);
 
 	for(;;)
 	{
@@ -381,6 +380,7 @@ ptrs_var_t *ptrs_handle_while(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		if(!ptrs_vartob(condition))
 			break;
 
+		ptrs_scope_t *stmtScope = ptrs_scope_increase(scope);
 		result = _result;
 		result = stmt.body->handler(stmt.body, result, stmtScope);
 
