@@ -1,0 +1,27 @@
+import "printf" from "libc.so.6";
+import "SDL_Init", "SDL_GetError", "SDL_CreateWindow", "SDL_GetWindowSurface", "SDL_MapRGB", "SDL_FillRect", "SDL_UpdateWindowSurface", "SDL_Delay", "SDL_DestroyWindow", "SDL_Quit" from "libSDL2.so";
+printf("Starting\n");
+if (SDL_Init(32) < 0)
+{
+	printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
+}
+else
+{
+	var window = SDL_CreateWindow("SDL Test", 0x1FFF0000, 0x1FFF0000, 800, 600, 4);
+	if (window == 0)
+	{
+		printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
+	}
+	else
+	{
+		var screenSurface = SDL_GetWindowSurface(window);
+
+		//show a black window for 3 seconds
+		SDL_FillRect(screenSurface, NULL, 0);
+		SDL_UpdateWindowSurface(window);
+		SDL_Delay(3000);
+
+		SDL_DestroyWindow(window);
+	}
+}
+SDL_Quit();

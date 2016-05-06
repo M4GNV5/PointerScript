@@ -31,7 +31,7 @@ clean:
 	rm bin -r
 
 $(RUN): $(BIN) $(SHARED_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS)
-	gcc $(SHARED_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) -o $(BIN)/ptrs -rdynamic -ldl -lffi
+	gcc $(SHARED_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) -o $(BIN)/ptrs -rdynamic -ldl -lffi -lcallback
 
 $(BIN):
 	mkdir $(BIN)

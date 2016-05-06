@@ -45,6 +45,7 @@ typedef struct function
 	int argc;
 	struct ptrs_ast *body;
 	ptrs_scope_t *scope;
+	void *nativeCb;
 } ptrs_function_t;
 
 struct ptrs_structlist

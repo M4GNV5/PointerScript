@@ -2,11 +2,13 @@
 #include <stdint.h>
 #include <string.h>
 #include <ffi.h>
+#include <callback.h>
 
 #include "../include/error.h"
 #include "../include/conversion.h"
 #include "../include/stack.h"
 #include "../include/call.h"
+#include "../include/callback.h"
 #include "../../parser/common.h"
 
 ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_var_t *func, ptrs_var_t *result, struct ptrs_astlist *arguments, ptrs_scope_t *scope)
@@ -51,32 +53,6 @@ ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_var_t *func, ptrs_var_t *result, str
 	return result;
 }
 
-typedef struct bundle
-{
-	ptrs_var_t func;
-	ptrs_var_t result;
-	ptrs_var_t arg;
-	ptrs_scope_t scope;
-} ptrs_bundle_t;
-
-ptrs_bundle_t *ptrs_bundle(ptrs_var_t *func, ptrs_var_t *arg)
-{
-	ptrs_bundle_t *bundle = malloc(sizeof(ptrs_bundle_t));
-	memcpy(&bundle->func, func, sizeof(ptrs_var_t));
-	memcpy(&bundle->arg, arg, sizeof(ptrs_var_t));
-	memset(&bundle->scope, 0, sizeof(ptrs_scope_t));
-	return bundle;
-}
-
-ptrs_var_t *ptrs_callbundle(ptrs_bundle_t *bundle)
-{
-	ptrs_var_t *result = ptrs_callfunc(NULL, &bundle->result, &bundle->scope, &bundle->func, 1, &bundle->arg);
-	if(result != &bundle->result)
-		memcpy(&bundle->result, result, sizeof(ptrs_var_t));
-
-	return &bundle->result;
-}
-
 ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t *callScope, ptrs_var_t *funcvar, int argc, ptrs_var_t *argv)
 {
 	ptrs_function_t *func = funcvar->value.funcval;
@@ -117,6 +93,49 @@ ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t 
 	return result;
 }
 
+void ptrs_callcallback(ptrs_function_t *func, va_alist alist)
+{
+	va_start_longlong(alist);
+
+	ptrs_var_t argv[func->argc];
+
+	ptrs_var_t result;
+	ptrs_var_t funcvar;
+	funcvar.type = PTRS_TYPE_FUNCTION;
+	funcvar.value.funcval = func;
+
+	ptrs_scope_t scope;
+	memset(&scope, 0, sizeof(ptrs_scope_t));
+	scope.calleeName = "(native callback)";
+
+	for(int i = 0; i < func->argc; i++)
+	{
+		argv[i].type = PTRS_TYPE_INT;
+		argv[i].value.intval = va_arg_longlong(alist);
+	}
+
+	ptrs_callfunc(NULL, &result, &scope, &funcvar, func->argc, argv);
+
+	if(scope.stackstart != NULL)
+		free(scope.stackstart);
+
+	switch(result.type)
+	{
+		case PTRS_TYPE_UNDEFINED:
+			va_return_ptr(alist, void*, NULL);
+			break;
+		case PTRS_TYPE_INT:
+			va_return_longlong(alist, result.value.intval);
+			break;
+		case PTRS_TYPE_FLOAT:
+			va_return_double(alist, result.value.floatval);
+			break;
+		default: //pointer type
+			va_return_ptr(alist, void*, result.value.intval);
+			break;
+	}
+}
+
 intptr_t ptrs_callnative(ptrs_ast_t *ast, ptrs_scope_t *scope, void *func, int argc, ptrs_var_t *argv)
 {
 	ffi_cif cif;
@@ -135,6 +154,17 @@ intptr_t ptrs_callnative(ptrs_ast_t *ast, ptrs_scope_t *scope, void *func, int a
 				types[i] = &ffi_type_sint64;
 				values[i] = &argv[i].value.intval;
 				break;
+			case PTRS_TYPE_FUNCTION:
+				;
+				ptrs_function_t *func = argv[i].value.funcval;
+				if(func->scope->outer == NULL)
+				{
+					if(func->nativeCb == NULL)
+						func->nativeCb = alloc_callback(&ptrs_callcallback, func);
+					types[i] = &ffi_type_pointer;
+					values[i] = &func->nativeCb;
+					break;
+				}
 			default:
 				types[i] = &ffi_type_pointer;
 				values[i] = &argv[i].value.strval;

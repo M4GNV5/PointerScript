@@ -319,6 +319,7 @@ ptrs_var_t *ptrs_handle_function(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 	func->args = astfunc.args;
 	func->body = astfunc.body;
 	func->scope = scope;
+	func->nativeCb = NULL;
 
 	result->type = PTRS_TYPE_FUNCTION;
 	result->value.funcval = func;
