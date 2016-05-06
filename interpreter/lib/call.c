@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include <ffi.h>
+#include <avcall.h>
 #include <callback.h>
 
 #include "../include/error.h"
@@ -136,23 +136,21 @@ void ptrs_callcallback(ptrs_function_t *func, va_alist alist)
 	}
 }
 
-intptr_t ptrs_callnative(ptrs_ast_t *ast, ptrs_scope_t *scope, void *func, int argc, ptrs_var_t *argv)
+int64_t ptrs_callnative(ptrs_ast_t *ast, ptrs_scope_t *scope, void *func, int argc, ptrs_var_t *argv)
 {
-	ffi_cif cif;
-	ffi_type *types[argc];
-	void *values[argc];
+	av_alist alist;
+	int64_t retVal = 0;
+	av_start_longlong(alist, func, &retVal);
 
 	for(int i = 0; i < argc; i++)
 	{
 		switch(argv[i].type)
 		{
 			case PTRS_TYPE_FLOAT:
-				types[i] = &ffi_type_double;
-				values[i] = &argv[i].value.floatval;
+				av_double(alist, argv[i].value.floatval);
 				break;
 			case PTRS_TYPE_INT:
-				types[i] = &ffi_type_sint64;
-				values[i] = &argv[i].value.intval;
+				av_longlong(alist, argv[i].value.intval);
 				break;
 			case PTRS_TYPE_FUNCTION:
 				;
@@ -161,21 +159,15 @@ intptr_t ptrs_callnative(ptrs_ast_t *ast, ptrs_scope_t *scope, void *func, int a
 				{
 					if(func->nativeCb == NULL)
 						func->nativeCb = alloc_callback(&ptrs_callcallback, func);
-					types[i] = &ffi_type_pointer;
-					values[i] = &func->nativeCb;
+					av_ptr(alist, void *, func->nativeCb);
 					break;
 				}
 			default:
-				types[i] = &ffi_type_pointer;
-				values[i] = &argv[i].value.strval;
+				av_ptr(alist, void *, argv[i].value.nativeval);
 				break;
 		}
 	}
 
-	if(ffi_prep_cif(&cif, FFI_DEFAULT_ABI, argc, &ffi_type_pointer, types) != FFI_OK)
-		ptrs_error(ast, scope, "Could not call native function %p", func);
-
-	intptr_t retVal = 0;
-	ffi_call(&cif, func, &retVal, values);
+	av_call(alist);
 	return retVal;
 }
