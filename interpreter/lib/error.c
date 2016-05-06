@@ -54,6 +54,10 @@ int ptrs_printpos(char *buff, ptrs_ast_t *ast)
 	return sprintf(buff, "(%s:%d:%d)\n", ast->file, pos.line, pos.column);
 }
 
+#ifdef _GNU_SOURCE
+extern int main(int argc, char **argv);
+#endif
+
 char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative)
 {
 	char buff[1024];
@@ -63,20 +67,26 @@ char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative)
 	void *trace[32];
 	int count = backtrace(trace, 32);
 	Dl_info infos[count];
+	bool doBacktrace = true;
 
 	for(int i = 0; i < count; i++)
 	{
 		dladdr(trace[i], &infos[i]);
-		if(infos[i].dli_saddr == ptrs_callnative)
+		if(infos[i].dli_saddr == main || infos[i].dli_saddr == ptrs_callcallback)
 		{
-			for(int j = skipNative; j < i - 2; j++)
-			{
-				if(infos[j].dli_sname != NULL && infos[j].dli_fname != NULL)
-					buffptr += sprintf(buffptr, "    at %s (%s)\n", infos[j].dli_sname, infos[j].dli_fname);
-				else
-					buffptr += sprintf(buffptr, "    at %p (unknown)\n", trace[j]);
-			}
+			doBacktrace = false;
 			break;
+		}
+	}
+
+	if(doBacktrace)
+	{
+		for(int i = skipNative; i < count - 1; i++)
+		{
+			if(infos[i].dli_sname != NULL && infos[i].dli_fname != NULL)
+				buffptr += sprintf(buffptr, "    at %s (%s)\n", infos[i].dli_sname, infos[i].dli_fname);
+			else
+				buffptr += sprintf(buffptr, "    at %p (unknown)\n", trace[i]);
 		}
 	}
 #endif
