@@ -114,7 +114,17 @@ ptrs_var_t *ptrs_handle_prefix_address(ptrs_ast_t *node, ptrs_var_t *result, ptr
 	ptrs_var_t *val = node->arg.astval->handler(node->arg.astval, result, scope);
 
 	if(val == result)
-		ptrs_error(node, scope, "Cannot get address from static expression");
+	{
+		if(val->meta.pointer != NULL)
+		{
+			result->type = PTRS_TYPE_NATIVE;
+			result->value.nativeval = val->meta.pointer;
+		}
+		else
+		{
+			ptrs_error(node, scope, "Cannot get address from static expression");
+		}
+	}
 
 	result->type = PTRS_TYPE_POINTER;
 	result->value.ptrval = val;
