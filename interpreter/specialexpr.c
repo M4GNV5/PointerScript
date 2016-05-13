@@ -128,10 +128,11 @@ ptrs_var_t *ptrs_handle_prefix_dereference(ptrs_ast_t *node, ptrs_var_t *result,
 
 	if(valuet == PTRS_TYPE_NATIVE || valuet == PTRS_TYPE_STRING)
 	{
-		result->type = PTRS_TYPE_INT;
-		result->value.intval = *val->value.strval;
 		if(valuet == PTRS_TYPE_NATIVE)
 			result->meta.pointer = val->value.nativeval;
+
+		result->type = PTRS_TYPE_INT;
+		result->value.intval = *val->value.strval;
 	}
 	else if(valuet == PTRS_TYPE_POINTER)
 	{
