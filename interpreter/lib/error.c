@@ -128,7 +128,7 @@ void ptrs_showpos(ptrs_ast_t *ast)
 
 void ptrs_vthrow(ptrs_ast_t *ast, ptrs_scope_t *scope, const char *format, va_list ap)
 {
-	ptrs_error_t *error = malloc(sizeof(ptrs_error_t));
+	ptrs_error_t *error = scope->error;
 
 	va_list ap2;
 	va_copy(ap2, ap);
@@ -148,17 +148,16 @@ void ptrs_vthrow(ptrs_ast_t *ast, ptrs_scope_t *scope, const char *format, va_li
 	error->line = pos.line;
 	error->column = pos.column;
 
-	sigjmp_buf *env = (sigjmp_buf *)scope->error;
-	while(scope->error == env)
+	while(scope->error == error)
 	{
 		scope->error = error;
-		if(scope->callScope != NULL && scope->callScope->error == env)
+		if(scope->callScope != NULL && scope->callScope->error == error)
 			scope = scope->callScope;
 		else
 			scope = scope->outer;
 	}
 
-	siglongjmp(*env, 1);
+	siglongjmp(error->catch, 1);
 }
 
 void ptrs_throw(ptrs_ast_t *ast, ptrs_scope_t *scope, const char *msg, ...)

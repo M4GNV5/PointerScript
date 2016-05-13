@@ -256,9 +256,10 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 {
 	struct ptrs_ast_trycatch stmt = node->arg.trycatch;
 	ptrs_scope_t *tryScope = ptrs_scope_increase(scope);
-	sigjmp_buf env;
-	tryScope->error = &env;
-	int k = sigsetjmp(env, 1);
+	ptrs_error_t error;
+
+	tryScope->error = &error;
+	int k = sigsetjmp(error.catch, 1);
 
 	if(k == 0)
 	{
@@ -266,45 +267,46 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 	}
 	else if(stmt.catchBody != NULL)
 	{
-		ptrs_error_t *error = tryScope->error;
-
 		ptrs_scope_t *catchScope = ptrs_scope_increase(scope);
 		ptrs_var_t val;
+		char *msg;
 
 		val.type = PTRS_TYPE_STRING;
 		if(stmt.argc > 0)
 		{
-			val.value.strval = error->message;
+			msg = ptrs_alloc(catchScope, strlen(error.message) + 1);
+			strcpy(msg, error.message);
+			val.value.strval = msg;
 			ptrs_scope_set(catchScope, stmt.argv[0], &val);
 		}
 		if(stmt.argc > 1)
 		{
-			val.value.strval = error->stack;
+			msg = ptrs_alloc(catchScope, strlen(error.stack) + 1);
+			strcpy(msg, error.stack);
+			val.value.strval = msg;
 			ptrs_scope_set(catchScope, stmt.argv[1], &val);
 		}
 		if(stmt.argc > 2)
 		{
-			val.value.strval = error->file;
+			val.value.strval = error.file;
 			ptrs_scope_set(catchScope, stmt.argv[2], &val);
 		}
+		free(error.message);
+		free(error.stack);
 
 		val.type = PTRS_TYPE_INT;
 		if(stmt.argc > 3)
 		{
-			val.value.intval = error->line;
+			val.value.intval = error.line;
 			ptrs_scope_set(catchScope, stmt.argv[3], &val);
 		}
 		if(stmt.argc > 4)
 		{
-			val.value.intval = error->column;
+			val.value.intval = error.column;
 			ptrs_scope_set(catchScope, stmt.argv[4], &val);
 		}
 
 		result = stmt.catchBody->handler(stmt.catchBody, result, catchScope);
-
-		free(error->stack);
-		free(error->message);
-		free(error);
 	}
 	return result;
 }

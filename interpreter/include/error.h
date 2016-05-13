@@ -1,6 +1,7 @@
 #ifndef _PTRS_ERROR
 #define _PTRS_ERROR
 
+#include <setjmp.h>
 #include "../../parser/ast.h"
 #include "../../parser/common.h"
 
@@ -9,6 +10,7 @@ ptrs_scope_t *ptrs_lastscope;
 
 typedef struct ptrs_error
 {
+	sigjmp_buf catch;
 	char *message;
 	char *stack;
 	const char *file;
