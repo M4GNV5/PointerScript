@@ -108,7 +108,6 @@ const char *typeofStrings[] = {
 	"int",
 	"float",
 	"native",
-	"string",
 	"pointer",
 	"function",
 	"struct"
