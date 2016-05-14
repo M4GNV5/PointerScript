@@ -646,7 +646,7 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 	{
 		rawnext(code);
 		ast = talloc(ptrs_ast_t);
-		ast->arg.constval.type = PTRS_TYPE_STRING;
+		ast->arg.constval.type = PTRS_TYPE_NATIVE;
 		ast->arg.constval.value.strval = readString(code);
 		ast->handler = PTRS_HANDLE_CONSTANT;
 		consumec(code, '"');
@@ -788,7 +788,6 @@ struct typeName typeNames[] = {
 	{"int", PTRS_TYPE_INT},
 	{"float", PTRS_TYPE_FLOAT},
 	{"native", PTRS_TYPE_NATIVE},
-	{"string", PTRS_TYPE_STRING},
 	{"pointer", PTRS_TYPE_POINTER},
 	{"struct", PTRS_TYPE_STRUCT}
 };

@@ -21,7 +21,7 @@ bool ptrs_vartob(ptrs_var_t *val)
 			return val->value.intval != 0;
 		case PTRS_TYPE_FLOAT:
 			return val->value.floatval != 0;
-		case PTRS_TYPE_STRING:
+		case PTRS_TYPE_NATIVE:
 			return *(val->value.strval) != 0;
 		default: //pointer type
 			return val->value.strval != NULL;
@@ -41,7 +41,7 @@ int64_t ptrs_vartoi(ptrs_var_t *val)
 			return val->value.intval;
 		case PTRS_TYPE_FLOAT:
 			return val->value.floatval;
-		case PTRS_TYPE_STRING:
+		case PTRS_TYPE_NATIVE:
 			return atoi(val->value.strval);
 		default: //pointer type
 			return (intptr_t)val->value.strval;
@@ -61,7 +61,7 @@ double ptrs_vartof(ptrs_var_t *val)
 			return val->value.intval;
 		case PTRS_TYPE_FLOAT:
 			return val->value.floatval;
-		case PTRS_TYPE_STRING:
+		case PTRS_TYPE_NATIVE:
 			return atof(val->value.strval);
 		default: //pointer type
 			return (intptr_t)val->value.strval;
@@ -86,7 +86,7 @@ const char *ptrs_vartoa(ptrs_var_t *val, char *buff, size_t maxlen)
 		case PTRS_TYPE_FLOAT:
 			snprintf(buff, maxlen, "%g", val->value.floatval);
 			break;
-		case PTRS_TYPE_STRING:
+		case PTRS_TYPE_NATIVE:
 			return val->value.strval;
 			break;
 		case PTRS_TYPE_FUNCTION:

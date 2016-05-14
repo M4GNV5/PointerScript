@@ -18,7 +18,7 @@ int main(int argc, char **argv)
 	ptrs_var_t arguments[argc + 1];
 	for(int i = 0; i < argc; i++)
 	{
-		arguments[i].type = PTRS_TYPE_STRING;
+		arguments[i].type = PTRS_TYPE_NATIVE;
 		arguments[i].value.strval = argv[i];
 	}
 	arguments[argc].type = PTRS_TYPE_NATIVE;

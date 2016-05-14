@@ -51,8 +51,7 @@ void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *op, ptr
 	} \
 
 #define binary_pointer_add() \
-	else if(((tleft == PTRS_TYPE_NATIVE) ^ (tright == PTRS_TYPE_NATIVE) \
-		|| (tleft == PTRS_TYPE_STRING) ^ (tright == PTRS_TYPE_STRING)) \
+	else if((tleft == PTRS_TYPE_NATIVE) ^ (tright == PTRS_TYPE_NATIVE) \
 	 	&& (tleft == PTRS_TYPE_INT || tright == PTRS_TYPE_INT)) \
 	{ \
 		result->type = PTRS_TYPE_NATIVE; \
@@ -70,15 +69,13 @@ void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *op, ptr
 	}
 
 #define binary_pointer_sub() \
-	else if(((tleft == PTRS_TYPE_NATIVE) ^ (tright == PTRS_TYPE_NATIVE) \
-		|| (tleft == PTRS_TYPE_STRING) ^ (tright == PTRS_TYPE_STRING)) \
+	else if((tleft == PTRS_TYPE_NATIVE) ^ (tright == PTRS_TYPE_NATIVE) \
 		&& (tleft == PTRS_TYPE_INT || tright == PTRS_TYPE_INT)) \
 	{ \
 		result->type = PTRS_TYPE_NATIVE; \
 		result->value.intval = left->value.intval - right->value.intval; \
 	} \
-	else if((tleft == PTRS_TYPE_NATIVE || tleft == PTRS_TYPE_STRING) \
-	 	&& (tright == PTRS_TYPE_NATIVE || tright == PTRS_TYPE_STRING)) \
+	else if(tleft == PTRS_TYPE_NATIVE && tright == PTRS_TYPE_NATIVE) \
 	{ \
 		result->type = PTRS_TYPE_INT; \
 		result->value.intval = left->value.strval - right->value.strval; \
@@ -94,16 +91,6 @@ void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *op, ptr
 		result->value.intval = left->value.ptrval - right->value.ptrval; \
 	}
 
-#define binary_string_equal(operator) \
-	else if(tleft == PTRS_TYPE_STRING && tright == PTRS_TYPE_STRING) \
-	{ \
-		char buff[32]; \
-		const char *strleft = ptrs_vartoa(left, buff, 32);; \
-		const char *strright = ptrs_vartoa(right, buff, 32); \
-		\
-		result->type = PTRS_TYPE_INT; \
-		result->value.intval = strcmp(strleft, strright) operator 0; \
-	}
 
 
 #define handle_binary(name, operator, oplabel, isAssign, ...) \
@@ -143,8 +130,8 @@ void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *op, ptr
 		return result; \
 	} \
 
-handle_binary(equal, ==, "==", false, binary_floatop(==) binary_string_equal(==) binary_pointer_compare(==))
-handle_binary(inequal, !=, "!=", false, binary_floatop(!=) binary_string_equal(!=) binary_pointer_compare(!=))
+handle_binary(equal, ==, "==", false, binary_floatop(==) binary_pointer_compare(==))
+handle_binary(inequal, !=, "!=", false, binary_floatop(!=) binary_pointer_compare(!=))
 handle_binary(lessequal, <=, "<=", false, binary_floatop(<=) binary_pointer_compare(<=))
 handle_binary(greaterequal, >=, ">=", false, binary_floatop(>=) binary_pointer_compare(>=))
 handle_binary(less, <, "<", false, binary_floatop(<) binary_pointer_compare(<))

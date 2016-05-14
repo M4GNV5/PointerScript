@@ -271,7 +271,7 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 		ptrs_var_t val;
 		char *msg;
 
-		val.type = PTRS_TYPE_STRING;
+		val.type = PTRS_TYPE_NATIVE;
 		if(stmt.argc > 0)
 		{
 			msg = ptrs_alloc(catchScope, strlen(error.message) + 1);
@@ -470,7 +470,7 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	struct ptrs_structlist *curr = val->value.structval->member;
 	while(curr != NULL)
 	{
-		iterval->type = PTRS_TYPE_STRING;
+		iterval->type = PTRS_TYPE_NATIVE;
 		iterval->value.strval = curr->name;
 
 		stmt.body->handler(stmt.body, result, stmtScope);

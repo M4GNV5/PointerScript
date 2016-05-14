@@ -136,11 +136,9 @@ ptrs_var_t *ptrs_handle_prefix_dereference(ptrs_ast_t *node, ptrs_var_t *result,
 	ptrs_var_t *val = node->arg.astval->handler(node->arg.astval, result, scope);
 	ptrs_vartype_t valuet = val->type;
 
-	if(valuet == PTRS_TYPE_NATIVE || valuet == PTRS_TYPE_STRING)
+	if(valuet == PTRS_TYPE_NATIVE)
 	{
-		if(valuet == PTRS_TYPE_NATIVE)
-			result->meta.pointer = val->value.nativeval;
-
+		result->meta.pointer = val->value.nativeval;
 		result->type = PTRS_TYPE_INT;
 		result->value.intval = *val->value.strval;
 	}
@@ -172,14 +170,12 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		int64_t _index = ptrs_vartoi(index);
 		return &(value->value.ptrval[_index]);
 	}
-	else if(valuet == PTRS_TYPE_NATIVE || valuet == PTRS_TYPE_STRING)
+	else if(valuet == PTRS_TYPE_NATIVE)
 	{
 		int64_t _index = ptrs_vartoi(index);
 		result->type = PTRS_TYPE_INT;
 		result->value.intval = value->value.strval[_index];
-
-		if(valuet == PTRS_TYPE_NATIVE)
-			result->meta.pointer = (int8_t*)&value->value.strval[_index];
+		result->meta.pointer = (int8_t*)&value->value.strval[_index];
 	}
 	else if(valuet == PTRS_TYPE_STRUCT)
 	{
@@ -236,6 +232,6 @@ ptrs_var_t *ptrs_handle_prefix_typeof(ptrs_ast_t *node, ptrs_var_t *result, ptrs
 {
 	ptrs_var_t *val = node->arg.astval->handler(node->arg.astval, result, scope);
 	result->value.strval = ptrs_typetoa(val->type);
-	result->type = PTRS_TYPE_STRING;
+	result->type = PTRS_TYPE_NATIVE;
 	return result;
 }
