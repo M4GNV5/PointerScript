@@ -456,6 +456,7 @@ int binaryOpCount = sizeof(binaryOps) / sizeof(struct opinfo);
 
 struct opinfo prefixOps[] = {
 	{"typeof", 12, true, PTRS_HANDLE_OP_TYPEOF},
+	{"typeidof", 12, true, PTRS_HANDLE_OP_TYPEIDOF},
 	{"++", 12, true, PTRS_HANDLE_PREFIX_INC}, //prefixed ++
 	{"--", 12, true, PTRS_HANDLE_PREFIX_DEC}, //prefixed --
 	{"!", 12, true, PTRS_HANDLE_PREFIX_LOGICNOT}, //logical NOT
@@ -534,7 +535,6 @@ struct constinfo constants[] = {
 	{"NULL", PTRS_TYPE_NATIVE, {0}},
 	{"null", PTRS_TYPE_POINTER, {0}},
 	{"VARSIZE", PTRS_TYPE_INT, {sizeof(ptrs_var_t)}},
-	{"undefined", PTRS_TYPE_UNDEFINED, {42}}
 };
 int constantCount = sizeof(constants) / sizeof(struct constinfo);
 
@@ -568,6 +568,16 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 			ast->handler = PTRS_HANDLE_CONSTANT;
 			return ast;
 		}
+	}
+
+	ptrs_vartype_t type = readTypeName(code);
+	if(type <= PTRS_TYPE_STRUCT)
+	{
+		ast = talloc(ptrs_ast_t);
+		ast->arg.constval.type = PTRS_TYPE_INT;
+		ast->arg.constval.value.intval = type;
+		ast->handler = PTRS_HANDLE_CONSTANT;
+		return ast;
 	}
 
 	if(lookahead(code, "new"))
@@ -656,7 +666,7 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 		consumec(code, '(');
 		ptrs_vartype_t type = readTypeName(code);
 
-		if(lookahead(code, ")") && type != PTRS_TYPE_UNDEFINED)
+		if(lookahead(code, ")") && type <= PTRS_TYPE_STRUCT)
 		{
 			ast = talloc(ptrs_ast_t);
 			ast->handler = PTRS_HANDLE_CAST;
@@ -785,27 +795,27 @@ struct typeName
 	ptrs_vartype_t type;
 };
 struct typeName typeNames[] = {
+	{"undefined", PTRS_TYPE_UNDEFINED},
 	{"int", PTRS_TYPE_INT},
 	{"float", PTRS_TYPE_FLOAT},
 	{"native", PTRS_TYPE_NATIVE},
 	{"pointer", PTRS_TYPE_POINTER},
+	{"function", PTRS_TYPE_FUNCTION},
 	{"struct", PTRS_TYPE_STRUCT}
 };
 int typeNameCount = sizeof(typeNames) / sizeof(struct typeName);
 
 ptrs_vartype_t readTypeName(code_t *code)
 {
-	ptrs_vartype_t type = PTRS_TYPE_UNDEFINED;
 	for(int i = 0; i < typeNameCount; i++)
 	{
 		if(lookahead(code, typeNames[i].name))
 		{
-			type = typeNames[i].type;
-			break;
+			return typeNames[i].type;
 		}
 	}
 
-	return type;
+	return PTRS_TYPE_STRUCT + 1;
 }
 
 char *readIdentifier(code_t *code)

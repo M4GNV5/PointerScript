@@ -2,14 +2,14 @@ import "printf", "strcmp" from "libc.so.6";
 
 function log(val)
 {
-	var type = typeof val;
-	printf("%s - ", type);
+	var type = typeidof val;
+	printf("%s - ", typeof val);
 
-	if(type == "int")
+	if(type == int)
 		printf("%ld\n", val);
-	else if(type == "float")
+	else if(type == float)
 		printf("%g\n", val);
-	else if(type == "string")
+	else if(type == native)
 		printf("%s\n", val);
 	else
 		printf("%p\n", val);
