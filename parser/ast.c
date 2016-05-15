@@ -462,7 +462,6 @@ int binaryOpCount = sizeof(binaryOps) / sizeof(struct opinfo);
 
 struct opinfo prefixOps[] = {
 	{"typeof", 12, true, PTRS_HANDLE_OP_TYPEOF},
-	{"typeidof", 12, true, PTRS_HANDLE_OP_TYPEIDOF},
 	{"++", 12, true, PTRS_HANDLE_PREFIX_INC}, //prefixed ++
 	{"--", 12, true, PTRS_HANDLE_PREFIX_DEC}, //prefixed --
 	{"!", 12, true, PTRS_HANDLE_PREFIX_LOGICNOT}, //logical NOT

@@ -231,15 +231,7 @@ ptrs_var_t *ptrs_handle_constant(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 ptrs_var_t *ptrs_handle_prefix_typeof(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	ptrs_var_t *val = node->arg.astval->handler(node->arg.astval, result, scope);
-	result->value.strval = ptrs_typetoa(val->type);
-	result->type = PTRS_TYPE_NATIVE;
-	return result;
-}
-
-ptrs_var_t *ptrs_handle_prefix_typeidof(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
-{
-	ptrs_var_t *val = node->arg.astval->handler(node->arg.astval, result, scope);
-	result->value.intval = val->type;
 	result->type = PTRS_TYPE_INT;
+	result->value.intval = val->type;
 	return result;
 }
