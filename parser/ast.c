@@ -516,6 +516,21 @@ ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 			ahead = peekBinaryOp(code);
 		}
 
+		if(left->handler == PTRS_HANDLE_CONSTANT && right->handler == PTRS_HANDLE_CONSTANT)
+		{
+			ptrs_lastast = left;
+			ptrs_var_t result;
+			ptrs_ast_t node;
+			node.handler = op->handler;
+			node.arg.binary.left = left;
+			node.arg.binary.right = right;
+
+			node.handler(&node, &result, NULL);
+			free(right);
+			memcpy(&left->arg.constval, &result, sizeof(ptrs_var_t));
+			continue;
+		}
+
 		ptrs_ast_t *_left = left;
 		left = talloc(ptrs_ast_t);
 		left->handler = op->handler;
