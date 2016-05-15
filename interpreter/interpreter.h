@@ -33,6 +33,7 @@ ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 ptrs_var_t *ptrs_handle_identifier(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_constant(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 
+ptrs_var_t *ptrs_handle_op_ternary(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_op_equal(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_op_inequal(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_op_lessequal(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
@@ -106,6 +107,7 @@ ptrs_var_t *ptrs_handle_suffix_dec(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 #define PTRS_HANDLE_IDENTIFIER ptrs_handle_identifier
 #define PTRS_HANDLE_CONSTANT ptrs_handle_constant
 
+#define PTRS_HANDLE_OP_TERNARY ptrs_handle_op_ternary
 #define PTRS_HANDLE_OP_EQUAL ptrs_handle_op_equal
 #define PTRS_HANDLE_OP_INEQUAL ptrs_handle_op_inequal
 #define PTRS_HANDLE_OP_LESSEQUAL ptrs_handle_op_lessequal

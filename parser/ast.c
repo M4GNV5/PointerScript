@@ -442,7 +442,8 @@ struct opinfo binaryOps[] = {
 	{"^=", 1, true, PTRS_HANDLE_OP_XORASSIGN},
 	{"|=", 1, true, PTRS_HANDLE_OP_ORASSIGN},
 
-	// 2 = ternary TODO
+	{"?", 2, true, PTRS_HANDLE_OP_TERNARY},
+	{":", -1, true, PTRS_HANDLE_OP_TERNARY},
 
 	{"||", 3, false, PTRS_HANDLE_OP_LOGICOR},
 	{"&&", 4, false, PTRS_HANDLE_OP_LOGICAND},
@@ -481,7 +482,7 @@ int suffixedOpCount = sizeof(suffixedOps) / sizeof(struct opinfo);
 
 ptrs_ast_t *parseExpression(code_t *code)
 {
-	return parseBinaryExpr(code, parseUnaryExpr(code), 0);;
+	return parseBinaryExpr(code, parseUnaryExpr(code), 0);
 }
 
 struct opinfo *peekBinaryOp(code_t *code)
@@ -528,6 +529,17 @@ ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 			node.handler(&node, &result, NULL);
 			free(right);
 			memcpy(&left->arg.constval, &result, sizeof(ptrs_var_t));
+			continue;
+		}
+		if(op->handler == PTRS_HANDLE_OP_TERNARY)
+		{
+			ptrs_ast_t *ast = talloc(ptrs_ast_t);
+			ast->handler = PTRS_HANDLE_OP_TERNARY;
+			ast->arg.ternary.condition = left;
+			ast->arg.ternary.trueVal = right;
+			consumec(code, ':');
+			ast->arg.ternary.falseVal = parseExpression(code);
+			left = ast;
 			continue;
 		}
 

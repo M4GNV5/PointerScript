@@ -43,6 +43,13 @@ struct ptrs_ast_binary
 	struct ptrs_ast *right;
 };
 
+struct ptrs_ast_ternary
+{
+	struct ptrs_ast *condition;
+	struct ptrs_ast *trueVal;
+	struct ptrs_ast *falseVal;
+};
+
 struct ptrs_ast_cast
 {
 	ptrs_vartype_t type;
@@ -99,6 +106,7 @@ union ptrs_ast_arg
 	struct ptrs_ast_function function;
 	struct ptrs_ast_cast cast;
 	struct ptrs_ast_binary binary;
+	struct ptrs_ast_ternary ternary;
 	struct ptrs_ast_call call;
 	struct ptrs_ast_ifelse ifelse;
 	struct ptrs_ast_control control;

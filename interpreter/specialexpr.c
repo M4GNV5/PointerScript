@@ -235,3 +235,14 @@ ptrs_var_t *ptrs_handle_prefix_typeof(ptrs_ast_t *node, ptrs_var_t *result, ptrs
 	result->value.intval = val->type;
 	return result;
 }
+
+ptrs_var_t *ptrs_handle_op_ternary(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_ternary stmt = node->arg.ternary;
+
+	ptrs_var_t *condition = stmt.condition->handler(stmt.condition, result, scope);
+	if(ptrs_vartob(condition))
+		return stmt.trueVal->handler(stmt.trueVal, result, scope);
+	else
+		return stmt.falseVal->handler(stmt.falseVal, result, scope);
+}
