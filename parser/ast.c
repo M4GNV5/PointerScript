@@ -655,6 +655,14 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 		ast->arg.astlist = parseExpressionList(code, ']');
 		consumec(code, ']');
 	}
+	else if(curr == '{')
+	{
+		next(code);
+		ast = talloc(ptrs_ast_t);
+		ast->handler = PTRS_HANDLE_VARARRAYEXPR;
+		ast->arg.astlist = parseExpressionList(code, '}');
+		consumec(code, '}');
+	}
 	else if(isalpha(curr) || curr == '_')
 	{
 		ast = talloc(ptrs_ast_t);

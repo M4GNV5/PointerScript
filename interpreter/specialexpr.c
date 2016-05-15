@@ -6,6 +6,7 @@
 #include "../parser/common.h"
 #include "include/error.h"
 #include "include/conversion.h"
+#include "include/stack.h"
 #include "include/scope.h"
 #include "include/call.h"
 
@@ -54,18 +55,41 @@ ptrs_var_t *ptrs_handle_arrayexpr(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sco
 		list = list->next;
 	}
 
-	ptrs_var_t *array = malloc(sizeof(ptrs_var_t) * (len + 1));
+	int8_t *array = ptrs_alloc(scope, len);
+	list = node->arg.astlist;
+	for(int i = 0; i < len; i++)
+	{
+		ptrs_var_t *val = list->entry->handler(list->entry, result, scope);
+		array[i] = (int8_t)ptrs_vartoi(val);
+		list = list->next;
+	}
+
+	result->type = PTRS_TYPE_NATIVE;
+	result->value.nativeval = array;
+	return result;
+}
+
+ptrs_var_t *ptrs_handle_vararrayexpr(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_astlist *list = node->arg.astlist;
+	int len = 0;
+	while(list != NULL)
+	{
+		len++;
+		list = list->next;
+	}
+
+	ptrs_var_t *array = ptrs_alloc(scope, len * sizeof(ptrs_var_t));
 	list = node->arg.astlist;
 	for(int i = 0; i < len; i++)
 	{
 		ptrs_var_t *val = list->entry->handler(list->entry, &array[i], scope);
 		if(val != &array[i])
 			memcpy(&array[i], val, sizeof(ptrs_var_t));
+
 		list = list->next;
 	}
 
-	array[len].type = PTRS_TYPE_NATIVE;
-	array[len].value.nativeval = NULL;
 	result->type = PTRS_TYPE_POINTER;
 	result->value.ptrval = array;
 	return result;
