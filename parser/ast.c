@@ -144,6 +144,12 @@ ptrs_ast_t *parseStatement(code_t *code)
 			stmt->arg.define.value = parseExpression(code);
 			consumec(code, ']');
 		}
+		else if(lookahead(code, "{"))
+		{
+			stmt->handler = PTRS_HANDLE_VARARRAY;
+			stmt->arg.define.value = parseExpression(code);
+			consumec(code, '}');
+		}
 		else if(lookahead(code, "="))
 		{
 			stmt->arg.define.value = parseExpression(code);

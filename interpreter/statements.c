@@ -60,11 +60,23 @@ ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	if(size <= 0 || size > PTRS_STACK_SIZE)
 		ptrs_error(node, scope, "Trying to create array of size %d", size);
 
-	if(size % sizeof(ptrs_var_t) == 0)
-		result->type = PTRS_TYPE_POINTER;
-	else
-		result->type = PTRS_TYPE_NATIVE;
+	result->type = PTRS_TYPE_NATIVE;
+	result->value.nativeval = ptrs_alloc(scope, size);
+	ptrs_scope_set(scope, stmt.name, result);
+	return result;
+}
 
+ptrs_var_t *ptrs_handle_vararray(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_define stmt = node->arg.define;
+
+	ptrs_var_t *val = stmt.value->handler(stmt.value, result, scope);
+	int size = ptrs_vartoi(val) * sizeof(ptrs_var_t);
+
+	if(size <= 0 || size > PTRS_STACK_SIZE)
+		ptrs_error(node, scope, "Trying to create var-array of size %d (%d bytes)", size / sizeof(ptrs_var_t), size);
+
+	result->type = PTRS_TYPE_POINTER;
 	result->value.nativeval = ptrs_alloc(scope, size);
 	ptrs_scope_set(scope, stmt.name, result);
 	return result;
