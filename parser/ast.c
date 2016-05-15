@@ -576,16 +576,6 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 		}
 	}
 
-	ptrs_vartype_t type = readTypeName(code);
-	if(type <= PTRS_TYPE_STRUCT)
-	{
-		ast = talloc(ptrs_ast_t);
-		ast->arg.constval.type = PTRS_TYPE_INT;
-		ast->arg.constval.value.intval = type;
-		ast->handler = PTRS_HANDLE_CONSTANT;
-		return ast;
-	}
-
 	if(lookahead(code, "new"))
 	{
 		ptrs_ast_t *val = talloc(ptrs_ast_t);
@@ -602,6 +592,20 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 		ast->arg.call.arguments = parseExpressionList(code, ')');
 		consumec(code, ')');
 	}
+	else if(lookahead(code, "type"))
+	{
+		consumec(code, '<');
+		ptrs_vartype_t type = readTypeName(code);
+
+		if(type > PTRS_TYPE_STRUCT)
+			unexpected(code, "TypeName");
+
+		ast = talloc(ptrs_ast_t);
+		ast->handler = PTRS_HANDLE_CONSTANT;
+		ast->arg.constval.type = PTRS_TYPE_INT;
+		ast->arg.constval.value.intval = type;
+		consumec(code, '>');
+	}
 	else if(lookahead(code, "cast"))
 	{
 		consumec(code, '<');
@@ -614,7 +618,7 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 		ast->handler = PTRS_HANDLE_CAST;
 		ast->arg.cast.type = type;
 		consumec(code, '>');
-		
+
 		ast->arg.cast.value = parseUnaryExpr(code);
 	}
 	else if(curr == '[')
