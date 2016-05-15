@@ -22,7 +22,7 @@ bool ptrs_vartob(ptrs_var_t *val)
 		case PTRS_TYPE_FLOAT:
 			return val->value.floatval != 0;
 		case PTRS_TYPE_NATIVE:
-			return *(val->value.strval) != 0;
+			return val->value.strval != NULL && *(val->value.strval) != 0;
 		default: //pointer type
 			return val->value.strval != NULL;
 	}
