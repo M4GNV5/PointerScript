@@ -1031,6 +1031,17 @@ bool skipComments(code_t *code)
 		code->pos = pos + 1;
 		return true;
 	}
+	else if(curr == '/' && code->src[pos + 1] == '*')
+	{
+		while(curr != '*' || code->src[pos + 1] != '/')
+		{
+			pos++;
+			curr = code->src[pos];
+		}
+
+		code->pos = pos + 2;
+		return true;
+	}
 
 	return false;
 }
