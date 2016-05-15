@@ -1,4 +1,4 @@
-import "printf", "asprintf", "free" from "libc.so.6";
+import "printf", "asprintf", "free", "ptrs_typetoa";
 
 struct Foo
 {
@@ -11,8 +11,8 @@ struct Foo
 	}
 	dump()
 	{
-		printf("%-20s%-20s%-20s\n", typeof this, typeof this.bar, typeof this.tar);
-		printf("%-20p%-20g%-20g\n", this, (float)this.bar, (float)this.tar);
+		printf("%-20s%-20s%-20s\n", ptrs_typetoa(typeof this), ptrs_typetoa(typeof this.bar), ptrs_typetoa(typeof this.tar));
+		printf("%-20p%-20g%-20g\n", this, cast<float>this.bar, cast<float>this.tar);
 	}
 };
 

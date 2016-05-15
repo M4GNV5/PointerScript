@@ -1,15 +1,15 @@
-import "printf", "strcmp" from "libc.so.6";
+import "printf", "strcmp", "ptrs_typetoa";
 
 function log(val)
 {
-	var type = typeidof val;
-	printf("%s - ", typeof val);
+	var typeid = typeof val;
+	printf("%s - ", ptrs_typetoa(typeid));
 
-	if(type == int)
+	if(typeid == type<int>)
 		printf("%ld\n", val);
-	else if(type == float)
+	else if(typeid == type<float>)
 		printf("%g\n", val);
-	else if(type == native)
+	else if(typeid == type<native>)
 		printf("%s\n", val);
 	else
 		printf("%p\n", val);

@@ -12,8 +12,7 @@ function addNumbers(arg)
 	return sum;
 }
 
-var threads[VARSIZE * 4];
-var bundles[VARSIZE * 4];
+var threads{4};
 
 for(var i = 0; i < 4; i++)
 {
@@ -30,5 +29,4 @@ for(var i = 0; i < 4; i++)
 	var result = 0;
 	pthread_join(threads[i], &result);
 	printf("Thread %d joined with result: %ld\n", i, result);
-	free(bundles[i]);
 }
