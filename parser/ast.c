@@ -602,6 +602,21 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 		ast->arg.call.arguments = parseExpressionList(code, ')');
 		consumec(code, ')');
 	}
+	else if(lookahead(code, "cast"))
+	{
+		consumec(code, '<');
+		ptrs_vartype_t type = readTypeName(code);
+
+		if(type > PTRS_TYPE_STRUCT)
+			unexpected(code, "TypeName");
+
+		ast = talloc(ptrs_ast_t);
+		ast->handler = PTRS_HANDLE_CAST;
+		ast->arg.cast.type = type;
+		consumec(code, '>');
+		
+		ast->arg.cast.value = parseUnaryExpr(code);
+	}
 	else if(curr == '[')
 	{
 		next(code);
@@ -670,20 +685,8 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 	else if(curr == '(')
 	{
 		consumec(code, '(');
-		ptrs_vartype_t type = readTypeName(code);
-
-		if(lookahead(code, ")") && type <= PTRS_TYPE_STRUCT)
-		{
-			ast = talloc(ptrs_ast_t);
-			ast->handler = PTRS_HANDLE_CAST;
-			ast->arg.cast.type = type;
-			ast->arg.cast.value = parseUnaryExpr(code);
-		}
-		else
-		{
-			ast = parseExpression(code);
-			consumec(code, ')');
-		}
+		ast = parseExpression(code);
+		consumec(code, ')');
 	}
 	else
 	{
