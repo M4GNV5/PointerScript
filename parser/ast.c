@@ -86,41 +86,62 @@ ptrs_ast_t *parseStmtList(code_t *code, char end)
 	return elem;
 }
 
-char **parseArgumentDefinitionList(code_t *code, int *argc)
+struct argdeflist
 {
-	int pos = code->pos;
+	char *name;
+	ptrs_ast_t *value;
+	struct argdeflist *next;
+};
+char **parseArgumentDefinitionList(code_t *code, int *argc, ptrs_ast_t ***argv)
+{
 	*argc = 0;
 	consumec(code, '(');
 
 	if(code->curr == ')')
 	{
 		next(code);
+		*argv = NULL;
 		return NULL;
 	}
 	else
 	{
-		*argc = 1;
-		while(code->curr != ')')
+		struct argdeflist first;
+		struct argdeflist *list = &first;
+		for(;;)
 		{
-			if(code->curr == ',')
-				++*argc;
-			next(code);
+			list->next = alloca(sizeof(struct argdeflist));
+			list = list->next;
+
+			list->name = readIdentifier(code);
+			if(argv != NULL)
+			{
+				if(lookahead(code, "="))
+					list->value = parseExpression(code);
+				else
+					list->value = NULL;
+			}
+
+			++*argc;
+
+			if(code->curr == ')')
+				break;
+			consumec(code, ',');
 		}
 
 		char **args = malloc(sizeof(char *) * *argc);
-		code->pos = pos;
-		code->curr = code->src[pos];
+		if(argv != NULL)
+			*argv = malloc(sizeof(ptrs_ast_t *) * *argc);
 
-		consumec(code, '(');
+		list = first.next;
 		for(int i = 0; i < *argc; i++)
 		{
-			args[i] = readIdentifier(code);
+			args[i] = list->name;
+			if(argv != NULL)
+				(*argv)[i] = list->value;
 
-			if(i != *argc - 1)
-				consumec(code, ',');
+			list = list->next;
 		}
 		consumec(code, ')');
-
 
 		return args;
 	}
@@ -204,7 +225,7 @@ ptrs_ast_t *parseStatement(code_t *code)
 
 		if(lookahead(code, "catch"))
 		{
-			stmt->arg.trycatch.argv = parseArgumentDefinitionList(code, &stmt->arg.trycatch.argc);
+			stmt->arg.trycatch.argv = parseArgumentDefinitionList(code, &stmt->arg.trycatch.argc, NULL);
 			consumec(code, '{');
 			stmt->arg.trycatch.catchBody = parseStmtList(code, '}');
 			consumec(code, '}');
@@ -218,7 +239,9 @@ ptrs_ast_t *parseStatement(code_t *code)
 	{
 		stmt->handler = PTRS_HANDLE_FUNCTION;
 		stmt->arg.function.name = readIdentifier(code);
-		stmt->arg.function.args = parseArgumentDefinitionList(code, &stmt->arg.function.argc);
+		stmt->arg.function.args = parseArgumentDefinitionList(code,
+				&stmt->arg.function.argc,
+				&stmt->arg.function.argv);
 
 		consumec(code, '{');
 		stmt->arg.function.body = parseStmtList(code, '}');
@@ -242,7 +265,7 @@ ptrs_ast_t *parseStatement(code_t *code)
 			{
 				ptrs_function_t *func = talloc(ptrs_function_t);
 				func->name = curr->name;
-				func->args = parseArgumentDefinitionList(code, &func->argc);
+				func->args = parseArgumentDefinitionList(code, &func->argc, &func->argv);
 				consumec(code, '{');
 				func->body = parseStmtList(code, '}');
 				consumec(code, '}');

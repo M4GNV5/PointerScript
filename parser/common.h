@@ -43,8 +43,9 @@ typedef struct ptrs_scope
 typedef struct function
 {
 	char *name;
-	char **args;
 	int argc;
+	char **args;
+	struct ptrs_ast **argv;
 	struct ptrs_ast *body;
 	ptrs_scope_t *scope;
 	void *nativeCb;

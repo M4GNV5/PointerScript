@@ -332,6 +332,7 @@ ptrs_var_t *ptrs_handle_function(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 	func->name = astfunc.name;
 	func->argc = astfunc.argc;
 	func->args = astfunc.args;
+	func->argv = astfunc.argv;
 	func->body = astfunc.body;
 	func->scope = scope;
 	func->nativeCb = NULL;

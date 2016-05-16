@@ -34,6 +34,7 @@ struct ptrs_ast_function
 	char *name;
 	int argc;
 	char **args;
+	struct ptrs_ast **argv;
 	struct ptrs_ast *body;
 };
 
