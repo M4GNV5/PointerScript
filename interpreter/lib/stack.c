@@ -3,16 +3,18 @@
 #include "../include/scope.h"
 #include "../include/error.h"
 
+size_t ptrs_stacksize = PTRS_STACK_SIZE;
+
 void *ptrs_alloc(ptrs_scope_t *scope, size_t size)
 {
 	if(scope->sp == NULL)
 	{
-		scope->sp = malloc(PTRS_STACK_SIZE);
+		scope->sp = malloc(ptrs_stacksize);
 		scope->stackstart = scope->sp;
 	}
 
-	if(scope->sp + size >= scope->stackstart + PTRS_STACK_SIZE)
-		ptrs_error(NULL, NULL, "Out of memory");
+	if(scope->sp + size >= scope->stackstart + ptrs_stacksize)
+		ptrs_error(NULL, scope, "Out of memory");
 
 	void *ptr = scope->sp;
 	scope->sp += size;

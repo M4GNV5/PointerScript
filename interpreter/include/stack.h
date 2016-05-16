@@ -4,8 +4,8 @@
 #include "../../parser/common.h"
 
 #define PTRS_STACK_SIZE (1024 * 1024)
+extern size_t ptrs_stacksize;
 
-extern void *ptrs_stack;
 void *ptrs_alloc(ptrs_scope_t *scope, size_t size);
 
 #endif

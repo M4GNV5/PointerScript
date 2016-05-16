@@ -9,14 +9,22 @@
 #include "include/conversion.h"
 #include "include/scope.h"
 
+bool ptrs_overflowError = false;
 ptrs_var_t *ptrs_assign(ptrs_ast_t *node, ptrs_scope_t *scope, ptrs_var_t *orginal, ptrs_var_t *left, ptrs_var_t *right)
 {
 	if(orginal == left)
 	{
-		if(left->meta.pointer != NULL && right->type == PTRS_TYPE_INT)
+		if(left->meta.pointer != NULL && left->type == PTRS_TYPE_INT)
+		{
+			int64_t val = ptrs_vartoi(right);
+			if(ptrs_overflowError && (int8_t)val != val)
+				ptrs_error(node, scope, "Overflow: Value %d does not fit into an int8", val);
 			*(left->meta.pointer) = right->value.intval;
+		}
 		else
+		{
 			ptrs_error(node, scope, "Cannot assign static expression");
+		}
 	}
 	else
 	{
