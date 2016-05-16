@@ -562,11 +562,12 @@ struct constinfo
 	ptrs_val_t value;
 };
 struct constinfo constants[] = {
-	{"true", PTRS_TYPE_INT, {true}},
-	{"false", PTRS_TYPE_INT, {false}},
-	{"NULL", PTRS_TYPE_NATIVE, {0}},
-	{"null", PTRS_TYPE_POINTER, {0}},
-	{"VARSIZE", PTRS_TYPE_INT, {sizeof(ptrs_var_t)}},
+	{"true", PTRS_TYPE_INT, {.intval = true}},
+	{"false", PTRS_TYPE_INT, {.intval = false}},
+	{"NULL", PTRS_TYPE_NATIVE, {.nativeval = NULL}},
+	{"null", PTRS_TYPE_POINTER, {.ptrval = NULL}},
+	{"VARSIZE", PTRS_TYPE_INT, {.intval = sizeof(ptrs_var_t)}},
+	{"undefined", PTRS_TYPE_UNDEFINED, {}}
 };
 int constantCount = sizeof(constants) / sizeof(struct constinfo);
 
