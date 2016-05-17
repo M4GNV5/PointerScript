@@ -1,0 +1,29 @@
+import "printf", "rand" from "libc.so.6";
+
+var len = 1000;
+var parts{len};
+
+for(var i = 0; i < len; i++)
+{
+	parts[i] = rand() & 0xffff;
+}
+
+//simple bubble sort
+for(var i = 0; i < len - 1; i++)
+{
+	for(var j = 0; j < len - i - 1; j++)
+	{
+		if(parts[i] - parts[j] > 0)
+		{
+			var tmp = parts[j];
+			parts[j] = parts[j + 1];
+			parts[j + 1] = tmp;
+		}
+	}
+}
+
+for(var i = 0; i < len; i++)
+{
+	printf("%d ", parts[i]);
+}
+printf("\n");
