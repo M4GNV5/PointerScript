@@ -46,7 +46,8 @@ ptrs_var_t *ptrs_struct_get(ptrs_struct_t *struc, ptrs_var_t *result, const char
 ptrs_var_t *ptrs_handle_call(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_call expr = node->arg.call;
-	ptrs_var_t *func = expr.value->handler(expr.value, result, scope);
+	ptrs_var_t funcv;
+	ptrs_var_t *func = expr.value->handler(expr.value, &funcv, scope);
 	result = ptrs_call(expr.value, func, result, expr.arguments, scope);
 
 	return result;
