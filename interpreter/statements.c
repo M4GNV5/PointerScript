@@ -233,10 +233,17 @@ ptrs_var_t *ptrs_handle_import(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 ptrs_var_t *ptrs_handle_return(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	ptrs_ast_t *ast = node->arg.astval;
-	ptrs_var_t *val = ast->handler(ast, result, scope);
+	if(ast == NULL)
+	{
+		result->type = PTRS_TYPE_UNDEFINED;
+	}
+	else
+	{
+		ptrs_var_t *val = ast->handler(ast, result, scope);
 
-	if(val != result)
-		memcpy(result, val, sizeof(ptrs_var_t));
+		if(val != result)
+			memcpy(result, val, sizeof(ptrs_var_t));
+	}
 
 	scope->exit = 3;
 	return result;
