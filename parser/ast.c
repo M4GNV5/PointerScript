@@ -275,6 +275,9 @@ ptrs_ast_t *parseStatement(code_t *code)
 					func->name = NULL;
 					stmt->arg.structval.constructor = func;
 					free(curr->name);
+					
+					if(code->curr == '}')
+						break;
 					continue;
 				}
 
