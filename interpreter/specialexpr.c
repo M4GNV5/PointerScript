@@ -17,16 +17,23 @@ ptrs_var_t *ptrs_struct_get(ptrs_struct_t *struc, ptrs_var_t *result, const char
 	{
 		if(strcmp(curr->name, key) == 0)
 		{
-			if(curr->function != NULL)
+			switch(curr->type)
 			{
-				result->type = PTRS_TYPE_FUNCTION;
-				result->value.funcval = curr->function;
-				result->meta.this = struc;
-				return result;
-			}
-			else
-			{
-				return struc->data + curr->offset;
+				case PTRS_STRUCTMEMBER_VAR:
+					return struc->data + curr->offset;
+				case PTRS_STRUCTMEMBER_FUNCTION:
+					result->type = PTRS_TYPE_FUNCTION;
+					result->value.funcval = curr->value.function;
+					result->meta.this = struc;
+					return result;
+				case PTRS_STRUCTMEMBER_ARRAY:
+					result->type = PTRS_TYPE_NATIVE;
+					result->value.nativeval = struc->data + curr->offset;
+					return result;
+				case PTRS_STRUCTMEMBER_VARARRAY:
+					result->type = PTRS_TYPE_POINTER;
+					result->value.ptrval = struc->data + curr->offset;
+					return result;
 			}
 		}
 		curr = curr->next;
@@ -115,6 +122,22 @@ ptrs_var_t *ptrs_handle_new(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 		ctor.value.funcval = instance->constructor;
 		ctor.meta.this = instance;
 		ptrs_call(node, &ctor, result, expr.arguments, scope);
+	}
+
+	ptrs_scope_t *initScope = ptrs_scope_increase(scope);
+	initScope->outer = instance->scope;
+	struct ptrs_structlist *member = instance->member;
+	while(member != NULL)
+	{
+		if(member->type == PTRS_STRUCTMEMBER_VAR && member->value.startval != NULL)
+		{
+			ptrs_ast_t *ast = member->value.startval;
+			ptrs_var_t *memberAddr = instance->data + member->offset;
+			ptrs_var_t *val = ast->handler(ast, memberAddr, initScope);
+			if(val != memberAddr)
+				memcpy(memberAddr, val, sizeof(ptrs_var_t));
+		}
+		member = member->next;
 	}
 
 	result->type = PTRS_TYPE_STRUCT;

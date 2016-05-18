@@ -272,19 +272,57 @@ ptrs_ast_t *parseStatement(code_t *code)
 
 				if(strcmp(curr->name, "constructor") == 0)
 				{
+					func->name = NULL;
 					stmt->arg.structval.constructor = func;
 					free(curr->name);
 					continue;
 				}
 
-				curr->function = func;
-				curr->offset = 0;
+				curr->type = PTRS_STRUCTMEMBER_FUNCTION;
+				curr->value.function = func;
+			}
+			else if(code->curr == '[')
+			{
+				curr->type = PTRS_STRUCTMEMBER_ARRAY;
+				consumec(code, '[');
+				ptrs_ast_t *ast = parseExpression(code);
+				consumec(code, ']');
+				consumec(code, ';');
+
+				if(ast->handler != PTRS_HANDLE_CONSTANT)
+					ptrs_error(ast, NULL, "Struct array member size must be a constant");
+
+				curr->value.size = ast->arg.constval.value.intval;
+				curr->offset = stmt->arg.structval.size;
+				stmt->arg.structval.size += curr->value.size;
+				free(ast);
+			}
+			else if(code->curr == '{')
+			{
+				curr->type = PTRS_STRUCTMEMBER_VARARRAY;
+				consumec(code, '{');
+				ptrs_ast_t *ast = parseExpression(code);
+				consumec(code, '}');
+				consumec(code, ';');
+
+				if(ast->handler != PTRS_HANDLE_CONSTANT)
+					ptrs_error(ast, NULL, "Struct array member size must be a constant");
+
+				curr->value.size = ast->arg.constval.value.intval * sizeof(ptrs_var_t);
+				curr->offset = stmt->arg.structval.size;
+				stmt->arg.structval.size += curr->value.size;
+				free(ast);
 			}
 			else
 			{
-				curr->function = NULL;
 				curr->offset = stmt->arg.structval.size;
 				stmt->arg.structval.size += sizeof(ptrs_var_t);
+
+				if(lookahead(code, "="))
+					curr->value.startval = parseExpression(code);
+				else
+					curr->value.startval = NULL;
+
 				consumec(code, ';');
 			}
 

@@ -51,11 +51,25 @@ typedef struct function
 	void *nativeCb;
 } ptrs_function_t;
 
+enum ptrs_structmembertype
+{
+	PTRS_STRUCTMEMBER_VAR,
+	PTRS_STRUCTMEMBER_FUNCTION,
+	PTRS_STRUCTMEMBER_ARRAY,
+	PTRS_STRUCTMEMBER_VARARRAY
+};
+union ptrs_structmember
+{
+	struct ptrs_ast *startval;
+	ptrs_function_t *function;
+	uint64_t size;
+};
 struct ptrs_structlist
 {
 	char *name;
 	unsigned int offset;
-	ptrs_function_t *function;
+	enum ptrs_structmembertype type;
+	union ptrs_structmember value;
 	struct ptrs_structlist *next;
 };
 typedef struct struc
@@ -63,6 +77,7 @@ typedef struct struc
 	char *name;
 	struct ptrs_structlist *member;
 	ptrs_function_t *constructor;
+	ptrs_scope_t *scope;
 	int size;
 	void *data;
 } ptrs_struct_t;

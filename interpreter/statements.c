@@ -349,13 +349,14 @@ ptrs_var_t *ptrs_handle_struct(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 {
 	result->type = PTRS_TYPE_STRUCT;
 	ptrs_struct_t *struc = &node->arg.structval;
+	struc->scope = scope;
 	result->value.structval = struc;
 
 	struct ptrs_structlist *curr = struc->member;
 	while(curr != NULL)
 	{
-		if(curr->function != NULL)
-			curr->function->scope = scope;
+		if(curr->type == PTRS_STRUCTMEMBER_FUNCTION)
+			curr->value.function->scope = scope;
 		curr = curr->next;
 	}
 
