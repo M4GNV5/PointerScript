@@ -43,7 +43,7 @@ ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_var_t *func, ptrs_var_t *result, str
 	else if(func->type == PTRS_TYPE_NATIVE)
 	{
 		result->type = PTRS_TYPE_INT;
-		result->value.intval = ptrs_callnative(ast, scope, func->value.nativeval, len, args);
+		result->value.intval = ptrs_callnative(func->value.nativeval, len, args);
 	}
 	else
 	{
@@ -138,7 +138,7 @@ void ptrs_callcallback(ptrs_function_t *func, va_alist alist)
 	}
 }
 
-int64_t ptrs_callnative(ptrs_ast_t *ast, ptrs_scope_t *scope, void *func, int argc, ptrs_var_t *argv)
+int64_t ptrs_callnative(void *func, int argc, ptrs_var_t *argv)
 {
 	av_alist alist;
 	int64_t retVal = 0;
