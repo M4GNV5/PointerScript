@@ -213,7 +213,7 @@ ptrs_ast_t *parseStatement(code_t *code)
 	else if(lookahead(code, "throw"))
 	{
 		stmt->handler = PTRS_HANDLE_THROW;
-		stmt->arg.astval = parseExpression(code);
+		stmt->arg.astlist = parseExpressionList(code, ';');
 		consumec(code, ';');
 	}
 	else if(lookahead(code, "try"))
@@ -275,7 +275,7 @@ ptrs_ast_t *parseStatement(code_t *code)
 					func->name = NULL;
 					stmt->arg.structval.constructor = func;
 					free(curr->name);
-					
+
 					if(code->curr == '}')
 						break;
 					continue;
