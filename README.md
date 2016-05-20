@@ -33,7 +33,7 @@ PointerScript has no standard-library. You can use all C libraries using the bui
 however there are a couple of useful libraries (networking, regexp, etc.) in [this repo](https://github.com/M4GNV5/PtrsStuff)
 
 ###Grammar
-Most of PointerScript is similar to Javascript or C so only specialities will be listed here:
+Most of PointerScript is similar to Javascript and/or C so only specialities will be listed here:
 ```javascript
 //import native functions
 //leaving out the from part searches for the function in standard library
@@ -70,10 +70,10 @@ typename				: 'undefined'
 						;
 
 constantexpression		: 'true' 		//type int, value 1
-						| 'false'		//type int, value 1
+						| 'false'		//type int, value 0
 						| 'null'		//type pointer, value 0
 						| 'NULL'		//type native, value 0
-						| 'VARSIZE'		//type int, value 1
+						| 'VARSIZE'		//type int, value size of a variable (currently 24)
 						| 'undefined'	//type undefined
 						;
 
