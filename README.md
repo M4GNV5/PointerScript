@@ -34,8 +34,7 @@ however there are a couple of useful libraries (networking, regexp, etc.) in [th
 
 ###Grammar
 Most of PointerScript is similar to Javascript or C so only specialities will be listed here:
-```BNF
-
+```javascript
 //import native functions
 //leaving out the from part searches for the function in standard library
 //e.g. 	import "printf", "scanf";
@@ -44,9 +43,12 @@ Most of PointerScript is similar to Javascript or C so only specialities will be
 importstatement 		: 'import' argumentlist [ 'from' expression ] ';'
 						;
 
-variabledefinition		: 'var' identifier [ '=' expression ] ';' //noting unusual here
-						| 'var' identifier '[' expression ']' ';' //creates an array of `expression` bytes on the stack
-						| 'var' identifier '{' expression '}' ';' //creates an array of `expression` variables on the stack
+//e.g.	var x = 42;			//noting unusual here
+//		var y[1337 + x];	//creates an array of 1337 + x bytes on the stack
+//		var z{3112 / x}		//creates an array of 3112 / x variables on the stack
+variabledefinition		: 'var' identifier [ '=' expression ] ';'
+						| 'var' identifier '[' expression ']' ';'
+						| 'var' identifier '{' expression '}' ';'
 						;
 
 //e.g. cast<int>3.14 == 3
@@ -75,6 +77,31 @@ constantexpression		: 'true' 		//type int, value 1
 						| 'undefined'	//type undefined
 						;
 
+//e.g.
+/*
+		import "printf", "free", "strncpy";
+
+		struct Foo
+		{
+			x = 5;
+			y[32];
+			constructor(y)
+			{
+				strncpy(this.y, y, 31);
+				this.y[32] = 0;
+			}
+			dump()
+			{
+				printf("%d %s\n", this.x, this.y);
+			}
+		};
+
+		//you can then create an instance like in javascript
+		var bar = new Foo("hello :3");
+		bar.dump();
+		//note that a struct instance is allocated memory that has to be free'd
+		free(bar);
+*/
 structstatement			: 'struct' '{' memberdefinitionlist '}' ';'
 						;
 memberdefinitionlist	: memberdefinition [ memberdefinitionlist ]
