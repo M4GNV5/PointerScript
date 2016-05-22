@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <setjmp.h>
+#include <stdbool.h>
 
 struct ptrs_var;
 struct ptrs_ast;
@@ -97,6 +98,7 @@ typedef union meta
 {
 	ptrs_struct_t *this;
 	int8_t *pointer;
+	bool readOnly;
 } ptrs_meta_t;
 
 struct ptrs_var

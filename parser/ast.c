@@ -782,6 +782,7 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 		ast = talloc(ptrs_ast_t);
 		ast->arg.constval.type = PTRS_TYPE_NATIVE;
 		ast->arg.constval.value.strval = readString(code);
+		ast->arg.constval.meta.readOnly = true;
 		ast->handler = PTRS_HANDLE_CONSTANT;
 		consumec(code, '"');
 	}
