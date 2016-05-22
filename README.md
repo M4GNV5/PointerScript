@@ -41,6 +41,16 @@ There are many examples including usage of Types, Structs, Arrays, Threading and
 - [threads](examples/threads.ptrs) Using libpthread (or generally native functions that take function pointer arguments) with Pointerscript
 - [window](examples/window.ptrs) Using libSDL for creating X windows. (Example orginally by [@Webfreak001](https://github.com/WebFreak001))
 
+###Performance
+Generally PointerScript runs faster than many other scripting languages due to the absence of a Garbage Collector and the usage of native libraries.
+You can create call graphs for the code examples in this repo using:
+```bash
+sudo apt-get install wget valgrind graphviz python3
+curl -O ../gprof2dot.py https://raw.githubusercontent.com/jrfonseca/gprof2dot/master/gprof2dot.py
+./measureExamples.sh
+```
+Currently the main time eaters are lookahead (parser) for small scripts without expensive loops and ptrs_scope_get for scripts with long loops
+
 ###Grammar
 Most of PointerScript is similar to Javascript and/or C so only specialities will be listed here:
 ```javascript
