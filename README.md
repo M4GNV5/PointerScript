@@ -32,10 +32,19 @@ for(var i = 0; i <= count; i++)
 PointerScript has no standard-library. You can use all C libraries using the built-in ffi (importstatement),
 however there are a couple of useful libraries (networking, regexp, etc.) in [this repo](https://github.com/M4GNV5/PtrsStuff)
 
+###More example code
+There are many examples including usage of Types, Structs, Arrays, Threading and many more in the [examples](examples/) directory of this repository. The most interresting ones are listed here:
+
+- [types](examples/types.ptrs) Using typeof and type<...>
+- [array](examples/array.ptrs) and [bubblesort](examples/bubblesort.ptrs) Basic array usage
+- [struct](examples/struct.ptrs) Basic struct usage
+- [threads](examples/threads.ptrs) Using libpthread (or generally native functions that take function pointer arguments) with Pointerscript
+- [window](examples/window.ptrs) Using libSDL for creating X windows. (Example orginally by [@Webfreak001](https://github.com/WebFreak001))
+
 ###Grammar
 Most of PointerScript is similar to Javascript and/or C so only specialities will be listed here:
 ```javascript
-//import native functions
+//import native functions or variables from other PointerScript files
 //leaving out the from part searches for the function in standard library
 //e.g. 	import "printf", "scanf";
 //		import "pthread_create", "pthread_join" from "libpthread.so.0";
