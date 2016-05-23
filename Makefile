@@ -1,13 +1,11 @@
 CC = gcc
 FFI_DIR = /usr/include/x86_64-linux-gnu/
 CFLAGS = -Wall -D_GNU_SOURCE --std=gnu99 -g -I$(FFI_DIR)
-NASMFLAGS = -f elf64
+
 BIN = bin
+RUN = $(BIN)/ptrs
 
-SHARED_OBJECTS += $(BIN)/ast.o
-SHARED_OBJECTS += $(BIN)/main.o
-
-RUN += $(BIN)/ptrs
+PARSER_OBJECTS += $(BIN)/ast.o
 
 RUN_LIB_OBJECTS += $(BIN)/conversion.o
 RUN_LIB_OBJECTS += $(BIN)/error.o
@@ -19,6 +17,7 @@ RUN_LIB_OBJECTS += $(BIN)/run.o
 RUN_OBJECTS += $(BIN)/statements.o
 RUN_OBJECTS += $(BIN)/specialexpr.o
 RUN_OBJECTS += $(BIN)/ops.o
+RUN_OBJECTS += $(BIN)/main.o
 
 all: debug
 
@@ -27,11 +26,14 @@ debug: $(RUN)
 release: CFLAGS = -D_GNU_SOURCE --std=gnu99 -O2 -I$(FFI_DIR)
 release: $(RUN)
 
-clean:
-	rm bin -r
+install: release
+	cp $(RUN) /usr/local/bin/
 
-$(RUN): $(BIN) $(SHARED_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS)
-	gcc $(SHARED_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) -o $(BIN)/ptrs -rdynamic -ldl -lavcall -lcallback
+clean:
+	if [ -d $(BIN) ]; then rm -r $(BIN); fi
+
+$(RUN): $(BIN) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS)
+	gcc $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) -o $(BIN)/ptrs -rdynamic -ldl -lavcall -lcallback
 
 $(BIN):
 	mkdir $(BIN)
