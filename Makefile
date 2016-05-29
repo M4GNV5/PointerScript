@@ -29,6 +29,9 @@ release: $(RUN)
 install: release
 	cp $(RUN) /usr/local/bin/
 
+remove:
+	rm /usr/local/bin/ptrs
+
 clean:
 	if [ -d $(BIN) ]; then rm -r $(BIN); fi
 
