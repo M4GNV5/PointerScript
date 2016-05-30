@@ -263,6 +263,7 @@ ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 		default:
 			memcpy(result, value, sizeof(ptrs_var_t));
 	}
+	memset(&result->meta, 0, sizeof(ptrs_meta_t));
 
 	result->type = expr.type;
 	return result;
