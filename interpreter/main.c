@@ -81,14 +81,15 @@ int main(int argc, char **argv)
 	ptrs_var_t result;
 	ptrs_scope_t *scope = calloc(1, sizeof(ptrs_scope_t));
 
-	ptrs_var_t arguments[argc - i + 1];
-	for(; i < argc; i++)
+	int len = argc - i + 1;
+	ptrs_var_t arguments[len];
+	for(int j = 0; j < len; j++)
 	{
-		arguments[i].type = PTRS_TYPE_NATIVE;
-		arguments[i].value.strval = argv[i];
+		arguments[j].type = PTRS_TYPE_NATIVE;
+		arguments[j].value.strval = argv[i++];
 	}
-	arguments[argc].type = PTRS_TYPE_NATIVE;
-	arguments[argc].value.nativeval = NULL;
+	arguments[len].type = PTRS_TYPE_NATIVE;
+	arguments[len].value.nativeval = NULL;
 
 	result.type = PTRS_TYPE_POINTER;
 	result.value.ptrval = arguments;
