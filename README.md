@@ -45,7 +45,7 @@ There are many examples including usage of Types, Structs, Arrays, Threading and
 Generally PointerScript runs faster than many other scripting languages due to the absence of a Garbage Collector and the usage of native libraries.
 You can create call graphs for the code examples in this repo using:
 ```bash
-sudo apt-get install wget valgrind graphviz python3
+sudo apt-get install valgrind graphviz python3
 curl -O ../gprof2dot.py https://raw.githubusercontent.com/jrfonseca/gprof2dot/master/gprof2dot.py
 ./measureExamples.sh
 ```
