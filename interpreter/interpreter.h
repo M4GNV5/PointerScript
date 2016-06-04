@@ -4,6 +4,10 @@
 #include "../parser/common.h"
 #include "../parser/ast.h"
 #include "include/scope.h"
+#include "include/error.h"
+
+#define PTRS_HANDLE_ASTERROR(ast, ...) \
+	ptrs_error(ast, NULL, __VA_ARGS__)
 
 ptrs_var_t *ptrs_handle_body(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_define(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);

@@ -5,8 +5,7 @@
 #include <string.h>
 
 #include "common.h"
-#include "../interpreter/interpreter.h"
-#include "../interpreter/include/error.h"
+#include INTERPRETER_INCLUDE
 #include "ast.h"
 
 #define talloc(type) malloc(sizeof(type))
@@ -293,7 +292,7 @@ ptrs_ast_t *parseStatement(code_t *code)
 				consumec(code, ';');
 
 				if(ast->handler != PTRS_HANDLE_CONSTANT)
-					ptrs_error(ast, NULL, "Struct array member size must be a constant");
+					PTRS_HANDLE_ASTERROR(ast, "Struct array member size must be a constant");
 
 				curr->value.size = ast->arg.constval.value.intval;
 				curr->offset = stmt->arg.structval.size;
@@ -309,7 +308,7 @@ ptrs_ast_t *parseStatement(code_t *code)
 				consumec(code, ';');
 
 				if(ast->handler != PTRS_HANDLE_CONSTANT)
-					ptrs_error(ast, NULL, "Struct array member size must be a constant");
+					PTRS_HANDLE_ASTERROR(ast, "Struct array member size must be a constant");
 
 				curr->value.size = ast->arg.constval.value.intval * sizeof(ptrs_var_t);
 				curr->offset = stmt->arg.structval.size;
@@ -1171,5 +1170,20 @@ void unexpected(code_t *code, const char *expected)
 	node.code = code->src;
 	node.file = code->filename;
 
-	ptrs_error(&node, NULL, "Expecting %s got '%c'", expected, code->curr);
+	char actual[16] = {0};
+	char *curr = &code->src[code->pos];
+	bool startIsAlnum = isalnum(curr[0]);
+	bool startIsPunct = ispunct(curr[0]);
+
+	for(int i = 0; i < 16; i++)
+	{
+		if(startIsAlnum && isalnum(curr[i]))
+			actual[i] = curr[i];
+		else if(startIsPunct && ispunct(curr[i]))
+			actual[i] = curr[i];
+		else
+			break;
+	}
+
+	PTRS_HANDLE_ASTERROR(&node, "Expected %s got '%s'", expected, actual);
 }
