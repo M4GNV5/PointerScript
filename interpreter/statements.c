@@ -64,6 +64,7 @@ ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 
 	result->type = PTRS_TYPE_NATIVE;
 	result->value.nativeval = ptrs_alloc(scope, size);
+	result->meta.readOnly = false;
 	ptrs_scope_set(scope, stmt.name, result);
 	return result;
 }
@@ -113,6 +114,7 @@ void importNative(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 		ptrs_var_t func;
 		func.type = PTRS_TYPE_NATIVE;
 		func.value.nativeval = dlsym(handle, name);
+		func.meta.readOnly = true;
 
 		error = dlerror();
 		if(error != NULL)
@@ -337,6 +339,7 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 		char *msg;
 
 		val.type = PTRS_TYPE_NATIVE;
+		val.meta.readOnly = false;
 		if(stmt.argc > 0)
 		{
 			msg = ptrs_alloc(catchScope, strlen(error.message) + 1);
@@ -360,6 +363,7 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 		free(error.stack);
 
 		val.type = PTRS_TYPE_INT;
+		val.meta.pointer = NULL;
 		if(stmt.argc > 3)
 		{
 			val.value.intval = error.line;
@@ -539,6 +543,7 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	{
 		iterval->type = PTRS_TYPE_NATIVE;
 		iterval->value.strval = curr->name;
+		iterval->meta.readOnly = true;
 
 		stmt.body->handler(stmt.body, result, stmtScope);
 

@@ -87,6 +87,7 @@ int main(int argc, char **argv)
 	{
 		arguments[j].type = PTRS_TYPE_NATIVE;
 		arguments[j].value.strval = argv[i++];
+		arguments[j].meta.readOnly = false;
 	}
 	arguments[len].type = PTRS_TYPE_NATIVE;
 	arguments[len].value.nativeval = NULL;
