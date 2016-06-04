@@ -18,34 +18,33 @@ typedef struct code
 	int pos;
 } code_t;
 
-ptrs_ast_t *parseStmtList(code_t *code, char end);
-ptrs_ast_t *parseStatement(code_t *code);
-ptrs_ast_t *parseExpression(code_t *code);
-ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec);
-ptrs_ast_t *parseUnaryExpr(code_t *code);
-ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast);
-ptrs_ast_t *parseUnary(code_t *code);
-struct ptrs_astlist *parseExpressionList(code_t *code, char end);
+static ptrs_ast_t *parseStmtList(code_t *code, char end);
+static ptrs_ast_t *parseStatement(code_t *code);
+static ptrs_ast_t *parseExpression(code_t *code);
+static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec);
+static ptrs_ast_t *parseUnaryExpr(code_t *code);
+static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast);
+static struct ptrs_astlist *parseExpressionList(code_t *code, char end);
 
-ptrs_vartype_t readTypeName(code_t *code);
-char *readIdentifier(code_t *code);
-char *readString(code_t *code);
-char readEscapeSequence(code_t *code);
-int64_t readInt(code_t *code, int base);
-double readDouble(code_t *code);
+static ptrs_vartype_t readTypeName(code_t *code);
+static char *readIdentifier(code_t *code);
+static char *readString(code_t *code);
+static char readEscapeSequence(code_t *code);
+static int64_t readInt(code_t *code, int base);
+static double readDouble(code_t *code);
 
-bool lookahead(code_t *code, const char *str);
-void consume(code_t *code, const char *str);
-void consumec(code_t *code, char c);
-void next(code_t *code);
-void rawnext(code_t *code);
+static bool lookahead(code_t *code, const char *str);
+static void consume(code_t *code, const char *str);
+static void consumec(code_t *code, char c);
+static void next(code_t *code);
+static void rawnext(code_t *code);
 
-bool skipSpaces(code_t *code);
-bool skipComments(code_t *code);
+static bool skipSpaces(code_t *code);
+static bool skipComments(code_t *code);
 
-void unexpected(code_t *code, const char *expected);
+static void unexpected(code_t *code, const char *expected);
 
-ptrs_ast_t *parse(char *src, const char *filename)
+ptrs_ast_t *ptrs_parse(char *src, const char *filename)
 {
 	code_t code;
 	code.filename = filename;
@@ -56,7 +55,7 @@ ptrs_ast_t *parse(char *src, const char *filename)
 	return parseStmtList(&code, 0);
 }
 
-ptrs_ast_t *parseStmtList(code_t *code, char end)
+static ptrs_ast_t *parseStmtList(code_t *code, char end)
 {
 	ptrs_ast_t *elem = talloc(ptrs_ast_t);
 	elem->handler = PTRS_HANDLE_BODY;
@@ -91,7 +90,7 @@ struct argdeflist
 	ptrs_ast_t *value;
 	struct argdeflist *next;
 };
-char **parseArgumentDefinitionList(code_t *code, int *argc, ptrs_ast_t ***argv)
+static char **parseArgumentDefinitionList(code_t *code, int *argc, ptrs_ast_t ***argv)
 {
 	*argc = 0;
 	consumec(code, '(');
@@ -146,7 +145,7 @@ char **parseArgumentDefinitionList(code_t *code, int *argc, ptrs_ast_t ***argv)
 	}
 }
 
-ptrs_ast_t *parseStatement(code_t *code)
+static ptrs_ast_t *parseStatement(code_t *code)
 {
 	ptrs_ast_t *stmt = talloc(ptrs_ast_t);
 	stmt->codepos = code->pos;
@@ -522,7 +521,7 @@ struct opinfo binaryOps[] = {
 	{"/", 11, false, PTRS_HANDLE_OP_DIV},
 	{"%", 11, false, PTRS_HANDLE_OP_MOD}
 };
-int binaryOpCount = sizeof(binaryOps) / sizeof(struct opinfo);
+static int binaryOpCount = sizeof(binaryOps) / sizeof(struct opinfo);
 
 struct opinfo prefixOps[] = {
 	{"typeof", 12, true, PTRS_HANDLE_OP_TYPEOF},
@@ -535,20 +534,20 @@ struct opinfo prefixOps[] = {
 	{"+", 12, true, PTRS_HANDLE_PREFIX_PLUS}, //unary +
 	{"-", 12, true, PTRS_HANDLE_PREFIX_MINUS} //unary -
 };
-int prefixOpCount = sizeof(prefixOps) / sizeof(struct opinfo);
+static int prefixOpCount = sizeof(prefixOps) / sizeof(struct opinfo);
 
 struct opinfo suffixedOps[] = {
 	{"++", 13, false, PTRS_HANDLE_SUFFIX_INC}, //suffixed ++
 	{"--", 13, false, PTRS_HANDLE_SUFFIX_DEC} //suffixed --
 };
-int suffixedOpCount = sizeof(suffixedOps) / sizeof(struct opinfo);
+static int suffixedOpCount = sizeof(suffixedOps) / sizeof(struct opinfo);
 
-ptrs_ast_t *parseExpression(code_t *code)
+static ptrs_ast_t *parseExpression(code_t *code)
 {
 	return parseBinaryExpr(code, parseUnaryExpr(code), 0);
 }
 
-struct opinfo *peekBinaryOp(code_t *code)
+static struct opinfo *peekBinaryOp(code_t *code)
 {
 	int pos = code->pos;
 	for(int i = 0; i < binaryOpCount; i++)
@@ -563,7 +562,7 @@ struct opinfo *peekBinaryOp(code_t *code)
 
 	return NULL;
 }
-ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
+static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 {
 	struct opinfo *ahead = peekBinaryOp(code);
 	while(ahead != NULL && ahead->precendence >= minPrec)
@@ -634,7 +633,7 @@ struct constinfo constants[] = {
 };
 int constantCount = sizeof(constants) / sizeof(struct constinfo);
 
-ptrs_ast_t *parseUnaryExpr(code_t *code)
+static ptrs_ast_t *parseUnaryExpr(code_t *code)
 {
 	char curr = code->curr;
 	int pos = code->pos;
@@ -809,7 +808,7 @@ ptrs_ast_t *parseUnaryExpr(code_t *code)
 	return ast;
 }
 
-ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast)
+static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast)
 {
 	char curr = code->curr;
 	if(curr == '.')
@@ -877,7 +876,7 @@ ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast)
 	return ast;
 }
 
-struct ptrs_astlist *parseExpressionList(code_t *code, char end)
+static struct ptrs_astlist *parseExpressionList(code_t *code, char end)
 {
 	if(code->curr == end || code->curr == 0)
 		return NULL;
@@ -915,9 +914,9 @@ struct typeName typeNames[] = {
 	{"function", PTRS_TYPE_FUNCTION},
 	{"struct", PTRS_TYPE_STRUCT}
 };
-int typeNameCount = sizeof(typeNames) / sizeof(struct typeName);
+static int typeNameCount = sizeof(typeNames) / sizeof(struct typeName);
 
-ptrs_vartype_t readTypeName(code_t *code)
+static ptrs_vartype_t readTypeName(code_t *code)
 {
 	for(int i = 0; i < typeNameCount; i++)
 	{
@@ -930,7 +929,7 @@ ptrs_vartype_t readTypeName(code_t *code)
 	return PTRS_TYPE_STRUCT + 1;
 }
 
-char *readIdentifier(code_t *code)
+static char *readIdentifier(code_t *code)
 {
 	char val[128];
 	int i = 0;
@@ -954,7 +953,7 @@ char *readIdentifier(code_t *code)
 	return _val;
 }
 
-char *readString(code_t *code)
+static char *readString(code_t *code)
 {
 	char val[1024];
 	int i = 0;
@@ -981,7 +980,7 @@ char *readString(code_t *code)
 	return _val;
 }
 
-char readEscapeSequence(code_t *code)
+static char readEscapeSequence(code_t *code)
 {
 	switch(code->curr)
 	{
@@ -1030,7 +1029,7 @@ char readEscapeSequence(code_t *code)
 	return 0;
 }
 
-int64_t readInt(code_t *code, int base)
+static int64_t readInt(code_t *code, int base)
 {
 	char *start = &code->src[code->pos];
 	char *end;
@@ -1041,7 +1040,7 @@ int64_t readInt(code_t *code, int base)
 
 	return val;
 }
-double readDouble(code_t *code)
+static double readDouble(code_t *code)
 {
 	char *start = &code->src[code->pos];
 	char *end;
@@ -1053,7 +1052,7 @@ double readDouble(code_t *code)
 	return val;
 }
 
-bool lookahead(code_t *code, const char *str)
+static bool lookahead(code_t *code, const char *str)
 {
 	int start = code->pos;
 	while(*str)
@@ -1082,7 +1081,7 @@ bool lookahead(code_t *code, const char *str)
 	return true;
 }
 
-void consume(code_t *code, const char *str)
+static void consume(code_t *code, const char *str)
 {
 	while(*str)
 	{
@@ -1092,7 +1091,7 @@ void consume(code_t *code, const char *str)
 		next(code);
 	}
 }
-void consumec(code_t *code, char c)
+static void consumec(code_t *code, char c)
 {
 	if(code->curr != c)
 	{
@@ -1102,7 +1101,7 @@ void consumec(code_t *code, char c)
 	next(code);
 }
 
-bool skipSpaces(code_t *code)
+static bool skipSpaces(code_t *code)
 {
 	int pos = code->pos;
 	char curr = code->src[pos];
@@ -1121,7 +1120,7 @@ bool skipSpaces(code_t *code)
 
 	return false;
 }
-bool skipComments(code_t *code)
+static bool skipComments(code_t *code)
 {
 	int pos = code->pos;
 	char curr = code->src[pos];
@@ -1151,19 +1150,19 @@ bool skipComments(code_t *code)
 
 	return false;
 }
-void next(code_t *code)
+static void next(code_t *code)
 {
 	code->pos++;
 	while(skipSpaces(code) || skipComments(code));
 	code->curr = code->src[code->pos];
 }
-void rawnext(code_t *code)
+static void rawnext(code_t *code)
 {
 	code->pos++;
 	code->curr = code->src[code->pos];
 }
 
-void unexpected(code_t *code, const char *expected)
+static void unexpected(code_t *code, const char *expected)
 {
 	ptrs_ast_t node;
 	node.codepos = code->pos;

@@ -133,6 +133,6 @@ struct ptrs_astlist
 	struct ptrs_astlist *next;
 };
 
-ptrs_ast_t *parse(char *src, const char *filename);
+ptrs_ast_t *ptrs_parse(char *src, const char *filename);
 
 #endif

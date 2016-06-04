@@ -13,7 +13,7 @@ void ptrs_eval(char *src, const char *filename, ptrs_var_t *result, ptrs_scope_t
 		scope = calloc(1, sizeof(ptrs_scope_t));
 	scope->calleeName = "(root)";
 
-	ptrs_ast_t *ast = parse(src, filename);
+	ptrs_ast_t *ast = ptrs_parse(src, filename);
 	ptrs_var_t *_result = ast->handler(ast, result, scope);
 
 	if(_result != result)
