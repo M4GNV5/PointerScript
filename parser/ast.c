@@ -579,6 +579,7 @@ static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 			ahead = peekBinaryOp(code);
 		}
 
+#ifndef PTRS_DISABLE_CONSTRESOLVE
 		if(left->handler == PTRS_HANDLE_CONSTANT && right->handler == PTRS_HANDLE_CONSTANT)
 		{
 			ptrs_lastast = left;
@@ -593,6 +594,7 @@ static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 			memcpy(&left->arg.constval, &result, sizeof(ptrs_var_t));
 			continue;
 		}
+#endif
 		if(op->handler == PTRS_HANDLE_OP_TERNARY)
 		{
 			ptrs_ast_t *ast = talloc(ptrs_ast_t);
