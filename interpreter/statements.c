@@ -561,6 +561,10 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 ptrs_var_t *ptrs_handle_exprstatement(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	ptrs_ast_t *expr = node->arg.astval;
-	result = expr->handler(expr, result, scope);
+
+	if(expr == NULL)
+		result->type = PTRS_TYPE_UNDEFINED;
+	else
+		result = expr->handler(expr, result, scope);
 	return result;
 }
