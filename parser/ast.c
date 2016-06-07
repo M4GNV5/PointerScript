@@ -233,6 +233,12 @@ static ptrs_ast_t *parseStatement(code_t *code)
 			stmt->arg.trycatch.catchBody = NULL;
 		}
 	}
+	else if(lookahead(code, "{"))
+	{
+		stmt->handler = PTRS_HANDLE_SCOPESTATEMENT;
+		stmt->arg.astval = parseStmtList(code, '}');
+		consumec(code, '}');
+	}
 	else if(lookahead(code, "function"))
 	{
 		stmt->handler = PTRS_HANDLE_FUNCTION;

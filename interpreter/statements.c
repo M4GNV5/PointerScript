@@ -558,6 +558,13 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	return result;
 }
 
+ptrs_var_t *ptrs_handle_scopestatement(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	ptrs_scope_t *stmtScope = ptrs_scope_increase(scope);
+	ptrs_ast_t *body = node->arg.astval;
+	return body->handler(body, result, stmtScope);
+}
+
 ptrs_var_t *ptrs_handle_exprstatement(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	ptrs_ast_t *expr = node->arg.astval;
