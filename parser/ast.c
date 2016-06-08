@@ -718,6 +718,18 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 
 		ast->arg.cast.value = parseUnaryExpr(code);
 	}
+	else if(lookahead(code, "function"))
+	{
+		ast = talloc(ptrs_ast_t);
+		ast->handler = PTRS_HANDLE_FUNCTION;
+		ast->arg.function.args = parseArgumentDefinitionList(code,
+				&ast->arg.function.argc,
+				&ast->arg.function.argv);
+
+		consumec(code, '{');
+		ast->arg.function.body = parseStmtList(code, '}');
+		consumec(code, '}');
+	}
 	else if(curr == '[')
 	{
 		next(code);
@@ -794,9 +806,37 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 	}
 	else if(curr == '(')
 	{
+		int start = code->pos;
 		consumec(code, '(');
 		ast = parseExpression(code);
-		consumec(code, ')');
+
+		if(ast->handler == PTRS_HANDLE_IDENTIFIER && (code->curr == ',' || (lookahead(code, ")") && lookahead(code, "->"))))
+		{
+			code->pos = start;
+			code->curr = code->src[start];
+
+			ast->handler = PTRS_HANDLE_FUNCTION;
+			ast->arg.function.name = NULL;
+			ast->arg.function.args = parseArgumentDefinitionList(code, &ast->arg.function.argc, NULL);
+
+			consume(code, "->");
+			if(lookahead(code, "{"))
+			{
+				ast->arg.function.body = parseStmtList(code, '}');
+				consumec(code, '}');
+			}
+			else
+			{
+				ptrs_ast_t *retStmt = talloc(ptrs_ast_t);
+				retStmt->handler = PTRS_HANDLE_RETURN;
+				retStmt->arg.astval = parseExpression(code);
+				ast->arg.function.body = retStmt;
+			}
+		}
+		else
+		{
+			consumec(code, ')');
+		}
 	}
 	else
 	{
