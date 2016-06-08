@@ -64,7 +64,7 @@ importstatement 		: 'import' argumentlist [ 'from' expression ] ';'
 
 //e.g.	var x = 42;			//noting unusual here
 //		var y[1337 + x];	//creates an array of 1337 + x bytes on the stack
-//		var z{3112 / x}		//creates an array of 3112 / x variables on the stack
+//		var z{3112 / x};	//creates an array of 3112 / x variables on the stack
 variabledefinition		: 'var' identifier [ '=' expression ] ';'
 						| 'var' identifier '[' expression ']' ';'
 						| 'var' identifier '{' expression '}' ';'
