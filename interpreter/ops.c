@@ -43,8 +43,8 @@ void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *op, ptr
 #define binary_floatop(operator) \
 	else if(tleft == PTRS_TYPE_FLOAT || tright == PTRS_TYPE_FLOAT) \
 	{ \
-		float fleft = ptrs_vartof(left); \
-		float fright = ptrs_vartof(right); \
+		double fleft = ptrs_vartof(left); \
+		double fright = ptrs_vartof(right); \
 		\
 		result->type = PTRS_TYPE_FLOAT; \
 		result->value.floatval = fleft operator fright; \
