@@ -121,19 +121,24 @@ void ptrs_callcallback(ptrs_function_t *func, va_alist alist)
 	if(scope.stackstart != NULL)
 		free(scope.stackstart);
 
+	//is it a good idea to reset alist's rtype? why does va_start need a type anyways?
 	switch(result.type)
 	{
 		case PTRS_TYPE_UNDEFINED:
-			va_return_ptr(alist, void*, NULL);
+			alist->rtype = __VAvoid;
+			va_return_void(alist);
 			break;
 		case PTRS_TYPE_INT:
+			alist->rtype = __VAlonglong;
 			va_return_longlong(alist, result.value.intval);
 			break;
 		case PTRS_TYPE_FLOAT:
+			alist->rtype = __VAdouble;
 			va_return_double(alist, result.value.floatval);
 			break;
 		default: //pointer type
-			va_return_ptr(alist, void*, result.value.intval);
+			alist->rtype = __VAvoidp;
+			va_return_ptr(alist, void *, result.value.intval);
 			break;
 	}
 }
@@ -142,10 +147,13 @@ int64_t ptrs_callnative(void *func, int argc, ptrs_var_t *argv)
 {
 	av_alist alist;
 	int64_t retVal = 0;
+	void *callbackArgs[argc];
+	bool hasCallbackArgs = false;
 	av_start_longlong(alist, func, &retVal);
 
 	for(int i = 0; i < argc; i++)
 	{
+		callbackArgs[i] = NULL;
 		switch(argv[i].type)
 		{
 			case PTRS_TYPE_FLOAT:
@@ -164,6 +172,11 @@ int64_t ptrs_callnative(void *func, int argc, ptrs_var_t *argv)
 					av_ptr(alist, void *, func->nativeCb);
 					break;
 				}
+				else
+				{
+					callbackArgs[i] = alloc_callback(&ptrs_callcallback, func);
+					av_ptr(alist, void *, callbackArgs[i]);
+				}
 			default:
 				av_ptr(alist, void *, argv[i].value.nativeval);
 				break;
@@ -171,5 +184,14 @@ int64_t ptrs_callnative(void *func, int argc, ptrs_var_t *argv)
 	}
 
 	av_call(alist);
+
+	if(hasCallbackArgs)
+	{
+		for(int i = 0; i < argc; i++)
+		{
+			if(callbackArgs[i] != NULL)
+				free_callback(callbackArgs[i]);
+		}
+	}
 	return retVal;
 }
