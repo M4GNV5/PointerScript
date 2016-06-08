@@ -722,6 +722,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 	{
 		ast = talloc(ptrs_ast_t);
 		ast->handler = PTRS_HANDLE_FUNCTION;
+		ast->arg.function.name = NULL;
 		ast->arg.function.args = parseArgumentDefinitionList(code,
 				&ast->arg.function.argc,
 				&ast->arg.function.argv);
