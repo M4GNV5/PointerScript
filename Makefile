@@ -24,7 +24,7 @@ all: debug
 
 debug: $(RUN)
 
-release: CFLAGS = -D_GNU_SOURCE --std=gnu99 -O2 -I$(FFI_DIR)
+release: CFLAGS = '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -D_GNU_SOURCE --std=gnu99 -O2 -I$(FFI_DIR)
 release: $(RUN)
 
 install: release
