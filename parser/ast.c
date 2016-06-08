@@ -36,13 +36,17 @@ static double readDouble(code_t *code);
 static bool lookahead(code_t *code, const char *str);
 static void consume(code_t *code, const char *str);
 static void consumec(code_t *code, char c);
+static void consumecm(code_t *code, char c, const char *msg);
 static void next(code_t *code);
 static void rawnext(code_t *code);
 
 static bool skipSpaces(code_t *code);
 static bool skipComments(code_t *code);
 
-static void unexpected(code_t *code, const char *expected);
+static void unexpectedm(code_t *code, const char *expected, const char *msg);
+
+#define unexpected(code, expected) \
+	unexpectedm(code, expected, NULL)
 
 ptrs_ast_t *ptrs_parse(char *src, const char *filename)
 {
@@ -93,7 +97,7 @@ struct argdeflist
 static char **parseArgumentDefinitionList(code_t *code, int *argc, ptrs_ast_t ***argv)
 {
 	*argc = 0;
-	consumec(code, '(');
+	consumecm(code, '(', "Expected ( as the beginning of an argument definition");
 
 	if(code->curr == ')')
 	{
@@ -123,7 +127,7 @@ static char **parseArgumentDefinitionList(code_t *code, int *argc, ptrs_ast_t **
 
 			if(code->curr == ')')
 				break;
-			consumec(code, ',');
+			consumecm(code, ',', "Expected , between two arguments");
 		}
 
 		char **args = malloc(sizeof(char *) * *argc);
@@ -139,7 +143,7 @@ static char **parseArgumentDefinitionList(code_t *code, int *argc, ptrs_ast_t **
 
 			list = list->next;
 		}
-		consumec(code, ')');
+		consumecm(code, ')', "Expected ) as the ending of an argument definition");
 
 		return args;
 	}
@@ -695,7 +699,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 		ptrs_vartype_t type = readTypeName(code);
 
 		if(type > PTRS_TYPE_STRUCT)
-			unexpected(code, "TypeName");
+			unexpectedm(code, NULL, "Syntax is type<TYPENAME>");
 
 		ast = talloc(ptrs_ast_t);
 		ast->handler = PTRS_HANDLE_CONSTANT;
@@ -709,7 +713,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 		ptrs_vartype_t type = readTypeName(code);
 
 		if(type > PTRS_TYPE_STRUCT)
-			unexpected(code, "TypeName");
+			unexpectedm(code, NULL, "Syntax is cast<TYPENAME>");
 
 		ast = talloc(ptrs_ast_t);
 		ast->handler = PTRS_HANDLE_CAST;
@@ -793,7 +797,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 			ast->arg.constval.value.intval = code->curr;
 		}
 		rawnext(code);
-		consumec(code, '\'');
+		consumecm(code, '\'', "A char literal cannot contain multiple characters");
 	}
 	else if(curr == '"')
 	{
@@ -1074,7 +1078,9 @@ static char readEscapeSequence(code_t *code)
 			if(isdigit(code->curr))
 				return (char)readInt(code, 8);
 	}
-	unexpected(code, "escape sequence");
+	char msg[] = "Unknown escape sequence \\X";
+	msg[25] = code->curr;
+	unexpectedm(code, NULL, msg);
 	return 0;
 }
 
@@ -1149,6 +1155,12 @@ static void consumec(code_t *code, char c)
 	}
 	next(code);
 }
+static void consumecm(code_t *code, char c, const char *msg)
+{
+	if(code->curr != c)
+		unexpectedm(code, NULL, msg);
+	next(code);
+}
 
 static bool skipSpaces(code_t *code)
 {
@@ -1211,7 +1223,7 @@ static void rawnext(code_t *code)
 	code->curr = code->src[code->pos];
 }
 
-static void unexpected(code_t *code, const char *expected)
+static void unexpectedm(code_t *code, const char *expected, const char *msg)
 {
 	ptrs_ast_t node;
 	node.codepos = code->pos;
@@ -1233,5 +1245,11 @@ static void unexpected(code_t *code, const char *expected)
 			break;
 	}
 
-	PTRS_HANDLE_ASTERROR(&node, "Expected %s got '%s'", expected, actual);
+	if(msg == NULL)
+		PTRS_HANDLE_ASTERROR(&node, "Expected %s got '%s'", expected, actual);
+	else if(expected == NULL)
+		PTRS_HANDLE_ASTERROR(&node, "%s", msg);
+	else
+		PTRS_HANDLE_ASTERROR(&node, "%s - Expected %s got '%s'", msg, expected, actual);
+
 }
