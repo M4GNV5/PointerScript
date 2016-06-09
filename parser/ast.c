@@ -103,7 +103,8 @@ static char **parseArgumentDefinitionList(code_t *code, int *argc, ptrs_ast_t **
 	if(code->curr == ')')
 	{
 		next(code);
-		*argv = NULL;
+		if(argv != NULL)
+			*argv = NULL;
 		return NULL;
 	}
 	else
