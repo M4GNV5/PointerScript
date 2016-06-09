@@ -9,6 +9,7 @@
 #include "include/conversion.h"
 #include "include/scope.h"
 #include "include/call.h"
+#include "include/struct.h"
 
 bool ptrs_overflowError = false;
 static ptrs_var_t *ptrs_assign(ptrs_ast_t *node, ptrs_scope_t *scope, ptrs_var_t *orginal, ptrs_var_t *left, ptrs_var_t *right)
@@ -33,18 +34,6 @@ static ptrs_var_t *ptrs_assign(ptrs_ast_t *node, ptrs_scope_t *scope, ptrs_var_t
 	}
 
 	return left;
-}
-
-static ptrs_function_t *getStructOverload(ptrs_var_t *struc, const char *op)
-{
-	struct ptrs_opoverload *curr = struc->value.structval->overloads;
-	while(curr != NULL)
-	{
-		if(strcmp(curr->op, op) == 0)
-			return curr->handler;
-		curr = curr->next;
-	}
-	return NULL;
 }
 
 static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *op, ptrs_vartype_t tleft, ptrs_vartype_t tright)
@@ -127,7 +116,7 @@ static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *
 		ptrs_vartype_t tleft = left->type; \
 		ptrs_vartype_t tright = right->type; \
 		\
-		if(tleft == PTRS_TYPE_STRUCT && (overload = getStructOverload(left, oplabel)) != NULL) \
+		if(tleft == PTRS_TYPE_STRUCT && (overload = ptrs_struct_getOverload(left, oplabel)) != NULL) \
 		{ \
 			ptrs_var_t func = {{.funcval = overload}, PTRS_TYPE_FUNCTION, {.this = left->value.structval}}; \
 			return ptrs_callfunc(node, result, scope, &func, 1, right); \
@@ -233,7 +222,7 @@ ptrs_var_t *ptrs_handle_prefix_logicnot(ptrs_ast_t *node, ptrs_var_t *result, pt
 		ptrs_var_t overload; \
 		result->type = type; \
 		\
-		if(type == PTRS_TYPE_STRUCT && (overload.value.funcval = getStructOverload(value, opLabel)) != NULL) \
+		if(type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(value, opLabel)) != NULL) \
 		{ \
 			overload.type = PTRS_TYPE_FUNCTION; \
 			overload.meta.this = value->value.structval; \
@@ -274,7 +263,7 @@ handle_prefix(minus, -, "-", handle_prefix_float(-), /*nothing*/)
 		ptrs_var_t overload; \
 		result->type = type; \
 		\
-		if(type == PTRS_TYPE_STRUCT && (overload.value.funcval = getStructOverload(value, opLabel)) != NULL) \
+		if(type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(value, opLabel)) != NULL) \
 		{ \
 			overload.type = PTRS_TYPE_FUNCTION; \
 			overload.meta.this = value->value.structval; \
