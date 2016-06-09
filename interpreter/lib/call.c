@@ -98,8 +98,8 @@ ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t 
 
 	if(scope->exit != 3)
 		result->type = PTRS_TYPE_UNDEFINED;
-	else
-		result = _result;
+	else if(result != _result)
+		memcpy(result, _result, sizeof(ptrs_var_t));
 
 	return result;
 }
