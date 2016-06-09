@@ -27,6 +27,7 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast);
 static struct ptrs_astlist *parseExpressionList(code_t *code, char end);
 
 static ptrs_vartype_t readTypeName(code_t *code);
+static const char *readOperator(code_t *code);
 static char *readIdentifier(code_t *code);
 static char *readString(code_t *code);
 static char readEscapeSequence(code_t *code);
@@ -149,6 +150,19 @@ static char **parseArgumentDefinitionList(code_t *code, int *argc, ptrs_ast_t **
 	}
 }
 
+static ptrs_function_t *parseFunction(code_t *code, char *name)
+{
+	ptrs_function_t *func = talloc(ptrs_function_t);
+	func->name = name;
+	func->args = parseArgumentDefinitionList(code, &func->argc, &func->argv);
+
+	consumec(code, '{');
+	func->body = parseStmtList(code, '}');
+	consumec(code, '}');
+
+	return func;
+}
+
 static ptrs_ast_t *parseStatement(code_t *code)
 {
 	ptrs_ast_t *stmt = talloc(ptrs_ast_t);
@@ -260,37 +274,44 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		stmt->handler = PTRS_HANDLE_STRUCT;
 		stmt->arg.structval.name = readIdentifier(code);
 		stmt->arg.structval.constructor = NULL;
+		stmt->arg.structval.overloads = NULL;
 		stmt->arg.structval.size = 0;
 		stmt->arg.structval.data = NULL;
 		consumec(code, '{');
 
-		struct ptrs_structlist *curr = talloc(struct ptrs_structlist);
-		stmt->arg.structval.member = curr;
-		for(;;)
+		struct ptrs_structlist *curr = NULL;
+		while(code->curr != '}')
 		{
-			curr->name = readIdentifier(code);
+			char *name = readIdentifier(code);
+			if(strcmp(name, "constructor") == 0)
+			{
+				free(name);
+				stmt->arg.structval.constructor = parseFunction(code, NULL);
+				continue;
+			}
+			else if(strcmp(name, "operator") == 0)
+			{
+				free(name);
+
+				struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
+				overload->op = readOperator(code);
+				overload->handler = parseFunction(code, NULL);
+
+				overload->next = stmt->arg.structval.overloads;
+				stmt->arg.structval.overloads = overload;
+				continue;
+			}
+
+			struct ptrs_structlist *next = talloc(struct ptrs_structlist);
+			next->next = curr;
+			curr = next;
+
+			curr->name = name;
+
 			if(code->curr == '(')
 			{
-				ptrs_function_t *func = talloc(ptrs_function_t);
-				func->name = curr->name;
-				func->args = parseArgumentDefinitionList(code, &func->argc, &func->argv);
-				consumec(code, '{');
-				func->body = parseStmtList(code, '}');
-				consumec(code, '}');
-
-				if(strcmp(curr->name, "constructor") == 0)
-				{
-					func->name = NULL;
-					stmt->arg.structval.constructor = func;
-					free(curr->name);
-
-					if(code->curr == '}')
-						break;
-					continue;
-				}
-
 				curr->type = PTRS_STRUCTMEMBER_FUNCTION;
-				curr->value.function = func;
+				curr->value.function = parseFunction(code, name);
 			}
 			else if(code->curr == '[')
 			{
@@ -336,14 +357,8 @@ static ptrs_ast_t *parseStatement(code_t *code)
 
 				consumec(code, ';');
 			}
-
-			if(code->curr == '}')
-				break;
-
-			struct ptrs_structlist *next = talloc(struct ptrs_structlist);
-			curr->next = next;
-			curr = next;
 		}
+		stmt->arg.structval.member = curr;
 		consumec(code, '}');
 		consumec(code, ';');
 	}
@@ -980,6 +995,27 @@ static ptrs_vartype_t readTypeName(code_t *code)
 	}
 
 	return PTRS_TYPE_STRUCT + 1;
+}
+
+static const char *readOperatorFrom(code_t *code, struct opinfo *ops, int opCount)
+{
+	for(int i = 0; i < opCount; i++)
+	{
+		if(lookahead(code, ops[i].op))
+			return ops[i].op;
+	}
+	return NULL;
+}
+static const char *readOperator(code_t *code)
+{
+	const char *op;
+	if((op = readOperatorFrom(code, prefixOps, prefixOpCount)) != NULL)
+		return op;
+	if((op = readOperatorFrom(code, binaryOps, binaryOpCount)) != NULL)
+		return op;
+
+	unexpected(code, "Operator");
+	return NULL; //doh
 }
 
 static char *readIdentifier(code_t *code)

@@ -73,10 +73,17 @@ struct ptrs_structlist
 	union ptrs_structmember value;
 	struct ptrs_structlist *next;
 };
-typedef struct struc
+struct ptrs_opoverload
+{
+	const char *op;
+	ptrs_function_t *handler;
+	struct ptrs_opoverload *next;
+};
+typedef struct ptrs_struct
 {
 	char *name;
 	struct ptrs_structlist *member;
+	struct ptrs_opoverload *overloads;
 	ptrs_function_t *constructor;
 	ptrs_scope_t *scope;
 	int size;

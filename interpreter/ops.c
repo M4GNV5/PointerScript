@@ -8,9 +8,10 @@
 #include "include/error.h"
 #include "include/conversion.h"
 #include "include/scope.h"
+#include "include/call.h"
 
 bool ptrs_overflowError = false;
-ptrs_var_t *ptrs_assign(ptrs_ast_t *node, ptrs_scope_t *scope, ptrs_var_t *orginal, ptrs_var_t *left, ptrs_var_t *right)
+static ptrs_var_t *ptrs_assign(ptrs_ast_t *node, ptrs_scope_t *scope, ptrs_var_t *orginal, ptrs_var_t *left, ptrs_var_t *right)
 {
 	if(orginal == left)
 	{
@@ -34,7 +35,19 @@ ptrs_var_t *ptrs_assign(ptrs_ast_t *node, ptrs_scope_t *scope, ptrs_var_t *orgin
 	return left;
 }
 
-void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *op, ptrs_vartype_t tleft, ptrs_vartype_t tright)
+static ptrs_function_t *getStructOverload(ptrs_var_t *struc, const char *op)
+{
+	struct ptrs_opoverload *curr = struc->value.structval->overloads;
+	while(curr != NULL)
+	{
+		if(strcmp(curr->op, op) == 0)
+			return curr->handler;
+		curr = curr->next;
+	}
+	return NULL;
+}
+
+static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *op, ptrs_vartype_t tleft, ptrs_vartype_t tright)
 {
 	ptrs_error(node, scope, "Cannot use operator %s on variables of type %s and %s",
 		op, ptrs_typetoa(tleft), ptrs_typetoa(tright));
@@ -107,13 +120,19 @@ void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *op, ptr
 		ptrs_var_t leftv; \
 		ptrs_var_t rightv; \
 		struct ptrs_ast_binary expr = node->arg.binary; \
+		ptrs_function_t *overload; \
 		\
 		ptrs_var_t *left = expr.left->handler(expr.left, &leftv, scope); \
 		ptrs_var_t *right = expr.right->handler(expr.right, &rightv, scope); \
 		ptrs_vartype_t tleft = left->type; \
 		ptrs_vartype_t tright = right->type; \
 		\
-		if(tleft == PTRS_TYPE_INT && tright == PTRS_TYPE_INT) \
+		if(tleft == PTRS_TYPE_STRUCT && (overload = getStructOverload(left, oplabel)) != NULL) \
+		{ \
+			ptrs_var_t func = {{.funcval = overload}, PTRS_TYPE_FUNCTION, {.this = left->value.structval}}; \
+			return ptrs_callfunc(node, result, scope, &func, 1, right); \
+		} \
+		else if(tleft == PTRS_TYPE_INT && tright == PTRS_TYPE_INT) \
 		{ \
 			result->type = PTRS_TYPE_INT; \
 			result->value.intval = left->value.intval operator right->value.intval; \
@@ -211,8 +230,16 @@ ptrs_var_t *ptrs_handle_prefix_logicnot(ptrs_ast_t *node, ptrs_var_t *result, pt
 	{ \
 		ptrs_var_t *value = node->arg.astval->handler(node->arg.astval, result, scope); \
 		ptrs_vartype_t type = value->type; \
-		\
+		ptrs_var_t overload; \
 		result->type = type; \
+		\
+		if(type == PTRS_TYPE_STRUCT && (overload.value.funcval = getStructOverload(value, opLabel)) != NULL) \
+		{ \
+			overload.type = PTRS_TYPE_FUNCTION; \
+			overload.meta.this = value->value.structval; \
+			return ptrs_callfunc(node, result, scope, &overload, 0, NULL); \
+		} \
+		\
 		if(type == PTRS_TYPE_INT) \
 			result->value.intval = operator value->value.intval; \
 		handlefloat \
@@ -244,8 +271,17 @@ handle_prefix(minus, -, "-", handle_prefix_float(-), /*nothing*/)
 	{ \
 		ptrs_var_t *value = node->arg.astval->handler(node->arg.astval, result, scope); \
 		ptrs_vartype_t type = value->type; \
-		\
+		ptrs_var_t overload; \
 		result->type = type; \
+		\
+		if(type == PTRS_TYPE_STRUCT && (overload.value.funcval = getStructOverload(value, opLabel)) != NULL) \
+		{ \
+			overload.type = PTRS_TYPE_FUNCTION; \
+			overload.meta.this = value->value.structval; \
+			ptrs_var_t isSuffixed = {{.intval = true}, PTRS_TYPE_INT}; \
+			return ptrs_callfunc(node, result, scope, &overload, 1, &isSuffixed); \
+		} \
+		\
 		if(type == PTRS_TYPE_INT) \
 			result->value.intval = value->value.intval operator; \
 		else if(type == PTRS_TYPE_FLOAT) \
