@@ -330,7 +330,8 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 
 	if(k == 0)
 	{
-		return stmt.tryBody->handler(stmt.tryBody, result, tryScope);
+		result = stmt.tryBody->handler(stmt.tryBody, result, tryScope);
+		scope->exit = tryScope->exit;
 	}
 	else if(stmt.catchBody != NULL)
 	{
@@ -376,6 +377,7 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 		}
 
 		result = stmt.catchBody->handler(stmt.catchBody, result, catchScope);
+		scope->exit = catchScope->exit;
 	}
 	return result;
 }
