@@ -43,6 +43,5 @@ ptrs_var_t *ptrs_struct_get(ptrs_struct_t *struc, ptrs_var_t *result, const char
 		curr = curr->next;
 	}
 
-	result->type = PTRS_TYPE_UNDEFINED;
-	return result;
+	return NULL;
 }

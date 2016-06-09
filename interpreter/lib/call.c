@@ -9,6 +9,7 @@
 #include "../include/stack.h"
 #include "../include/call.h"
 #include "../include/callback.h"
+#include "../include/struct.h"
 #include "../../parser/common.h"
 
 ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_var_t *func, ptrs_var_t *result, struct ptrs_astlist *arguments, ptrs_scope_t *scope)
@@ -36,6 +37,8 @@ ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_var_t *func, ptrs_var_t *result, str
 	args[len].type = PTRS_TYPE_NATIVE;
 	args[len].value.nativeval = NULL;
 
+	ptrs_var_t overload;
+
 	if(func->type == PTRS_TYPE_FUNCTION)
 	{
 		result = ptrs_callfunc(ast, result, scope, func, len, args);
@@ -44,6 +47,12 @@ ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_var_t *func, ptrs_var_t *result, str
 	{
 		result->type = PTRS_TYPE_INT;
 		result->value.intval = ptrs_callnative(func->value.nativeval, len, args);
+	}
+	else if(func->type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(func, "()")) != NULL)
+	{
+		overload.type = PTRS_TYPE_FUNCTION;
+		overload.meta.this = func->value.structval;
+		result = ptrs_callfunc(ast, result, scope, &overload, len, args);
 	}
 	else
 	{

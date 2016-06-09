@@ -122,7 +122,23 @@ ptrs_var_t *ptrs_handle_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	if(base->type != PTRS_TYPE_STRUCT)
 		ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr.name, ptrs_typetoa(base->type));
 
-	return ptrs_struct_get(base->value.structval, result, expr.name);
+	ptrs_var_t *_result = ptrs_struct_get(base->value.structval, result, expr.name);
+
+	ptrs_var_t overload;
+	if(_result == NULL && (overload.value.funcval = ptrs_struct_getOverload(base, ".")) != NULL)
+	{
+		overload.type = PTRS_TYPE_FUNCTION;
+		overload.meta.this = base->value.structval;
+		ptrs_var_t arg = {{.strval = expr.name}, PTRS_TYPE_NATIVE, {.readOnly = true}};
+		return ptrs_callfunc(node, result, scope, &overload, 1, &arg);
+	}
+	else if(_result == NULL)
+	{
+		result->type = PTRS_TYPE_UNDEFINED;
+		return result;
+	}
+
+	return _result;
 }
 
 ptrs_var_t *ptrs_handle_prefix_address(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
@@ -202,7 +218,23 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	else if(valuet == PTRS_TYPE_STRUCT)
 	{
 		const char *key = ptrs_vartoa(index, buff, 32);
-		return ptrs_struct_get(value->value.structval, result, key);
+		ptrs_var_t *_result = ptrs_struct_get(value->value.structval, result, key);
+
+		ptrs_var_t overload;
+		if(_result == NULL && (overload.value.funcval = ptrs_struct_getOverload(value, "[]")) != NULL)
+		{
+			overload.type = PTRS_TYPE_FUNCTION;
+			overload.meta.this = value->value.structval;
+			ptrs_var_t arg = {{.strval = key}, PTRS_TYPE_NATIVE, {.readOnly = key == buff || index->meta.readOnly}};
+			return ptrs_callfunc(node, result, scope, &overload, 1, &arg);
+		}
+		else if(_result == NULL)
+		{
+			result->type = PTRS_TYPE_UNDEFINED;
+			return result;
+		}
+
+		return _result;
 	}
 	else
 	{
@@ -215,7 +247,16 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_cast expr = node->arg.cast;
-	ptrs_var_t *value = expr.value->handler(expr.value, result, scope);;
+	ptrs_var_t *value = expr.value->handler(expr.value, result, scope);
+
+	ptrs_var_t overload;
+	if(value->type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(value, "cast")) != NULL)
+	{
+		overload.type = PTRS_TYPE_FUNCTION;
+		overload.meta.this = value->value.structval;
+		ptrs_var_t type = {{.intval = expr.type}, PTRS_TYPE_INT};
+		return ptrs_callfunc(node, result, scope, &overload, 1, &type);
+	}
 
 	switch(expr.type)
 	{

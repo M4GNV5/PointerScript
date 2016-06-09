@@ -997,6 +997,14 @@ static ptrs_vartype_t readTypeName(code_t *code)
 	return PTRS_TYPE_STRUCT + 1;
 }
 
+struct opinfo specialOverloads[] = {
+	{"()", 0, false, NULL}, //call
+	{"[]", 0, false, NULL}, //index
+	{".", 0, false, NULL}, //foo.bar
+	{"cast", 0, false, NULL}, //cast
+};
+int specialOverloadsCount = sizeof(specialOverloads) / sizeof(struct opinfo);
+
 static const char *readOperatorFrom(code_t *code, struct opinfo *ops, int opCount)
 {
 	for(int i = 0; i < opCount; i++)
@@ -1012,6 +1020,8 @@ static const char *readOperator(code_t *code)
 	if((op = readOperatorFrom(code, prefixOps, prefixOpCount)) != NULL)
 		return op;
 	if((op = readOperatorFrom(code, binaryOps, binaryOpCount)) != NULL)
+		return op;
+	if((op = readOperatorFrom(code, specialOverloads, specialOverloadsCount)) != NULL)
 		return op;
 
 	unexpected(code, "Operator");
