@@ -440,6 +440,13 @@ ptrs_var_t *ptrs_handle_struct(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 		curr = curr->next;
 	}
 
+	struct ptrs_opoverload *currop = struc->overloads;
+	while(currop != NULL)
+	{
+		currop->handler->scope = scope;
+		currop = currop->next;
+	}
+
 	if(struc->constructor != NULL)
 		struc->constructor->scope = scope;
 
