@@ -13,6 +13,7 @@
 #include "include/scope.h"
 #include "include/run.h"
 #include "include/call.h"
+#include "include/struct.h"
 
 ptrs_var_t *ptrs_handle_body(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
@@ -261,6 +262,26 @@ ptrs_var_t *ptrs_handle_break(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 ptrs_var_t *ptrs_handle_continue(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	scope->exit = 1;
+	return result;
+}
+
+ptrs_var_t *ptrs_handle_delete(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	ptrs_ast_t *ast = node->arg.astval;
+	ptrs_var_t *val = ast->handler(ast, result, scope);
+
+	if(val->type != PTRS_TYPE_STRUCT)
+		ptrs_error(node, scope, "Cannot delete value of type %s", ptrs_typetoa(val->type));
+
+	ptrs_var_t overload;
+	if((overload.value.funcval = ptrs_struct_getOverload(val, "delete")) != NULL)
+	{
+		overload.type = PTRS_TYPE_FUNCTION;
+		overload.meta.this = val->value.structval;
+		result = ptrs_callfunc(node, result, scope, &overload, 0, NULL);
+	}
+
+	free(val->value.structval);
 	return result;
 }
 

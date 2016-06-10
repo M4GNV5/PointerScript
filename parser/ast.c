@@ -227,6 +227,12 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		stmt->handler = PTRS_HANDLE_CONTINUE;
 		consumec(code, ';');
 	}
+	else if(lookahead(code, "delete"))
+	{
+		stmt->handler = PTRS_HANDLE_DELETE;
+		stmt->arg.astval = parseExpression(code);
+		consumec(code, ';');
+	}
 	else if(lookahead(code, "throw"))
 	{
 		stmt->handler = PTRS_HANDLE_THROW;
@@ -1003,6 +1009,7 @@ struct opinfo specialOverloads[] = {
 	{"[]", 0, false, NULL}, //index
 	{".", 0, false, NULL}, //foo.bar
 	{"cast", 0, false, NULL}, //cast
+	{"delete", 0, false, NULL}, //delete
 };
 int specialOverloadsCount = sizeof(specialOverloads) / sizeof(struct opinfo);
 
