@@ -9,6 +9,12 @@ struct ptrs_astlist;
 #include "common.h"
 #include "../interpreter/include/scope.h"
 
+typedef struct ptrs_symbol
+{
+	unsigned scope;
+	unsigned offset;
+} ptrs_symbol_t;
+
 struct ptrs_ast_define
 {
 	char *name;

@@ -10,12 +10,25 @@
 
 #define talloc(type) malloc(sizeof(type))
 
+struct symbollist
+{
+	unsigned offset;
+	char *text;
+	struct symbollist *next;
+};
+struct scopelist
+{
+	unsigned offset;
+	struct symbollist *current;
+	struct scopelist *outer;
+};
 typedef struct code
 {
 	const char *filename;
 	char *src;
 	char curr;
 	int pos;
+	struct scopelist *symbols;
 } code_t;
 
 static ptrs_ast_t *parseStmtList(code_t *code, char end);
@@ -33,6 +46,9 @@ static char *readString(code_t *code);
 static char readEscapeSequence(code_t *code);
 static int64_t readInt(code_t *code, int base);
 static double readDouble(code_t *code);
+
+static void addSymbol(code_t *code, char *symbol);
+static ptrs_symbol_t getSymbol(code_t *code, char *symbol);
 
 static bool lookahead(code_t *code, const char *str);
 static void consume(code_t *code, const char *str);
@@ -55,6 +71,10 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename)
 	code.filename = filename;
 	code.src = src;
 	code.pos = -1;
+	code.symbols = talloc(struct scopelist);
+	code.symbols->offset = 0;
+	code.symbols->current = NULL;
+	code.symbols->outer = NULL;
 	next(&code);
 
 	return parseStmtList(&code, 0);
@@ -1159,6 +1179,44 @@ static double readDouble(code_t *code)
 	next(code);
 
 	return val;
+}
+
+static void addSymbol(code_t *code, char *symbol)
+{
+	struct scopelist *curr = code->symbols;
+	struct symbollist *entry = talloc(struct symbollist);
+
+	entry->next = curr->current;
+	entry->offset = curr->offset;
+	curr->offset += sizeof(ptrs_var_t);
+	curr->current = entry;
+}
+
+static ptrs_symbol_t getSymbol(code_t *code, char *text)
+{
+	ptrs_symbol_t symbol = {0, 0};
+	struct scopelist *scope = code->symbols;
+	while(scope != NULL)
+	{
+		struct symbollist *curr = scope->current;
+		while(curr != NULL)
+		{
+			if(strcmp(curr->text, text) == 0)
+			{
+				symbol.offset = curr->offset;
+				return symbol;
+			}
+			curr = curr->next;
+		}
+
+		scope = scope->outer;
+		symbol.scope++;
+	}
+
+	char buff[128];
+	sprintf(buff, "Unknown identifier %s", text);
+	unexpectedm(code, NULL, buff);
+	return symbol; //doh
 }
 
 static bool lookahead(code_t *code, const char *str)
