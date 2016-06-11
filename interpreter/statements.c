@@ -27,11 +27,7 @@ ptrs_var_t *ptrs_handle_body(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 		_result = list->entry->handler(list->entry, result, scope);
 
 		if(scope->exit != 0)
-		{
-			if(scope->exit == 1)
-				scope->exit = 0;
 			return _result;
-		}
 
 		list = list->next;
 	}
@@ -491,7 +487,7 @@ ptrs_var_t *ptrs_handle_while(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 
 		if(stmtScope->exit == 3)
 			scope->exit = 3;
-		if(stmtScope->exit != 0)
+		if(stmtScope->exit > 1)
 			return result;
 	}
 
@@ -514,7 +510,7 @@ ptrs_var_t *ptrs_handle_dowhile(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope
 
 		if(stmtScope->exit == 3)
 			scope->exit = 3;
-		if(stmtScope->exit != 0)
+		if(stmtScope->exit > 1)
 			return result;
 
 		condition = stmt.condition->handler(stmt.condition, &conditionv, stmtScope);
@@ -543,7 +539,7 @@ ptrs_var_t *ptrs_handle_for(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 
 		if(stmtScope->exit == 3)
 			scope->exit = 3;
-		if(stmtScope->exit != 0)
+		if(stmtScope->exit > 1)
 			return result;
 
 		stmt.step->handler(stmt.step, result, stmtScope);
@@ -580,7 +576,7 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 
 		if(stmtScope->exit == 3)
 			scope->exit = 3;
-		if(stmtScope->exit != 0)
+		if(stmtScope->exit > 1)
 			return result;
 
 		curr = curr->next;
