@@ -62,9 +62,9 @@ Most of PointerScript is similar to Javascript and/or C so only specialities wil
 importstatement 		: 'import' argumentlist [ 'from' expression ] ';'
 						;
 
-//e.g.	var x = 42;			//noting unusual here
-//		var y[1337 + x];	//creates an array of 1337 + x bytes on the stack
-//		var z{3112 / x};	//creates an array of 3112 / x variables on the stack
+//e.g.	var x = 42;		//noting unusual here
+//		var y[x];		//creates an array of x bytes on the stack
+//		var z{x};		//creates an array of x variables on the stack
 variabledefinition		: 'var' identifier [ '=' expression ] ';'
 						| 'var' identifier '[' expression ']' ';'
 						| 'var' identifier '{' expression '}' ';'
