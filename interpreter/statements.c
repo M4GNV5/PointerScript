@@ -99,7 +99,7 @@ void importNative(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 			ptrs_error(stmt.from, scope, "%s", error);
 	}
 
-	for(int i = 0; i < stmt.argc; i++)
+	for(int i = 0; i < stmt.count; i++)
 	{
 		ptrs_var_t func;
 		func.type = PTRS_TYPE_NATIVE;

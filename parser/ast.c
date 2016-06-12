@@ -124,7 +124,7 @@ struct argdeflist
 	ptrs_ast_t *value;
 	struct argdeflist *next;
 };
-static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_ast_t ***argv, char ***names)
+static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_ast_t ***argv)
 {
 	int argc = 0;
 	consumecm(code, '(', "Expected ( as the beginning of an argument definition");
@@ -135,8 +135,6 @@ static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_
 		*args = NULL;
 		if(argv != NULL)
 			*argv = NULL;
-		if(names != NULL)
-			*names = NULL;
 		return argc;
 	}
 	else
@@ -147,11 +145,7 @@ static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_
 		{
 			list->next = talloc(struct argdeflist);
 			list = list->next;
-
-			char *name = readIdentifier(code);
-			if(names != NULL)
-				list->name = strdup(name);
-			list->symbol = addSymbol(code, name);
+			list->symbol = addSymbol(code, readIdentifier(code));
 
 			if(argv != NULL)
 			{
@@ -171,19 +165,17 @@ static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_
 		*args = malloc(sizeof(ptrs_symbol_t) * argc);
 		if(argv != NULL)
 			*argv = malloc(sizeof(ptrs_ast_t *) * argc);
-		if(names != NULL)
-			*names = malloc(sizeof(char *) * argc);
 
 		list = first.next;
 		for(int i = 0; i < argc; i++)
 		{
 			(*args)[i] = list->symbol;
-			if(names != NULL)
-				(*names)[i] = list->name;
 			if(argv != NULL)
 				(*argv)[i] = list->value;
 
+			struct argdeflist *old = list;
 			list = list->next;
+			free(old);
 		}
 		consumecm(code, ')', "Expected ) as the ending of an argument definition");
 
@@ -226,7 +218,7 @@ static ptrs_ast_t *parseBody(code_t *code, unsigned *stackOffset, bool allowStmt
 static ptrs_function_t *parseFunction(code_t *code)
 {
 	ptrs_function_t *func = talloc(ptrs_function_t);
-	func->argc = parseArgumentDefinitionList(code, &func->args, &func->argv, NULL);
+	func->argc = parseArgumentDefinitionList(code, &func->args, &func->argv);
 	func->body = parseBody(code, &func->stackOffset, false, true);
 
 	return func;
@@ -269,9 +261,45 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "import"))
 	{
+		int pos = code->pos;
+		int count = 1;
+		for(;;)
+		{
+			if(lookahead(code, "from") || code->curr == ';')
+			{
+				break;
+			}
+			else if(code->curr == ',' || code->curr == ' ' || isalnum(code->curr))
+			{
+				if(code->curr == ',')
+					count++;
+				rawnext(code);
+			}
+			else
+			{
+				unexpected(code, "Identifier, from or ;");
+			}
+		}
+
+		code->pos = pos;
+		code->curr = code->src[pos];
+		char **fields = malloc(sizeof(char *) * count);
+		ptrs_symbol_t *symbols = malloc(sizeof(ptrs_symbol_t) * count);
+
 		stmt->handler = PTRS_HANDLE_IMPORT;
-		stmt->arg.import.argc = parseArgumentDefinitionList(code,
-			&stmt->arg.import.symbols, NULL, &stmt->arg.import.fields);
+		stmt->arg.import.count = count;
+		stmt->arg.import.fields = fields;
+		stmt->arg.import.symbols = symbols;
+
+		for(int i = 0; i < count; i++)
+		{
+			char *name = readIdentifier(code);
+			fields[i] = name;
+			symbols[i] = addSymbol(code, strdup(name));
+
+			if(i < count - 1)
+				consumec(code, ',');
+		}
 
 		if(lookahead(code, "from"))
 			stmt->arg.import.from = parseExpression(code);
@@ -315,7 +343,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 
 		if(lookahead(code, "catch"))
 		{
-			stmt->arg.trycatch.argc = parseArgumentDefinitionList(code, &stmt->arg.trycatch.args, NULL, NULL);
+			stmt->arg.trycatch.argc = parseArgumentDefinitionList(code, &stmt->arg.trycatch.args, NULL);
 			stmt->arg.trycatch.catchBody = parseBody(code, &stmt->arg.trycatch.catchStackOffset, true, false);
 		}
 		else
@@ -334,7 +362,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		stmt->arg.function.isAnonymous = false;
 		stmt->arg.function.symbol = addSymbol(code, readIdentifier(code));
 		stmt->arg.function.argc = parseArgumentDefinitionList(code,
-			&stmt->arg.function.args, &stmt->arg.function.argv, NULL);
+			&stmt->arg.function.args, &stmt->arg.function.argv);
 
 		stmt->arg.function.body = parseBody(code, &stmt->arg.function.stackOffset, false, true);
 	}
@@ -768,7 +796,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 		ast->handler = PTRS_HANDLE_FUNCTION;
 		ast->arg.function.isAnonymous = true;
 		ast->arg.function.argc = parseArgumentDefinitionList(code,
-			&ast->arg.function.args, &ast->arg.function.argv, NULL);
+			&ast->arg.function.args, &ast->arg.function.argv);
 
 		ast->arg.function.body = parseBody(code, &ast->arg.function.stackOffset, false, true);
 	}
@@ -860,7 +888,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 			code->curr = code->src[start];
 
 			ast->handler = PTRS_HANDLE_FUNCTION;
-			ast->arg.function.argc = parseArgumentDefinitionList(code, &ast->arg.function.args, NULL, NULL);
+			ast->arg.function.argc = parseArgumentDefinitionList(code, &ast->arg.function.args, NULL);
 
 			consume(code, "->");
 			symbolScope_increase(code);

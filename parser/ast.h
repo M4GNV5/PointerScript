@@ -23,7 +23,7 @@ struct ptrs_ast_member
 
 struct ptrs_ast_import
 {
-	int argc;
+	int count;
 	char **fields;
 	ptrs_symbol_t *symbols;
 	struct ptrs_ast *from;
