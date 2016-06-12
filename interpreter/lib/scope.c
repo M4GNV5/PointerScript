@@ -5,71 +5,24 @@
 #include "../include/stack.h"
 #include "../include/scope.h"
 
-ptrs_object_t *ptrs_object_set(ptrs_scope_t *scope, ptrs_object_t *obj, const char *key, ptrs_var_t *value)
+const ptrs_symbol_t ptrs_argumentsSymbol = {0, sizeof(ptrs_var_t)};
+const ptrs_symbol_t ptrs_thisSymbol = {0, 2 * sizeof(ptrs_var_t)};
+
+void ptrs_scope_set(ptrs_scope_t *scope, ptrs_symbol_t symbol, ptrs_var_t *value)
 {
-	ptrs_object_t *startObj = obj;
-	if(obj != NULL)
-	{
-		for(;;)
-		{
-			if(strcmp(obj->key, key) == 0)
-			{
-				memcpy(obj->value, value, sizeof(ptrs_var_t));
-				return startObj;
-			}
-
-			if(obj->next == NULL)
-				break;
-
-			obj = obj->next;
-		}
-	}
-
-	ptrs_object_t *new = ptrs_alloc(scope, sizeof(ptrs_object_t));
-	if(obj == NULL)
-		startObj = new;
-	else
-		obj->next = new;
-
-	new->next = NULL;
-	new->key = key;
-
-	new->value = ptrs_alloc(scope, sizeof(ptrs_var_t));
-	memcpy(new->value, value, sizeof(ptrs_var_t));
-
-	return startObj;
-}
-
-ptrs_var_t *ptrs_object_get(ptrs_object_t *obj, const char *key)
-{
-	while(obj != NULL)
-	{
-		if(strcmp(obj->key, key) == 0)
-			return obj->value;
-		obj = obj->next;
-	}
-	return NULL;
-}
-
-void ptrs_scope_set(ptrs_scope_t *scope, const char *key, ptrs_var_t *value)
-{
-	scope->current = ptrs_object_set(scope, scope->current, key, value);
-}
-
-ptrs_var_t *ptrs_scope_get(ptrs_scope_t *scope, const char *key)
-{
-	ptrs_var_t *val;
-	while(scope != NULL)
-	{
-		val = ptrs_object_get(scope->current, key);
-		if(val != NULL)
-			return val;
+	for(int i = 0; i < symbol.scope; i++)
 		scope = scope->outer;
-	}
-	return NULL;
+	memcpy(scope->bp + symbol.offset, value, sizeof(ptrs_var_t));
 }
 
-ptrs_scope_t *ptrs_scope_increase(ptrs_scope_t *outer)
+ptrs_var_t *ptrs_scope_get(ptrs_scope_t *scope, ptrs_symbol_t symbol)
+{
+	for(int i = 0; i < symbol.scope; i++)
+		scope = scope->outer;
+	return scope->bp + symbol.offset;
+}
+
+ptrs_scope_t *ptrs_scope_increase(ptrs_scope_t *outer, unsigned stackOffset)
 {
 	void *sp = outer->sp;
 	ptrs_scope_t *scope = ptrs_alloc(outer, sizeof(ptrs_scope_t));
@@ -77,6 +30,8 @@ ptrs_scope_t *ptrs_scope_increase(ptrs_scope_t *outer)
 
 	scope->current = NULL;
 	scope->outer = outer;
+	scope->bp = scope->sp;
+	scope->sp += stackOffset;
 	outer->sp = sp;
 
 	return scope;

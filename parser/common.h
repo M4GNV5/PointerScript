@@ -8,6 +8,12 @@
 struct ptrs_var;
 struct ptrs_ast;
 
+typedef struct ptrs_symbol
+{
+	unsigned scope;
+	unsigned offset;
+} ptrs_symbol_t;
+
 typedef enum type
 {
 	PTRS_TYPE_UNDEFINED,
@@ -34,6 +40,7 @@ typedef struct ptrs_scope
 	ptrs_object_t *current;
 	void *stackstart;
 	void *sp;
+	void *bp;
 	struct ptrs_ast *callAst;
 	struct ptrs_scope *callScope;
 	const char *calleeName;
@@ -43,9 +50,9 @@ typedef struct ptrs_scope
 
 typedef struct function
 {
-	char *name;
 	int argc;
-	char **args;
+	unsigned stackOffset;
+	ptrs_symbol_t *args;
 	struct ptrs_ast **argv;
 	struct ptrs_ast *body;
 	ptrs_scope_t *scope;
@@ -81,7 +88,7 @@ struct ptrs_opoverload
 };
 typedef struct ptrs_struct
 {
-	char *name;
+	ptrs_symbol_t symbol;
 	struct ptrs_structlist *member;
 	struct ptrs_opoverload *overloads;
 	ptrs_function_t *constructor;

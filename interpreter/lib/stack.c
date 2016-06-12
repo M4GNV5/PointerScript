@@ -10,6 +10,7 @@ void *ptrs_alloc(ptrs_scope_t *scope, size_t size)
 	if(scope->sp == NULL)
 	{
 		scope->sp = malloc(ptrs_stacksize);
+		scope->bp = scope->sp;
 		scope->stackstart = scope->sp;
 	}
 

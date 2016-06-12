@@ -93,7 +93,7 @@ ptrs_var_t *ptrs_handle_new(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 		ptrs_call(node, &ctor, result, expr.arguments, scope);
 	}
 
-	ptrs_scope_t *initScope = ptrs_scope_increase(scope);
+	ptrs_scope_t *initScope = ptrs_scope_increase(scope, 0);
 	initScope->outer = instance->scope;
 	struct ptrs_structlist *member = instance->member;
 	while(member != NULL)
@@ -116,8 +116,8 @@ ptrs_var_t *ptrs_handle_new(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 
 ptrs_var_t *ptrs_handle_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_define expr = node->arg.define;
-	ptrs_var_t *base = expr.value->handler(expr.value, result, scope);
+	struct ptrs_ast_member expr = node->arg.member;
+	ptrs_var_t *base = expr.base->handler(expr.base, result, scope);
 
 	if(base->type != PTRS_TYPE_STRUCT)
 		ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr.name, ptrs_typetoa(base->type));
@@ -280,7 +280,7 @@ ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 
 ptrs_var_t *ptrs_handle_identifier(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	result = ptrs_scope_get(scope, node->arg.strval);
+	result = ptrs_scope_get(scope, node->arg.varval);
 	if(result == NULL)
 		ptrs_error(node, scope, "Unknown identifier %s", node->arg.strval);
 	return result;

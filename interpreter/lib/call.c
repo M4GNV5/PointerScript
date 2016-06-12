@@ -65,11 +65,11 @@ ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_var_t *func, ptrs_var_t *result, str
 ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t *callScope, ptrs_var_t *funcvar, int argc, ptrs_var_t *argv)
 {
 	ptrs_function_t *func = funcvar->value.funcval;
-	ptrs_scope_t *scope = ptrs_scope_increase(callScope);
+	ptrs_scope_t *scope = ptrs_scope_increase(callScope, func->stackOffset);
 	scope->outer = func->scope;
 	scope->callScope = callScope;
 	scope->callAst = callAst;
-	scope->calleeName = func->name;
+	scope->calleeName = NULL;
 
 	ptrs_var_t val;
 	val.type = PTRS_TYPE_UNDEFINED;
@@ -87,12 +87,12 @@ ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t 
 	{
 		val.type = PTRS_TYPE_STRUCT;
 		val.value.structval = funcvar->meta.this;
-		ptrs_scope_set(scope, "this", &val);
+		ptrs_scope_set(scope, ptrs_thisSymbol, &val);
 	}
 
 	val.type = PTRS_TYPE_POINTER;
 	val.value.ptrval = argv;
-	ptrs_scope_set(scope, "arguments", &val);
+	ptrs_scope_set(scope, ptrs_argumentsSymbol, &val);
 
 	ptrs_var_t *_result = func->body->handler(func->body, result, scope);
 

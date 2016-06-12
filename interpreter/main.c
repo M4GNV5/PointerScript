@@ -80,6 +80,7 @@ int main(int argc, char **argv)
 
 	ptrs_var_t result;
 	ptrs_scope_t *scope = calloc(1, sizeof(ptrs_scope_t));
+	ptrs_alloc(scope, 0);
 
 	int len = argc - i + 1;
 	ptrs_var_t arguments[len];
@@ -94,7 +95,7 @@ int main(int argc, char **argv)
 
 	result.type = PTRS_TYPE_POINTER;
 	result.value.ptrval = arguments;
-	ptrs_scope_set(scope, "arguments", &result);
+	ptrs_scope_set(scope, ptrs_argumentsSymbol, &result);
 
 	ptrs_dofile(file, &result, scope);
 
