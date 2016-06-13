@@ -21,4 +21,4 @@ bla.bar = 42;
 bla.tar = 3.1415;
 bla.dump();
 bla.hololo();
-//delete bla;
+delete bla;
