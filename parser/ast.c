@@ -229,12 +229,14 @@ static ptrs_ast_t *parseScopelessBody(code_t *code, bool allowStmt)
 
 static ptrs_ast_t *parseBody(code_t *code, unsigned *stackOffset, bool allowStmt, bool isFunction)
 {
-	symbolScope_increase(code);
-
 	if(isFunction)
 	{
 		addSymbol(code, strdup("arguments"));
 		addSymbol(code, strdup("this"));
+	}
+	else
+	{
+		symbolScope_increase(code);
 	}
 
 	ptrs_ast_t *result = parseScopelessBody(code, allowStmt);
@@ -389,6 +391,8 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		stmt->handler = PTRS_HANDLE_FUNCTION;
 		stmt->arg.function.isAnonymous = false;
 		stmt->arg.function.symbol = addSymbol(code, readIdentifier(code));
+
+		symbolScope_increase(code);
 		stmt->arg.function.argc = parseArgumentDefinitionList(code,
 			&stmt->arg.function.args, &stmt->arg.function.argv);
 
@@ -823,6 +827,8 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 		ast = talloc(ptrs_ast_t);
 		ast->handler = PTRS_HANDLE_FUNCTION;
 		ast->arg.function.isAnonymous = true;
+
+		symbolScope_increase(code);
 		ast->arg.function.argc = parseArgumentDefinitionList(code,
 			&ast->arg.function.args, &ast->arg.function.argv);
 
@@ -915,11 +921,11 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 			code->pos = start;
 			code->curr = code->src[start];
 
+			symbolScope_increase(code);
 			ast->handler = PTRS_HANDLE_FUNCTION;
 			ast->arg.function.argc = parseArgumentDefinitionList(code, &ast->arg.function.args, NULL);
 
 			consume(code, "->");
-			symbolScope_increase(code);
 			code->symbols->offset += 2 * sizeof(ptrs_var_t);
 			if(lookahead(code, "{"))
 			{
