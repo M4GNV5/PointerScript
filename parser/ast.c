@@ -297,7 +297,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 			{
 				break;
 			}
-			else if(code->curr == ',' || code->curr == ' ' || isalnum(code->curr))
+			else if(code->curr == ',' || code->curr == ' ' || code->curr == '_' || isalnum(code->curr))
 			{
 				if(code->curr == ',')
 					count++;
