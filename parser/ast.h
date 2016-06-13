@@ -5,6 +5,7 @@
 
 struct ptrs_ast;
 struct ptrs_astlist;
+typedef struct ptrs_symboltable ptrs_symboltable_t;
 
 #include "common.h"
 #include "../interpreter/include/scope.h"
@@ -159,6 +160,7 @@ struct ptrs_astlist
 	struct ptrs_astlist *next;
 };
 
-ptrs_ast_t *ptrs_parse(char *src, const char *filename);
+ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **symbols);
+int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_symbol_t *out);
 
 #endif

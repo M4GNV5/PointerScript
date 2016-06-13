@@ -7,20 +7,20 @@
 #include "../../parser/common.h"
 #include "../include/scope.h"
 
-void ptrs_eval(char *src, const char *filename, ptrs_var_t *result, ptrs_scope_t *scope)
+void ptrs_eval(char *src, const char *filename, ptrs_var_t *result, ptrs_scope_t *scope, ptrs_symboltable_t **symbols)
 {
 	if(scope == NULL)
 		scope = calloc(1, sizeof(ptrs_scope_t));
 	scope->calleeName = "(root)";
 
-	ptrs_ast_t *ast = ptrs_parse(src, filename);
+	ptrs_ast_t *ast = ptrs_parse(src, filename, symbols);
 	ptrs_var_t *_result = ast->handler(ast, result, scope);
 
 	if(_result != result)
 		memcpy(result, _result, sizeof(ptrs_var_t));
 }
 
-void ptrs_dofile(const char *file, ptrs_var_t *result, ptrs_scope_t *scope)
+void ptrs_dofile(const char *file, ptrs_var_t *result, ptrs_scope_t *scope, ptrs_symboltable_t **symbols)
 {
 	FILE *fd = fopen(file, "r");
 
@@ -45,5 +45,5 @@ void ptrs_dofile(const char *file, ptrs_var_t *result, ptrs_scope_t *scope)
 	if(strncmp(cwd, file, len) == 0)
 		file += len + 1;
 
-	ptrs_eval(src, strdup(file), result, scope);
+	ptrs_eval(src, strdup(file), result, scope, symbols);
 }

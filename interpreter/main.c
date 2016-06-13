@@ -97,7 +97,7 @@ int main(int argc, char **argv)
 	result.value.ptrval = arguments;
 	ptrs_scope_set(scope, ptrs_argumentsSymbol, &result);
 
-	ptrs_dofile(file, &result, scope);
+	ptrs_dofile(file, &result, scope, NULL);
 
 	return EXIT_SUCCESS;
 }

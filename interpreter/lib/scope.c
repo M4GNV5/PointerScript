@@ -28,11 +28,10 @@ ptrs_scope_t *ptrs_scope_increase(ptrs_scope_t *outer, unsigned stackOffset)
 	ptrs_scope_t *scope = ptrs_alloc(outer, sizeof(ptrs_scope_t));
 	memcpy(scope, outer, sizeof(ptrs_scope_t));
 
-	scope->current = NULL;
 	scope->outer = outer;
 	scope->bp = scope->sp;
-	scope->sp += stackOffset;
 	outer->sp = sp;
+	scope->sp += stackOffset;
 
 	return scope;
 }

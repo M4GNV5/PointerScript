@@ -16,11 +16,11 @@ struct symbollist
 	char *text;
 	struct symbollist *next;
 };
-struct scopelist
+struct ptrs_symboltable
 {
 	unsigned offset;
 	struct symbollist *current;
-	struct scopelist *outer;
+	ptrs_symboltable_t *outer;
 };
 typedef struct code
 {
@@ -28,7 +28,7 @@ typedef struct code
 	char *src;
 	char curr;
 	int pos;
-	struct scopelist *symbols;
+	ptrs_symboltable_t *symbols;
 } code_t;
 
 static ptrs_ast_t *parseStmtList(code_t *code, char end);
@@ -67,25 +67,53 @@ static void unexpectedm(code_t *code, const char *expected, const char *msg);
 #define unexpected(code, expected) \
 	unexpectedm(code, expected, NULL)
 
-ptrs_ast_t *ptrs_parse(char *src, const char *filename)
+ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **symbols)
 {
 	code_t code;
 	code.filename = filename;
 	code.src = src;
 	code.pos = -1;
-	code.symbols = talloc(struct scopelist);
-	code.symbols->offset = sizeof(ptrs_var_t);
-	code.symbols->current = NULL;
-	code.symbols->outer = NULL;
+	code.symbols = NULL;
 	next(&code);
 
+	symbolScope_increase(&code);
 	addSymbol(&code, strdup("arguments"));
 
 	ptrs_ast_t *ast = talloc(ptrs_ast_t);
-	ast->handler = PTRS_HANDLE_SCOPESTATEMENT;
+	ast->handler = PTRS_HANDLE_FILE;
 	ast->arg.scopestatement.body = parseStmtList(&code, 0);
 	ast->arg.scopestatement.stackOffset = code.symbols->offset;
+	ast->file = filename;
+	ast->code = src;
+	ast->codepos = 0;
+
+	if(symbols == NULL)
+		symbolScope_decrease(&code);
+	else
+		*symbols = code.symbols;
 	return ast;
+}
+
+int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_symbol_t *out)
+{
+	out->scope = 0;
+	while(symbols != NULL)
+	{
+		struct symbollist *curr = symbols->current;
+		while(curr != NULL)
+		{
+			if(strcmp(curr->text, text) == 0)
+			{
+				out->offset = curr->offset;
+				return 0;
+			}
+			curr = curr->next;
+		}
+
+		symbols = symbols->outer;
+		out->scope++;
+	}
+	return 1;
 }
 
 static ptrs_ast_t *parseStmtList(code_t *code, char end)
@@ -1211,7 +1239,7 @@ static double readDouble(code_t *code)
 
 static ptrs_symbol_t addSymbol(code_t *code, char *symbol)
 {
-	struct scopelist *curr = code->symbols;
+	ptrs_symboltable_t *curr = code->symbols;
 	struct symbollist *entry = talloc(struct symbollist);
 
 	entry->text = symbol;
@@ -1226,34 +1254,19 @@ static ptrs_symbol_t addSymbol(code_t *code, char *symbol)
 
 static ptrs_symbol_t getSymbol(code_t *code, char *text)
 {
-	ptrs_symbol_t symbol = {0, 0};
-	struct scopelist *scope = code->symbols;
-	while(scope != NULL)
-	{
-		struct symbollist *curr = scope->current;
-		while(curr != NULL)
-		{
-			if(strcmp(curr->text, text) == 0)
-			{
-				symbol.offset = curr->offset;
-				return symbol;
-			}
-			curr = curr->next;
-		}
-
-		scope = scope->outer;
-		symbol.scope++;
-	}
+	ptrs_symbol_t out;
+	if(ptrs_ast_getSymbol(code->symbols, text, &out) == 0)
+		return out;
 
 	char buff[128];
 	sprintf(buff, "Unknown identifier %s", text);
 	unexpectedm(code, NULL, buff);
-	return symbol; //doh
+	return out; //doh
 }
 
 static void symbolScope_increase(code_t *code)
 {
-	struct scopelist *new = talloc(struct scopelist);
+	ptrs_symboltable_t *new = talloc(ptrs_symboltable_t);
 	new->offset = 0;
 	new->outer = code->symbols;
 	new->current = NULL;
@@ -1262,7 +1275,7 @@ static void symbolScope_increase(code_t *code)
 
 static unsigned symbolScope_decrease(code_t *code)
 {
-	struct scopelist *scope = code->symbols;
+	ptrs_symboltable_t *scope = code->symbols;
 	code->symbols = scope->outer;
 
 	struct symbollist *curr = scope->current;

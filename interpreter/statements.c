@@ -114,78 +114,82 @@ void importNative(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 	}
 }
 
-/*typedef struct ptrs_cache
+typedef struct ptrs_cache
 {
 	const char *path;
 	ptrs_scope_t *scope;
+	ptrs_symboltable_t *symbols;
 	struct ptrs_cache *next;
 } ptrs_cache_t;
 ptrs_cache_t *ptrs_cache = NULL;
-ptrs_scope_t *importCachedScript(const char *path, ptrs_ast_t *node, ptrs_scope_t *scope)
+ptrs_cache_t *importCachedScript(char *path, ptrs_ast_t *node, ptrs_scope_t *scope)
 {
-	char buff[1024];
-	if(realpath(path, buff) == NULL)
-		ptrs_error(node, scope, "Could not resolve path '%s'", path);
-
 	ptrs_cache_t *cache = ptrs_cache;
 	while(cache != NULL)
 	{
-		if(strcmp(cache->path, buff) == 0)
-			return cache->scope;
+		if(strcmp(cache->path, path) == 0)
+		{
+			free(path);
+			return cache;
+		}
 		cache = cache->next;
 	}
 
 	ptrs_scope_t *_scope = calloc(1, sizeof(ptrs_scope_t));
+	ptrs_alloc(_scope, 0);
+	ptrs_symboltable_t *symbols;
 	ptrs_var_t valuev;
-	ptrs_dofile(buff, &valuev, _scope);
+	ptrs_dofile(path, &valuev, _scope, &symbols);
 
 	cache = malloc(sizeof(ptrs_cache_t));
-	cache->path = strdup(buff);
+	cache->path = path;
 	cache->scope = _scope;
+	cache->symbols = symbols;
 	cache->next = ptrs_cache;
 	ptrs_cache = cache;
-	return _scope;
-}*/
+	return cache;
+}
+
+char *resolveRelPath(ptrs_ast_t *node, ptrs_scope_t *scope, const char *path)
+{
+	char *fullPath;
+	if(path[0] != '/')
+	{
+		char dirbuff[strlen(node->file) + 1];
+		strcpy(dirbuff, node->file);
+		char *dir = dirname(dirbuff);
+
+		char buff[strlen(dir) + strlen(path) + 2];
+		sprintf(buff, "%s/%s", dir, path);
+
+		fullPath = realpath(path, NULL);
+	}
+	else
+	{
+		fullPath = realpath(path, NULL);
+	}
+
+	if(fullPath == NULL)
+		ptrs_error(node, scope, "Could not resolve path '%s'", path);
+
+	return fullPath;
+}
 
 void importScript(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 {
-	/*ptrs_var_t valuev;
-	ptrs_var_t *value;
-	char namebuff[1024];
-	const char *name;
+	struct ptrs_ast_import stmt = node->arg.import;
 
-	if(from[0] != '/')
+	char *file = resolveRelPath(node, scope, from);
+	ptrs_cache_t *cache = importCachedScript(file, node, scope);
+
+	for(int i = 0; i < stmt.count; i++)
 	{
-		char dirbuff[1024];
-		strcpy(dirbuff, node->file);
-		char *dir = dirname(dirbuff);
-		snprintf(namebuff, 1024, "%s/%s", dir, from);
-		from = namebuff;
+		ptrs_symbol_t symbol;
+		if(ptrs_ast_getSymbol(cache->symbols, stmt.fields[i], &symbol) != 0)
+			ptrs_error(node, scope, "Script '%s' has no property '%s'", file, stmt.fields[i]);
+
+		ptrs_scope_set(scope, stmt.symbols[i], ptrs_scope_get(cache->scope, symbol));
 	}
-	ptrs_scope_t *_scope = importCachedScript(from, node, scope);
-
-	struct ptrs_astlist *list = node->arg.import.fields;
-	while(list != NULL)
-	{
-		value = list->entry->handler(list->entry, &valuev, scope);
-		name = ptrs_vartoa(value, namebuff, 1024);
-
-		ptrs_var_t *val = ptrs_scope_get(_scope, name);
-		if(val == NULL)
-			ptrs_error(list->entry, scope, "Script '%s' has no property '%s'", from, name);
-
-		if(name == namebuff)
-		{
-			size_t len = strlen(name) + 1;
-			char *_name = ptrs_alloc(scope, len);
-			memcpy(_name, name, len);
-			name = _name;
-		}
-
-		ptrs_scope_set(scope, name, val);
-
-		list = list->next;
-	}*/
 }
 
 ptrs_var_t *ptrs_handle_import(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
@@ -569,6 +573,14 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	}
 
 	return result;
+}
+
+ptrs_var_t *ptrs_handle_file(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	ptrs_alloc(scope, 0);
+	scope->sp = scope->bp + node->arg.scopestatement.stackOffset;
+	ptrs_ast_t *body = node->arg.scopestatement.body;
+	return body->handler(body, result, scope);
 }
 
 ptrs_var_t *ptrs_handle_scopestatement(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)

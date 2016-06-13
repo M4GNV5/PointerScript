@@ -25,19 +25,11 @@ typedef enum type
 	PTRS_TYPE_STRUCT
 } ptrs_vartype_t;
 
-typedef struct object
-{
-	const char *key;
-	struct ptrs_var *value;
-	struct object *next;
-} ptrs_object_t;
-
 struct ptrs_error;
 
 typedef struct ptrs_scope
 {
 	struct ptrs_scope *outer;
-	ptrs_object_t *current;
 	void *stackstart;
 	void *sp;
 	void *bp;
