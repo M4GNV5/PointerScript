@@ -7,7 +7,7 @@ Wild mixture of C and Javascript
 //n will be read from stdin
 
 //import printf for output and scanf for input
-import "printf", "scanf" from "libc.so.6";
+import printf, scanf from "libc.so.6";
 
 //read fibonacci count from stdin
 var count = 0;
@@ -56,9 +56,9 @@ Most of PointerScript is similar to Javascript and/or C so only specialities wil
 ```javascript
 //import native functions or variables from other PointerScript files
 //leaving out the from part searches for the function in standard library
-//e.g. 	import "printf", "scanf";
-//		import "pthread_create", "pthread_join" from "libpthread.so.0";
-//		import "myfunc", "myvar" from "./myotherfile.ptrs";
+//e.g. 	import printf, scanf;
+//		import pthread_create, pthread_join from "libpthread.so.0";
+//		import myfunc, myvar from "./myotherfile.ptrs";
 importstatement 		: 'import' argumentlist [ 'from' expression ] ';'
 						;
 
@@ -98,7 +98,7 @@ constantexpression		: 'true' 		//type int, value 1
 
 //e.g.
 /*
-		import "printf", "free", "strncpy";
+		import printf, free, strncpy;
 
 		struct Foo
 		{
