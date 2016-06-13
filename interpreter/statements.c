@@ -448,14 +448,14 @@ ptrs_var_t *ptrs_handle_if(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *s
 	{
 		stmtScope = ptrs_scope_increase(scope, stmt.ifStackOffset);
 		result = stmt.ifBody->handler(stmt.ifBody, result, stmtScope);
+		scope->exit = stmtScope->exit;
 	}
 	else if(stmt.elseBody != NULL)
 	{
 		stmtScope = ptrs_scope_increase(scope, stmt.elseStackOffset);
 		result = stmt.elseBody->handler(stmt.elseBody, result, stmtScope);
+		scope->exit = stmtScope->exit;
 	}
-
-	scope->exit = stmtScope->exit;
 
 	return result;
 }
