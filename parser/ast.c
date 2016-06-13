@@ -47,9 +47,10 @@ static char readEscapeSequence(code_t *code);
 static int64_t readInt(code_t *code, int base);
 static double readDouble(code_t *code);
 
+static void setSymbol(code_t *code, char *text, unsigned offset);
 static ptrs_symbol_t addSymbol(code_t *code, char *symbol);
 static ptrs_symbol_t getSymbol(code_t *code, char *symbol);
-static void symbolScope_increase(code_t *code);
+static void symbolScope_increase(code_t *code, int buildInCount);
 static unsigned symbolScope_decrease(code_t *code);
 
 static bool lookahead(code_t *code, const char *str);
@@ -76,8 +77,8 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 	code.symbols = NULL;
 	next(&code);
 
-	symbolScope_increase(&code);
-	addSymbol(&code, strdup("arguments"));
+	symbolScope_increase(&code, 1);
+	setSymbol(&code, strdup("arguments"), 0);
 
 	ptrs_ast_t *ast = talloc(ptrs_ast_t);
 	ast->handler = PTRS_HANDLE_FILE;
@@ -231,12 +232,12 @@ static ptrs_ast_t *parseBody(code_t *code, unsigned *stackOffset, bool allowStmt
 {
 	if(isFunction)
 	{
-		addSymbol(code, strdup("arguments"));
-		addSymbol(code, strdup("this"));
+		setSymbol(code, strdup("arguments"), 0);
+		setSymbol(code, strdup("this"), sizeof(ptrs_var_t));
 	}
 	else
 	{
-		symbolScope_increase(code);
+		symbolScope_increase(code, 0);
 	}
 
 	ptrs_ast_t *result = parseScopelessBody(code, allowStmt);
@@ -249,6 +250,7 @@ static ptrs_function_t *parseFunction(code_t *code)
 {
 	ptrs_function_t *func = talloc(ptrs_function_t);
 	func->argc = parseArgumentDefinitionList(code, &func->args, &func->argv);
+	symbolScope_increase(code, 2);
 	func->body = parseBody(code, &func->stackOffset, false, true);
 
 	return func;
@@ -392,7 +394,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		stmt->arg.function.isAnonymous = false;
 		stmt->arg.function.symbol = addSymbol(code, readIdentifier(code));
 
-		symbolScope_increase(code);
+		symbolScope_increase(code, 2);
 		stmt->arg.function.argc = parseArgumentDefinitionList(code,
 			&stmt->arg.function.args, &stmt->arg.function.argv);
 
@@ -516,7 +518,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "do"))
 	{
-		symbolScope_increase(code);
+		symbolScope_increase(code, 0);
 		stmt->handler = PTRS_HANDLE_DOWHILE;
 		stmt->arg.control.body = parseScopelessBody(code, true);
 		consume(code, "while");
@@ -532,7 +534,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		consumec(code, '(');
 		int pos = code->pos;
 
-		symbolScope_increase(code);
+		symbolScope_increase(code, 0);
 
 		if(lookahead(code, "var"))
 			stmt->arg.forin.newvar = true;
@@ -784,7 +786,9 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 		val->codepos = code->pos;
 		val->code = code->src;
 		val->file = code->filename;
-		val->arg.varval = addSymbol(code, readIdentifier(code));
+		char *name = readIdentifier(code);
+		val->arg.varval = getSymbol(code, name);
+		free(name);
 
 		consumec(code, '(');
 		ast = talloc(ptrs_ast_t);
@@ -828,7 +832,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 		ast->handler = PTRS_HANDLE_FUNCTION;
 		ast->arg.function.isAnonymous = true;
 
-		symbolScope_increase(code);
+		symbolScope_increase(code, 2);
 		ast->arg.function.argc = parseArgumentDefinitionList(code,
 			&ast->arg.function.args, &ast->arg.function.argv);
 
@@ -921,7 +925,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 			code->pos = start;
 			code->curr = code->src[start];
 
-			symbolScope_increase(code);
+			symbolScope_increase(code, 2);
 			ast->handler = PTRS_HANDLE_FUNCTION;
 			ast->arg.function.argc = parseArgumentDefinitionList(code, &ast->arg.function.args, NULL);
 
@@ -1243,6 +1247,17 @@ static double readDouble(code_t *code)
 	return val;
 }
 
+static void setSymbol(code_t *code, char *text, unsigned offset)
+{
+	ptrs_symboltable_t *curr = code->symbols;
+	struct symbollist *entry = talloc(struct symbollist);
+
+	entry->text = text;
+	entry->next = curr->current;
+	entry->offset = offset;
+	curr->current = entry;
+}
+
 static ptrs_symbol_t addSymbol(code_t *code, char *symbol)
 {
 	ptrs_symboltable_t *curr = code->symbols;
@@ -1270,10 +1285,10 @@ static ptrs_symbol_t getSymbol(code_t *code, char *text)
 	return out; //doh
 }
 
-static void symbolScope_increase(code_t *code)
+static void symbolScope_increase(code_t *code, int buildInCount)
 {
 	ptrs_symboltable_t *new = talloc(ptrs_symboltable_t);
-	new->offset = 0;
+	new->offset = buildInCount * sizeof(ptrs_var_t);
 	new->outer = code->symbols;
 	new->current = NULL;
 	code->symbols = new;

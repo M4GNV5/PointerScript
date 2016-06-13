@@ -5,8 +5,8 @@
 #include "../include/stack.h"
 #include "../include/scope.h"
 
-const ptrs_symbol_t ptrs_argumentsSymbol = {0, sizeof(ptrs_var_t)};
-const ptrs_symbol_t ptrs_thisSymbol = {0, 2 * sizeof(ptrs_var_t)};
+const ptrs_symbol_t ptrs_argumentsSymbol = {0, 0};
+const ptrs_symbol_t ptrs_thisSymbol = {0, sizeof(ptrs_var_t)};
 
 void ptrs_scope_set(ptrs_scope_t *scope, ptrs_symbol_t symbol, ptrs_var_t *value)
 {
