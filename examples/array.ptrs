@@ -1,4 +1,4 @@
-import "printf", "strcmp" from "libc.so.6";
+import printf, strcmp from "libc.so.6";
 
 //create an array of 3 variables
 var len = 3;

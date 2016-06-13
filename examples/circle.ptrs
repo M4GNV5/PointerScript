@@ -1,4 +1,4 @@
-import "printf" from "libc.so.6";
+import printf from "libc.so.6";
 
 var pi = 3.1415;
 

@@ -1,4 +1,4 @@
-import "printf", "rand" from "libc.so.6";
+import printf, rand from "libc.so.6";
 
 var len = 1000;
 var parts{len};

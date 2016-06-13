@@ -1,4 +1,4 @@
-import "printf" from "libc.so.6";
+import printf from "libc.so.6";
 
 var interations = 100000;
 var pi = 0.0;

@@ -1,4 +1,4 @@
-import "printf", "strcmp", "ptrs_typetoa";
+import printf, strcmp, ptrs_typetoa;
 
 function log(val)
 {

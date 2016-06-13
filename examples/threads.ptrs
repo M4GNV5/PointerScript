@@ -1,5 +1,5 @@
-import "printf", "exit", "free", "time";
-import "pthread_create", "pthread_join" from "libpthread.so.0";
+import printf, exit, free, time;
+import pthread_create, pthread_join from "libpthread.so.0";
 
 function addNumbers(arg)
 {

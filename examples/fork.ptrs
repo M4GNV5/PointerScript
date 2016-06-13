@@ -1,4 +1,4 @@
-import "printf", "sprintf", "fork", "system", "sleep", "getpid", "getppid";
+import printf, sprintf, fork, system, sleep, getpid, getppid;
 
 printf("pid: %5d ppid: %5d\n", getpid(), getppid());
 var k = fork();

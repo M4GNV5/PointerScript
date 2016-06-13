@@ -1,4 +1,4 @@
-import "printf", "asprintf", "free", "ptrs_typetoa";
+import printf, ptrs_typetoa;
 
 struct Foo
 {
@@ -21,4 +21,4 @@ bla.bar = 42;
 bla.tar = 3.1415;
 bla.dump();
 bla.hololo();
-free(bla);
+//delete bla;
