@@ -280,10 +280,7 @@ ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 
 ptrs_var_t *ptrs_handle_identifier(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	result = ptrs_scope_get(scope, node->arg.varval);
-	if(result == NULL)
-		ptrs_error(node, scope, "Unknown identifier %s", node->arg.strval);
-	return result;
+	return ptrs_scope_get(scope, node->arg.varval);
 }
 
 ptrs_var_t *ptrs_handle_constant(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
