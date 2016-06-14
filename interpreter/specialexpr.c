@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -68,6 +69,29 @@ ptrs_var_t *ptrs_handle_vararrayexpr(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 
 	result->type = PTRS_TYPE_POINTER;
 	result->value.ptrval = array;
+	return result;
+}
+
+ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_strformat stmt = node->arg.strformat;
+	int len = ptrs_astlist_length(stmt.args) + 3;
+	ptrs_var_t args[len];
+	ptrs_astlist_handle(stmt.args, &args[3], scope);
+
+	args[0].type = PTRS_TYPE_NATIVE;
+	args[0].value.strval = NULL;
+	args[1].type = PTRS_TYPE_INT;
+	args[1].value.intval = 0;
+	args[2].type = PTRS_TYPE_NATIVE;
+	args[2].value.strval = stmt.str;
+
+	args[1].value.intval = ptrs_callnative(snprintf, len, args) + 1;
+	args[0].value.strval = ptrs_alloc(scope, args[1].value.intval);
+	ptrs_callnative(snprintf, len, args);
+
+	result->type = PTRS_TYPE_NATIVE;
+	result->value.strval = args[0].value.strval;
 	return result;
 }
 

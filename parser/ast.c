@@ -907,12 +907,24 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 	else if(curr == '"')
 	{
 		rawnext(code);
-		ast = talloc(ptrs_ast_t);
-		ast->arg.constval.type = PTRS_TYPE_NATIVE;
-		ast->arg.constval.value.strval = readString(code);
-		ast->arg.constval.meta.readOnly = true;
-		ast->handler = PTRS_HANDLE_CONSTANT;
+		char *str = readString(code);
 		consumec(code, '"');
+
+		ast = talloc(ptrs_ast_t);
+		if(code->curr == '%')
+		{
+			next(code);
+			ast->handler = PTRS_HANDLE_STRINGFORMAT;
+			ast->arg.strformat.str = str;
+			ast->arg.strformat.args = parseExpressionList(code, 0);
+		}
+		else
+		{
+			ast->handler = PTRS_HANDLE_CONSTANT;
+			ast->arg.constval.type = PTRS_TYPE_NATIVE;
+			ast->arg.constval.value.strval = str;
+			ast->arg.constval.meta.readOnly = true;
+		}
 	}
 	else if(curr == '(')
 	{

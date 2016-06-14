@@ -12,28 +12,34 @@
 #include "../include/struct.h"
 #include "../../parser/common.h"
 
-ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_var_t *func, ptrs_var_t *result, struct ptrs_astlist *arguments, ptrs_scope_t *scope)
+int ptrs_astlist_length(struct ptrs_astlist *list)
 {
 	int len = 0;
-	struct ptrs_astlist *list = arguments;
-	while(list)
+	while(list != NULL)
 	{
 		len++;
 		list = list->next;
 	}
-
-	ptrs_var_t *arg;
-	ptrs_var_t args[len + 1];
-	list = arguments;
-	for(int i = 0; i < len; i++)
+	return len;
+}
+void ptrs_astlist_handle(struct ptrs_astlist *list, ptrs_var_t *out, ptrs_scope_t *scope)
+{
+	for(int i = 0; list != NULL; i++)
 	{
-		arg = list->entry->handler(list->entry, &args[i], scope);
-
-		if(arg != &args[i])
-			memcpy(&args[i], arg, sizeof(ptrs_var_t));
+		ptrs_var_t *curr = list->entry->handler(list->entry, &out[i], scope);
+		if(curr != &out[i])
+			memcpy(&out[i], curr, sizeof(ptrs_var_t));
 
 		list = list->next;
 	}
+}
+
+ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_var_t *func, ptrs_var_t *result, struct ptrs_astlist *arguments, ptrs_scope_t *scope)
+{
+	int len = ptrs_astlist_length(arguments);
+
+	ptrs_var_t args[len + 1];
+	ptrs_astlist_handle(arguments, args, scope);
 	args[len].type = PTRS_TYPE_NATIVE;
 	args[len].value.nativeval = NULL;
 

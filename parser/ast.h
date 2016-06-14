@@ -57,6 +57,12 @@ struct ptrs_ast_scopestmt
 	unsigned stackOffset;
 };
 
+struct ptrs_ast_strformat
+{
+	char *str;
+	struct ptrs_astlist *args;
+};
+
 struct ptrs_ast_binary
 {
 	struct ptrs_ast *left;
@@ -132,6 +138,7 @@ union ptrs_ast_arg
 	struct ptrs_ast_trycatch trycatch;
 	struct ptrs_ast_function function;
 	struct ptrs_ast_scopestmt scopestatement;
+	struct ptrs_ast_strformat strformat;
 	struct ptrs_ast_cast cast;
 	struct ptrs_ast_binary binary;
 	struct ptrs_ast_ternary ternary;
