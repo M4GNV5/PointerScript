@@ -18,7 +18,7 @@
 ptrs_var_t *ptrs_handle_body(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_astlist *list = node->arg.astlist;
-	ptrs_var_t *_result;
+	ptrs_var_t *_result = result;
 
 	while(list)
 	{
