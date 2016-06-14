@@ -19,7 +19,7 @@ static ptrs_var_t *ptrs_assign(ptrs_ast_t *node, ptrs_scope_t *scope, ptrs_var_t
 		if(left->meta.pointer != NULL && left->type == PTRS_TYPE_INT)
 		{
 			int64_t val = ptrs_vartoi(right);
-			if(ptrs_overflowError && (int8_t)val != val)
+			if(ptrs_overflowError && (uint8_t)val != val)
 				ptrs_error(node, scope, "Overflow: Value %d does not fit into an int8", val);
 			*(left->meta.pointer) = right->value.intval;
 		}

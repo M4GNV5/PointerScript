@@ -31,12 +31,12 @@ ptrs_var_t *ptrs_handle_arrayexpr(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sco
 		list = list->next;
 	}
 
-	int8_t *array = ptrs_alloc(scope, len);
+	uint8_t *array = ptrs_alloc(scope, len);
 	list = node->arg.astlist;
 	for(int i = 0; i < len; i++)
 	{
 		ptrs_var_t *val = list->entry->handler(list->entry, result, scope);
-		array[i] = (int8_t)ptrs_vartoi(val);
+		array[i] = (uint8_t)ptrs_vartoi(val);
 		list = list->next;
 	}
 
@@ -213,7 +213,7 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		if(value->meta.readOnly)
 			result->meta.pointer = NULL;
 		else
-			result->meta.pointer = (int8_t*)&value->value.strval[_index];
+			result->meta.pointer = (uint8_t*)&value->value.strval[_index];
 	}
 	else if(valuet == PTRS_TYPE_STRUCT)
 	{
