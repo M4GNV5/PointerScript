@@ -271,56 +271,13 @@ ptrs_var_t *ptrs_handle_delete(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 ptrs_var_t *ptrs_handle_throw(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	ptrs_var_t *arg;
-	int len = 2;
-	struct ptrs_astlist *list = node->arg.astlist;
-	while(list)
-	{
-		len++;
-		list = list->next;
-	}
+	ptrs_ast_t *ast = node->arg.astval;
+	arg = ast->handler(ast, result, scope);
 
-	if(len == 2)
-	{
-		ptrs_error(node, scope, "Error");
-	}
-	else if(len == 3)
-	{
-		ptrs_ast_t *ast = node->arg.astlist->entry;
-		arg = ast->handler(ast, result, scope);
-
-		char buff[32];
-		const char *msg = ptrs_vartoa(arg, buff, 32);
-		ptrs_error(node, scope, "%s", msg);
-	}
-
-
-	ptrs_var_t args[len];
-	list = node->arg.astlist;
-	for(int i = 2; i < len; i++)
-	{
-		arg = list->entry->handler(list->entry, &args[i], scope);
-
-		if(arg != &args[i])
-			memcpy(&args[i], arg, sizeof(ptrs_var_t));
-
-		list = list->next;
-	}
-
-	args[0].type = PTRS_TYPE_NATIVE;
-	args[0].value.nativeval = NULL;
-	args[1].type = PTRS_TYPE_INT;
-	args[1].value.intval = 0;
-
-	int64_t size = ptrs_callnative(snprintf, len, args) + 1;
-
-	char buff[size];
-	args[0].value.nativeval = buff;
-	args[1].value.intval = size;
-	ptrs_callnative(snprintf, len, args);
-
-	ptrs_error(node, scope, "%s", buff);
-
-	return arg;
+	char buff[32];
+	const char *msg = ptrs_vartoa(arg, buff, 32);
+	ptrs_error(node, scope, "%s", msg);
+	return arg; //doh
 }
 
 ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
