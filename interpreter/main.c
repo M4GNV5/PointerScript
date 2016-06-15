@@ -14,13 +14,15 @@
 static bool handleSignals = true;
 extern size_t ptrs_arraymax;
 extern bool ptrs_overflowError;
+extern bool ptrs_zeroMemory;
 
 static struct option options[] = {
 	{"stack-size", required_argument, 0, 1},
 	{"array-max", required_argument, 0, 2},
 	{"overflow", no_argument, 0, 3},
 	{"no-sig", no_argument, 0, 4},
-	{"help", no_argument, 0, 5},
+	{"zero-mem", no_argument, 0, 5},
+	{"help", no_argument, 0, 6},
 	{0, 0, 0, 0}
 };
 
@@ -47,13 +49,17 @@ static int parseOptions(int argc, char **argv)
 				handleSignals = false;
 				break;
 			case 5:
+				ptrs_zeroMemory = true;
+				break;
+			case 6:
 				printf("Usage: ptrs [options ...] <file> [script options ...]\n"
 					"Valid Options:\n"
 						"\t--help               Show this information\n"
 						"\t--stack-size <size>  Set stack size to 'size' bytes. Default: 0x%X\n"
 						"\t--array-max <size>   Set maximal allowed array size to 'size' bytes. Default: 0x%X\n"
-						"\t--overflow           Throw an error when trying to assign a non fitting value. Default: false\n"
+						"\t--overflow           Throw an error when trying to assign a non fitting value.\n"
 						"\t--no-sig             Do not listen to signals.\n"
+						"\t--zero-mem           Zero memory of arrays when created on the stack\n"
 					"Source code can be found at https://github.com/M4GNV5/PointerScript", PTRS_STACK_SIZE, PTRS_STACK_SIZE);
 				exit(EXIT_SUCCESS);
 			default:
