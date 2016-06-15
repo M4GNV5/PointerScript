@@ -949,37 +949,48 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 	{
 		int start = code->pos;
 		consumec(code, '(');
-		ast = parseExpression(code);
 
-		if(ast->handler == PTRS_HANDLE_IDENTIFIER && (code->curr == ',' || (lookahead(code, ")") && lookahead(code, "->"))))
+		if(isalnum(code->curr))
 		{
-			code->pos = start;
-			code->curr = code->src[start];
-
-			symbolScope_increase(code, 2);
-			ast->handler = PTRS_HANDLE_FUNCTION;
-			ast->arg.function.name = "(lambda expression)";
-			ast->arg.function.argc = parseArgumentDefinitionList(code, &ast->arg.function.args, NULL);
-
-			consume(code, "->");
-			code->symbols->offset += 2 * sizeof(ptrs_var_t);
-			if(lookahead(code, "{"))
+			free(readIdentifier(code));
+			if(code->curr == ',' || (lookahead(code, ")") && lookahead(code, "->")))
 			{
-				ast->arg.function.body = parseStmtList(code, '}');
-				consumec(code, '}');
+				code->pos = start;
+				code->curr = code->src[start];
+
+				symbolScope_increase(code, 2);
+				ast = talloc(ptrs_ast_t);
+				ast->handler = PTRS_HANDLE_FUNCTION;
+				ast->arg.function.name = "(lambda expression)";
+				ast->arg.function.argc = parseArgumentDefinitionList(code, &ast->arg.function.args, NULL);
+
+				consume(code, "->");
+				code->symbols->offset += 2 * sizeof(ptrs_var_t);
+				if(lookahead(code, "{"))
+				{
+					ast->arg.function.body = parseStmtList(code, '}');
+					consumec(code, '}');
+				}
+				else
+				{
+					ptrs_ast_t *retStmt = talloc(ptrs_ast_t);
+					retStmt->handler = PTRS_HANDLE_RETURN;
+					retStmt->arg.astval = parseExpression(code);
+					ast->arg.function.body = retStmt;
+				}
+				ast->arg.function.isAnonymous = true;
+				ast->arg.function.stackOffset = symbolScope_decrease(code);
 			}
 			else
 			{
-				ptrs_ast_t *retStmt = talloc(ptrs_ast_t);
-				retStmt->handler = PTRS_HANDLE_RETURN;
-				retStmt->arg.astval = parseExpression(code);
-				ast->arg.function.body = retStmt;
+				code->pos = start;
+				code->curr = code->src[start];
 			}
-			ast->arg.function.isAnonymous = true;
-			ast->arg.function.stackOffset = symbolScope_decrease(code);
 		}
-		else
+
+		if(ast == NULL)
 		{
+			ast = parseExpression(code);
 			consumec(code, ')');
 		}
 	}
