@@ -45,6 +45,7 @@ struct ptrs_ast_function
 	ptrs_symbol_t symbol;
 	bool isAnonymous;
 	int argc;
+	char *name;
 	ptrs_symbol_t *args;
 	struct ptrs_ast **argv;
 	struct ptrs_ast *body;

@@ -246,9 +246,10 @@ static ptrs_ast_t *parseBody(code_t *code, unsigned *stackOffset, bool allowStmt
 	return result;
 }
 
-static ptrs_function_t *parseFunction(code_t *code)
+static ptrs_function_t *parseFunction(code_t *code, char *name)
 {
 	ptrs_function_t *func = talloc(ptrs_function_t);
+	func->name = name;
 	func->argc = parseArgumentDefinitionList(code, &func->args, &func->argv);
 	symbolScope_increase(code, 2);
 	func->body = parseBody(code, &func->stackOffset, false, true);
@@ -392,7 +393,11 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	{
 		stmt->handler = PTRS_HANDLE_FUNCTION;
 		stmt->arg.function.isAnonymous = false;
-		stmt->arg.function.symbol = addSymbol(code, readIdentifier(code));
+
+		char *name = readIdentifier(code);
+		if(ptrs_ast_getSymbol(code->symbols, name, &stmt->arg.function.symbol) != 0)
+			stmt->arg.function.symbol = addSymbol(code, strdup(name));
+		stmt->arg.function.name = name;
 
 		symbolScope_increase(code, 2);
 		stmt->arg.function.argc = parseArgumentDefinitionList(code,
@@ -402,8 +407,12 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "struct"))
 	{
+		char *structName = readIdentifier(code);
+		int structNameLen = strlen(structName);
+
 		stmt->handler = PTRS_HANDLE_STRUCT;
-		stmt->arg.structval.symbol = addSymbol(code, readIdentifier(code));
+		stmt->arg.structval.name = structName;
+		stmt->arg.structval.symbol = addSymbol(code, structName);
 		stmt->arg.structval.constructor = NULL;
 		stmt->arg.structval.overloads = NULL;
 		stmt->arg.structval.size = 0;
@@ -417,7 +426,10 @@ static ptrs_ast_t *parseStatement(code_t *code)
 			if(strcmp(name, "constructor") == 0)
 			{
 				free(name);
-				stmt->arg.structval.constructor = parseFunction(code);
+				name = malloc(structNameLen + strlen("constructor") + 2);
+				sprintf(name, "%s.constructor", structName);
+
+				stmt->arg.structval.constructor = parseFunction(code, name);
 				continue;
 			}
 			else if(strcmp(name, "operator") == 0)
@@ -426,7 +438,10 @@ static ptrs_ast_t *parseStatement(code_t *code)
 
 				struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
 				overload->op = readOperator(code);
-				overload->handler = parseFunction(code);
+
+				name = malloc(structNameLen + strlen(overload->op) + 4);
+				sprintf(name, "%s.op %s", structName, overload->op);
+				overload->handler = parseFunction(code, name);
 
 				overload->next = stmt->arg.structval.overloads;
 				stmt->arg.structval.overloads = overload;
@@ -441,8 +456,11 @@ static ptrs_ast_t *parseStatement(code_t *code)
 
 			if(code->curr == '(')
 			{
+				char *funcName = malloc(structNameLen + strlen(name) + 2);
+				sprintf(funcName, "%s.%s", structName, name);
+
 				curr->type = PTRS_STRUCTMEMBER_FUNCTION;
-				curr->value.function = parseFunction(code);
+				curr->value.function = parseFunction(code, funcName);
 			}
 			else if(code->curr == '[')
 			{

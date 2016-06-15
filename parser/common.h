@@ -42,6 +42,7 @@ typedef struct ptrs_scope
 
 typedef struct function
 {
+	char *name;
 	int argc;
 	unsigned stackOffset;
 	ptrs_symbol_t *args;
@@ -80,6 +81,7 @@ struct ptrs_opoverload
 };
 typedef struct ptrs_struct
 {
+	char *name;
 	ptrs_symbol_t symbol;
 	struct ptrs_structlist *member;
 	struct ptrs_opoverload *overloads;

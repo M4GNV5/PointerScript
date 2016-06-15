@@ -75,7 +75,7 @@ ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t 
 	scope->outer = func->scope;
 	scope->callScope = callScope;
 	scope->callAst = callAst;
-	scope->calleeName = NULL;
+	scope->calleeName = func->name;
 
 	ptrs_var_t val;
 	val.type = PTRS_TYPE_UNDEFINED;
