@@ -21,6 +21,9 @@ ptrs_var_t *ptrs_struct_get(ptrs_struct_t *struc, ptrs_var_t *result, const char
 	{
 		if(strcmp(curr->name, key) == 0)
 		{
+			if(struc->data == NULL && curr->type != PTRS_STRUCTMEMBER_FUNCTION)
+				return NULL;
+
 			switch(curr->type)
 			{
 				case PTRS_STRUCTMEMBER_VAR:
