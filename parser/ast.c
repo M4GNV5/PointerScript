@@ -927,7 +927,6 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 	{
 		rawnext(code);
 		char *str = readString(code);
-		consumec(code, '"');
 
 		ast = talloc(ptrs_ast_t);
 		if(code->curr == '%')
@@ -1191,29 +1190,56 @@ static char *readIdentifier(code_t *code)
 
 static char *readString(code_t *code)
 {
-	char val[1024];
-	int i = 0;
-
-	while(code->curr != '"')
+	int start = code->pos;
+	int len = 0;
+	for(;;)
 	{
-		if(code->curr == '\\')
+		char *curr = &code->src[code->pos];
+		while(*curr != '"')
 		{
+			if(*curr == '\\')
+				curr++;
+			curr++;
+			len++;
+		}
+		code->pos += curr - &code->src[code->pos];
+
+		next(code);
+		if(code->curr == '"')
 			rawnext(code);
-			val[i] = readEscapeSequence(code);
-		}
 		else
-		{
-			val[i] = code->curr;
-		}
-		i++;
-		rawnext(code);
+			break;
 	}
 
-	val[i] = 0;
-	char *_val = malloc(i + 1);
-	strcpy(_val, val);
+	code->pos = start;
+	code->curr = code->src[code->pos];
+	char *val = malloc(len + 1);
+	char *currVal = val;
+	for(;;)
+	{
+		while(code->curr != '"')
+		{
+			if(code->curr == '\\')
+			{
+				rawnext(code);
+				*currVal++ = readEscapeSequence(code);
+			}
+			else
+			{
+				*currVal++ = code->curr;
+			}
+			rawnext(code);
+		}
 
-	return _val;
+		next(code);
+		if(code->curr == '"')
+			rawnext(code);
+		else
+			break;
+	}
+
+	val[len] = 0;
+	return val;
 }
 
 static char readEscapeSequence(code_t *code)
