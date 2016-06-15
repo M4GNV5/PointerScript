@@ -158,7 +158,7 @@ void ptrs_callcallback(ptrs_function_t *func, va_alist alist)
 	}
 }
 
-int64_t ptrs_callnative(void *func, int argc, ptrs_var_t *argv)
+intptr_t ptrs_callnative(void *func, int argc, ptrs_var_t *argv)
 {
 	av_alist alist;
 	int64_t retVal = 0;
