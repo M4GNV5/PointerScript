@@ -849,6 +849,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 		ast = talloc(ptrs_ast_t);
 		ast->handler = PTRS_HANDLE_FUNCTION;
 		ast->arg.function.isAnonymous = true;
+		ast->arg.function.name = "(anonymous function)";
 
 		symbolScope_increase(code, 2);
 		ast->arg.function.argc = parseArgumentDefinitionList(code,
@@ -957,6 +958,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 
 			symbolScope_increase(code, 2);
 			ast->handler = PTRS_HANDLE_FUNCTION;
+			ast->arg.function.name = "(lambda expression)";
 			ast->arg.function.argc = parseArgumentDefinitionList(code, &ast->arg.function.args, NULL);
 
 			consume(code, "->");
