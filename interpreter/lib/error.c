@@ -67,27 +67,26 @@ char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative)
 	void *trace[32];
 	int count = backtrace(trace, 32);
 	Dl_info infos[count];
-	bool doBacktrace = true;
 
-	for(int i = 0; i < count; i++)
+	Dl_info selfInfo;
+	dladdr(main, &selfInfo); 
+
+	for(int i = skipNative; i < count - 1; i++)
 	{
 		dladdr(trace[i], &infos[i]);
-		if(infos[i].dli_saddr == main || infos[i].dli_saddr == ptrs_callcallback)
-		{
-			doBacktrace = false;
-			break;
-		}
-	}
 
-	if(doBacktrace)
-	{
-		for(int i = skipNative; i < count - 1; i++)
-		{
-			if(infos[i].dli_sname != NULL && infos[i].dli_fname != NULL)
-				buffptr += sprintf(buffptr, "    at %s (%s)\n", infos[i].dli_sname, infos[i].dli_fname);
-			else
-				buffptr += sprintf(buffptr, "    at %p (unknown)\n", trace[i]);
-		}
+		if(infos[i].dli_fbase == selfInfo.dli_fbase)
+			break;
+
+		if(infos[i].dli_sname != NULL)
+			buffptr += sprintf(buffptr, "    at %s ", infos[i].dli_sname);
+		else
+			buffptr += sprintf(buffptr, "    at %p ", trace[i]);
+
+		if(infos[i].dli_fname != NULL)
+			buffptr += sprintf(buffptr, "(%s)\n", infos[i].dli_fname);
+		else
+			buffptr += sprintf(buffptr, "(unknown)\n");
 	}
 #endif
 
@@ -115,8 +114,10 @@ void ptrs_showpos(ptrs_ast_t *ast)
 	codepos_t pos;
 	ptrs_getpos(&pos, ast);
 
+	fprintf(stderr, " at %s:%d:%d\n", ast->file, pos.line, pos.column);
+
 	int linelen = strchr(pos.currLine, '\n') - pos.currLine;
-	fprintf(stderr, "\n%.*s\n", linelen, pos.currLine);
+	fprintf(stderr, "%.*s\n", linelen, pos.currLine);
 
 	int linePos = (ast->code + ast->codepos) - pos.currLine;
 	for(int i = 0; i < linePos; i++)
@@ -169,7 +170,7 @@ void ptrs_throw(ptrs_ast_t *ast, ptrs_scope_t *scope, const char *msg, ...)
 
 void ptrs_handle_sig(int sig)
 {
-	if(ptrs_lastscope->error != NULL)
+	if(ptrs_lastscope != NULL && ptrs_lastscope->error != NULL)
 	{
 		signal(sig, ptrs_handle_sig);
 		ptrs_throw(ptrs_lastast, ptrs_lastscope, "Received signal: %s", strsignal(sig));
