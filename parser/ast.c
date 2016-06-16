@@ -1152,12 +1152,12 @@ static ptrs_vartype_t readTypeName(code_t *code)
 }
 
 struct opinfo specialOverloads[] = {
-	{"()", 0, false, NULL}, //call
-	{"[]", 0, false, NULL}, //index
+	{"()", 0, false, NULL}, //foo()
+	{"[]", 0, false, NULL}, //foo["bar"]
 	{".", 0, false, NULL}, //foo.bar
-	{"cast", 0, false, NULL}, //cast
-	{"new", 0, false, NULL}, //delete
-	{"delete", 0, false, NULL}, //delete
+	{"cast", 0, false, NULL}, //cast<int>foo
+	{"new", 0, false, NULL}, //new foo()
+	{"delete", 0, false, NULL}, //delete foo;
 };
 int specialOverloadsCount = sizeof(specialOverloads) / sizeof(struct opinfo);
 
