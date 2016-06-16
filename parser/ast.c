@@ -303,7 +303,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 			{
 				break;
 			}
-			else if(code->curr == ',' || code->curr == ' ' || code->curr == '_' || isalnum(code->curr))
+			else if(code->curr == ',' || code->curr == '_' || isspace(code->curr) || isalnum(code->curr))
 			{
 				if(code->curr == ',')
 					count++;
@@ -968,6 +968,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 		int start = code->pos;
 		consumec(code, '(');
 
+		ast = NULL;
 		if(isalnum(code->curr))
 		{
 			free(readIdentifier(code));
@@ -1008,6 +1009,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 
 		if(ast == NULL)
 		{
+			consumec(code, '(');
 			ast = parseExpression(code);
 			consumec(code, ')');
 		}
