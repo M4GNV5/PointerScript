@@ -1,24 +1,52 @@
-import printf, ptrs_typetoa;
+import printf, strcmp;
 
 struct Foo
 {
 	bar;
 	tar;
-	hololo()
+
+	//you can overload the new operator for implementing a constrcutor
+	//you can overload the delete statement for implementing a destructor
+	operator new (a, b)
 	{
-		this.bar += this.tar;
-		this.dump();
+		this.bar = a;
 	}
+
+	operator + (val)
+	{
+		return this.bar + this.tar + val;
+	}
+
+	//supported operators for overloading are:
+	//all binary and unary operators (except & and *)
+	//note that ++ and -- get a boolean argument set to true when used suffixed
+	operator ++ (isSuffixed)
+	{
+		//...
+	}
+
+	//yo ucan overload . and []
+	//note that . and [] will always prefer 'real' struct member
+	operator . (name)
+	{
+		if(strcmp(name, "xyz") != 0)
+			return this.xyz; //will call this recusively
+		else
+			return this.bar; //will not call this recursively
+	}
+
+	//other things that are overloadable: (), cast
+
 	dump()
 	{
-		printf("%-20s%-20s%-20s\n", ptrs_typetoa(typeof this), ptrs_typetoa(typeof this.bar), ptrs_typetoa(typeof this.tar));
-		printf("%-20p%-20g%-20g\n", this, cast<float>this.bar, cast<float>this.tar);
+		printf("%-20p%-20ld%-20ld\n", this, this.bar, this.tar);
 	}
 };
 
-var bla = new Foo();
-bla.bar = 42;
-bla.tar = 3.1415;
+var bla = new Foo(42);
+bla.tar = 666;
 bla.dump();
-bla.hololo();
+
+printf("bla + 1337 = %ld\n", bla + 1337);
+
 delete bla;

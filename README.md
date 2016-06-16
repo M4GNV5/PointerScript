@@ -96,46 +96,22 @@ constantexpression		: 'true' 		//type int, value 1
 						| 'undefined'	//type undefined
 						;
 
-//e.g.
-/*
-		import printf, free, strncpy;
-
-		struct Foo
-		{
-			x = 5;
-			y[32];
-			constructor(y)
-			{
-				strncpy(this.y, y, 31);
-				this.y[32] = 0;
-			}
-			dump()
-			{
-				printf("%d %s\n", this.x, this.y);
-			}
-		};
-
-		//you can then create an instance like in javascript
-		var bar = new Foo("hello :3");
-		bar.dump();
-		//note that a struct instance is allocated memory that has to be free'd
-		free(bar);
-*/
+//see examples/struct.ptrs
 structstatement			: 'struct' '{' memberdefinitionlist '}' ';'
 						;
 memberdefinitionlist	: memberdefinition [ memberdefinitionlist ]
 						|
 						;
-memberdefinition		: identifier [ '=' expression ]
-						| identifier '[' expression ']'
-						| identifier '{' expression '}'
-						| 'constructor' '(' argumentdefinitonlist ')' body
+memberdefinition		: identifier [ '=' expression ] ';'
+						| identifier '[' expression ']' ';'
+						| identifier '{' expression '}' ';'
+						| 'operator' op '(' argumentdefinitonlist ')' body
 						| identifier '(' argumentdefinitonlist ')' body
 						;
 
 //in function definitions you can define argument default values
 //e.g. function foo(bar = 42 * 3112) {}
-argumentdefinitonlist	: argumentdefiniton [ argumentdefinitonlist ]
+argumentdefinitonlist	: argumentdefiniton [ ',' argumentdefinitonlist ]
 						|
 						;
 argumentdefiniton		: identifier [ '=' expression ]
