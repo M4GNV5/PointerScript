@@ -20,6 +20,7 @@ ptrs_var_t *ptrs_handle_body(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 	struct ptrs_astlist *list = node->arg.astlist;
 	ptrs_var_t *_result = result;
 
+	scope->exit = 0;
 	while(list)
 	{
 		ptrs_lastast = list->entry;
