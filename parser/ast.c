@@ -272,13 +272,13 @@ static ptrs_ast_t *parseStatement(code_t *code)
 
 		if(lookahead(code, "["))
 		{
-			stmt->handler = PTRS_HANDLE_ARRAY;
+			stmt->handler = PTRS_HANDLE_VARARRAY;
 			stmt->arg.define.value = parseExpression(code);
 			consumec(code, ']');
 		}
 		else if(lookahead(code, "{"))
 		{
-			stmt->handler = PTRS_HANDLE_VARARRAY;
+			stmt->handler = PTRS_HANDLE_ARRAY;
 			stmt->arg.define.value = parseExpression(code);
 			consumec(code, '}');
 		}
@@ -483,7 +483,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 			}
 			else if(code->curr == '[')
 			{
-				curr->type = PTRS_STRUCTMEMBER_ARRAY;
+				curr->type = PTRS_STRUCTMEMBER_VARARRAY;
 				consumec(code, '[');
 				ptrs_ast_t *ast = parseExpression(code);
 				consumec(code, ']');
@@ -499,7 +499,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 			}
 			else if(code->curr == '{')
 			{
-				curr->type = PTRS_STRUCTMEMBER_VARARRAY;
+				curr->type = PTRS_STRUCTMEMBER_ARRAY;
 				consumec(code, '{');
 				ptrs_ast_t *ast = parseExpression(code);
 				consumec(code, '}');
@@ -880,7 +880,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 	{
 		next(code);
 		ast = talloc(ptrs_ast_t);
-		ast->handler = PTRS_HANDLE_ARRAYEXPR;
+		ast->handler = PTRS_HANDLE_VARARRAYEXPR;
 		ast->arg.astlist = parseExpressionList(code, ']');
 		consumec(code, ']');
 	}
@@ -888,7 +888,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 	{
 		next(code);
 		ast = talloc(ptrs_ast_t);
-		ast->handler = PTRS_HANDLE_VARARRAYEXPR;
+		ast->handler = PTRS_HANDLE_ARRAYEXPR;
 		ast->arg.astlist = parseExpressionList(code, '}');
 		consumec(code, '}');
 	}

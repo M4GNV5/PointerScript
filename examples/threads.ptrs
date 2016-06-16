@@ -12,7 +12,7 @@ function addNumbers(arg)
 	return sum;
 }
 
-var threads{4};
+var threads[4];
 
 for(var i = 0; i < 4; i++)
 {
