@@ -5,12 +5,17 @@ struct Foo
 	bar;
 	tar;
 
-	//you can overload the new operator for implementing a constructor
-	//you can overload the delete statement for implementing a destructor
-	operator new (a, b)
+	//constructor is an alias to operator new
+	//destructor is an alias to operator delete
+	constructor(a, b = 0)
 	{
-		this.bar = a;
+		this.bar = a + b;
 	}
+	/* OR
+	operator new (a, b = 0)
+	{
+		this.bar = a + b;
+	}*/
 
 	operator + (val)
 	{

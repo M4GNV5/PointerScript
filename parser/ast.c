@@ -438,6 +438,34 @@ static ptrs_ast_t *parseStatement(code_t *code)
 				stmt->arg.structval.overloads = overload;
 				continue;
 			}
+			else if(strcmp(name, "constructor") == 0)
+			{
+				free(name);
+				name = malloc(structNameLen + strlen("constructor") + 2);
+				sprintf(name, "%s.constructor", structName);
+
+				struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
+				overload->op = "new";
+				overload->handler = parseFunction(code, name);
+
+				overload->next = stmt->arg.structval.overloads;
+				stmt->arg.structval.overloads = overload;
+				continue;
+			}
+			else if(strcmp(name, "destructor") == 0)
+			{
+				free(name);
+				name = malloc(structNameLen + strlen("destructor") + 2);
+				sprintf(name, "%s.destructor", structName);
+
+				struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
+				overload->op = "delete";
+				overload->handler = parseFunction(code, name);
+
+				overload->next = stmt->arg.structval.overloads;
+				stmt->arg.structval.overloads = overload;
+				continue;
+			}
 
 			struct ptrs_structlist *next = talloc(struct ptrs_structlist);
 			next->next = curr;
