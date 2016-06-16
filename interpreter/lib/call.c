@@ -171,9 +171,6 @@ intptr_t ptrs_callnative(void *func, int argc, ptrs_var_t *argv)
 		callbackArgs[i] = NULL;
 		switch(argv[i].type)
 		{
-			case PTRS_TYPE_UNDEFINED:
-				av_ptr(alist, void *, NULL);
-				break;
 			case PTRS_TYPE_INT:
 				av_longlong(alist, argv[i].value.intval);
 				break;
