@@ -5,7 +5,7 @@ struct Foo
 	bar;
 	tar;
 
-	//you can overload the new operator for implementing a constrcutor
+	//you can overload the new operator for implementing a constructor
 	//you can overload the delete statement for implementing a destructor
 	operator new (a, b)
 	{
