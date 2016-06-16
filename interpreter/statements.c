@@ -388,9 +388,6 @@ ptrs_var_t *ptrs_handle_struct(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 		currop = currop->next;
 	}
 
-	if(struc->constructor != NULL)
-		struc->constructor->scope = scope;
-
 	ptrs_scope_set(scope, struc->symbol, result);
 	return result;
 }

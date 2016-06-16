@@ -85,7 +85,6 @@ typedef struct ptrs_struct
 	ptrs_symbol_t symbol;
 	struct ptrs_structlist *member;
 	struct ptrs_opoverload *overloads;
-	ptrs_function_t *constructor;
 	ptrs_scope_t *scope;
 	int size;
 	void *data;

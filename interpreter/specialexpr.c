@@ -108,15 +108,6 @@ ptrs_var_t *ptrs_handle_new(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 	memcpy(instance, type, sizeof(ptrs_struct_t));
 	instance->data = instance + 1;
 
-	if(instance->constructor != NULL)
-	{
-		ptrs_var_t ctor;
-		ctor.type = PTRS_TYPE_FUNCTION;
-		ctor.value.funcval = instance->constructor;
-		ctor.meta.this = instance;
-		ptrs_call(node, &ctor, result, expr.arguments, scope);
-	}
-
 	ptrs_scope_t *initScope = ptrs_scope_increase(scope, 0);
 	initScope->outer = instance->scope;
 	struct ptrs_structlist *member = instance->member;
@@ -131,6 +122,14 @@ ptrs_var_t *ptrs_handle_new(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 				memcpy(memberAddr, val, sizeof(ptrs_var_t));
 		}
 		member = member->next;
+	}
+
+	ptrs_var_t overload = {{.structval = instance}, PTRS_TYPE_STRUCT};
+	if((overload.value.funcval = ptrs_struct_getOverload(&overload, "new")) != NULL)
+	{
+		overload.type = PTRS_TYPE_FUNCTION;
+		overload.meta.this = instance;
+		ptrs_call(node, &overload, result, expr.arguments, scope);
 	}
 
 	result->type = PTRS_TYPE_STRUCT;

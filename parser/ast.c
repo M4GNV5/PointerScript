@@ -251,7 +251,7 @@ static ptrs_function_t *parseFunction(code_t *code, char *name)
 	symbolScope_increase(code, 2);
 	ptrs_function_t *func = talloc(ptrs_function_t);
 	func->name = name;
-	
+
 	func->argc = parseArgumentDefinitionList(code, &func->args, &func->argv);
 	func->body = parseBody(code, &func->stackOffset, false, true);
 
@@ -414,7 +414,6 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		stmt->handler = PTRS_HANDLE_STRUCT;
 		stmt->arg.structval.name = structName;
 		stmt->arg.structval.symbol = addSymbol(code, structName);
-		stmt->arg.structval.constructor = NULL;
 		stmt->arg.structval.overloads = NULL;
 		stmt->arg.structval.size = 0;
 		stmt->arg.structval.data = NULL;
@@ -424,16 +423,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		while(code->curr != '}')
 		{
 			char *name = readIdentifier(code);
-			if(strcmp(name, "constructor") == 0)
-			{
-				free(name);
-				name = malloc(structNameLen + strlen("constructor") + 2);
-				sprintf(name, "%s.constructor", structName);
-
-				stmt->arg.structval.constructor = parseFunction(code, name);
-				continue;
-			}
-			else if(strcmp(name, "operator") == 0)
+			if(strcmp(name, "operator") == 0)
 			{
 				free(name);
 
@@ -1138,6 +1128,7 @@ struct opinfo specialOverloads[] = {
 	{"[]", 0, false, NULL}, //index
 	{".", 0, false, NULL}, //foo.bar
 	{"cast", 0, false, NULL}, //cast
+	{"new", 0, false, NULL}, //delete
 	{"delete", 0, false, NULL}, //delete
 };
 int specialOverloadsCount = sizeof(specialOverloads) / sizeof(struct opinfo);
