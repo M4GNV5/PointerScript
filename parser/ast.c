@@ -248,10 +248,11 @@ static ptrs_ast_t *parseBody(code_t *code, unsigned *stackOffset, bool allowStmt
 
 static ptrs_function_t *parseFunction(code_t *code, char *name)
 {
+	symbolScope_increase(code, 2);
 	ptrs_function_t *func = talloc(ptrs_function_t);
 	func->name = name;
+	
 	func->argc = parseArgumentDefinitionList(code, &func->args, &func->argv);
-	symbolScope_increase(code, 2);
 	func->body = parseBody(code, &func->stackOffset, false, true);
 
 	return func;
