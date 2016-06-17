@@ -163,7 +163,7 @@ char *resolveRelPath(ptrs_ast_t *node, ptrs_scope_t *scope, const char *path)
 		char buff[strlen(dir) + strlen(path) + 2];
 		sprintf(buff, "%s/%s", dir, path);
 
-		fullPath = realpath(path, NULL);
+		fullPath = realpath(buff, NULL);
 	}
 	else
 	{
