@@ -39,11 +39,14 @@ void ptrs_dofile(const char *file, ptrs_var_t *result, ptrs_scope_t *scope, ptrs
 	fclose(fd);
 	src[fsize] = 0;
 
-	char cwd[1024];
-	getcwd(cwd, 1024);
-	int len = strlen(cwd);
-	if(strncmp(cwd, file, len) == 0)
-		file += len + 1;
+	{
+		char cwd[1024];
+		getcwd(cwd, 1024);
+
+		int len = strlen(cwd);
+		if(strncmp(cwd, file, len) == 0)
+			file += len + 1;
+	}
 
 	ptrs_eval(src, strdup(file), result, scope, symbols);
 }
