@@ -30,7 +30,7 @@ static int parseOptions(int argc, char **argv)
 {
 	for(;;)
 	{
-		int ret = getopt_long_only(argc, argv, "", options, NULL);
+		int ret = getopt_long_only(argc, argv, "+", options, NULL);
 
 		switch(ret)
 		{
