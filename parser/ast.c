@@ -275,12 +275,51 @@ static ptrs_ast_t *parseStatement(code_t *code)
 			stmt->handler = PTRS_HANDLE_VARARRAY;
 			stmt->arg.define.value = parseExpression(code);
 			consumec(code, ']');
+
+			if(lookahead(code, "="))
+			{
+				consumecm(code, '[', "Array initializer for array");
+				stmt->arg.define.initVal = parseExpressionList(code, ']');
+				consumec(code, ']');
+			}
+			else if(stmt->arg.define.value == NULL)
+			{
+				unexpectedm(code, "Array initializer for implicitly sized array", NULL);
+			}
+			else
+			{
+				stmt->arg.define.initVal = NULL;
+			}
 		}
 		else if(lookahead(code, "{"))
 		{
 			stmt->handler = PTRS_HANDLE_ARRAY;
 			stmt->arg.define.value = parseExpression(code);
 			consumec(code, '}');
+
+			if(lookahead(code, "="))
+			{
+				if(lookahead(code, "{"))
+				{
+					stmt->arg.define.initExpr = NULL;
+					consumec(code, '{');
+					stmt->arg.define.initVal = parseExpressionList(code, '}');
+					consumec(code, '}');
+				}
+				else
+				{
+					stmt->arg.define.initVal = NULL;
+					stmt->arg.define.initExpr = parseExpression(code);
+				}
+			}
+			else if(stmt->arg.define.value == NULL)
+			{
+				unexpectedm(code, "Array or String initializer for implicitly sized byte array", NULL);
+			}
+			else
+			{
+				stmt->arg.define.initVal = NULL;
+			}
 		}
 		else if(lookahead(code, "="))
 		{

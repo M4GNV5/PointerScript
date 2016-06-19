@@ -14,6 +14,8 @@ struct ptrs_ast_define
 {
 	ptrs_symbol_t symbol;
 	struct ptrs_ast *value;
+	struct ptrs_astlist *initVal;
+	struct ptrs_ast *initExpr;
 };
 
 struct ptrs_ast_member

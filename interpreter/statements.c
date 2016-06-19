@@ -54,14 +54,59 @@ ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 {
 	struct ptrs_ast_define stmt = node->arg.define;
 
-	ptrs_var_t *val = stmt.value->handler(stmt.value, result, scope);
-	int size = ptrs_vartoi(val);
+	int size = -1;
+	if(stmt.value != NULL)
+	{
+		ptrs_var_t *val = stmt.value->handler(stmt.value, result, scope);
+		size = ptrs_vartoi(val);
 
-	if(size <= 0 || size > ptrs_arraymax)
-		ptrs_error(node, scope, "Trying to create array of size %d", size);
+		if(size <= 0 || size > ptrs_arraymax)
+			ptrs_error(node, scope, "Trying to create array of size %d", size);
+	}
+
+	if(stmt.initVal != NULL)
+	{
+		int len = ptrs_astlist_length(stmt.initVal);
+
+		if(size < 0)
+			size = len;
+		else if(size < len)
+			ptrs_error(node, scope, "Array size (%d) is too small for initializer size (%d)", size, len);
+
+		uint8_t *array = ptrs_alloc(scope, size);
+
+		ptrs_var_t vals[len];
+		ptrs_astlist_handle(stmt.initVal, vals, scope);
+		for(int i = 0; i < len; i++)
+		{
+			array[i] = ptrs_vartoi(&vals[i]);
+		}
+		result->value.nativeval = array;
+	}
+	else if(stmt.initExpr != NULL)
+	{
+		ptrs_var_t *val = stmt.initExpr->handler(stmt.initExpr, result, scope);
+		char buff[32];
+		const char *initVal = ptrs_vartoa(val, buff, 32);
+		int len = strlen(initVal);
+
+		if(size < 0)
+			size = len + 1;
+		else if(size < len)
+			ptrs_error(node, scope, "Array size (%d) is too small for initializer size (%d)", size, len);
+
+		result->value.nativeval = ptrs_alloc(scope, size);
+		strncpy(result->value.nativeval, initVal, size - 1);
+		((uint8_t *)result->value.nativeval)[size - 1] = 0;
+	}
+	else
+	{
+		if(size <= 0 || size > ptrs_arraymax)
+			ptrs_error(node, scope, "Trying to create array of size %d", size);
+		result->value.nativeval = ptrs_alloc(scope, size);
+	}
 
 	result->type = PTRS_TYPE_NATIVE;
-	result->value.nativeval = ptrs_alloc(scope, size);
 	result->meta.readOnly = false;
 	ptrs_scope_set(scope, stmt.symbol, result);
 	return result;
@@ -71,14 +116,36 @@ ptrs_var_t *ptrs_handle_vararray(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 {
 	struct ptrs_ast_define stmt = node->arg.define;
 
-	ptrs_var_t *val = stmt.value->handler(stmt.value, result, scope);
-	int size = ptrs_vartoi(val) * sizeof(ptrs_var_t);
+	int size = -1;
+	if(stmt.value != NULL)
+	{
+		ptrs_var_t *val = stmt.value->handler(stmt.value, result, scope);
+		size = ptrs_vartoi(val) * sizeof(ptrs_var_t);
 
-	if(size <= 0 || size > ptrs_arraymax)
-		ptrs_error(node, scope, "Trying to create var-array of size %d (%d bytes)", size / sizeof(ptrs_var_t), size);
+		if(size <= 0 || size > ptrs_arraymax)
+			ptrs_error(node, scope, "Trying to create array of size %d", size);
+	}
+
+	if(stmt.initVal != NULL)
+	{
+		int len = ptrs_astlist_length(stmt.initVal);
+
+		if(size < 0)
+			size = len * sizeof(ptrs_var_t);
+		else if(size < len)
+			ptrs_error(node, scope, "Array size (%d) is too small for initializer size (%d)", size, len);
+
+		result->value.ptrval = ptrs_alloc(scope, size);
+		ptrs_astlist_handle(stmt.initVal, result->value.ptrval, scope);
+	}
+	else
+	{
+		if(size <= 0 || size > ptrs_arraymax)
+			ptrs_error(node, scope, "Trying to create array of size %d", size);
+		result->value.ptrval = ptrs_alloc(scope, size);
+	}
 
 	result->type = PTRS_TYPE_POINTER;
-	result->value.nativeval = ptrs_alloc(scope, size);
 	ptrs_scope_set(scope, stmt.symbol, result);
 	return result;
 }
