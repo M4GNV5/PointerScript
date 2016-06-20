@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <ctype.h>
 #include <string.h>
+#include <math.h>
 
 #include "common.h"
 #include INTERPRETER_INCLUDE
@@ -821,7 +822,8 @@ struct constinfo constants[] = {
 	{"NULL", PTRS_TYPE_NATIVE, {.nativeval = NULL}},
 	{"null", PTRS_TYPE_POINTER, {.ptrval = NULL}},
 	{"VARSIZE", PTRS_TYPE_INT, {.intval = sizeof(ptrs_var_t)}},
-	{"undefined", PTRS_TYPE_UNDEFINED, {}}
+	{"undefined", PTRS_TYPE_UNDEFINED, {}},
+	{"NaN", PTRS_TYPE_FLOAT, {.floatval = NAN}},
 };
 int constantCount = sizeof(constants) / sizeof(struct constinfo);
 
