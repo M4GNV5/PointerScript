@@ -322,6 +322,21 @@ static ptrs_ast_t *parseStatement(code_t *code)
 				stmt->arg.define.initVal = NULL;
 			}
 		}
+		else if(lookahead(code, ":"))
+		{
+			ptrs_ast_t *ctor = talloc(ptrs_ast_t);
+			char *name = readIdentifier(code);
+
+			ctor->handler = PTRS_HANDLE_IDENTIFIER;
+			ctor->arg.varval = getSymbol(code, name);
+			free(name);
+			stmt->handler = PTRS_HANDLE_STRUCTVAR;
+			stmt->arg.define.value = ctor;
+
+			consumec(code, '(');
+			stmt->arg.define.initVal = parseExpressionList(code, ')');
+			consumec(code, ')');
+		}
 		else if(lookahead(code, "="))
 		{
 			stmt->arg.define.value = parseExpression(code);

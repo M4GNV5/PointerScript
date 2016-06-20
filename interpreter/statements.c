@@ -150,6 +150,50 @@ ptrs_var_t *ptrs_handle_vararray(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 	return result;
 }
 
+ptrs_var_t *ptrs_handle_structvar(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_define stmt = node->arg.define;
+
+	ptrs_var_t *constructor = stmt.value->handler(stmt.value, result, scope);
+	ptrs_struct_t *type = constructor->value.structval;
+
+	if(constructor->type != PTRS_TYPE_STRUCT || type->data != NULL)
+		ptrs_error(node, scope, "Variable of type %s is not a constructor", ptrs_typetoa(constructor->type));
+
+	ptrs_struct_t *instance = ptrs_alloc(scope, sizeof(ptrs_struct_t) + type->size);
+	memcpy(instance, type, sizeof(ptrs_struct_t));
+	instance->data = instance + 1;
+
+	ptrs_scope_t *initScope = ptrs_scope_increase(scope, 0);
+	initScope->outer = instance->scope;
+	struct ptrs_structlist *member = instance->member;
+	while(member != NULL)
+	{
+		if(member->type == PTRS_STRUCTMEMBER_VAR && member->value.startval != NULL)
+		{
+			ptrs_ast_t *ast = member->value.startval;
+			ptrs_var_t *memberAddr = instance->data + member->offset;
+			ptrs_var_t *val = ast->handler(ast, memberAddr, initScope);
+			if(val != memberAddr)
+				memcpy(memberAddr, val, sizeof(ptrs_var_t));
+		}
+		member = member->next;
+	}
+
+	ptrs_var_t overload = {{.structval = instance}, PTRS_TYPE_STRUCT};
+	if((overload.value.funcval = ptrs_struct_getOverload(&overload, "new")) != NULL)
+	{
+		overload.type = PTRS_TYPE_FUNCTION;
+		overload.meta.this = instance;
+		ptrs_call(node, &overload, result, stmt.initVal, scope);
+	}
+
+	result->type = PTRS_TYPE_STRUCT;
+	result->value.structval = instance;
+	ptrs_scope_set(scope, stmt.symbol, result);
+	return result;
+}
+
 void importNative(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_import stmt = node->arg.import;
