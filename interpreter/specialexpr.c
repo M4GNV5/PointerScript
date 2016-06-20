@@ -338,3 +338,26 @@ ptrs_var_t *ptrs_handle_op_ternary(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 	else
 		return stmt.falseVal->handler(stmt.falseVal, result, scope);
 }
+
+ptrs_var_t *ptrs_handle_op_instanceof(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_binary stmt = node->arg.binary;
+	ptrs_var_t leftv;
+	ptrs_var_t *left = stmt.left->handler(stmt.left, &leftv, scope);
+	ptrs_var_t *right = stmt.right->handler(stmt.right, result, scope);
+
+	if(left->type != PTRS_TYPE_STRUCT || right->type != PTRS_TYPE_STRUCT
+		|| left->value.structval->data == NULL || right->value.structval->data != NULL
+		|| left->value.structval->member != right->value.structval->member)
+	{
+		result->value.intval = false;
+	}
+	else
+	{
+		result->value.intval = true;
+	}
+	
+	result->type = PTRS_TYPE_INT;
+	result->meta.pointer = NULL;
+	return result;
+}

@@ -698,6 +698,8 @@ struct opinfo binaryOps[] = {
 	{"?", 2, true, PTRS_HANDLE_OP_TERNARY},
 	{":", -1, true, PTRS_HANDLE_OP_TERNARY},
 
+	{"instanceof", 2, false, PTRS_HANDLE_OP_INSTANCEOF},
+
 	{"||", 3, false, PTRS_HANDLE_OP_LOGICOR},
 	{"&&", 4, false, PTRS_HANDLE_OP_LOGICAND},
 
