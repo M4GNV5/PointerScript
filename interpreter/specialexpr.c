@@ -267,6 +267,17 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	return result;
 }
 
+ptrs_var_t *ptrs_handle_as(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_cast expr = node->arg.cast;
+	ptrs_var_t *value = expr.value->handler(expr.value, result, scope);
+
+	result->type = expr.type;
+	result->value = value->value;
+	memset(&result->meta, 0, sizeof(ptrs_meta_t));
+	return result;
+}
+
 ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_cast expr = node->arg.cast;
@@ -283,9 +294,6 @@ ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 
 	switch(expr.type)
 	{
-		case PTRS_TYPE_UNDEFINED:
-			ptrs_error(node, scope, "Cannot cast to undefined");
-			break;
 		case PTRS_TYPE_INT:
 			result->value.intval = ptrs_vartoi(value);
 			break;
@@ -293,7 +301,7 @@ ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 			result->value.floatval = ptrs_vartof(value);
 			break;
 		default:
-			memcpy(result, value, sizeof(ptrs_var_t));
+			ptrs_error(node, scope, "Cannot cast to %s", ptrs_typetoa(expr.type));
 	}
 	memset(&result->meta, 0, sizeof(ptrs_meta_t));
 

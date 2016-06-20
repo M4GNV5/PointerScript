@@ -889,6 +889,21 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 		ast->arg.constval.value.intval = type;
 		consumec(code, '>');
 	}
+	else if(lookahead(code, "as"))
+	{
+		consumec(code, '<');
+		ptrs_vartype_t type = readTypeName(code);
+
+		if(type > PTRS_TYPE_STRUCT)
+			unexpectedm(code, NULL, "Syntax is cast<TYPENAME>");
+
+		ast = talloc(ptrs_ast_t);
+		ast->handler = PTRS_HANDLE_AS;
+		ast->arg.cast.type = type;
+		consumec(code, '>');
+
+		ast->arg.cast.value = parseUnaryExpr(code);
+	}
 	else if(lookahead(code, "cast"))
 	{
 		consumec(code, '<');
