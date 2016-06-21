@@ -248,7 +248,6 @@ ptrs_cache_t *importCachedScript(char *path, ptrs_ast_t *node, ptrs_scope_t *sco
 	}
 
 	ptrs_scope_t *_scope = calloc(1, sizeof(ptrs_scope_t));
-	ptrs_alloc(_scope, 0);
 	ptrs_symboltable_t *symbols;
 	ptrs_var_t valuev;
 	ptrs_dofile(path, &valuev, _scope, &symbols);

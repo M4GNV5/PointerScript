@@ -9,8 +9,12 @@
 
 void ptrs_eval(char *src, const char *filename, ptrs_var_t *result, ptrs_scope_t *scope, ptrs_symboltable_t **symbols)
 {
+	ptrs_scope_t _scope;
 	if(scope == NULL)
-		scope = calloc(1, sizeof(ptrs_scope_t));
+	{
+		memset(&_scope, 0, sizeof(ptrs_scope_t));
+		scope = &_scope;
+	}
 	scope->calleeName = "(root)";
 
 	ptrs_ast_t *ast = ptrs_parse(src, filename, symbols);
