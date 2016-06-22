@@ -549,7 +549,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 				if(ast->handler != PTRS_HANDLE_CONSTANT)
 					PTRS_HANDLE_ASTERROR(ast, "Struct array member size must be a constant");
 
-				curr->value.size = ast->arg.constval.value.intval;
+				curr->value.size = ast->arg.constval.value.intval * sizeof(ptrs_var_t);
 				curr->offset = stmt->arg.structval.size;
 				stmt->arg.structval.size += curr->value.size;
 				free(ast);
@@ -565,7 +565,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 				if(ast->handler != PTRS_HANDLE_CONSTANT)
 					PTRS_HANDLE_ASTERROR(ast, "Struct array member size must be a constant");
 
-				curr->value.size = ast->arg.constval.value.intval * sizeof(ptrs_var_t);
+				curr->value.size = ast->arg.constval.value.intval;
 				curr->offset = stmt->arg.structval.size;
 				stmt->arg.structval.size += curr->value.size;
 				free(ast);
