@@ -107,6 +107,20 @@ ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t 
 	else if(result != _result)
 		memcpy(result, _result, sizeof(ptrs_var_t));
 
+	if((result->type == PTRS_TYPE_NATIVE || result->type == PTRS_TYPE_STRUCT)
+		&& result->value.nativeval > scope->stackstart && result->value.nativeval < scope->sp)
+	{
+		size_t len;
+		if(result->type == PTRS_TYPE_NATIVE)
+			len = strlen(result->value.nativeval) + 1;
+		else
+			len = sizeof(ptrs_struct_t) + result->value.structval->size;
+
+		void *val = ptrs_alloc(callScope, len);
+		memcpy(val, result->value.nativeval, len);
+		result->value.nativeval = val;
+	}
+
 	return result;
 }
 
