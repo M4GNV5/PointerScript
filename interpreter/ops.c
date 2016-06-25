@@ -195,6 +195,21 @@ ptrs_var_t *ptrs_handle_op_logicor(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 		return expr.right->handler(expr.right, result, scope);
 }
 
+ptrs_var_t *ptrs_handle_op_logicxor(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_binary expr = node->arg.binary;
+	bool left = ptrs_vartob(expr.left->handler(expr.left, result, scope));
+	bool right = ptrs_vartob(expr.right->handler(expr.right, result, scope));
+
+	result->type = PTRS_TYPE_INT;
+	if((left && !right) || (!left && right))
+		result->value.intval = true;
+	else
+		result->value.intval = false;
+
+	return result;
+}
+
 ptrs_var_t *ptrs_handle_op_logicand(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_binary expr = node->arg.binary;

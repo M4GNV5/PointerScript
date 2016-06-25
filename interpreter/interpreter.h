@@ -64,6 +64,7 @@ ptrs_var_t *ptrs_handle_op_andassign(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 ptrs_var_t *ptrs_handle_op_xorassign(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_op_orassign(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_op_logicor(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_op_logicxor(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_op_logicand(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_op_or(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_op_xor(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
@@ -146,6 +147,7 @@ ptrs_var_t *ptrs_handle_suffix_dec(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 #define PTRS_HANDLE_OP_XORASSIGN ptrs_handle_op_xorassign
 #define PTRS_HANDLE_OP_ORASSIGN ptrs_handle_op_orassign
 #define PTRS_HANDLE_OP_LOGICOR ptrs_handle_op_logicor
+#define PTRS_HANDLE_OP_LOGICXOR ptrs_handle_op_logicxor
 #define PTRS_HANDLE_OP_LOGICAND ptrs_handle_op_logicand
 #define PTRS_HANDLE_OP_OR ptrs_handle_op_or
 #define PTRS_HANDLE_OP_XOR ptrs_handle_op_xor
