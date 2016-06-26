@@ -95,10 +95,12 @@ ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t 
 		val.value.structval = funcvar->meta.this;
 		ptrs_scope_set(scope, ptrs_thisSymbol, &val);
 	}
-
-	val.type = PTRS_TYPE_POINTER;
-	val.value.ptrval = argv;
-	ptrs_scope_set(scope, ptrs_argumentsSymbol, &val);
+	if(func->vararg.scope != (unsigned)-1)
+	{
+		val.type = PTRS_TYPE_POINTER;
+		val.value.ptrval = &argv[func->argc];
+		ptrs_scope_set(scope, func->vararg, &val);
+	}
 
 	ptrs_var_t *_result = func->body->handler(func->body, result, scope);
 

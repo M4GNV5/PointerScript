@@ -99,9 +99,10 @@ int main(int argc, char **argv)
 	arguments[len].type = PTRS_TYPE_NATIVE;
 	arguments[len].value.nativeval = NULL;
 
+	ptrs_symbol_t argumentsSymbol = {0, 0};
 	result.type = PTRS_TYPE_POINTER;
 	result.value.ptrval = arguments;
-	ptrs_scope_set(scope, ptrs_argumentsSymbol, &result);
+	ptrs_scope_set(scope, argumentsSymbol, &result);
 
 	ptrs_dofile(file, &result, scope, NULL);
 

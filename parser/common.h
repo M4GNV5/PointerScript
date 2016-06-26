@@ -45,6 +45,7 @@ typedef struct function
 	char *name;
 	int argc;
 	unsigned stackOffset;
+	ptrs_symbol_t vararg;
 	ptrs_symbol_t *args;
 	struct ptrs_ast **argv;
 	struct ptrs_ast *body;

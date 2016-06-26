@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include "../../parser/common.h"
 
-extern const ptrs_symbol_t ptrs_argumentsSymbol;
 extern const ptrs_symbol_t ptrs_thisSymbol;
 
 ptrs_var_t *ptrs_scope_get(ptrs_scope_t *scope, ptrs_symbol_t symbol);

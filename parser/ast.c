@@ -154,10 +154,13 @@ struct argdeflist
 	ptrs_ast_t *value;
 	struct argdeflist *next;
 };
-static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_ast_t ***argv)
+static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_ast_t ***argv, ptrs_symbol_t *vararg)
 {
 	int argc = 0;
 	consumecm(code, '(', "Expected ( as the beginning of an argument definition");
+
+	if(vararg != NULL)
+		vararg->scope = (unsigned)-1;
 
 	if(code->curr == ')')
 	{
@@ -173,9 +176,18 @@ static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_
 		struct argdeflist *list = &first;
 		for(;;)
 		{
+			ptrs_symbol_t curr = addSymbol(code, readIdentifier(code));
+
+			if(vararg != NULL && lookahead(code, "..."))
+			{
+				*vararg = curr;
+				consumecm(code, ')', "Vararg argument has to be the last argument");
+				break;
+			}
+
 			list->next = talloc(struct argdeflist);
 			list = list->next;
-			list->symbol = addSymbol(code, readIdentifier(code));
+			list->symbol = curr;
 
 			if(argv != NULL)
 			{
@@ -188,7 +200,10 @@ static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_
 			argc++;
 
 			if(code->curr == ')')
+			{
+				next(code);
 				break;
+			}
 			consumecm(code, ',', "Expected , between two arguments");
 		}
 
@@ -207,7 +222,6 @@ static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_
 			list = list->next;
 			free(old);
 		}
-		consumecm(code, ')', "Expected ) as the ending of an argument definition");
 
 		return argc;
 	}
@@ -233,8 +247,7 @@ static ptrs_ast_t *parseBody(code_t *code, unsigned *stackOffset, bool allowStmt
 {
 	if(isFunction)
 	{
-		setSymbol(code, strdup("arguments"), 0);
-		setSymbol(code, strdup("this"), sizeof(ptrs_var_t));
+		setSymbol(code, strdup("this"), 0);
 	}
 	else
 	{
@@ -249,11 +262,11 @@ static ptrs_ast_t *parseBody(code_t *code, unsigned *stackOffset, bool allowStmt
 
 static ptrs_function_t *parseFunction(code_t *code, char *name)
 {
-	symbolScope_increase(code, 2);
+	symbolScope_increase(code, 1);
 	ptrs_function_t *func = talloc(ptrs_function_t);
 	func->name = name;
 
-	func->argc = parseArgumentDefinitionList(code, &func->args, &func->argv);
+	func->argc = parseArgumentDefinitionList(code, &func->args, &func->argv, &func->vararg);
 	func->body = parseBody(code, &func->stackOffset, false, true);
 
 	return func;
@@ -433,7 +446,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		if(lookahead(code, "catch"))
 		{
 			symbolScope_increase(code, 0);
-			stmt->arg.trycatch.argc = parseArgumentDefinitionList(code, &stmt->arg.trycatch.args, NULL);
+			stmt->arg.trycatch.argc = parseArgumentDefinitionList(code, &stmt->arg.trycatch.args, NULL, NULL);
 			stmt->arg.trycatch.catchBody = parseScopelessBody(code, true);
 			stmt->arg.trycatch.catchStackOffset = symbolScope_decrease(code);
 		}
@@ -457,9 +470,9 @@ static ptrs_ast_t *parseStatement(code_t *code)
 			stmt->arg.function.symbol = addSymbol(code, strdup(name));
 		stmt->arg.function.name = name;
 
-		symbolScope_increase(code, 2);
+		symbolScope_increase(code, 1);
 		stmt->arg.function.argc = parseArgumentDefinitionList(code,
-			&stmt->arg.function.args, &stmt->arg.function.argv);
+			&stmt->arg.function.args, &stmt->arg.function.argv, &stmt->arg.function.vararg);
 
 		stmt->arg.function.body = parseBody(code, &stmt->arg.function.stackOffset, false, true);
 	}
@@ -946,9 +959,9 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 		ast->arg.function.isAnonymous = true;
 		ast->arg.function.name = "(anonymous function)";
 
-		symbolScope_increase(code, 2);
+		symbolScope_increase(code, 1);
 		ast->arg.function.argc = parseArgumentDefinitionList(code,
-			&ast->arg.function.args, &ast->arg.function.argv);
+			&ast->arg.function.args, &ast->arg.function.argv, &ast->arg.function.vararg);
 
 		ast->arg.function.body = parseBody(code, &ast->arg.function.stackOffset, false, true);
 	}
@@ -1053,11 +1066,11 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 				code->pos = start;
 				code->curr = code->src[start];
 
-				symbolScope_increase(code, 2);
+				symbolScope_increase(code, 1);
 				ast = talloc(ptrs_ast_t);
 				ast->handler = PTRS_HANDLE_FUNCTION;
 				ast->arg.function.name = "(lambda expression)";
-				ast->arg.function.argc = parseArgumentDefinitionList(code, &ast->arg.function.args, NULL);
+				ast->arg.function.argc = parseArgumentDefinitionList(code, &ast->arg.function.args, NULL, &ast->arg.function.vararg);
 
 				consume(code, "->");
 				code->symbols->offset += 2 * sizeof(ptrs_var_t);

@@ -461,6 +461,7 @@ ptrs_var_t *ptrs_handle_function(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 	ptrs_function_t *func = ptrs_alloc(scope, sizeof(ptrs_function_t));
 	func->stackOffset = astfunc.stackOffset;
 	func->name = astfunc.name;
+	func->vararg = astfunc.vararg;
 	func->argc = astfunc.argc;
 	func->args = astfunc.args;
 	func->argv = astfunc.argv;
