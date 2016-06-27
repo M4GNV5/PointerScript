@@ -24,7 +24,7 @@ ptrs_var_t *ptrs_handle_call(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 
 ptrs_var_t *ptrs_handle_arrayexpr(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	int len = ptrs_astlist_length(node->arg.astlist);
+	int len = ptrs_astlist_length(node->arg.astlist, node, scope);
 	uint8_t *array = ptrs_alloc(scope, len);
 
 	ptrs_var_t vals[len];
@@ -41,7 +41,7 @@ ptrs_var_t *ptrs_handle_arrayexpr(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sco
 
 ptrs_var_t *ptrs_handle_vararrayexpr(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	int len = ptrs_astlist_length(node->arg.astlist);
+	int len = ptrs_astlist_length(node->arg.astlist, node, scope);
 
 	result->type = PTRS_TYPE_POINTER;
 	result->value.ptrval = ptrs_alloc(scope, len * sizeof(ptrs_var_t));
@@ -52,7 +52,7 @@ ptrs_var_t *ptrs_handle_vararrayexpr(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_strformat stmt = node->arg.strformat;
-	int len = ptrs_astlist_length(stmt.args) + 3;
+	int len = ptrs_astlist_length(stmt.args, node, scope) + 3;
 	ptrs_var_t args[len];
 	ptrs_astlist_handle(stmt.args, &args[3], scope);
 

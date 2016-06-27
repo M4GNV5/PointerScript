@@ -169,6 +169,7 @@ struct ptrs_astlist
 {
 	struct ptrs_ast *entry;
 	struct ptrs_astlist *next;
+	bool expand;
 };
 
 ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **symbols);

@@ -66,7 +66,7 @@ ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 
 	if(stmt.initVal != NULL)
 	{
-		int len = ptrs_astlist_length(stmt.initVal);
+		int len = ptrs_astlist_length(stmt.initVal, node, scope);
 
 		if(size < 0)
 			size = len;
@@ -128,7 +128,7 @@ ptrs_var_t *ptrs_handle_vararray(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 
 	if(stmt.initVal != NULL)
 	{
-		int len = ptrs_astlist_length(stmt.initVal);
+		int len = ptrs_astlist_length(stmt.initVal, node, scope);
 
 		if(size < 0)
 			size = len * sizeof(ptrs_var_t);
