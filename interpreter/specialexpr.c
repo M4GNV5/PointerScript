@@ -24,21 +24,14 @@ ptrs_var_t *ptrs_handle_call(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 
 ptrs_var_t *ptrs_handle_arrayexpr(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_astlist *list = node->arg.astlist;
-	int len = 0;
-	while(list != NULL)
-	{
-		len++;
-		list = list->next;
-	}
-
+	int len = ptrs_astlist_length(node->arg.astlist);
 	uint8_t *array = ptrs_alloc(scope, len);
-	list = node->arg.astlist;
+
+	ptrs_var_t vals[len];
+	ptrs_astlist_handle(node->arg.astlist, vals, scope);
 	for(int i = 0; i < len; i++)
 	{
-		ptrs_var_t *val = list->entry->handler(list->entry, result, scope);
-		array[i] = (uint8_t)ptrs_vartoi(val);
-		list = list->next;
+		array[i] = ptrs_vartoi(&vals[i]);
 	}
 
 	result->type = PTRS_TYPE_NATIVE;
@@ -48,27 +41,11 @@ ptrs_var_t *ptrs_handle_arrayexpr(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sco
 
 ptrs_var_t *ptrs_handle_vararrayexpr(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_astlist *list = node->arg.astlist;
-	int len = 0;
-	while(list != NULL)
-	{
-		len++;
-		list = list->next;
-	}
-
-	ptrs_var_t *array = ptrs_alloc(scope, len * sizeof(ptrs_var_t));
-	list = node->arg.astlist;
-	for(int i = 0; i < len; i++)
-	{
-		ptrs_var_t *val = list->entry->handler(list->entry, &array[i], scope);
-		if(val != &array[i])
-			memcpy(&array[i], val, sizeof(ptrs_var_t));
-
-		list = list->next;
-	}
+	int len = ptrs_astlist_length(node->arg.astlist);
 
 	result->type = PTRS_TYPE_POINTER;
-	result->value.ptrval = array;
+	result->value.ptrval = ptrs_alloc(scope, len * sizeof(ptrs_var_t));
+	ptrs_astlist_handle(node->arg.astlist, result->value.ptrval, scope);
 	return result;
 }
 
@@ -356,7 +333,7 @@ ptrs_var_t *ptrs_handle_op_instanceof(ptrs_ast_t *node, ptrs_var_t *result, ptrs
 	{
 		result->value.intval = true;
 	}
-	
+
 	result->type = PTRS_TYPE_INT;
 	result->meta.pointer = NULL;
 	return result;
