@@ -1091,14 +1091,13 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 			}
 			else
 			{
-				code->pos = start;
-				code->curr = code->src[start];
+				code->pos = start + 1;
+				code->curr = code->src[start + 1];
 			}
 		}
 
 		if(ast == NULL)
 		{
-			consumec(code, '(');
 			ast = parseExpression(code);
 			consumec(code, ')');
 		}
