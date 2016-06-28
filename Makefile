@@ -15,6 +15,7 @@ RUN_LIB_OBJECTS += $(BIN)/call.o
 RUN_LIB_OBJECTS += $(BIN)/stack.o
 RUN_LIB_OBJECTS += $(BIN)/run.o
 RUN_LIB_OBJECTS += $(BIN)/struct.o
+RUN_LIB_OBJECTS += $(BIN)/astlist.o
 
 RUN_OBJECTS += $(BIN)/statements.o
 RUN_OBJECTS += $(BIN)/specialexpr.o

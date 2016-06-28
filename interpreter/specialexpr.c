@@ -11,6 +11,7 @@
 #include "include/scope.h"
 #include "include/call.h"
 #include "include/struct.h"
+#include "include/astlist.h"
 
 ptrs_var_t *ptrs_handle_call(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
