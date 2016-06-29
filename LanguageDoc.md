@@ -10,7 +10,7 @@
 	- [TryCatchStatement](#trycatchstatement)
 	- [ThrowStatement](#throwstatement)
 	- [FunctionStatement](#functionstatement)
-	- [StructStatement](#functionstatement)
+	- [StructStatement](#structstatement)
 	- [DeleteStatement](#deletestatement)
 	- [ControlStatements](#controlstatements)
 - [Expressions](#expressions)
