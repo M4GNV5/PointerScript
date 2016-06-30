@@ -147,7 +147,7 @@ ptrs_var_t *ptrs_handle_vararray(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 	}
 
 	result->type = PTRS_TYPE_POINTER;
-	result->meta.array.size = size;
+	result->meta.array.size = size / sizeof(ptrs_var_t);
 	ptrs_scope_set(scope, stmt.symbol, result);
 	return result;
 }
