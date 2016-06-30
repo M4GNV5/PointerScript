@@ -750,6 +750,7 @@ struct opinfo prefixOps[] = {
 	{"++", 12, true, PTRS_HANDLE_PREFIX_INC}, //prefixed ++
 	{"--", 12, true, PTRS_HANDLE_PREFIX_DEC}, //prefixed --
 	{"!", 12, true, PTRS_HANDLE_PREFIX_LOGICNOT}, //logical NOT
+	{"#", 12, true, PTRS_HANDLE_PREFIX_LENGTH}, //length aka sizeof
 	{"~", 12, true, PTRS_HANDLE_PREFIX_NOT}, //bitwise NOT
 	{"&", 12, true, PTRS_HANDLE_PREFIX_ADDRESS}, //adress of
 	{"*", 12, true, PTRS_HANDLE_PREFIX_DEREFERENCE}, //dereference

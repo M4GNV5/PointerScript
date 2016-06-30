@@ -81,6 +81,7 @@ ptrs_var_t *ptrs_handle_prefix_typeof(ptrs_ast_t *node, ptrs_var_t *result, ptrs
 ptrs_var_t *ptrs_handle_prefix_inc(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_prefix_dec(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_prefix_logicnot(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_prefix_length(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_prefix_not(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_prefix_address(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_prefix_dereference(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
@@ -164,6 +165,7 @@ ptrs_var_t *ptrs_handle_suffix_dec(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 #define PTRS_HANDLE_PREFIX_INC ptrs_handle_prefix_inc
 #define PTRS_HANDLE_PREFIX_DEC ptrs_handle_prefix_dec
 #define PTRS_HANDLE_PREFIX_LOGICNOT ptrs_handle_prefix_logicnot
+#define PTRS_HANDLE_PREFIX_LENGTH ptrs_handle_prefix_length
 #define PTRS_HANDLE_PREFIX_NOT ptrs_handle_prefix_not
 #define PTRS_HANDLE_PREFIX_ADDRESS ptrs_handle_prefix_address
 #define PTRS_HANDLE_PREFIX_DEREFERENCE ptrs_handle_prefix_dereference

@@ -232,7 +232,7 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 			overload.meta.this = value->value.structval;
 			ptrs_var_t arg = {{.strval = key}, PTRS_TYPE_NATIVE};
 			arg.meta.array.readOnly = key == buff || index->meta.array.readOnly;
-			arg.meta.array.size = (uint32_t)-1;
+			arg.meta.array.size = 0;
 			return ptrs_callfunc(node, result, scope, &overload, 1, &arg);
 		}
 		else if(_result == NULL)
