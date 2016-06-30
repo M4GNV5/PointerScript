@@ -37,6 +37,8 @@ ptrs_var_t *ptrs_handle_arrayexpr(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sco
 
 	result->type = PTRS_TYPE_NATIVE;
 	result->value.nativeval = array;
+	result->meta.array.readOnly = false;
+	result->meta.array.size = len;
 	return result;
 }
 
@@ -46,6 +48,7 @@ ptrs_var_t *ptrs_handle_vararrayexpr(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 
 	result->type = PTRS_TYPE_POINTER;
 	result->value.ptrval = ptrs_alloc(scope, len * sizeof(ptrs_var_t));
+	result->meta.array.size = len;
 	ptrs_astlist_handle(node->arg.astlist, result->value.ptrval, scope);
 	return result;
 }
@@ -70,6 +73,7 @@ ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 
 	result->type = PTRS_TYPE_NATIVE;
 	result->value.strval = args[0].value.strval;
+	result->meta.array.size = args[1].value.intval;
 	return result;
 }
 
@@ -130,7 +134,7 @@ ptrs_var_t *ptrs_handle_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	{
 		overload.type = PTRS_TYPE_FUNCTION;
 		overload.meta.this = base->value.structval;
-		ptrs_var_t arg = {{.strval = expr.name}, PTRS_TYPE_NATIVE, {.readOnly = true}};
+		ptrs_var_t arg = {{.strval = expr.name}, PTRS_TYPE_NATIVE, {.array = {.readOnly = true}}};
 		return ptrs_callfunc(node, result, scope, &overload, 1, &arg);
 	}
 	else if(_result == NULL)
@@ -171,7 +175,7 @@ ptrs_var_t *ptrs_handle_prefix_dereference(ptrs_ast_t *node, ptrs_var_t *result,
 
 	if(valuet == PTRS_TYPE_NATIVE)
 	{
-		if(val->meta.readOnly)
+		if(val->meta.array.readOnly)
 			result->meta.pointer = NULL;
 		else
 			result->meta.pointer = val->value.nativeval;
@@ -211,7 +215,7 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		int64_t _index = ptrs_vartoi(index);
 		result->type = PTRS_TYPE_INT;
 		result->value.intval = value->value.strval[_index];
-		if(value->meta.readOnly)
+		if(value->meta.array.readOnly)
 			result->meta.pointer = NULL;
 		else
 			result->meta.pointer = (uint8_t*)&value->value.strval[_index];
@@ -226,7 +230,9 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		{
 			overload.type = PTRS_TYPE_FUNCTION;
 			overload.meta.this = value->value.structval;
-			ptrs_var_t arg = {{.strval = key}, PTRS_TYPE_NATIVE, {.readOnly = key == buff || index->meta.readOnly}};
+			ptrs_var_t arg = {{.strval = key}, PTRS_TYPE_NATIVE};
+			arg.meta.array.readOnly = key == buff || index->meta.array.readOnly;
+			arg.meta.array.size = (uint32_t)-1;
 			return ptrs_callfunc(node, result, scope, &overload, 1, &arg);
 		}
 		else if(_result == NULL)

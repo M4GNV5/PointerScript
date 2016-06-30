@@ -94,7 +94,7 @@ int main(int argc, char **argv)
 	{
 		arguments[j].type = PTRS_TYPE_NATIVE;
 		arguments[j].value.strval = argv[i++];
-		arguments[j].meta.readOnly = false;
+		arguments[j].meta.array.readOnly = false;
 	}
 	arguments[len].type = PTRS_TYPE_NATIVE;
 	arguments[len].value.nativeval = NULL;
@@ -102,6 +102,7 @@ int main(int argc, char **argv)
 	ptrs_symbol_t argumentsSymbol = {0, 0};
 	result.type = PTRS_TYPE_POINTER;
 	result.value.ptrval = arguments;
+	result.meta.array.size = len;
 	ptrs_scope_set(scope, argumentsSymbol, &result);
 
 	ptrs_dofile(file, &result, scope, NULL);

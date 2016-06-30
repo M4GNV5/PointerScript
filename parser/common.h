@@ -106,7 +106,11 @@ typedef union meta
 {
 	ptrs_struct_t *this;
 	uint8_t *pointer;
-	bool readOnly;
+	struct
+	{
+		bool readOnly;
+		uint32_t size;
+	} array;
 } ptrs_meta_t;
 
 struct ptrs_var

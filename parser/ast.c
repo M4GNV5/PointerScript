@@ -43,7 +43,7 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end);
 static ptrs_vartype_t readTypeName(code_t *code);
 static const char *readOperator(code_t *code);
 static char *readIdentifier(code_t *code);
-static char *readString(code_t *code);
+static char *readString(code_t *code, int *length);
 static char readEscapeSequence(code_t *code);
 static int64_t readInt(code_t *code, int base);
 static double readDouble(code_t *code);
@@ -1034,7 +1034,8 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 	else if(curr == '"')
 	{
 		rawnext(code);
-		char *str = readString(code);
+		int len;
+		char *str = readString(code, &len);
 
 		ast = talloc(ptrs_ast_t);
 		if(code->curr == '%')
@@ -1049,7 +1050,8 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 			ast->handler = PTRS_HANDLE_CONSTANT;
 			ast->arg.constval.type = PTRS_TYPE_NATIVE;
 			ast->arg.constval.value.strval = str;
-			ast->arg.constval.meta.readOnly = true;
+			ast->arg.constval.meta.array.readOnly = true;
+			ast->arg.constval.meta.array.size = len;
 		}
 	}
 	else if(curr == '(')
@@ -1309,7 +1311,7 @@ static char *readIdentifier(code_t *code)
 	return _val;
 }
 
-static char *readString(code_t *code)
+static char *readString(code_t *code, int *length)
 {
 	int start = code->pos;
 	int len = 0;
@@ -1331,6 +1333,7 @@ static char *readString(code_t *code)
 		else
 			break;
 	}
+	*length = len;
 
 	code->pos = start;
 	code->curr = code->src[code->pos];
