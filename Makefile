@@ -1,7 +1,7 @@
 CC = gcc
 FFI_DIR = /usr/include/x86_64-linux-gnu/
 INTERPRETER_INCLUDE = "../interpreter/interpreter.h"
-CFLAGS = -Wall '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -D_GNU_SOURCE --std=gnu99 -g -I$(FFI_DIR)
+CFLAGS = -Wall '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -D_GNU_SOURCE --std=c99 -g -I$(FFI_DIR)
 
 BIN = bin
 RUN = $(BIN)/ptrs
