@@ -1,4 +1,11 @@
 #Content
+- [Types](#types)
+	- [List](#typelist)
+	- [Usage](#typeusage)
+- [Operators](#operators)
+	- [Binary](#binaryoperators)
+	- [Prefixed](#prefixedoperators)
+	- [Suffixed](#suffixedoperators)
 - [Statements](#statements)
 	- [ExpressionStatement](#expressionstatement)
 	- [DefinitionStatement](#definitionstatement)
@@ -28,6 +35,72 @@
 	- [BinaryExpression](#binaryexpression)
 	- [PrefixedExpression](#prefixedexpression)
 	- [SuffixedExpression](#suffixedexpression)
+
+#Types
+
+##TypeList
+| Name | Name in C | Description |
+|------|-----------|-------------|
+| `undefined` | - | A not defined value |
+| `int` | `int64_t` | 64 bit integer |
+| `float` | `double` | 64 bit IEEE Float |
+| `native` | `char *` | Pointer to a byte sequence or native function |
+| `pointer` | `ptrs_var_t *` | Pointer to another variable |
+| `function` | `ptrs_function_t *` | A PointerScript function |
+| `struct` | `ptrs_struct_t *` | A PointerScript struct |
+
+##TypeUsage
+Checking if a variable has a specific type:
+```js
+var myVal = //...
+if(typeof myVal == type<int>)
+	//...
+```
+
+Converting a variable to an `int` or `float`
+```js
+var myVal = cast<float>"3.14";
+```
+
+Changing the type of a variable
+```js
+//by default all native functions return an int
+var ptr = as<native>malloc(1024);
+```
+
+#Operators
+
+##BinaryOperators
+| Precedence | Operator | Description | Associativity |
+|------------|----------|-------------|---------------|
+| 1 | `= += -= *= /= %= <<= >>= &= ^= |=` | Assignment operators | Right-to-Left |
+| 2 | `?: instanceof` | Ternary, instanceof | Left-to-Right |
+| 3 | `|| ^^` | Logical OR, logical XOR | Left-to-Right |
+| 4 | `&&` | Logical AND | Left-to-Right |
+| 5 | `|` | Bitwise OR | Left-to-Right |
+| 6 | `^` | Bitwise XOR | Left-to-Right |
+| 7 | `&` | Bitwise AND | Left-to-Right |
+| 8 | `== != <= >= < >` | Comparasion operators | Left-to-Right |
+| 9 | `<< >>` | Shifting operators | Left-to-Right |
+| 10 | `+ -` | Addition, subtraction | Left-to-Right |
+| 11 | `* / %` | Multiplication, division, division remainder | Left-to-Right |
+
+##PrefixedOperators
+| Operator | Description |
+|------------|----------|
+| `++ --` | Increment, decrement |
+| `!` | Logical NOT |
+| `~` | Bitwise NOT |
+| typeof | Type of |
+| `#` | Length of |
+| `&` | Address of |
+| `*` | Dereference |
+| `+ -` | Unary plus, minus |
+
+###SuffixedOperators
+| Operator | Description |
+|------------|----------|
+| `++ --` | Increment, decrement |
 
 #Statements
 ##ExpressionStatement
@@ -284,24 +357,28 @@ return atoi("42");
 #Expressions
 
 ##CallExpression
+Calls a function
 ```js
 //Identifier '(' ExpressionList ')'
 printf("x = %d\n", x)
 ```
 
 ##ArrayExpression
+Creates an array. Memory will be allocated on the stack
 ```js
 //'{' ExpressionList '}'
 {'h', 'g' + 1}
 ```
 
 ##VarArrayExpression
+Creates a variable array. Memory will be allocated on the stack
 ```js
 //'[' ExpressionList ']'
 [3.14, "ahoi", 42]
 ```
 
 ##StringFormatExpression
+Works like sprintf. Memory for the result string will be allocated on the stack
 ```js
 //String '%' ExpressionList
 var name = "Hugo";
@@ -309,6 +386,7 @@ var name = "Hugo";
 ```
 
 ##NewExpression
+Creates an instance of a struct allocating its memory using malloc
 ```js
 //'new' Identifier '(' ExpressionList ')'
 new MyStruct(32);
@@ -327,12 +405,14 @@ foo["bar"]
 ```
 
 ##AsExpression
+Note this will not convert any values, it will only change the type
 ```js
 //'as' '<' TypeName '>' Expression
 as<float>0x7fc00000
 ```
 
 ##CastExpression
+Converts a expression to a specific type. Currently only casting to int and float is supported.
 ```js
 //'cast' '<' TypeName '>' Expression
 cast<int>3.14
@@ -344,49 +424,27 @@ foo
 ```
 
 ##ConstantExpression
+Note that constant mathematical expressions will be calculated during parse time.
 ```C
 //String | Integer | Float
 "Hello!"
 42
 5f
-3.14
+3.14 * 5 + 7
 ```
 
 ##BinaryExpression
+see
 ```js
 //Expression Operator Expression
 foo * 3
 ```
-###Binary operators
-| Precedence | Operator | Description | Associativity |
-|------------|----------|-------------|---------------|
-| 1 | `= += -= *= /= %= <<= >>= &= ^= |=` | Assignment operators | Right-to-Left |
-| 2 | `?: instanceof` | Ternary, instanceof | Left-to-Right |
-| 3 | `|| ^^` | Logical OR, logical XOR | Left-to-Right |
-| 4 | `&&` | Logical AND | Left-to-Right |
-| 5 | `|` | Bitwise OR | Left-to-Right |
-| 6 | `^` | Bitwise XOR | Left-to-Right |
-| 7 | `&` | Bitwise AND | Left-to-Right |
-| 8 | `== != <= >= < >` | Comparasion operators | Left-to-Right |
-| 9 | `<< >>` | Shifting operators | Left-to-Right |
-| 10 | `+ -` | Addition, subtraction | Left-to-Right |
-| 11 | `* / %` | Multiplication, division, division remainder | Left-to-Right |
 
 ##PrefixedExpression
 ```js
 //PrefixOperator Expression
 -foo
 ```
-###Prefixed operators
-| Operator | Description |
-|------------|----------|
-| `++ --` | Increment, decrement |
-| `!` | Logical NOT |
-| `~` | Bitwise NOT |
-| typeof | Type of |
-| `&` | Address of |
-| `*` | Dereference |
-| `+ -` | Unary plus, minus |
 
 ##SuffixedExpression
 ```js
@@ -394,7 +452,3 @@ foo * 3
 foo++
 foo--
 ```
-###Suffixed operators
-| Operator | Description |
-|------------|----------|
-| `++ --` | Increment, decrement |
