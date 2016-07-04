@@ -1,5 +1,5 @@
 # PointerScript
-Wild mixture of C and Javascript
+Scripting language with pointers and native library access.
 
 ##Example code
 ```javascript
@@ -52,7 +52,7 @@ curl -O ../gprof2dot.py https://raw.githubusercontent.com/jrfonseca/gprof2dot/ma
 Currently the main time eaters are lookahead (parser) for small scripts without expensive loops and ptrs_scope_get for scripts with long loops
 
 ###Grammar
-Most of PointerScript is similar to Javascript and/or C so only specialities will be listed here:
+Most of PointerScript is similar to Javascript and/or C so only specialities will be listed here for a full Documentation see [LanguageDoc.md](LanguageDoc.md)
 ```javascript
 //import native functions or variables from other PointerScript files
 //leaving out the from part searches for the function in standard library
