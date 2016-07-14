@@ -666,6 +666,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 				stmt->arg.forin.stackOffset = symbolScope_decrease(code);
 				return stmt;
 			}
+			free(name);
 		}
 
 		code->pos = pos;
