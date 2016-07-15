@@ -144,27 +144,6 @@ void ptrs_callcallback(ffcb_return_t ret, ptrs_function_t *func, va_list ap)
 			ffcb_return_pointer(ret, result.value.nativeval);
 			break;
 	}
-
-	/*//is it a good idea to reset alist's rtype? why does va_start need a type anyways?
-	switch(result.type)
-	{
-		case PTRS_TYPE_UNDEFINED:
-			alist->rtype = __VAvoid;
-			va_return_void(alist);
-			break;
-		case PTRS_TYPE_INT:
-			alist->rtype = __VAlonglong;
-			va_return_longlong(alist, result.value.intval);
-			break;
-		case PTRS_TYPE_FLOAT:
-			alist->rtype = __VAdouble;
-			va_return_double(alist, result.value.floatval);
-			break;
-		default: //pointer type
-			alist->rtype = __VAvoidp;
-			va_return_ptr(alist, void *, result.value.intval);
-			break;
-	}*/
 }
 
 intptr_t ptrs_callnative(void *func, int argc, ptrs_var_t *argv)
@@ -232,54 +211,4 @@ intptr_t ptrs_callnative(void *func, int argc, ptrs_var_t *argv)
 	}
 
 	return retVal;
-
-	/*av_alist alist;
-	int64_t retVal = 0;
-	void *callbackArgs[argc];
-	bool hasCallbackArgs = false;
-	av_start_longlong(alist, func, &retVal);
-
-	for(int i = 0; i < argc; i++)
-	{
-		callbackArgs[i] = NULL;
-		switch(argv[i].type)
-		{
-			case PTRS_TYPE_INT:
-				av_longlong(alist, argv[i].value.intval);
-				break;
-			case PTRS_TYPE_FLOAT:
-				av_double(alist, argv[i].value.floatval);
-				break;
-			case PTRS_TYPE_FUNCTION:
-				;
-				ptrs_function_t *func = argv[i].value.funcval;
-				if(func->scope->outer == NULL)
-				{
-					if(func->nativeCb == NULL)
-						func->nativeCb = alloc_callback(&ptrs_callcallback, func);
-					av_ptr(alist, void *, func->nativeCb);
-					break;
-				}
-				else
-				{
-					callbackArgs[i] = alloc_callback(&ptrs_callcallback, func);
-					av_ptr(alist, void *, callbackArgs[i]);
-				}
-			default:
-				av_ptr(alist, void *, argv[i].value.nativeval);
-				break;
-		}
-	}
-
-	av_call(alist);
-
-	if(hasCallbackArgs)
-	{
-		for(int i = 0; i < argc; i++)
-		{
-			if(callbackArgs[i] != NULL)
-				free_callback(callbackArgs[i]);
-		}
-	}
-	return retVal;*/
 }
