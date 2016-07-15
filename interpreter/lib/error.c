@@ -15,6 +15,7 @@
 
 ptrs_ast_t *ptrs_lastast = NULL;
 ptrs_scope_t *ptrs_lastscope = NULL;
+static bool backtracingError = false;
 
 typedef struct codepos
 {
@@ -64,29 +65,42 @@ char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative)
 	char *buffptr = buff;
 
 #ifdef _GNU_SOURCE
-	void *trace[32];
-	int count = backtrace(trace, 32);
-	Dl_info infos[count];
-
-	Dl_info selfInfo;
-	dladdr(main, &selfInfo); 
-
-	for(int i = skipNative; i < count - 1; i++)
+	if(backtracingError)
 	{
-		dladdr(trace[i], &infos[i]);
+		buffptr += sprintf(buffptr,
+			"It appears like we raised a signal when backtracing the native stack.\n"
+			"Skipping native backtrace.\n");
+		backtracingError = false;
+	}
+	else
+	{
+		backtracingError = true;
+		void *trace[32];
+		int count = backtrace(trace, 32);
+		Dl_info infos[count];
 
-		if(infos[i].dli_fbase == selfInfo.dli_fbase)
-			break;
+		Dl_info selfInfo;
+		dladdr(main, &selfInfo);
 
-		if(infos[i].dli_sname != NULL)
-			buffptr += sprintf(buffptr, "    at %s ", infos[i].dli_sname);
-		else
-			buffptr += sprintf(buffptr, "    at %p ", trace[i]);
+		for(int i = skipNative; i < count - 1; i++)
+		{
+			dladdr(trace[i], &infos[i]);
 
-		if(infos[i].dli_fname != NULL)
-			buffptr += sprintf(buffptr, "(%s)\n", infos[i].dli_fname);
-		else
-			buffptr += sprintf(buffptr, "(unknown)\n");
+			if(infos[i].dli_fbase == selfInfo.dli_fbase)
+				break;
+
+			if(infos[i].dli_sname != NULL)
+				buffptr += sprintf(buffptr, "    at %s ", infos[i].dli_sname);
+			else
+				buffptr += sprintf(buffptr, "    at %p ", trace[i]);
+
+			if(infos[i].dli_fname != NULL)
+				buffptr += sprintf(buffptr, "(%s)\n", infos[i].dli_fname);
+			else
+				buffptr += sprintf(buffptr, "(unknown)\n");
+		}
+
+		backtracingError = false;
 	}
 #endif
 
