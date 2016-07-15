@@ -26,6 +26,23 @@ for(var i = 0; i <= count; i++)
 }
 ```
 
+##Installing
+Requironments are [libffi](https://github.com/libffi/libffi) and build tools.
+The following instructions are for debian based distros however apart from dependency
+installation there shouldnt be any difference to other distros.
+```bash
+#this line might differ if you dont have a debian based distro
+sudo apt-get install libffi-dev build-essential
+
+git clone --recursive https://github.com/M4GNV5/PointerScript
+cd PointerScript/libffcb
+make
+
+cd ..
+make release #OR debug if you want less speed but debug symbols for gdb
+sudo make install #optional (copies bin/ptrs to /usr/local/bin/ptrs)
+```
+
 ##Language
 
 ###Standard Library
