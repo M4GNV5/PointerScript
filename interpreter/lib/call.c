@@ -1,8 +1,9 @@
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdarg.h>
 #include <string.h>
-#include <avcall.h>
-#include <callback.h>
+#include <ffi.h>
+#include <ffcb.h>
 
 #include "../include/error.h"
 #include "../include/conversion.h"
@@ -105,10 +106,8 @@ ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t 
 	return result;
 }
 
-void ptrs_callcallback(ptrs_function_t *func, va_alist alist)
+void ptrs_callcallback(ffcb_return_t ret, ptrs_function_t *func, va_list ap)
 {
-	va_start_longlong(alist);
-
 	ptrs_var_t argv[func->argc];
 
 	ptrs_var_t result;
@@ -123,7 +122,7 @@ void ptrs_callcallback(ptrs_function_t *func, va_alist alist)
 	for(int i = 0; i < func->argc; i++)
 	{
 		argv[i].type = PTRS_TYPE_INT;
-		argv[i].value.intval = va_arg_longlong(alist);
+		argv[i].value.intval = va_arg(ap, intptr_t);
 	}
 
 	ptrs_callfunc(NULL, &result, &scope, &funcvar, func->argc, argv);
@@ -131,7 +130,22 @@ void ptrs_callcallback(ptrs_function_t *func, va_alist alist)
 	if(scope.stackstart != NULL)
 		free(scope.stackstart);
 
-	//is it a good idea to reset alist's rtype? why does va_start need a type anyways?
+	switch(result.type)
+	{
+		case PTRS_TYPE_UNDEFINED:
+			break;
+		case PTRS_TYPE_INT:
+			ffcb_return_int(ret, result.value.intval);
+			break;
+		case PTRS_TYPE_FLOAT:
+			ffcb_return_float(ret, result.value.floatval);
+			break;
+		default: //pointer type
+			ffcb_return_pointer(ret, result.value.nativeval);
+			break;
+	}
+
+	/*//is it a good idea to reset alist's rtype? why does va_start need a type anyways?
 	switch(result.type)
 	{
 		case PTRS_TYPE_UNDEFINED:
@@ -150,12 +164,76 @@ void ptrs_callcallback(ptrs_function_t *func, va_alist alist)
 			alist->rtype = __VAvoidp;
 			va_return_ptr(alist, void *, result.value.intval);
 			break;
-	}
+	}*/
 }
 
 intptr_t ptrs_callnative(void *func, int argc, ptrs_var_t *argv)
 {
-	av_alist alist;
+	intptr_t retVal = 0;
+	ptrs_function_t *callback;
+
+	ffi_cif cif;
+	ffi_type *types[argc];
+	void *values[argc];
+
+	bool hasCallbackArgs = false;
+	void *callbackArgs[argc];
+
+	for(int i = 0; i < argc; i++)
+	{
+		callbackArgs[i] = NULL;
+
+		switch(argv[i].type)
+		{
+			case PTRS_TYPE_FLOAT:
+				types[i] = &ffi_type_double;
+				values[i] = &argv[i].value.floatval;
+				break;
+			case PTRS_TYPE_INT:
+				types[i] = &ffi_type_sint64;
+				values[i] = &argv[i].value.intval;
+				break;
+			case PTRS_TYPE_FUNCTION:
+				callback = argv[i].value.funcval;
+				types[i] = &ffi_type_pointer;
+
+				if(callback->scope->outer == NULL)
+				{
+					if(callback->nativeCb == NULL)
+						callback->nativeCb = ffcb_create(&ptrs_callcallback, callback);
+
+					values[i] = &callback->nativeCb;
+				}
+				else
+				{
+					hasCallbackArgs = true;
+					callbackArgs[i] = ffcb_create(&ptrs_callcallback, callback);
+					values[i] = &callbackArgs[i];
+				}
+
+				break;
+			default:
+				types[i] = &ffi_type_pointer;
+				values[i] = &argv[i].value.nativeval;
+				break;
+		}
+	}
+
+	ffi_prep_cif(&cif, FFI_DEFAULT_ABI, argc, &ffi_type_pointer, types);
+	ffi_call(&cif, func, &retVal, values);
+
+	if(hasCallbackArgs)
+	{
+		for(int i = 0; i < argc; i++)
+		{
+			if(callbackArgs[i] != NULL)
+				ffcb_delete(callbackArgs[i]);
+		}
+	}
+
+	return retVal;
+
+	/*av_alist alist;
 	int64_t retVal = 0;
 	void *callbackArgs[argc];
 	bool hasCallbackArgs = false;
@@ -203,5 +281,5 @@ intptr_t ptrs_callnative(void *func, int argc, ptrs_var_t *argv)
 				free_callback(callbackArgs[i]);
 		}
 	}
-	return retVal;
+	return retVal;*/
 }

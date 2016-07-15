@@ -1,7 +1,9 @@
 CC = gcc
 FFI_DIR = /usr/include/x86_64-linux-gnu/
+FFCB_DIR = libffcb/src
+FFCB_BIN_DIR = libffcb/bin
 INTERPRETER_INCLUDE = "../interpreter/interpreter.h"
-CFLAGS = -Wall '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -D_GNU_SOURCE --std=c99 -g -I$(FFI_DIR)
+CFLAGS = -Wall '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -D_GNU_SOURCE --std=c99 -g -I$(FFI_DIR) -I$(FFCB_DIR)
 
 BIN = bin
 RUN = $(BIN)/ptrs
@@ -26,7 +28,7 @@ all: debug
 
 debug: $(RUN)
 
-release: CFLAGS = '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -D_GNU_SOURCE --std=gnu99 -O2 -I$(FFI_DIR)
+release: CFLAGS = '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -D_GNU_SOURCE --std=gnu99 -O2 -I$(FFI_DIR) -I$(FFCB_DIR)
 release: $(RUN)
 
 install: release
@@ -39,7 +41,7 @@ clean:
 	if [ -d $(BIN) ]; then rm -r $(BIN); fi
 
 $(RUN): $(BIN) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS)
-	gcc $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) -o $(BIN)/ptrs -rdynamic -ldl -lavcall -lcallback
+	gcc $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) -o $(BIN)/ptrs -rdynamic -L$(FFCB_BIN_DIR) -ldl -lffi -lffcb
 
 $(BIN):
 	mkdir $(BIN)
