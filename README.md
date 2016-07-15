@@ -27,7 +27,7 @@ for(var i = 0; i <= count; i++)
 ```
 
 ##Installing
-Requironments are [libffi](https://github.com/libffi/libffi) and build tools.
+Requirements are [libffi](https://github.com/libffi/libffi) and build tools.
 The following instructions are for debian based distros however apart from dependency
 installation there shouldnt be any difference to other distros.
 ```bash
