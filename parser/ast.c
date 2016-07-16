@@ -156,6 +156,7 @@ struct argdeflist
 };
 static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_ast_t ***argv, ptrs_symbol_t *vararg)
 {
+	bool hasArgv = false;
 	int argc = 0;
 	consumecm(code, '(', "Expected ( as the beginning of an argument definition");
 
@@ -192,9 +193,14 @@ static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_
 			if(argv != NULL)
 			{
 				if(lookahead(code, "="))
+				{
 					list->value = parseExpression(code);
+					hasArgv = true;
+				}
 				else
+				{
 					list->value = NULL;
+				}
 			}
 
 			argc++;
@@ -208,14 +214,16 @@ static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_
 		}
 
 		*args = malloc(sizeof(ptrs_symbol_t) * argc);
-		if(argv != NULL)
+		if(hasArgv)
 			*argv = malloc(sizeof(ptrs_ast_t *) * argc);
+		else if(argv != NULL)
+			*argv = NULL;
 
 		list = first.next;
 		for(int i = 0; i < argc; i++)
 		{
 			(*args)[i] = list->symbol;
-			if(argv != NULL)
+			if(hasArgv)
 				(*argv)[i] = list->value;
 
 			struct argdeflist *old = list;
@@ -1074,6 +1082,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 				ast = talloc(ptrs_ast_t);
 				ast->handler = PTRS_HANDLE_FUNCTION;
 				ast->arg.function.name = "(lambda expression)";
+				ast->arg.function.argv = NULL;
 				ast->arg.function.argc = parseArgumentDefinitionList(code, &ast->arg.function.args, NULL, &ast->arg.function.vararg);
 
 				consume(code, "->");

@@ -63,7 +63,7 @@ ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t 
 	{
 		if(i < argc)
 			ptrs_scope_set(scope, func->args[i], &argv[i]);
-		else if(func->argv[i] != NULL)
+		else if(func->argv != NULL && func->argv[i] != NULL)
 			ptrs_scope_set(scope, func->args[i], func->argv[i]->handler(func->argv[i], result, scope));
 		else
 			ptrs_scope_set(scope, func->args[i], &val);
