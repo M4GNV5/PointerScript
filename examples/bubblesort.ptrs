@@ -8,6 +8,11 @@ for(var i = 0; i < len; i++)
 	parts[i] = rand() & 0xffff;
 }
 
+/*
+note if you want speed use qsort(3)
+import qsort;
+qsort(parts, len, VARSIZE, (a, b) -> *as<pointer>a - *as<pointer>b);
+*/
 //simple bubble sort
 for(var i = 0; i < len - 1; i++)
 {
