@@ -1,7 +1,7 @@
 CC = gcc
 FFI_DIR = /usr/include/x86_64-linux-gnu/
 FFCB_DIR = libffcb/src
-FFCB_BIN_DIR = libffcb/bin
+FFCB_BIN = libffcb/bin/libffcb.a
 INTERPRETER_INCLUDE = "../interpreter/interpreter.h"
 CFLAGS = -Wall '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -D_GNU_SOURCE --std=c99 -g -I$(FFI_DIR) -I$(FFCB_DIR)
 
@@ -41,7 +41,7 @@ clean:
 	if [ -d $(BIN) ]; then rm -r $(BIN); fi
 
 $(RUN): $(BIN) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS)
-	gcc $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) -o $(BIN)/ptrs -rdynamic -L$(FFCB_BIN_DIR) -ldl -lffi -lffcb
+	gcc $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) $(FFCB_BIN) -o $(BIN)/ptrs -rdynamic -ldl -lffi
 
 $(BIN):
 	mkdir $(BIN)
