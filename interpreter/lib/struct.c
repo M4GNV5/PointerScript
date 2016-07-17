@@ -37,10 +37,13 @@ ptrs_var_t *ptrs_struct_get(ptrs_struct_t *struc, ptrs_var_t *result, const char
 				case PTRS_STRUCTMEMBER_ARRAY:
 					result->type = PTRS_TYPE_NATIVE;
 					result->value.nativeval = struc->data + curr->offset;
+					result->meta.array.readOnly = false;
+					result->meta.array.size = curr->value.size;
 					return result;
 				case PTRS_STRUCTMEMBER_VARARRAY:
 					result->type = PTRS_TYPE_POINTER;
 					result->value.ptrval = struc->data + curr->offset;
+					result->meta.array.size = curr->value.size;
 					return result;
 			}
 		}
