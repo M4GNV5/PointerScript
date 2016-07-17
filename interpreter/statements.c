@@ -614,13 +614,13 @@ ptrs_var_t *ptrs_handle_for(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_forin stmt = node->arg.forin;
+	ptrs_scope_t *stmtScope = ptrs_scope_increase(scope, stmt.stackOffset);
 
-	ptrs_var_t *val = stmt.value->handler(stmt.value, result, scope);
+	ptrs_var_t *val = stmt.value->handler(stmt.value, result, stmtScope);
 
 	if(val->type != PTRS_TYPE_STRUCT)
 		ptrs_error(stmt.value, scope, "Cannot iterate over variable of type %s", ptrs_typetoa(val->type));
 
-	ptrs_scope_t *stmtScope = ptrs_scope_increase(scope, stmt.stackOffset);
 	if(stmt.newvar)
 		ptrs_scope_set(stmtScope, stmt.var, result);
 	ptrs_var_t *iterval = ptrs_scope_get(stmtScope, stmt.var);
