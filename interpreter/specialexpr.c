@@ -107,7 +107,7 @@ ptrs_var_t *ptrs_handle_new(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 	}
 
 	ptrs_var_t overload = {{.structval = instance}, PTRS_TYPE_STRUCT};
-	if((overload.value.funcval = ptrs_struct_getOverload(&overload, "new")) != NULL)
+	if((overload.value.funcval = ptrs_struct_getOverload(&overload, ptrs_handle_new, true)) != NULL)
 	{
 		overload.type = PTRS_TYPE_FUNCTION;
 		overload.meta.this = instance;
@@ -130,7 +130,7 @@ ptrs_var_t *ptrs_handle_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	ptrs_var_t *_result = ptrs_struct_get(base->value.structval, result, expr.name);
 
 	ptrs_var_t overload;
-	if(_result == NULL && (overload.value.funcval = ptrs_struct_getOverload(base, ".")) != NULL)
+	if(_result == NULL && (overload.value.funcval = ptrs_struct_getOverload(base, ptrs_handle_member, true)) != NULL)
 	{
 		overload.type = PTRS_TYPE_FUNCTION;
 		overload.meta.this = base->value.structval;
@@ -226,7 +226,7 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		ptrs_var_t *_result = ptrs_struct_get(value->value.structval, result, key);
 
 		ptrs_var_t overload;
-		if(_result == NULL && (overload.value.funcval = ptrs_struct_getOverload(value, "[]")) != NULL)
+		if(_result == NULL && (overload.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_index, true)) != NULL)
 		{
 			overload.type = PTRS_TYPE_FUNCTION;
 			overload.meta.this = value->value.structval;
@@ -266,15 +266,6 @@ ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 {
 	struct ptrs_ast_cast expr = node->arg.cast;
 	ptrs_var_t *value = expr.value->handler(expr.value, result, scope);
-
-	ptrs_var_t overload;
-	if(value->type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(value, "cast")) != NULL)
-	{
-		overload.type = PTRS_TYPE_FUNCTION;
-		overload.meta.this = value->value.structval;
-		ptrs_var_t type = {{.intval = expr.type}, PTRS_TYPE_INT};
-		return ptrs_callfunc(node, result, scope, &overload, 1, &type);
-	}
 
 	switch(expr.type)
 	{

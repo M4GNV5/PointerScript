@@ -2,56 +2,71 @@ import printf, strcmp;
 
 struct Foo
 {
-	bar;
-	tar;
-
-	//constructor is an alias to operator new
-	//destructor is an alias to operator delete
-	constructor(a, b = 0)
-	{
-		this.bar = a + b;
-	}
-	/* OR
-	operator new (a, b = 0)
-	{
-		this.bar = a + b;
-	}*/
-
-	operator + (val)
-	{
-		return this.bar + this.tar + val;
-	}
-
-	//supported operators for overloading are:
-	//all binary and unary operators (except & and *)
-	//note that ++ and -- get a boolean argument set to true when used suffixed
-	operator ++ (isSuffixed)
-	{
-		//...
-	}
-
-	//yo ucan overload . and []
-	//note that . and [] will always prefer 'real' struct member
-	operator . (name)
-	{
-		if(strcmp(name, "xyz") != 0)
-			return this.xyz; //will call this recusively
-		else
-			return this.bar; //will not call this recursively
-	}
-
-	//other things that are overloadable: (), cast
-
+	//struct can have field-,
+	value = 42;
+	//array-
+	myByteArray{128};
+	//var-array-
+	myValues[42];
+	//and function-members
 	dump()
 	{
 		printf("%-20p%-20ld%-20ld\n", this, this.bar, this.tar);
 	}
+
+	//there is also a 'constructor' and 'destructor'
+	constructor(a, b = 0)
+	{
+		if(a)
+			this.value = a + b;
+	}
+
+	//you can overload all binary operators
+	operator this / val
+	{
+		return this.value / val;
+	}
+	operator val / this
+	{
+		return val / this.value;
+	}
+
+	//and unary operators
+	operator ++this
+	{
+		return ++this.value;
+	}
+	operator this++
+	{
+		return this.value++;
+	}
+
+	//there are also a few special operators you can overload
+	operator this.name
+	{
+		return name;
+	}
+	operator this[key]
+	{
+		return "getting property %s" % key;
+	}
+
+	operator this(a, b, c = 3)
+	{
+		return a + b + c;
+	}
 };
 
-var bla = new Foo(42);
-bla.tar = 666;
-bla.dump();
+var val = new Foo();
+val.dump();
 
-printf("bla + 1337 = %ld\n", bla + 1337);
+printf("val / 10f = %g\n", val / 10f);
+printf("100f / val = %g\n", 100f / val);
+printf("val++ = %d\n", val++);
+printf("++val = %d\n", ++val);
+printf("val.foo = %s\n", val.foo);
+printf("val[\"foo\"] = %s\n", val["foo"]);
+printf("val(1337, 10) = %d\n", val(1337, 10));
 
-delete bla;
+val.dump();
+delete val;

@@ -116,10 +116,15 @@ static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *
 		ptrs_vartype_t tleft = left->type; \
 		ptrs_vartype_t tright = right->type; \
 		\
-		if(tleft == PTRS_TYPE_STRUCT && (overload = ptrs_struct_getOverload(left, oplabel)) != NULL) \
+		if(tleft == PTRS_TYPE_STRUCT && (overload = ptrs_struct_getOverload(left, ptrs_handle_op_##name, true)) != NULL) \
 		{ \
 			ptrs_var_t func = {{.funcval = overload}, PTRS_TYPE_FUNCTION, {.this = left->value.structval}}; \
 			return ptrs_callfunc(node, result, scope, &func, 1, right); \
+		} \
+		else if(tright == PTRS_TYPE_STRUCT && (overload = ptrs_struct_getOverload(right, ptrs_handle_op_##name, false)) != NULL) \
+		{ \
+			ptrs_var_t func = {{.funcval = overload}, PTRS_TYPE_FUNCTION, {.this = right->value.structval}}; \
+			return ptrs_callfunc(node, result, scope, &func, 1, left); \
 		} \
 		else if(tleft == PTRS_TYPE_INT && tright == PTRS_TYPE_INT) \
 		{ \
@@ -243,7 +248,7 @@ ptrs_var_t *ptrs_handle_prefix_length(ptrs_ast_t *node, ptrs_var_t *result, ptrs
 	else if(value->type == PTRS_TYPE_STRUCT)
 	{
 		ptrs_var_t overload;
-		if((overload.value.funcval = ptrs_struct_getOverload(value, "#")) != NULL)
+		if((overload.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_prefix_length, true)) != NULL)
 		{
 			overload.type = PTRS_TYPE_FUNCTION;
 			overload.meta.this = value->value.structval;
@@ -272,7 +277,7 @@ ptrs_var_t *ptrs_handle_prefix_length(ptrs_ast_t *node, ptrs_var_t *result, ptrs
 		ptrs_var_t overload; \
 		result->type = type; \
 		\
-		if(type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(value, opLabel)) != NULL) \
+		if(type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_prefix_##name, true)) != NULL) \
 		{ \
 			overload.type = PTRS_TYPE_FUNCTION; \
 			overload.meta.this = value->value.structval; \
@@ -313,12 +318,11 @@ handle_prefix(minus, -, "-", handle_prefix_float(-), /*nothing*/)
 		ptrs_var_t overload; \
 		result->type = type; \
 		\
-		if(type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(value, opLabel)) != NULL) \
+		if(type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_suffix_##name, true)) != NULL) \
 		{ \
 			overload.type = PTRS_TYPE_FUNCTION; \
 			overload.meta.this = value->value.structval; \
-			ptrs_var_t isSuffixed = {{.intval = true}, PTRS_TYPE_INT}; \
-			return ptrs_callfunc(node, result, scope, &overload, 1, &isSuffixed); \
+			return ptrs_callfunc(node, result, scope, &overload, 0, NULL); \
 		} \
 		\
 		if(type == PTRS_TYPE_INT) \

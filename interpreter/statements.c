@@ -7,6 +7,7 @@
 
 #include "../parser/ast.h"
 #include "../parser/common.h"
+#include "interpreter.h"
 #include "include/error.h"
 #include "include/conversion.h"
 #include "include/stack.h"
@@ -183,7 +184,7 @@ ptrs_var_t *ptrs_handle_structvar(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sco
 	}
 
 	ptrs_var_t overload = {{.structval = instance}, PTRS_TYPE_STRUCT};
-	if((overload.value.funcval = ptrs_struct_getOverload(&overload, "new")) != NULL)
+	if((overload.value.funcval = ptrs_struct_getOverload(&overload, ptrs_handle_new, true)) != NULL)
 	{
 		overload.type = PTRS_TYPE_FUNCTION;
 		overload.meta.this = instance;
@@ -370,7 +371,7 @@ ptrs_var_t *ptrs_handle_delete(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 		ptrs_error(node, scope, "Cannot delete value of type %s", ptrs_typetoa(val->type));
 
 	ptrs_var_t overload;
-	if((overload.value.funcval = ptrs_struct_getOverload(val, "delete")) != NULL)
+	if((overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_delete, true)) != NULL)
 	{
 		overload.type = PTRS_TYPE_FUNCTION;
 		overload.meta.this = val->value.structval;

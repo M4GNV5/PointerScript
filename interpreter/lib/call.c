@@ -12,6 +12,7 @@
 #include "../include/callback.h"
 #include "../include/struct.h"
 #include "../include/astlist.h"
+#include "../interpreter.h"
 #include "../../parser/common.h"
 
 ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_var_t *func, ptrs_var_t *result, struct ptrs_astlist *arguments, ptrs_scope_t *scope)
@@ -34,7 +35,7 @@ ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_var_t *func, ptrs_var_t *result, str
 		result->type = PTRS_TYPE_INT;
 		result->value.intval = ptrs_callnative(func->value.nativeval, len, args);
 	}
-	else if(func->type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(func, "()")) != NULL)
+	else if(func->type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(func, ptrs_handle_call, true)) != NULL)
 	{
 		overload.type = PTRS_TYPE_FUNCTION;
 		overload.meta.this = func->value.structval;

@@ -1,13 +1,14 @@
 #include <string.h>
 
 #include "../../parser/common.h"
+#include "../../parser/ast.h"
 
-ptrs_function_t *ptrs_struct_getOverload(ptrs_var_t *struc, const char *op)
+ptrs_function_t *ptrs_struct_getOverload(ptrs_var_t *struc, ptrs_asthandler_t handler, bool isLeftSide)
 {
 	struct ptrs_opoverload *curr = struc->value.structval->overloads;
 	while(curr != NULL)
 	{
-		if(strcmp(curr->op, op) == 0)
+		if(curr->op == handler && curr->isLeftSide == isLeftSide)
 			return curr->handler;
 		curr = curr->next;
 	}

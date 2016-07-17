@@ -76,7 +76,8 @@ struct ptrs_structlist
 };
 struct ptrs_opoverload
 {
-	const char *op;
+	bool isLeftSide;
+	void *op;
 	ptrs_function_t *handler;
 	struct ptrs_opoverload *next;
 };

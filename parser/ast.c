@@ -39,9 +39,12 @@ static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec);
 static ptrs_ast_t *parseUnaryExpr(code_t *code);
 static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast);
 static struct ptrs_astlist *parseExpressionList(code_t *code, char end);
+static void parseStruct(code_t *code, ptrs_struct_t *struc);
 
 static ptrs_vartype_t readTypeName(code_t *code);
-static const char *readOperator(code_t *code);
+static ptrs_asthandler_t readPrefixOperator(code_t *code);
+static ptrs_asthandler_t readSuffixOperator(code_t *code);
+static ptrs_asthandler_t readBinaryOperator(code_t *code);
 static char *readIdentifier(code_t *code);
 static char *readString(code_t *code, int *length);
 static char readEscapeSequence(code_t *code);
@@ -486,127 +489,8 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "struct"))
 	{
-		char *structName = readIdentifier(code);
-		int structNameLen = strlen(structName);
-
 		stmt->handler = PTRS_HANDLE_STRUCT;
-		stmt->arg.structval.name = structName;
-		stmt->arg.structval.symbol = addSymbol(code, structName);
-		stmt->arg.structval.overloads = NULL;
-		stmt->arg.structval.size = 0;
-		stmt->arg.structval.data = NULL;
-		consumec(code, '{');
-
-		struct ptrs_structlist *curr = NULL;
-		while(code->curr != '}')
-		{
-			char *name = readIdentifier(code);
-			if(strcmp(name, "operator") == 0)
-			{
-				free(name);
-
-				struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
-				overload->op = readOperator(code);
-
-				name = malloc(structNameLen + strlen(overload->op) + 4);
-				sprintf(name, "%s.op %s", structName, overload->op);
-				overload->handler = parseFunction(code, name);
-
-				overload->next = stmt->arg.structval.overloads;
-				stmt->arg.structval.overloads = overload;
-				continue;
-			}
-			else if(strcmp(name, "constructor") == 0)
-			{
-				free(name);
-				name = malloc(structNameLen + strlen("constructor") + 2);
-				sprintf(name, "%s.constructor", structName);
-
-				struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
-				overload->op = "new";
-				overload->handler = parseFunction(code, name);
-
-				overload->next = stmt->arg.structval.overloads;
-				stmt->arg.structval.overloads = overload;
-				continue;
-			}
-			else if(strcmp(name, "destructor") == 0)
-			{
-				free(name);
-				name = malloc(structNameLen + strlen("destructor") + 2);
-				sprintf(name, "%s.destructor", structName);
-
-				struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
-				overload->op = "delete";
-				overload->handler = parseFunction(code, name);
-
-				overload->next = stmt->arg.structval.overloads;
-				stmt->arg.structval.overloads = overload;
-				continue;
-			}
-
-			struct ptrs_structlist *next = talloc(struct ptrs_structlist);
-			next->next = curr;
-			curr = next;
-
-			curr->name = name;
-
-			if(code->curr == '(')
-			{
-				char *funcName = malloc(structNameLen + strlen(name) + 2);
-				sprintf(funcName, "%s.%s", structName, name);
-
-				curr->type = PTRS_STRUCTMEMBER_FUNCTION;
-				curr->value.function = parseFunction(code, funcName);
-			}
-			else if(code->curr == '[')
-			{
-				curr->type = PTRS_STRUCTMEMBER_VARARRAY;
-				consumec(code, '[');
-				ptrs_ast_t *ast = parseExpression(code);
-				consumec(code, ']');
-				consumec(code, ';');
-
-				if(ast->handler != PTRS_HANDLE_CONSTANT)
-					PTRS_HANDLE_ASTERROR(ast, "Struct array member size must be a constant");
-
-				curr->value.size = ast->arg.constval.value.intval * sizeof(ptrs_var_t);
-				curr->offset = stmt->arg.structval.size;
-				stmt->arg.structval.size += curr->value.size;
-				free(ast);
-			}
-			else if(code->curr == '{')
-			{
-				curr->type = PTRS_STRUCTMEMBER_ARRAY;
-				consumec(code, '{');
-				ptrs_ast_t *ast = parseExpression(code);
-				consumec(code, '}');
-				consumec(code, ';');
-
-				if(ast->handler != PTRS_HANDLE_CONSTANT)
-					PTRS_HANDLE_ASTERROR(ast, "Struct array member size must be a constant");
-
-				curr->value.size = ast->arg.constval.value.intval;
-				curr->offset = stmt->arg.structval.size;
-				stmt->arg.structval.size += curr->value.size;
-				free(ast);
-			}
-			else
-			{
-				curr->offset = stmt->arg.structval.size;
-				stmt->arg.structval.size += sizeof(ptrs_var_t);
-
-				if(lookahead(code, "="))
-					curr->value.startval = parseExpression(code);
-				else
-					curr->value.startval = NULL;
-
-				consumec(code, ';');
-			}
-		}
-		stmt->arg.structval.member = curr;
-		consumec(code, '}');
-		consumec(code, ';');
+		parseStruct(code, &stmt->arg.structval);
 	}
 	else if(lookahead(code, "if"))
 	{
@@ -938,7 +822,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 		ptrs_vartype_t type = readTypeName(code);
 
 		if(type > PTRS_TYPE_STRUCT)
-			unexpectedm(code, NULL, "Syntax is cast<TYPENAME>");
+			unexpectedm(code, NULL, "Syntax is as<TYPENAME>");
 
 		ast = talloc(ptrs_ast_t);
 		ast->handler = PTRS_HANDLE_AS;
@@ -1236,6 +1120,198 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end)
 	return first;
 }
 
+static void parseStruct(code_t *code, ptrs_struct_t *struc)
+{
+	char *name;
+	char *structName = readIdentifier(code);
+	int structNameLen = strlen(structName);
+
+	struc->name = strdup(structName);
+	struc->symbol = addSymbol(code, structName);
+	struc->overloads = NULL;
+	struc->size = 0;
+	struc->data = NULL;
+	consumec(code, '{');
+
+	struct ptrs_structlist *curr = NULL;
+	while(code->curr != '}')
+	{
+		if(lookahead(code, "operator"))
+		{
+			symbolScope_increase(code, 1);
+
+			ptrs_function_t *func = talloc(ptrs_function_t);
+			func->argc = 0;
+			func->argv = NULL;
+			func->vararg.scope = (unsigned)-1;
+
+			struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
+			overload->isLeftSide = true;
+
+			overload->op = readPrefixOperator(code);
+
+			if(overload->op != NULL)
+			{
+				consume(code, "this");
+			}
+			else
+			{
+				if(lookahead(code, "this"))
+				{
+					overload->op = readSuffixOperator(code);
+
+					if(overload->op == NULL)
+					{
+						func->argc = 1;
+						func->args = talloc(ptrs_symbol_t);
+						overload->op = readBinaryOperator(code);
+
+						if(overload->op != NULL)
+						{
+							func->args[0] = addSymbol(code, readIdentifier(code));
+						}
+						else
+						{
+							if(code->curr == '.')
+							{
+								next(code);
+								func->args[0] = addSymbol(code, readIdentifier(code));
+								overload->op = PTRS_HANDLE_MEMBER;
+							}
+							else if(code->curr == '[')
+							{
+								next(code);
+								func->args[0] = addSymbol(code, readIdentifier(code));
+								consumec(code, ']');
+								overload->op = PTRS_HANDLE_INDEX;
+							}
+							else if(code->curr == '(')
+							{
+								func->argc = parseArgumentDefinitionList(code,
+									&func->args, &func->argv, &func->vararg);
+								overload->op = PTRS_HANDLE_CALL;
+							}
+						}
+
+					}
+				}
+				else
+				{
+					func->argc = 1;
+					func->args = talloc(ptrs_symbol_t);
+					func->args[0] = addSymbol(code, readIdentifier(code));
+
+					overload->isLeftSide = false;
+					overload->op = readBinaryOperator(code);
+					consume(code, "this");
+				}
+
+				if(overload->op == NULL)
+					unexpected(code, "Operator");
+			}
+
+			func->body = parseBody(code, &func->stackOffset, false, true);
+
+			func->name = malloc(structNameLen + strlen("operator") + 2);
+			sprintf(func->name, "%s operator", structName);
+
+			overload->handler = func;
+			overload->next = struc->overloads;
+			struc->overloads = overload;
+			continue;
+		}
+		else if(lookahead(code, "constructor"))
+		{
+			name = malloc(structNameLen + strlen("constructor") + 2);
+			sprintf(name, "%s.constructor", structName);
+
+			struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
+			overload->op = "new";
+			overload->handler = parseFunction(code, name);
+
+			overload->next = struc->overloads;
+			struc->overloads = overload;
+			continue;
+		}
+		else if(lookahead(code, "destructor"))
+		{
+			name = malloc(structNameLen + strlen("destructor") + 2);
+			sprintf(name, "%s.destructor", structName);
+
+			struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
+			overload->op = "delete";
+			overload->handler = parseFunction(code, name);
+
+			overload->next = struc->overloads;
+			struc->overloads = overload;
+			continue;
+		}
+
+		name = readIdentifier(code);
+		struct ptrs_structlist *next = talloc(struct ptrs_structlist);
+		next->next = curr;
+		curr = next;
+
+		curr->name = name;
+
+		if(code->curr == '(')
+		{
+			char *funcName = malloc(structNameLen + strlen(name) + 2);
+			sprintf(funcName, "%s.%s", structName, name);
+
+			curr->type = PTRS_STRUCTMEMBER_FUNCTION;
+			curr->value.function = parseFunction(code, funcName);
+		}
+		else if(code->curr == '[')
+		{
+			curr->type = PTRS_STRUCTMEMBER_VARARRAY;
+			consumec(code, '[');
+			ptrs_ast_t *ast = parseExpression(code);
+			consumec(code, ']');
+			consumec(code, ';');
+
+			if(ast->handler != PTRS_HANDLE_CONSTANT)
+				PTRS_HANDLE_ASTERROR(ast, "Struct array member size must be a constant");
+
+			curr->value.size = ast->arg.constval.value.intval * sizeof(ptrs_var_t);
+			curr->offset = struc->size;
+			struc->size += curr->value.size;
+			free(ast);
+		}
+		else if(code->curr == '{')
+		{
+			curr->type = PTRS_STRUCTMEMBER_ARRAY;
+			consumec(code, '{');
+			ptrs_ast_t *ast = parseExpression(code);
+			consumec(code, '}');
+			consumec(code, ';');
+
+			if(ast->handler != PTRS_HANDLE_CONSTANT)
+				PTRS_HANDLE_ASTERROR(ast, "Struct array member size must be a constant");
+
+			curr->value.size = ast->arg.constval.value.intval;
+			curr->offset = struc->size;
+			struc->size += curr->value.size;
+			free(ast);
+		}
+		else
+		{
+			curr->offset = struc->size;
+			struc->size += sizeof(ptrs_var_t);
+
+			if(lookahead(code, "="))
+				curr->value.startval = parseExpression(code);
+			else
+				curr->value.startval = NULL;
+
+			consumec(code, ';');
+		}
+	}
+	struc->member = curr;
+	consumec(code, '}');
+	consumec(code, ';');
+}
+
 struct typeName
 {
 	const char *name;
@@ -1265,37 +1341,26 @@ static ptrs_vartype_t readTypeName(code_t *code)
 	return PTRS_TYPE_STRUCT + 1;
 }
 
-struct opinfo specialOverloads[] = {
-	{"()", 0, false, NULL}, //foo()
-	{"[]", 0, false, NULL}, //foo["bar"]
-	{".", 0, false, NULL}, //foo.bar
-	{"cast", 0, false, NULL}, //cast<int>foo
-	{"new", 0, false, NULL}, //new foo()
-	{"delete", 0, false, NULL}, //delete foo;
-};
-int specialOverloadsCount = sizeof(specialOverloads) / sizeof(struct opinfo);
-
-static const char *readOperatorFrom(code_t *code, struct opinfo *ops, int opCount)
+static ptrs_asthandler_t readOperatorFrom(code_t *code, struct opinfo *ops, int opCount)
 {
 	for(int i = 0; i < opCount; i++)
 	{
 		if(lookahead(code, ops[i].op))
-			return ops[i].op;
+			return ops[i].handler;
 	}
 	return NULL;
 }
-static const char *readOperator(code_t *code)
+static ptrs_asthandler_t readPrefixOperator(code_t *code)
 {
-	const char *op;
-	if((op = readOperatorFrom(code, prefixOps, prefixOpCount)) != NULL)
-		return op;
-	if((op = readOperatorFrom(code, binaryOps, binaryOpCount)) != NULL)
-		return op;
-	if((op = readOperatorFrom(code, specialOverloads, specialOverloadsCount)) != NULL)
-		return op;
-
-	unexpected(code, "Operator");
-	return NULL; //doh
+	return readOperatorFrom(code, prefixOps, prefixOpCount);
+}
+static ptrs_asthandler_t readSuffixOperator(code_t *code)
+{
+	return readOperatorFrom(code, suffixedOps, suffixedOpCount);
+}
+static ptrs_asthandler_t readBinaryOperator(code_t *code)
+{
+	return readOperatorFrom(code, binaryOps, binaryOpCount);
 }
 
 static char *readIdentifier(code_t *code)
