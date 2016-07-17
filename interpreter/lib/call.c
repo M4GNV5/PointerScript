@@ -18,11 +18,8 @@
 ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_var_t *func, ptrs_var_t *result, struct ptrs_astlist *arguments, ptrs_scope_t *scope)
 {
 	int len = ptrs_astlist_length(arguments, ast, scope);
-
-	ptrs_var_t args[len + 1];
+	ptrs_var_t args[len];
 	ptrs_astlist_handle(arguments, args, scope);
-	args[len].type = PTRS_TYPE_NATIVE;
-	args[len].value.nativeval = NULL;
 
 	ptrs_var_t overload;
 
@@ -80,6 +77,7 @@ ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t 
 	{
 		val.type = PTRS_TYPE_POINTER;
 		val.value.ptrval = &argv[func->argc];
+		val.meta.array.size = argc - func->argc;
 		ptrs_scope_set(scope, func->vararg, &val);
 	}
 
