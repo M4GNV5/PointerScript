@@ -66,6 +66,7 @@ static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *
 	{ \
 		result->type = PTRS_TYPE_NATIVE; \
 		result->value.intval = left->value.intval + right->value.intval; \
+		result->meta.array.readOnly = tleft == PTRS_TYPE_NATIVE ? left->meta.array.readOnly : right->meta.array.readOnly; \
 	} \
 	else if(tleft == PTRS_TYPE_POINTER && tright == PTRS_TYPE_INT) \
 	{ \
@@ -84,6 +85,7 @@ static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *
 	{ \
 		result->type = PTRS_TYPE_NATIVE; \
 		result->value.intval = left->value.intval - right->value.intval; \
+		result->meta.array.readOnly = tleft == PTRS_TYPE_NATIVE ? left->meta.array.readOnly : right->meta.array.readOnly; \
 	} \
 	else if(tleft == PTRS_TYPE_NATIVE && tright == PTRS_TYPE_NATIVE) \
 	{ \
@@ -293,6 +295,7 @@ ptrs_var_t *ptrs_handle_prefix_length(ptrs_ast_t *node, ptrs_var_t *result, ptrs
 		else \
 			ptrs_error(node, scope, "Cannot use prefixed operator %s on variable of type %s", opLabel, ptrs_typetoa(type)); \
 		\
+		result->meta = value->meta; \
 		return result; \
 	}
 
@@ -338,6 +341,7 @@ handle_prefix(minus, -, "-", handle_prefix_float(-), /*nothing*/)
 		else \
 			ptrs_error(node, scope, "Cannot use suffixed operator %s on variable of type %s", opLabel, ptrs_typetoa(type)); \
 		\
+		result->meta = value->meta; \
 		return result; \
 	}
 
