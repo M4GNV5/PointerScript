@@ -1249,7 +1249,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			sprintf(name, "%s.constructor", structName);
 
 			struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
-			overload->op = "new";
+			overload->isLeftSide = true;
+			overload->op = PTRS_HANDLE_NEW;
 			overload->handler = parseFunction(code, name);
 
 			overload->next = struc->overloads;
@@ -1262,7 +1263,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			sprintf(name, "%s.destructor", structName);
 
 			struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
-			overload->op = "delete";
+			overload->isLeftSide = true;
+			overload->op = PTRS_HANDLE_DELETE;
 			overload->handler = parseFunction(code, name);
 
 			overload->next = struc->overloads;
