@@ -275,6 +275,10 @@ ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 		case PTRS_TYPE_FLOAT:
 			result->value.floatval = ptrs_vartof(value);
 			break;
+		case PTRS_TYPE_NATIVE:
+			result->value.nativeval = ptrs_alloc(scope, 32);
+			result->value.strval = ptrs_vartoa(value, result->value.nativeval, 32);
+			break;
 		default:
 			ptrs_error(node, scope, "Cannot cast to %s", ptrs_typetoa(expr.type));
 	}
