@@ -1163,11 +1163,11 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					if(overload->op == NULL)
 					{
 						func->argc = 1;
-						func->args = talloc(ptrs_symbol_t);
 						overload->op = readBinaryOperator(code);
 
 						if(overload->op != NULL)
 						{
+							func->args = talloc(ptrs_symbol_t);
 							func->args[0] = addSymbol(code, readIdentifier(code));
 						}
 						else
@@ -1175,12 +1175,14 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 							if(code->curr == '.')
 							{
 								next(code);
+								func->args = talloc(ptrs_symbol_t);
 								func->args[0] = addSymbol(code, readIdentifier(code));
 								overload->op = PTRS_HANDLE_MEMBER;
 							}
 							else if(code->curr == '[')
 							{
 								next(code);
+								func->args = talloc(ptrs_symbol_t);
 								func->args[0] = addSymbol(code, readIdentifier(code));
 								consumec(code, ']');
 								overload->op = PTRS_HANDLE_INDEX;
