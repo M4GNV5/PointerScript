@@ -42,9 +42,9 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end);
 static void parseStruct(code_t *code, ptrs_struct_t *struc);
 
 static ptrs_vartype_t readTypeName(code_t *code);
-static ptrs_asthandler_t readPrefixOperator(code_t *code);
-static ptrs_asthandler_t readSuffixOperator(code_t *code);
-static ptrs_asthandler_t readBinaryOperator(code_t *code);
+static ptrs_asthandler_t readPrefixOperator(code_t *code, const char **label);
+static ptrs_asthandler_t readSuffixOperator(code_t *code, const char **label);
+static ptrs_asthandler_t readBinaryOperator(code_t *code, const char **label);
 static char *readIdentifier(code_t *code);
 static char *readString(code_t *code, int *length);
 static char readEscapeSequence(code_t *code);
@@ -1140,6 +1140,9 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 		{
 			symbolScope_increase(code, 1);
 
+			const char *nameFormat;
+			const char *opLabel;
+			char *otherName = NULL;
 			ptrs_function_t *func = talloc(ptrs_function_t);
 			func->argc = 0;
 			func->argv = NULL;
@@ -1148,42 +1151,54 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
 			overload->isLeftSide = true;
 
-			overload->op = readPrefixOperator(code);
+			overload->op = readPrefixOperator(code, &opLabel);
 
 			if(overload->op != NULL)
 			{
+				nameFormat = "%1$s.op %2$sthis";
 				consume(code, "this");
 			}
 			else
 			{
 				if(lookahead(code, "this"))
 				{
-					overload->op = readSuffixOperator(code);
+					overload->op = readSuffixOperator(code, &opLabel);
+					nameFormat = "%1$s.op this%2$s";
 
 					if(overload->op == NULL)
 					{
 						func->argc = 1;
-						overload->op = readBinaryOperator(code);
+						overload->op = readBinaryOperator(code, &opLabel);
 
 						if(overload->op != NULL)
 						{
+							nameFormat = "%1$s.op this %2$s %3$s";
+							otherName = readIdentifier(code);
 							func->args = talloc(ptrs_symbol_t);
-							func->args[0] = addSymbol(code, readIdentifier(code));
+							func->args[0] = addSymbol(code, otherName);
 						}
 						else
 						{
 							if(code->curr == '.')
 							{
 								next(code);
+								opLabel = ".";
+								nameFormat = "%1$s.op this.%3$s";
+								otherName = readIdentifier(code);
+
 								func->args = talloc(ptrs_symbol_t);
-								func->args[0] = addSymbol(code, readIdentifier(code));
+								func->args[0] = addSymbol(code, otherName);
 								overload->op = PTRS_HANDLE_MEMBER;
 							}
 							else if(code->curr == '[')
 							{
 								next(code);
+								opLabel = "[]";
+								nameFormat = "%1$s.op this[%3$s]";
+								otherName = readIdentifier(code);
+
 								func->args = talloc(ptrs_symbol_t);
-								func->args[0] = addSymbol(code, readIdentifier(code));
+								func->args[0] = addSymbol(code, otherName);
 								consumec(code, ']');
 								overload->op = PTRS_HANDLE_INDEX;
 							}
@@ -1192,6 +1207,9 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 								func->argc = parseArgumentDefinitionList(code,
 									&func->args, &func->argv, &func->vararg);
 								overload->op = PTRS_HANDLE_CALL;
+
+								opLabel = "()";
+								nameFormat = "%1$s.op this()";
 							}
 						}
 
@@ -1199,12 +1217,15 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				}
 				else
 				{
+					nameFormat = "%1$s.op %3$s %2$s this";
+					otherName = readIdentifier(code);
+
 					func->argc = 1;
 					func->args = talloc(ptrs_symbol_t);
-					func->args[0] = addSymbol(code, readIdentifier(code));
+					func->args[0] = addSymbol(code, otherName);
 
 					overload->isLeftSide = false;
-					overload->op = readBinaryOperator(code);
+					overload->op = readBinaryOperator(code, &opLabel);
 					consume(code, "this");
 				}
 
@@ -1212,10 +1233,10 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					unexpected(code, "Operator");
 			}
 
-			func->body = parseBody(code, &func->stackOffset, false, true);
+			func->name = malloc(snprintf(NULL, 0, nameFormat, structName, opLabel, otherName) + 1);
+			sprintf(func->name, nameFormat, structName, opLabel, otherName);
 
-			func->name = malloc(structNameLen + strlen("operator") + 2);
-			sprintf(func->name, "%s operator", structName);
+			func->body = parseBody(code, &func->stackOffset, false, true);
 
 			overload->handler = func;
 			overload->next = struc->overloads;
@@ -1343,26 +1364,29 @@ static ptrs_vartype_t readTypeName(code_t *code)
 	return PTRS_TYPE_STRUCT + 1;
 }
 
-static ptrs_asthandler_t readOperatorFrom(code_t *code, struct opinfo *ops, int opCount)
+static ptrs_asthandler_t readOperatorFrom(code_t *code, const char **label, struct opinfo *ops, int opCount)
 {
 	for(int i = 0; i < opCount; i++)
 	{
 		if(lookahead(code, ops[i].op))
+		{
+			*label = ops[i].op;
 			return ops[i].handler;
+		}
 	}
 	return NULL;
 }
-static ptrs_asthandler_t readPrefixOperator(code_t *code)
+static ptrs_asthandler_t readPrefixOperator(code_t *code, const char **label)
 {
-	return readOperatorFrom(code, prefixOps, prefixOpCount);
+	return readOperatorFrom(code, label, prefixOps, prefixOpCount);
 }
-static ptrs_asthandler_t readSuffixOperator(code_t *code)
+static ptrs_asthandler_t readSuffixOperator(code_t *code, const char **label)
 {
-	return readOperatorFrom(code, suffixedOps, suffixedOpCount);
+	return readOperatorFrom(code, label, suffixedOps, suffixedOpCount);
 }
-static ptrs_asthandler_t readBinaryOperator(code_t *code)
+static ptrs_asthandler_t readBinaryOperator(code_t *code, const char **label)
 {
-	return readOperatorFrom(code, binaryOps, binaryOpCount);
+	return readOperatorFrom(code, label, binaryOps, binaryOpCount);
 }
 
 static char *readIdentifier(code_t *code)
