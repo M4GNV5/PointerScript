@@ -243,6 +243,8 @@ ptrs_var_t *ptrs_handle_prefix_length(ptrs_ast_t *node, ptrs_var_t *result, ptrs
 		uint32_t size = value->meta.array.size;
 		if(size == 0 && value->type == PTRS_TYPE_NATIVE)
 			size = strlen(value->value.strval);
+		else if(value->type == PTRS_TYPE_POINTER)
+			size *= sizeof(ptrs_var_t);
 		result->value.intval = size;
 	}
 	else if(value->type == PTRS_TYPE_STRUCT)
