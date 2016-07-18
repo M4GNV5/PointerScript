@@ -80,43 +80,8 @@ ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 ptrs_var_t *ptrs_handle_new(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_call expr = node->arg.call;
-	ptrs_var_t *constructor = expr.value->handler(expr.value, result, scope);
-	ptrs_struct_t *type = constructor->value.structval;
-
-	if(constructor->type != PTRS_TYPE_STRUCT || type->data != NULL)
-		ptrs_error(node, scope, "Variable of type %s is not a constructor", ptrs_typetoa(constructor->type));
-
-	ptrs_struct_t *instance = malloc(sizeof(ptrs_struct_t) + type->size);
-	memcpy(instance, type, sizeof(ptrs_struct_t));
-	instance->data = instance + 1;
-
-	ptrs_scope_t *initScope = ptrs_scope_increase(scope, 0);
-	initScope->outer = instance->scope;
-	struct ptrs_structlist *member = instance->member;
-	while(member != NULL)
-	{
-		if(member->type == PTRS_STRUCTMEMBER_VAR && member->value.startval != NULL)
-		{
-			ptrs_ast_t *ast = member->value.startval;
-			ptrs_var_t *memberAddr = instance->data + member->offset;
-			ptrs_var_t *val = ast->handler(ast, memberAddr, initScope);
-			if(val != memberAddr)
-				memcpy(memberAddr, val, sizeof(ptrs_var_t));
-		}
-		member = member->next;
-	}
-
-	ptrs_var_t overload = {{.structval = instance}, PTRS_TYPE_STRUCT};
-	if((overload.value.funcval = ptrs_struct_getOverload(&overload, ptrs_handle_new, true)) != NULL)
-	{
-		overload.type = PTRS_TYPE_FUNCTION;
-		overload.meta.this = instance;
-		ptrs_call(node, &overload, result, expr.arguments, scope);
-	}
-
-	result->type = PTRS_TYPE_STRUCT;
-	result->value.structval = instance;
-	return result;
+	return ptrs_struct_construct(expr.value->handler(expr.value, result, scope),
+		expr.arguments, false, node, result, scope);
 }
 
 ptrs_var_t *ptrs_handle_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
