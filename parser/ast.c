@@ -36,8 +36,8 @@ static ptrs_ast_t *parseStmtList(code_t *code, char end);
 static ptrs_ast_t *parseStatement(code_t *code);
 static ptrs_ast_t *parseExpression(code_t *code);
 static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec);
-static ptrs_ast_t *parseUnaryExpr(code_t *code);
-static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast);
+static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls);
+static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignoreCalls);
 static struct ptrs_astlist *parseExpressionList(code_t *code, char end);
 static void parseStruct(code_t *code, ptrs_struct_t *struc);
 
@@ -348,14 +348,8 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		}
 		else if(lookahead(code, ":"))
 		{
-			ptrs_ast_t *ctor = talloc(ptrs_ast_t);
-			char *name = readIdentifier(code);
-
-			ctor->handler = PTRS_HANDLE_IDENTIFIER;
-			ctor->arg.varval = getSymbol(code, name);
-			free(name);
 			stmt->handler = PTRS_HANDLE_STRUCTVAR;
-			stmt->arg.define.value = ctor;
+			stmt->arg.define.value = parseUnaryExpr(code, true);
 
 			consumec(code, '(');
 			stmt->arg.define.initVal = parseExpressionList(code, ')');
@@ -660,7 +654,7 @@ static int suffixedOpCount = sizeof(suffixedOps) / sizeof(struct opinfo);
 
 static ptrs_ast_t *parseExpression(code_t *code)
 {
-	return parseBinaryExpr(code, parseUnaryExpr(code), 0);
+	return parseBinaryExpr(code, parseUnaryExpr(code, false), 0);
 }
 
 static struct opinfo *peekBinaryOp(code_t *code)
@@ -686,7 +680,7 @@ static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 		struct opinfo *op = ahead;
 		int pos = code->pos;
 		consume(code, ahead->op);
-		ptrs_ast_t *right = parseUnaryExpr(code);
+		ptrs_ast_t *right = parseUnaryExpr(code, false);
 		ahead = peekBinaryOp(code);
 
 		while(ahead != NULL && ahead->precendence > op->precendence)
@@ -752,7 +746,7 @@ struct constinfo constants[] = {
 };
 int constantCount = sizeof(constants) / sizeof(struct constinfo);
 
-static ptrs_ast_t *parseUnaryExpr(code_t *code)
+static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 {
 	char curr = code->curr;
 	int pos = code->pos;
@@ -763,7 +757,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 		if(lookahead(code, prefixOps[i].op))
 		{
 			ast = talloc(ptrs_ast_t);
-			ast->arg.astval = parseUnaryExpr(code);
+			ast->arg.astval = parseUnaryExpr(code, false);
 			ast->handler = prefixOps[i].handler;
 			ast->codepos = pos;
 			ast->code = code->src;
@@ -786,19 +780,11 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 
 	if(lookahead(code, "new"))
 	{
-		ptrs_ast_t *val = talloc(ptrs_ast_t);
-		val->handler = PTRS_HANDLE_IDENTIFIER;
-		val->codepos = code->pos;
-		val->code = code->src;
-		val->file = code->filename;
-		char *name = readIdentifier(code);
-		val->arg.varval = getSymbol(code, name);
-		free(name);
-
-		consumec(code, '(');
 		ast = talloc(ptrs_ast_t);
 		ast->handler = PTRS_HANDLE_NEW;
-		ast->arg.call.value = val;
+		ast->arg.call.value = parseUnaryExpr(code, true);
+
+		consumec(code, '(');
 		ast->arg.call.arguments = parseExpressionList(code, ')');
 		consumec(code, ')');
 	}
@@ -829,7 +815,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 		ast->arg.cast.type = type;
 		consumec(code, '>');
 
-		ast->arg.cast.value = parseUnaryExpr(code);
+		ast->arg.cast.value = parseUnaryExpr(code, false);
 	}
 	else if(lookahead(code, "cast"))
 	{
@@ -844,7 +830,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 		ast->arg.cast.type = type;
 		consumec(code, '>');
 
-		ast->arg.cast.value = parseUnaryExpr(code);
+		ast->arg.cast.value = parseUnaryExpr(code, false);
 	}
 	else if(lookahead(code, "function"))
 	{
@@ -1011,13 +997,13 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code)
 	ptrs_ast_t *old;
 	do {
 		old = ast;
-		ast = parseUnaryExtension(code, ast);
+		ast = parseUnaryExtension(code, ast, ignoreCalls);
 	} while(ast != old);
 
 	return ast;
 }
 
-static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast)
+static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignoreCalls)
 {
 	char curr = code->curr;
 	if(curr == '.')
@@ -1034,7 +1020,7 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast)
 
 		ast = member;
 	}
-	else if(curr == '(')
+	else if(!ignoreCalls && curr == '(')
 	{
 		ptrs_ast_t *call = talloc(ptrs_ast_t);
 		call->handler = PTRS_HANDLE_CALL;
