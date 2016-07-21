@@ -1050,6 +1050,26 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 		ast = indexExpr;
 		consumec(code, ']');
 	}
+	else if(lookahead(code, "->"))
+	{
+		ptrs_ast_t *dereference = talloc(ptrs_ast_t);
+		dereference->handler = PTRS_HANDLE_PREFIX_DEREFERENCE;
+		dereference->codepos = code->pos - 2;
+		dereference->code = code->src;
+		dereference->file = code->filename;
+		dereference->arg.astval = ast;
+
+		ptrs_ast_t *member = talloc(ptrs_ast_t);
+		member->handler = PTRS_HANDLE_MEMBER;
+		member->codepos = code->pos;
+		member->code = code->src;
+		member->file = code->filename;
+
+		member->arg.member.base = dereference;
+		member->arg.member.name = readIdentifier(code);
+
+		ast = member;
+	}
 	else
 	{
 		int pos = code->pos;
