@@ -126,6 +126,12 @@ struct ptrs_ast_forin
 	unsigned stackOffset;
 };
 
+struct ptrs_ast_yield
+{
+	ptrs_symbol_t yieldVal;
+	struct ptrs_ast *iterator;
+};
+
 union ptrs_ast_arg
 {
 	char *strval;
@@ -151,6 +157,7 @@ union ptrs_ast_arg
 	struct ptrs_ast_control control;
 	struct ptrs_ast_for forstatement;
 	struct ptrs_ast_forin forin;
+	struct ptrs_ast_yield yield;
 };
 
 typedef ptrs_var_t* (*ptrs_asthandler_t)(struct ptrs_ast *, ptrs_var_t *, ptrs_scope_t *);

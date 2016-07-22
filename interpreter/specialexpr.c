@@ -306,3 +306,40 @@ ptrs_var_t *ptrs_handle_op_instanceof(ptrs_ast_t *node, ptrs_var_t *result, ptrs
 	result->meta.pointer = NULL;
 	return result;
 }
+
+extern ptrs_var_t __thread ptrs_forinOverloadResult;
+ptrs_var_t *ptrs_handle_yield(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_yield expr = node->arg.yield;
+	ptrs_var_t *val = expr.iterator->handler(expr.iterator, result, scope);
+
+	ptrs_var_t *yieldVal = ptrs_scope_get(scope, expr.yieldVal);
+	struct ptrs_ast_forin *forStmt = yieldVal->value.nativeval;
+
+	ptrs_scope_t *stmtScope = ptrs_scope_increase(scope, forStmt->stackOffset);
+	stmtScope->outer = (void*)yieldVal->meta.pointer;
+	stmtScope->callScope = scope;
+	stmtScope->callAst = node;
+	stmtScope->calleeName = "(for in loop)";
+
+	ptrs_var_t *iterval = ptrs_scope_get(stmtScope, forStmt->var);
+	memcpy(iterval, val, sizeof(ptrs_var_t));
+
+	val = forStmt->body->handler(forStmt->body, result, stmtScope);
+
+	if(stmtScope->exit > 1)
+	{
+		memcpy(&ptrs_forinOverloadResult, val, sizeof(ptrs_var_t));
+		result->value.intval = true;
+
+		if(stmtScope->exit == 3)
+			stmtScope->outer->exit = 3;
+	}
+	else
+	{
+		result->value.intval = false;
+	}
+
+	result->type = PTRS_TYPE_POINTER;
+	return result;
+}

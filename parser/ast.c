@@ -527,8 +527,6 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		consumec(code, '(');
 		int pos = code->pos;
 
-		symbolScope_increase(code, 0);
-
 		if(lookahead(code, "var"))
 			stmt->arg.forin.newvar = true;
 		else
@@ -539,14 +537,15 @@ static ptrs_ast_t *parseStatement(code_t *code)
 			char *name = readIdentifier(code);
 			if(lookahead(code, "in"))
 			{
+				stmt->arg.forin.value = parseExpression(code);
+				stmt->handler = PTRS_HANDLE_FORIN;
+				consumec(code, ')');
+
+				symbolScope_increase(code, 0);
 				if(stmt->arg.forin.newvar)
 					stmt->arg.forin.var = addSymbol(code, name);
 				else
 					stmt->arg.forin.var = getSymbol(code, name);
-
-				stmt->arg.forin.value = parseExpression(code);
-				stmt->handler = PTRS_HANDLE_FORIN;
-				consumec(code, ')');
 
 				stmt->arg.forin.body = parseScopelessBody(code, true);
 				stmt->arg.forin.stackOffset = symbolScope_decrease(code);
@@ -558,6 +557,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		code->pos = pos;
 		code->curr = code->src[pos];
 		stmt->handler = PTRS_HANDLE_FOR;
+		symbolScope_increase(code, 0);
 
 		stmt->arg.forstatement.init = parseStatement(code);
 		stmt->arg.forstatement.condition = parseExpression(code);
@@ -831,6 +831,15 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 		consumec(code, '>');
 
 		ast->arg.cast.value = parseUnaryExpr(code, false);
+	}
+	else if(lookahead(code, "yield"))
+	{
+		ast = talloc(ptrs_ast_t);
+		if(ptrs_ast_getSymbol(code->symbols, ".yield", &ast->arg.yield.yieldVal) != 0)
+			unexpectedm(code, NULL, "Yield expressions are only allowed in 'in this' operator overloads");
+
+		ast->handler = PTRS_HANDLE_YIELD;
+		ast->arg.yield.iterator = parseExpression(code);
 	}
 	else if(lookahead(code, "function"))
 	{
@@ -1220,6 +1229,16 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 						}
 
 					}
+				}
+				else if(lookahead(code, "in"))
+				{
+					consume(code, "this");
+					nameFormat = "%1$s.op in this";
+					overload->op = PTRS_HANDLE_FORIN;
+
+					func->argc = 1;
+					func->args = talloc(ptrs_symbol_t);
+					func->args[0] = addSymbol(code, strdup(".yield"));
 				}
 				else
 				{

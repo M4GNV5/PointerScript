@@ -577,38 +577,54 @@ ptrs_var_t *ptrs_handle_for(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 	return result;
 }
 
+ptrs_var_t __thread ptrs_forinOverloadResult;
 ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_forin stmt = node->arg.forin;
-	ptrs_scope_t *stmtScope = ptrs_scope_increase(scope, stmt.stackOffset);
-
-	ptrs_var_t *val = stmt.value->handler(stmt.value, result, stmtScope);
+	ptrs_var_t *val = stmt.value->handler(stmt.value, result, scope);
 
 	if(val->type != PTRS_TYPE_STRUCT)
 		ptrs_error(stmt.value, scope, "Cannot iterate over variable of type %s", ptrs_typetoa(val->type));
 
-	if(stmt.newvar)
-		ptrs_scope_set(stmtScope, stmt.var, result);
-	ptrs_var_t *iterval = ptrs_scope_get(stmtScope, stmt.var);
-
-	struct ptrs_structlist *curr = val->value.structval->member;
-	while(curr != NULL)
+	ptrs_var_t overload;
+	if((overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_forin, true)) != NULL)
 	{
-		iterval->type = PTRS_TYPE_NATIVE;
-		iterval->value.strval = curr->name;
-		iterval->meta.array.readOnly = true;
+		ptrs_var_t yieldVal;
+		yieldVal.value.nativeval = &node->arg.forin;
+		yieldVal.meta.pointer = (void*)scope;
 
-		stmt.body->handler(stmt.body, result, stmtScope);
+		overload.type = PTRS_TYPE_FUNCTION;
+		overload.meta.this = val->value.structval;
+		val = ptrs_callfunc(node, result, scope, &overload, 1, &yieldVal);
 
-		if(stmtScope->exit == 3)
-			scope->exit = 3;
-		if(stmtScope->exit > 1)
-			return result;
-
-		curr = curr->next;
+		if(scope->exit == 3)
+			memcpy(result, &ptrs_forinOverloadResult, sizeof(ptrs_var_t));
+		return result;
 	}
+	else
+	{
+		ptrs_scope_t *stmtScope = ptrs_scope_increase(scope, stmt.stackOffset);
+		ptrs_var_t *iterval = ptrs_scope_get(stmtScope, stmt.var);
 
-	return result;
+		struct ptrs_structlist *curr = val->value.structval->member;
+		while(curr != NULL)
+		{
+			iterval->type = PTRS_TYPE_NATIVE;
+			iterval->value.strval = curr->name;
+			iterval->meta.array.readOnly = true;
+
+			stmt.body->handler(stmt.body, result, stmtScope);
+
+			if(stmtScope->exit == 3)
+				scope->exit = 3;
+			if(stmtScope->exit > 1)
+				return result;
+
+			curr = curr->next;
+		}
+
+		return result;
+	}
 }
 
 ptrs_var_t *ptrs_handle_file(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
