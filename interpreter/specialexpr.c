@@ -311,7 +311,9 @@ extern ptrs_var_t __thread ptrs_forinOverloadResult;
 ptrs_var_t *ptrs_handle_yield(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_yield expr = node->arg.yield;
-	ptrs_var_t *val = expr.iterator->handler(expr.iterator, result, scope);
+	int len = ptrs_astlist_length(node->arg.yield.values, node, scope);
+	ptrs_var_t vals[len];
+	ptrs_astlist_handle(node->arg.yield.values, vals, scope);
 
 	ptrs_var_t *yieldVal = ptrs_scope_get(scope, expr.yieldVal);
 	struct ptrs_ast_forin *forStmt = yieldVal->value.nativeval;
@@ -322,14 +324,14 @@ ptrs_var_t *ptrs_handle_yield(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	stmtScope->callAst = node;
 	stmtScope->calleeName = "(for in loop)";
 
-	ptrs_var_t *iterval = ptrs_scope_get(stmtScope, forStmt->var);
-	memcpy(iterval, val, sizeof(ptrs_var_t));
+	for(int i = 0; i < forStmt->varcount; i++)
+		ptrs_scope_set(stmtScope, forStmt->varsymbols[i], &vals[i]);
 
-	val = forStmt->body->handler(forStmt->body, result, stmtScope);
+	yieldVal = forStmt->body->handler(forStmt->body, result, stmtScope);
 
 	if(stmtScope->exit > 1)
 	{
-		memcpy(&ptrs_forinOverloadResult, val, sizeof(ptrs_var_t));
+		memcpy(&ptrs_forinOverloadResult, yieldVal, sizeof(ptrs_var_t));
 		result->value.intval = true;
 
 		if(stmtScope->exit == 3)

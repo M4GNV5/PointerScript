@@ -119,8 +119,8 @@ struct ptrs_ast_for
 
 struct ptrs_ast_forin
 {
-	bool newvar;
-	ptrs_symbol_t var;
+	int varcount;
+	ptrs_symbol_t *varsymbols;
 	struct ptrs_ast *value;
 	struct ptrs_ast *body;
 	unsigned stackOffset;
@@ -129,7 +129,7 @@ struct ptrs_ast_forin
 struct ptrs_ast_yield
 {
 	ptrs_symbol_t yieldVal;
-	struct ptrs_ast *iterator;
+	struct ptrs_astlist *values;
 };
 
 union ptrs_ast_arg

@@ -581,7 +581,7 @@ ptrs_var_t __thread ptrs_forinOverloadResult;
 ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_forin stmt = node->arg.forin;
-	ptrs_var_t *val = stmt.value->handler(stmt.value, result, scope);
+	ptrs_var_t *val = stmt.value->handler(stmt.value, result, ptrs_scope_increase(scope, 0));
 
 	if(val->type != PTRS_TYPE_STRUCT)
 		ptrs_error(stmt.value, scope, "Cannot iterate over variable of type %s", ptrs_typetoa(val->type));
@@ -604,14 +604,43 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	else
 	{
 		ptrs_scope_t *stmtScope = ptrs_scope_increase(scope, stmt.stackOffset);
-		ptrs_var_t *iterval = ptrs_scope_get(stmtScope, stmt.var);
+		ptrs_var_t *keyvar = ptrs_scope_get(stmtScope, stmt.varsymbols[0]);
+		ptrs_var_t *valvar = NULL;
+		if(stmt.varcount > 1)
+			valvar = ptrs_scope_get(stmtScope, stmt.varsymbols[1]);
 
 		struct ptrs_structlist *curr = val->value.structval->member;
 		while(curr != NULL)
 		{
-			iterval->type = PTRS_TYPE_NATIVE;
-			iterval->value.strval = curr->name;
-			iterval->meta.array.readOnly = true;
+			keyvar->type = PTRS_TYPE_NATIVE;
+			keyvar->value.strval = curr->name;
+			keyvar->meta.array.readOnly = true;
+
+			if(valvar != NULL)
+			{
+				switch(curr->type)
+				{
+					case PTRS_STRUCTMEMBER_VAR:
+						memcpy(valvar, val->value.structval->data + curr->offset, sizeof(ptrs_var_t));
+						break;
+					case PTRS_STRUCTMEMBER_FUNCTION:
+						valvar->type = PTRS_TYPE_FUNCTION;
+						valvar->value.funcval = curr->value.function;
+						valvar->meta.this = val->value.structval;
+						break;
+					case PTRS_STRUCTMEMBER_ARRAY:
+						valvar->type = PTRS_TYPE_NATIVE;
+						valvar->value.nativeval = val->value.structval->data + curr->offset;
+						valvar->meta.array.readOnly = false;
+						valvar->meta.array.size = curr->value.size;
+						break;
+					case PTRS_STRUCTMEMBER_VARARRAY:
+						valvar->type = PTRS_TYPE_POINTER;
+						valvar->value.ptrval = val->value.structval->data + curr->offset;
+						valvar->meta.array.size = curr->value.size;
+						break;
+				}
+			}
 
 			stmt.body->handler(stmt.body, result, stmtScope);
 

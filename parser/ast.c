@@ -150,6 +150,49 @@ static ptrs_ast_t *parseStmtList(code_t *code, char end)
 	return elem;
 }
 
+int parseIdentifierList(code_t *code, char *end, ptrs_symbol_t **symbols, char ***fields)
+{
+	int pos = code->pos;
+	int count = 1;
+	for(;;)
+	{
+		if(lookahead(code, end))
+		{
+			break;
+		}
+		else if(code->curr == ',' || code->curr == '_' || isspace(code->curr) || isalnum(code->curr))
+		{
+			if(code->curr == ',')
+				count++;
+			rawnext(code);
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	code->pos = pos;
+	code->curr = code->src[pos];
+	if(fields != NULL)
+		*fields = malloc(sizeof(char *) * count);
+	*symbols = malloc(sizeof(ptrs_symbol_t) * count);
+
+	for(int i = 0; i < count; i++)
+	{
+		char *name = readIdentifier(code);
+		(*symbols)[i] = addSymbol(code, name);
+
+		if(fields != NULL)
+			(*fields)[i] = strdup(name);
+
+		if(i < count - 1)
+			consumec(code, ',');
+	}
+
+	return count;
+}
+
 struct argdeflist
 {
 	ptrs_symbol_t symbol;
@@ -368,45 +411,9 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "import"))
 	{
-		int pos = code->pos;
-		int count = 1;
-		for(;;)
-		{
-			if(lookahead(code, "from") || code->curr == ';')
-			{
-				break;
-			}
-			else if(code->curr == ',' || code->curr == '_' || isspace(code->curr) || isalnum(code->curr))
-			{
-				if(code->curr == ',')
-					count++;
-				rawnext(code);
-			}
-			else
-			{
-				unexpected(code, "Identifier, from or ;");
-			}
-		}
-
-		code->pos = pos;
-		code->curr = code->src[pos];
-		char **fields = malloc(sizeof(char *) * count);
-		ptrs_symbol_t *symbols = malloc(sizeof(ptrs_symbol_t) * count);
-
 		stmt->handler = PTRS_HANDLE_IMPORT;
-		stmt->arg.import.count = count;
-		stmt->arg.import.fields = fields;
-		stmt->arg.import.symbols = symbols;
-
-		for(int i = 0; i < count; i++)
-		{
-			char *name = readIdentifier(code);
-			fields[i] = name;
-			symbols[i] = addSymbol(code, strdup(name));
-
-			if(i < count - 1)
-				consumec(code, ',');
-		}
+		stmt->arg.import.count = parseIdentifierList(code, "from", &stmt->arg.import.symbols,
+			&stmt->arg.import.fields);
 
 		if(lookahead(code, "from"))
 			stmt->arg.import.from = parseExpression(code);
@@ -522,43 +529,26 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		consumec(code, ';');
 		stmt->arg.control.stackOffset = symbolScope_decrease(code);
 	}
-	else if(lookahead(code, "for"))
+	else if(lookahead(code, "foreach"))
 	{
 		consumec(code, '(');
-		int pos = code->pos;
+		symbolScope_increase(code, 0);
+		stmt->arg.forin.varcount = parseIdentifierList(code, "in", &stmt->arg.forin.varsymbols, NULL);
 
-		if(lookahead(code, "var"))
-			stmt->arg.forin.newvar = true;
-		else
-			stmt->arg.forin.newvar = false;
+		consume(code, "in");
+		stmt->arg.forin.value = parseExpression(code);
+		stmt->handler = PTRS_HANDLE_FORIN;
+		consumec(code, ')');
 
-		if(isalpha(code->curr) || code->curr == '_')
-		{
-			char *name = readIdentifier(code);
-			if(lookahead(code, "in"))
-			{
-				stmt->arg.forin.value = parseExpression(code);
-				stmt->handler = PTRS_HANDLE_FORIN;
-				consumec(code, ')');
-
-				symbolScope_increase(code, 0);
-				if(stmt->arg.forin.newvar)
-					stmt->arg.forin.var = addSymbol(code, name);
-				else
-					stmt->arg.forin.var = getSymbol(code, name);
-
-				stmt->arg.forin.body = parseScopelessBody(code, true);
-				stmt->arg.forin.stackOffset = symbolScope_decrease(code);
-				return stmt;
-			}
-			free(name);
-		}
-
-		code->pos = pos;
-		code->curr = code->src[pos];
+		stmt->arg.forin.body = parseScopelessBody(code, true);
+		stmt->arg.forin.stackOffset = symbolScope_decrease(code);
+	}
+	else if(lookahead(code, "for"))
+	{
 		stmt->handler = PTRS_HANDLE_FOR;
 		symbolScope_increase(code, 0);
 
+		consumec(code, '(');
 		stmt->arg.forstatement.init = parseStatement(code);
 		stmt->arg.forstatement.condition = parseExpression(code);
 		consumec(code, ';');
@@ -839,7 +829,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 			unexpectedm(code, NULL, "Yield expressions are only allowed in 'in this' operator overloads");
 
 		ast->handler = PTRS_HANDLE_YIELD;
-		ast->arg.yield.iterator = parseExpression(code);
+		ast->arg.yield.values = parseExpressionList(code, ';');
 	}
 	else if(lookahead(code, "function"))
 	{
