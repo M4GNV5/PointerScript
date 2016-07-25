@@ -1336,6 +1336,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 		}
 		else
 		{
+			curr->type = PTRS_STRUCTMEMBER_VAR;
 			curr->offset = struc->size;
 			struc->size += sizeof(ptrs_var_t);
 
