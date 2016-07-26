@@ -581,13 +581,11 @@ ptrs_var_t __thread ptrs_forinOverloadResult;
 ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_forin stmt = node->arg.forin;
-	ptrs_var_t *val = stmt.value->handler(stmt.value, result, ptrs_scope_increase(scope, 0));
-
-	if(val->type != PTRS_TYPE_STRUCT)
-		ptrs_error(stmt.value, scope, "Cannot iterate over variable of type %s", ptrs_typetoa(val->type));
+	ptrs_var_t valuev;
+	ptrs_var_t *val = stmt.value->handler(stmt.value, &valuev, ptrs_scope_increase(scope, 0));
 
 	ptrs_var_t overload;
-	if((overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_forin, true)) != NULL)
+	if(val->type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_forin, true)) != NULL)
 	{
 		ptrs_var_t yieldVal;
 		yieldVal.value.nativeval = &node->arg.forin;
@@ -601,7 +599,45 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 			memcpy(result, &ptrs_forinOverloadResult, sizeof(ptrs_var_t));
 		return result;
 	}
-	else
+	else if(val->type == PTRS_TYPE_POINTER || val->type == PTRS_TYPE_NATIVE)
+	{
+		ptrs_scope_t *stmtScope = ptrs_scope_increase(scope, stmt.stackOffset);
+		ptrs_var_t *indexvar = ptrs_scope_get(stmtScope, stmt.varsymbols[0]);
+		ptrs_var_t *valvar = NULL;
+		if(stmt.varcount > 1)
+			valvar = ptrs_scope_get(stmtScope, stmt.varsymbols[1]);
+
+		int len = val->meta.array.size;
+		if(len == 0 && val->type == PTRS_TYPE_NATIVE)
+			len = strlen(val->value.strval);
+
+		for(int i = 0; i < len; i++)
+		{
+			indexvar->type = PTRS_TYPE_INT;
+			indexvar->value.intval = i;
+			indexvar->meta.pointer = NULL;
+
+			if(valvar != NULL && val->type == PTRS_TYPE_NATIVE)
+			{
+				valvar->type = PTRS_TYPE_INT;
+				valvar->value.intval = val->value.strval[i];
+				valvar->meta.pointer = NULL;
+			}
+			else if(valvar != NULL)
+			{
+				memcpy(valvar, val->value.ptrval + i, sizeof(ptrs_var_t));
+			}
+
+			stmt.body->handler(stmt.body, result, stmtScope);
+
+			if(stmtScope->exit == 3)
+				scope->exit = 3;
+			if(stmtScope->exit > 1)
+				return result;
+		}
+		return result;
+	}
+	else if(val->type == PTRS_TYPE_STRUCT)
 	{
 		ptrs_scope_t *stmtScope = ptrs_scope_increase(scope, stmt.stackOffset);
 		ptrs_var_t *keyvar = ptrs_scope_get(stmtScope, stmt.varsymbols[0]);
@@ -653,6 +689,11 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		}
 
 		return result;
+	}
+	else
+	{
+		ptrs_error(stmt.value, scope, "Cannot iterate over variable of type %s", ptrs_typetoa(val->type));
+		return result; //doh
 	}
 }
 
