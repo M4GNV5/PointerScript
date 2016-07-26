@@ -458,7 +458,7 @@ ptrs_var_t *ptrs_handle_struct(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	while(curr != NULL)
 	{
 		if(curr->type == PTRS_STRUCTMEMBER_FUNCTION)
-			curr->value.function->scope = scope;
+			curr->function->scope = scope;
 		curr = curr->next;
 	}
 
@@ -654,28 +654,9 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 
 			if(valvar != NULL)
 			{
-				switch(curr->type)
-				{
-					case PTRS_STRUCTMEMBER_VAR:
-						memcpy(valvar, val->value.structval->data + curr->offset, sizeof(ptrs_var_t));
-						break;
-					case PTRS_STRUCTMEMBER_FUNCTION:
-						valvar->type = PTRS_TYPE_FUNCTION;
-						valvar->value.funcval = curr->value.function;
-						valvar->meta.this = val->value.structval;
-						break;
-					case PTRS_STRUCTMEMBER_ARRAY:
-						valvar->type = PTRS_TYPE_NATIVE;
-						valvar->value.nativeval = val->value.structval->data + curr->offset;
-						valvar->meta.array.readOnly = false;
-						valvar->meta.array.size = curr->value.size;
-						break;
-					case PTRS_STRUCTMEMBER_VARARRAY:
-						valvar->type = PTRS_TYPE_POINTER;
-						valvar->value.ptrval = val->value.structval->data + curr->offset;
-						valvar->meta.array.size = curr->value.size;
-						break;
-				}
+				ptrs_var_t *_valvar = ptrs_struct_getMember(val->value.structval, valvar, curr);
+				if(_valvar != valvar)
+					memcpy(valvar, _valvar, sizeof(ptrs_var_t));
 			}
 
 			stmt.body->handler(stmt.body, result, stmtScope);

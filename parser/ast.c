@@ -1300,39 +1300,29 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			sprintf(funcName, "%s.%s", structName, name);
 
 			curr->type = PTRS_STRUCTMEMBER_FUNCTION;
-			curr->value.function = parseFunction(code, funcName);
+			curr->function = parseFunction(code, funcName);
 		}
 		else if(code->curr == '[')
 		{
 			curr->type = PTRS_STRUCTMEMBER_VARARRAY;
 			consumec(code, '[');
-			ptrs_ast_t *ast = parseExpression(code);
+			curr->value = parseExpression(code);
 			consumec(code, ']');
 			consumec(code, ';');
 
-			if(ast->handler != PTRS_HANDLE_CONSTANT)
-				PTRS_HANDLE_ASTERROR(ast, "Struct array member size must be a constant");
-
-			curr->value.size = ast->arg.constval.value.intval * sizeof(ptrs_var_t);
-			curr->offset = struc->size;
-			struc->size += curr->value.size;
-			free(ast);
+			curr->offset = struc->offsetTableSize;
+			struc->offsetTableSize++;
 		}
 		else if(code->curr == '{')
 		{
 			curr->type = PTRS_STRUCTMEMBER_ARRAY;
 			consumec(code, '{');
-			ptrs_ast_t *ast = parseExpression(code);
+			curr->value = parseExpression(code);
 			consumec(code, '}');
 			consumec(code, ';');
 
-			if(ast->handler != PTRS_HANDLE_CONSTANT)
-				PTRS_HANDLE_ASTERROR(ast, "Struct array member size must be a constant");
-
-			curr->value.size = ast->arg.constval.value.intval;
-			curr->offset = struc->size;
-			struc->size += curr->value.size;
-			free(ast);
+			curr->offset = struc->offsetTableSize;
+			struc->offsetTableSize++;
 		}
 		else
 		{
@@ -1341,9 +1331,9 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			struc->size += sizeof(ptrs_var_t);
 
 			if(lookahead(code, "="))
-				curr->value.startval = parseExpression(code);
+				curr->value = parseExpression(code);
 			else
-				curr->value.startval = NULL;
+				curr->value = NULL;
 
 			consumec(code, ';');
 		}
