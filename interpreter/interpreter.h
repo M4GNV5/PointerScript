@@ -47,6 +47,8 @@ ptrs_var_t *ptrs_handle_constant(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 
 ptrs_var_t *ptrs_handle_op_ternary(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_op_instanceof(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_op_typeequal(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_op_typeinequal(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_op_equal(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_op_inequal(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_op_lessequal(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
@@ -132,6 +134,8 @@ ptrs_var_t *ptrs_handle_suffix_dec(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 
 #define PTRS_HANDLE_OP_TERNARY ptrs_handle_op_ternary
 #define PTRS_HANDLE_OP_INSTANCEOF ptrs_handle_op_instanceof
+#define PTRS_HANDLE_OP_TYPEEQUAL ptrs_handle_op_typeequal
+#define PTRS_HANDLE_OP_TYPEINEQUAL ptrs_handle_op_typeinequal
 #define PTRS_HANDLE_OP_EQUAL ptrs_handle_op_equal
 #define PTRS_HANDLE_OP_INEQUAL ptrs_handle_op_inequal
 #define PTRS_HANDLE_OP_LESSEQUAL ptrs_handle_op_lessequal

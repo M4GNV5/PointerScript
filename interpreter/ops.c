@@ -42,6 +42,13 @@ static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *
 		op, ptrs_typetoa(tleft), ptrs_typetoa(tright));
 }
 
+#define binary_typecheck(val) \
+	else if(tleft != tright) \
+	{ \
+		result->type = PTRS_TYPE_INT; \
+		result->value.intval = val; \
+	}
+
 #define binary_floatop(operator) \
 	else if(tleft == PTRS_TYPE_FLOAT || tright == PTRS_TYPE_FLOAT) \
 	{ \
@@ -153,6 +160,8 @@ static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *
 		return result; \
 	} \
 
+handle_binary(typeequal, ==, "===", false, binary_typecheck(false) binary_floatop(==) binary_pointer_compare(==))
+handle_binary(typeinequal, ==, "!==", false, binary_typecheck(true) binary_floatop(!=) binary_pointer_compare(!=))
 handle_binary(equal, ==, "==", false, binary_floatop(==) binary_pointer_compare(==))
 handle_binary(inequal, !=, "!=", false, binary_floatop(!=) binary_pointer_compare(!=))
 handle_binary(lessequal, <=, "<=", false, binary_floatop(<=) binary_pointer_compare(<=))

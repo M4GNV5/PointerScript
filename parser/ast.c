@@ -580,7 +580,9 @@ struct opinfo binaryOps[] = {
 	{">>", 9, false, PTRS_HANDLE_OP_SHR}, //shift right
 	{"<<", 9, false, PTRS_HANDLE_OP_SHL}, //shift left
 
-	// == needs to be before = or we will always lookahead assign
+	{"===", 8, false, PTRS_HANDLE_OP_TYPEEQUAL},
+	{"!==", 8, false, PTRS_HANDLE_OP_TYPEINEQUAL},
+
 	{"==", 8, false, PTRS_HANDLE_OP_EQUAL},
 	{"!=", 8, false, PTRS_HANDLE_OP_INEQUAL},
 	{"<=", 8, false, PTRS_HANDLE_OP_LESSEQUAL},
