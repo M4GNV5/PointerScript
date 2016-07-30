@@ -342,7 +342,11 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	{
 		char *name = readIdentifier(code);
 		consumec(code, '=');
-		addSpecialSymbol(code, name, parseExpression(code));
+		ptrs_ast_t *ast = parseExpression(code);
+		if(ast->handler != PTRS_HANDLE_CONSTANT)
+			unexpectedm(code, NULL, "Initializer for 'const' variable is not a constant. Use 'alias' instead");
+
+		addSpecialSymbol(code, name, ast);
 		consumec(code, ';');
 		return NULL;
 	}
