@@ -13,7 +13,9 @@
 
 struct symbollist
 {
+
 	unsigned offset;
+	ptrs_ast_t *node;
 	char *text;
 	struct symbollist *next;
 };
@@ -52,8 +54,9 @@ static int64_t readInt(code_t *code, int base);
 static double readDouble(code_t *code);
 
 static void setSymbol(code_t *code, char *text, unsigned offset);
-static ptrs_symbol_t addSymbol(code_t *code, char *symbol);
-static ptrs_symbol_t getSymbol(code_t *code, char *symbol);
+static ptrs_symbol_t addSymbol(code_t *code, char *text);
+static void addSpecialSymbol(code_t *code, char *name, ptrs_ast_t *ast);
+static ptrs_ast_t *getSymbol(code_t *code, char *text);
 static void symbolScope_increase(code_t *code, int buildInCount);
 static unsigned symbolScope_decrease(code_t *code);
 
@@ -99,7 +102,7 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 	return ast;
 }
 
-int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_symbol_t *out)
+int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_symbol_t *out, ptrs_ast_t **node)
 {
 	out->scope = 0;
 	while(symbols != NULL)
@@ -109,7 +112,12 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_symbol_t *o
 		{
 			if(strcmp(curr->text, text) == 0)
 			{
-				out->offset = curr->offset;
+				if(curr->node == NULL)
+					out->offset = curr->offset;
+				else if(node != NULL)
+					*node = curr->node;
+				else
+					continue;
 				return 0;
 			}
 			curr = curr->next;
@@ -137,6 +145,8 @@ static ptrs_ast_t *parseStmtList(code_t *code, char end)
 	for(;;)
 	{
 		curr->entry = parseStatement(code);
+		if(curr->entry == NULL)
+			continue;
 
 		if(code->curr == end || code->curr == 0)
 			break;
@@ -328,6 +338,23 @@ static ptrs_function_t *parseFunction(code_t *code, char *name)
 
 static ptrs_ast_t *parseStatement(code_t *code)
 {
+	if(lookahead(code, "const"))
+	{
+		char *name = readIdentifier(code);
+		consumec(code, '=');
+		addSpecialSymbol(code, name, parseExpression(code));
+		consumec(code, ';');
+		return NULL;
+	}
+	else if(lookahead(code, "alias"))
+	{
+		char *name = readIdentifier(code);
+		consumec(code, '=');
+		addSpecialSymbol(code, name, parseExpression(code));
+		consumec(code, ';');
+		return NULL;
+	}
+
 	ptrs_ast_t *stmt = talloc(ptrs_ast_t);
 	stmt->codepos = code->pos;
 	stmt->code = code->src;
@@ -478,7 +505,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		stmt->arg.function.isAnonymous = false;
 
 		char *name = readIdentifier(code);
-		if(ptrs_ast_getSymbol(code->symbols, name, &stmt->arg.function.symbol) != 0)
+		if(ptrs_ast_getSymbol(code->symbols, name, &stmt->arg.function.symbol, NULL) != 0)
 			stmt->arg.function.symbol = addSymbol(code, strdup(name));
 		stmt->arg.function.name = name;
 
@@ -827,7 +854,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 	else if(lookahead(code, "yield"))
 	{
 		ast = talloc(ptrs_ast_t);
-		if(ptrs_ast_getSymbol(code->symbols, ".yield", &ast->arg.yield.yieldVal) != 0)
+		if(ptrs_ast_getSymbol(code->symbols, ".yield", &ast->arg.yield.yieldVal, NULL) != 0)
 			unexpectedm(code, NULL, "Yield expressions are only allowed in 'in this' operator overloads");
 
 		ast->handler = PTRS_HANDLE_YIELD;
@@ -864,10 +891,8 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 	}
 	else if(isalpha(curr) || curr == '_')
 	{
-		ast = talloc(ptrs_ast_t);
 		char *name = readIdentifier(code);
-		ast->handler = PTRS_HANDLE_IDENTIFIER;
-		ast->arg.varval = getSymbol(code, name);
+		ast = getSymbol(code, name);
 		free(name);
 	}
 	else if(isdigit(curr) || curr == '.')
@@ -1579,6 +1604,7 @@ static ptrs_symbol_t addSymbol(code_t *code, char *symbol)
 	struct symbollist *entry = talloc(struct symbollist);
 
 	entry->text = symbol;
+	entry->node = NULL;
 	entry->next = curr->current;
 	entry->offset = curr->offset;
 	curr->offset += sizeof(ptrs_var_t);
@@ -1588,16 +1614,36 @@ static ptrs_symbol_t addSymbol(code_t *code, char *symbol)
 	return result;
 }
 
-static ptrs_symbol_t getSymbol(code_t *code, char *text)
+static void addSpecialSymbol(code_t *code, char *symbol, ptrs_ast_t *ast)
+{
+	ptrs_symboltable_t *curr = code->symbols;
+	struct symbollist *entry = talloc(struct symbollist);
+
+	entry->text = symbol;
+	entry->node = ast;
+	entry->next = curr->current;
+	curr->current = entry;
+}
+
+static ptrs_ast_t *getSymbol(code_t *code, char *text)
 {
 	ptrs_symbol_t out;
-	if(ptrs_ast_getSymbol(code->symbols, text, &out) == 0)
-		return out;
+	ptrs_ast_t *ast = NULL;
+	if(ptrs_ast_getSymbol(code->symbols, text, &out, &ast) == 0)
+	{
+		if(ast == NULL)
+		{
+			ast = talloc(ptrs_ast_t);
+			ast->handler = PTRS_HANDLE_IDENTIFIER;
+			ast->arg.varval = out;
+		}
+		return ast;
+	}
 
 	char buff[128];
 	sprintf(buff, "Unknown identifier %s", text);
 	unexpectedm(code, NULL, buff);
-	return out; //doh
+	return ast; //doh
 }
 
 static void symbolScope_increase(code_t *code, int buildInCount)

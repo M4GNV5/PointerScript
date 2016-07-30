@@ -265,10 +265,20 @@ void importScript(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 	for(int i = 0; i < stmt.count; i++)
 	{
 		ptrs_symbol_t symbol;
-		if(ptrs_ast_getSymbol(cache->symbols, stmt.fields[i], &symbol) != 0)
+		ptrs_ast_t *ast;
+		if(ptrs_ast_getSymbol(cache->symbols, stmt.fields[i], &symbol, &ast) != 0)
 			ptrs_error(node, scope, "Script '%s' has no property '%s'", file, stmt.fields[i]);
 
-		ptrs_scope_set(scope, stmt.symbols[i], ptrs_scope_get(cache->scope, symbol));
+		if(ast == NULL)
+		{
+			ptrs_scope_set(scope, stmt.symbols[i], ptrs_scope_get(cache->scope, symbol));
+		}
+		else
+		{
+			ptrs_var_t valv;
+			ptrs_var_t *val = ast->handler(ast, &valv, scope);
+			ptrs_scope_set(scope, stmt.symbols[i], val);
+		}
 	}
 }
 
