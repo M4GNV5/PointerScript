@@ -53,22 +53,25 @@ typedef struct function
 	void *nativeCb;
 } ptrs_function_t;
 
+enum ptrs_structmembertype
+{
+	PTRS_STRUCTMEMBER_VAR,
+	PTRS_STRUCTMEMBER_FUNCTION,
+	PTRS_STRUCTMEMBER_ARRAY,
+	PTRS_STRUCTMEMBER_VARARRAY
+};
+union ptrs_structmember
+{
+	struct ptrs_ast *startval;
+	ptrs_function_t *function;
+	uint64_t size;
+};
 struct ptrs_structlist
 {
 	char *name;
-	size_t offset;
-	enum
-	{
-		PTRS_STRUCTMEMBER_VAR,
-		PTRS_STRUCTMEMBER_FUNCTION,
-		PTRS_STRUCTMEMBER_ARRAY,
-		PTRS_STRUCTMEMBER_VARARRAY,
-	} type;
-	union
-	{
-		ptrs_function_t *function;
-		struct ptrs_ast *value;
-	};
+	unsigned int offset;
+	enum ptrs_structmembertype type;
+	union ptrs_structmember value;
 	struct ptrs_structlist *next;
 };
 struct ptrs_opoverload
@@ -85,9 +88,7 @@ typedef struct ptrs_struct
 	struct ptrs_structlist *member;
 	struct ptrs_opoverload *overloads;
 	ptrs_scope_t *scope;
-	uint32_t size;
-	uint32_t offsetTableSize;
-	size_t *offsetTable;
+	int size;
 	void *data;
 } ptrs_struct_t;
 
