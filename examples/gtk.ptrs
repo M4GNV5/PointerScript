@@ -1,0 +1,34 @@
+import gtk_application_new, g_signal_connect_data, g_application_run, g_object_unref,
+	gtk_application_window_new, gtk_window_set_title, gtk_window_set_default_size, gtk_widget_show_all,
+	gtk_button_box_new, gtk_container_add, g_print, gtk_widget_destroy,
+	gtk_button_new_with_label, gtk_container_add
+	from "libgtk-3.so.0";
+
+const G_CONNECT_SWAPPED = 2;
+
+function print_hello()
+{
+	g_print("Ahoi!\n");
+}
+
+function activate(app, data)
+{
+	var window = gtk_application_window_new(app);
+	gtk_window_set_title(window, "Ahoi!");
+	gtk_window_set_default_size(window, 500, 200);
+
+	var box = gtk_button_box_new(0);
+	gtk_container_add(window, box);
+
+	var button = gtk_button_new_with_label("click me\nreal hard");
+	g_signal_connect_data(button, "clicked", print_hello, NULL, NULL, 0);
+	g_signal_connect_data(button, "clicked", gtk_widget_destroy, window, NULL, G_CONNECT_SWAPPED);
+	gtk_container_add(box, button);
+
+	gtk_widget_show_all(window);
+}
+
+var app = gtk_application_new("org.gtk.example", 0);
+g_signal_connect_data(app, "activate", activate, NULL, NULL, 0);
+var status = g_application_run(app, 0, NULL);
+g_object_unref(app);
