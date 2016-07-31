@@ -1609,6 +1609,7 @@ static void setSymbol(code_t *code, char *text, unsigned offset)
 	struct symbollist *entry = talloc(struct symbollist);
 
 	entry->text = text;
+	entry->node = NULL;
 	entry->next = curr->current;
 	entry->offset = offset;
 	curr->current = entry;
