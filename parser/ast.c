@@ -104,6 +104,9 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 
 int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_symbol_t *out, ptrs_ast_t **node)
 {
+	if(node != NULL)
+		*node = NULL;
+
 	out->scope = 0;
 	while(symbols != NULL)
 	{
