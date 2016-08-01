@@ -76,6 +76,7 @@ Most of PointerScript is similar to Javascript and/or C so only specialities wil
 //leaving out the from part searches for the function in standard library
 //e.g. 	import printf, scanf;
 //		import pthread_create, pthread_join from "libpthread.so.0";
+//		import pthread_create as ptcreate, pthread_join as ptjoin from "libpthread.so.0";
 //		import myfunc, myvar from "./myotherfile.ptrs";
 importstatement 		: 'import' argumentlist [ 'from' expression ] ';'
 						;
