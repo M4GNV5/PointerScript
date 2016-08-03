@@ -80,7 +80,8 @@ var ptr = as<native>malloc(1024);
 | 5 | `|` | Bitwise OR | Left-to-Right |
 | 6 | `^` | Bitwise XOR | Left-to-Right |
 | 7 | `&` | Bitwise AND | Left-to-Right |
-| 8 | `== != <= >= < >` | Comparasion operators | Left-to-Right |
+| 8 | `== != === !== <= >= < >` | Comparasion operators | Left-to-Right |
+| 8 | `=== !==` | Typesafe comparasion operators | Left-to-Right |
 | 9 | `<< >>` | Shifting operators | Left-to-Right |
 | 10 | `+ -` | Addition, subtraction | Left-to-Right |
 | 11 | `* / %` | Multiplication, division, division remainder | Left-to-Right |
@@ -159,6 +160,27 @@ struct Foo
 	}
 }
 var bar : Foo(42, 666);
+```
+
+##ConstDefinition
+Creates a parse-time variable with a constant value
+```js
+//'const' Identifier '=' Expression ';'
+const SEEK_SET = 0;
+const SEEK_CUR = 1;
+const SEEK_END = 2;
+```
+
+##AliasDefinition
+Creates a parse-time alias thats get evaluated when being used like a variable
+```js
+//'alias' Identifier '=' Expression ';'
+function foo(val)
+{
+	printf("%d\n", val)
+}
+alias bar = foo(4) * 2 + 7;
+printf("%d\n", bar + bar); //foo will be called twice
 ```
 
 ##ImportStatement
