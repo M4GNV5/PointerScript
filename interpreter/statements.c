@@ -9,6 +9,7 @@
 #include "../parser/common.h"
 #include "interpreter.h"
 #include "include/error.h"
+#include "include/debug.h"
 #include "include/conversion.h"
 #include "include/stack.h"
 #include "include/scope.h"
@@ -26,6 +27,9 @@ ptrs_var_t *ptrs_handle_body(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 	{
 		ptrs_lastast = list->entry;
 		ptrs_lastscope = scope;
+		if(ptrs_debugEnabled)
+			ptrs_debug_update(list->entry, scope);
+		
 		_result = list->entry->handler(list->entry, result, scope);
 
 		if(scope->exit != 0)

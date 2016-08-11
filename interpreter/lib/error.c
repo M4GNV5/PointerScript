@@ -123,22 +123,22 @@ char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative)
 	return strdup(buff);
 }
 
-void ptrs_showpos(ptrs_ast_t *ast)
+void ptrs_showpos(FILE *fd, ptrs_ast_t *ast)
 {
 	codepos_t pos;
 	ptrs_getpos(&pos, ast);
 
-	fprintf(stderr, " at %s:%d:%d\n", ast->file, pos.line, pos.column);
+	fprintf(fd, " at %s:%d:%d\n", ast->file, pos.line, pos.column);
 
 	int linelen = strchr(pos.currLine, '\n') - pos.currLine;
-	fprintf(stderr, "%.*s\n", linelen, pos.currLine);
+	fprintf(fd, "%.*s\n", linelen, pos.currLine);
 
 	int linePos = (ast->code + ast->codepos) - pos.currLine;
 	for(int i = 0; i < linePos; i++)
 	{
-		fprintf(stderr, pos.currLine[i] == '\t' ? "\t" : " ");
+		fprintf(fd, pos.currLine[i] == '\t' ? "\t" : " ");
 	}
-	fprintf(stderr, "^\n\n");
+	fprintf(fd, "^\n\n");
 }
 
 void ptrs_vthrow(ptrs_ast_t *ast, ptrs_scope_t *scope, const char *format, va_list ap)
@@ -191,7 +191,7 @@ void ptrs_handle_sig(int sig)
 	}
 
 	fprintf(stderr, "Received signal: %s", strsignal(sig));
-	ptrs_showpos(ptrs_lastast);
+	ptrs_showpos(stderr, ptrs_lastast);
 	fprintf(stderr, "%s", ptrs_backtrace(ptrs_lastast, ptrs_lastscope, 3));
 	exit(3);
 }
@@ -226,7 +226,7 @@ void ptrs_error(ptrs_ast_t *ast, ptrs_scope_t *scope, const char *msg, ...)
 
 	if(ast != NULL)
 	{
-		ptrs_showpos(ast);
+		ptrs_showpos(stderr, ast);
 		if(scope != NULL)
 			fprintf(stderr, "%s\n", ptrs_backtrace(ast, scope, 2));
 	}

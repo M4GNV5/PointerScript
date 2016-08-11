@@ -7,6 +7,7 @@
 #include "../parser/common.h"
 #include "include/stack.h"
 #include "include/scope.h"
+#include "include/debug.h"
 #include "include/conversion.h"
 #include "include/run.h"
 #include "include/error.h"
@@ -22,7 +23,8 @@ static struct option options[] = {
 	{"overflow", no_argument, 0, 3},
 	{"no-sig", no_argument, 0, 4},
 	{"zero-mem", no_argument, 0, 5},
-	{"help", no_argument, 0, 6},
+	{"debug", no_argument, 0, 6},
+	{"help", no_argument, 0, 7},
 	{0, 0, 0, 0}
 };
 
@@ -52,6 +54,9 @@ static int parseOptions(int argc, char **argv)
 				ptrs_zeroMemory = true;
 				break;
 			case 6:
+				ptrs_debugEnabled = true;
+				break;
+			case 7:
 				printf("Usage: ptrs [options ...] <file> [script options ...]\n"
 					"Valid Options:\n"
 						"\t--help               Show this information\n"
@@ -105,6 +110,7 @@ int main(int argc, char **argv)
 	result.meta.array.size = len;
 	ptrs_scope_set(scope, argumentsSymbol, &result);
 
+	ptrs_debug_mainLoop(NULL, scope, true);
 	ptrs_dofile(file, &result, scope, NULL);
 
 	return EXIT_SUCCESS;

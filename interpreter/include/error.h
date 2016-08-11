@@ -1,6 +1,7 @@
 #ifndef _PTRS_ERROR
 #define _PTRS_ERROR
 
+#include <stdio.h>
 #include <setjmp.h>
 #include "../../parser/ast.h"
 #include "../../parser/common.h"
@@ -18,6 +19,7 @@ typedef struct ptrs_error
 	int column;
 } ptrs_error_t;
 
+void ptrs_showpos(FILE *fd, ptrs_ast_t *ast);
 void ptrs_error(ptrs_ast_t *ast, ptrs_scope_t *scope, const char *msg, ...);
 void ptrs_handle_signals();
 
