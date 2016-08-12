@@ -42,19 +42,19 @@ clean:
 	if [ -d $(BIN) ]; then rm -r $(BIN); fi
 
 $(RUN): $(BIN) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS)
-	gcc $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) $(FFCB_BIN) -o $(BIN)/ptrs -rdynamic -ldl -lffi
+	$(CC) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) $(FFCB_BIN) -o $(BIN)/ptrs -rdynamic -ldl -lffi
 
 $(BIN):
 	mkdir $(BIN)
 
 $(BIN)/%.o: parser/%.c
-	gcc $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BIN)/%.o: interpreter/lib/%.c
-	gcc $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BIN)/%.o: interpreter/lib/%.asm
 	nasm $(NASMFLAGS) $< -o $@
 
 $(BIN)/%.o: interpreter/%.c
-	gcc $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
