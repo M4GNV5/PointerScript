@@ -27,7 +27,7 @@ static void calculateFilePos(ptrs_ast_t *ast, ptrs_breakpoint_t *entry)
 	{
 		if(ast->code[i] == '\n')
 			line++;
-			
+
 		if(line == entry->line)
 		{
 			entry->startPos = ++i;
@@ -42,7 +42,7 @@ static void calculateFilePos(ptrs_ast_t *ast, ptrs_breakpoint_t *entry)
 			break;
 		}
 	}
-	
+
 	printf("WARNING: Invalid breakpoint file '%s' has no line %d\n", entry->file, entry->line);
 }
 
@@ -50,13 +50,13 @@ void ptrs_debug_mainLoop(ptrs_ast_t *ast, ptrs_scope_t *scope, bool hasStarted)
 {
 	breakAfterStep = false;
 	char buff[1024];
-	
+
 	while(true)
 	{
 		printf("> ");
 		fflush(stdout);
 		fgets(buff, 1024, stdin);
-		
+
 		if((hasStarted && strncmp(buff, "run", 3) == 0) || (!hasStarted && strncmp(buff, "continue", 8) == 0))
 		{
 			return;
@@ -75,15 +75,15 @@ void ptrs_debug_mainLoop(ptrs_ast_t *ast, ptrs_scope_t *scope, bool hasStarted)
 				ptrs_breakpoint_t *entry = malloc(sizeof(ptrs_breakpoint_t));
 				entry->file = strdup(buff + 6);
 				entry->line = line;
-				
+
 				if(ast != NULL && strcmp(entry->file, ast->file) == 0)
 					calculateFilePos(ast, entry);
 				else
 					entry->endPos = -1;
-					
+
 				entry->next = breakPoints;
 				breakPoints = entry;
-					
+
 				printf("Added breakpoint in '%s' line %d\n", entry->file, line);
 			}
 		}
@@ -110,15 +110,15 @@ void ptrs_debug_mainLoop(ptrs_ast_t *ast, ptrs_scope_t *scope, bool hasStarted)
 							prev->next = curr->next;
 						free(curr->file);
 						free(curr);
-						
+
 						printf("Removed breakpoint from '%s' line %d\n", buff + 6, line);
 						break;
 					}
-					
+
 					prev = curr;
 					curr = curr->next;
 				}
-				
+
 				if(curr == NULL)
 					printf("No breakpoint at '%s' line %d\n", buff + 6, line);
 			}
@@ -144,9 +144,9 @@ void ptrs_debug_break(ptrs_ast_t *ast, ptrs_scope_t *scope, char *reason, ...)
 	va_list ap;
 	va_start(ap, reason);
 	vprintf(reason, ap);
-	
+
 	ptrs_showpos(stdout, ast);
-	
+
 	ptrs_debug_mainLoop(ast, scope, false);
 }
 
@@ -154,16 +154,16 @@ void ptrs_debug_update(ptrs_ast_t *ast, ptrs_scope_t *scope)
 {
 	if(breakAfterStep)
 		ptrs_debug_break(ast, scope, "");
-	
+
 	ptrs_breakpoint_t *curr = breakPoints;
 	while(curr != NULL)
 	{
 		if(curr->endPos == -1 && lastFile != ast->file && strcmp(ast->file, curr->file) == 0)
 			calculateFilePos(ast, curr);
-		
+
 		if(curr->startPos < ast->codepos && curr->endPos > ast->codepos)
 			ptrs_debug_break(ast, scope, "Reached breakpoint");
-			
+
 		curr = curr->next;
 	}
 	lastFile = ast->file;
