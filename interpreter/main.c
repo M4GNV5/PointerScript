@@ -110,7 +110,8 @@ int main(int argc, char **argv)
 	result.meta.array.size = len;
 	ptrs_scope_set(scope, argumentsSymbol, &result);
 
-	ptrs_debug_mainLoop(NULL, scope, true);
+	if(ptrs_debugEnabled)
+		ptrs_debug_mainLoop(NULL, scope, true);
 	ptrs_dofile(file, &result, scope, NULL);
 
 	return EXIT_SUCCESS;
