@@ -245,13 +245,21 @@ static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_
 		struct argdeflist *list = &first;
 		for(;;)
 		{
-			ptrs_symbol_t curr = addSymbol(code, readIdentifier(code));
-
-			if(vararg != NULL && lookahead(code, "..."))
+			ptrs_symbol_t curr;
+			if(lookahead(code, "_"))
 			{
-				*vararg = curr;
-				consumecm(code, ')', "Vararg argument has to be the last argument");
-				break;
+				curr.scope = -1;
+			}
+			else
+			{
+				curr = addSymbol(code, readIdentifier(code));
+
+				if(vararg != NULL && lookahead(code, "..."))
+				{
+					*vararg = curr;
+					consumecm(code, ')', "Vararg argument has to be the last argument");
+					break;
+				}
 			}
 
 			list->next = talloc(struct argdeflist);
@@ -260,7 +268,7 @@ static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_
 
 			if(argv != NULL)
 			{
-				if(lookahead(code, "="))
+				if(curr.scope != -1 && lookahead(code, "="))
 				{
 					list->value = parseExpression(code);
 					hasArgv = true;
