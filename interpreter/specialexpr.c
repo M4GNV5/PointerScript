@@ -216,6 +216,38 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	return result;
 }
 
+ptrs_var_t *ptrs_handle_slice(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_slice expr = node->arg.slice;
+	ptrs_var_t basev;
+	uint32_t start;
+	uint32_t end;
+
+	ptrs_var_t *base = expr.base->handler(expr.base, &basev, scope);
+
+	if(expr.start != NULL)
+		start = ptrs_vartoi(expr.start->handler(expr.start, result, scope));
+	else
+		start = 0;
+
+	if(expr.end != NULL)
+		end = ptrs_vartoi(expr.end->handler(expr.end, result, scope));
+	else
+		end = base->meta.array.size - 1;
+
+	result->type = base->type;
+	if(base->type == PTRS_TYPE_NATIVE)
+		result->value.nativeval = base->value.nativeval + start;
+	else if(base->type == PTRS_TYPE_POINTER)
+		result->value.ptrval = base->value.ptrval + start;
+	else
+		ptrs_error(node, scope, "Cannot slice variable of type %s", ptrs_typetoa(base->type));
+
+	result->meta.array.readOnly = base->meta.array.readOnly;
+	result->meta.array.size = end - start + 1;
+	return result;
+}
+
 ptrs_var_t *ptrs_handle_as(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_cast expr = node->arg.cast;

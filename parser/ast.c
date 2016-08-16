@@ -1056,7 +1056,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignoreCalls)
 {
 	char curr = code->curr;
-	if(curr == '.')
+	if(curr == '.' && code->src[code->pos + 1] != '.')
 	{
 		ptrs_ast_t *member = talloc(ptrs_ast_t);
 		member->handler = PTRS_HANDLE_MEMBER;
@@ -1088,14 +1088,26 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 	else if(curr == '[')
 	{
 		ptrs_ast_t *indexExpr = talloc(ptrs_ast_t);
-		indexExpr->handler = PTRS_HANDLE_INDEX;
 		indexExpr->codepos = code->pos;
 		indexExpr->code = code->src;
 		indexExpr->file = code->filename;
-		consumec(code, '[');
 
-		indexExpr->arg.binary.left = ast;
-		indexExpr->arg.binary.right = parseExpression(code);
+		consumec(code, '[');
+		ptrs_ast_t *expr = parseExpression(code);
+
+		if(lookahead(code, ".."))
+		{
+			indexExpr->handler = PTRS_HANDLE_SLICE;
+			indexExpr->arg.slice.base = ast;
+			indexExpr->arg.slice.start = expr;
+			indexExpr->arg.slice.end = parseExpression(code);
+		}
+		else
+		{
+			indexExpr->handler = PTRS_HANDLE_INDEX;
+			indexExpr->arg.binary.left = ast;
+			indexExpr->arg.binary.right = expr;
+		}
 
 		ast = indexExpr;
 		consumec(code, ']');

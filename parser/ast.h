@@ -80,6 +80,13 @@ struct ptrs_ast_ternary
 	struct ptrs_ast *falseVal;
 };
 
+struct ptrs_ast_slice
+{
+	struct ptrs_ast *base;
+	struct ptrs_ast *start;
+	struct ptrs_ast *end;
+};
+
 struct ptrs_ast_cast
 {
 	ptrs_vartype_t type;
@@ -152,6 +159,7 @@ union ptrs_ast_arg
 	struct ptrs_ast_cast cast;
 	struct ptrs_ast_binary binary;
 	struct ptrs_ast_ternary ternary;
+	struct ptrs_ast_slice slice;
 	struct ptrs_ast_call call;
 	struct ptrs_ast_ifelse ifelse;
 	struct ptrs_ast_control control;
