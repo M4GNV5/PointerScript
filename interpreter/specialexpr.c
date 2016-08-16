@@ -244,7 +244,7 @@ ptrs_var_t *ptrs_handle_slice(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		ptrs_error(node, scope, "Cannot slice variable of type %s", ptrs_typetoa(base->type));
 
 	result->meta.array.readOnly = base->meta.array.readOnly;
-	result->meta.array.size = end - start + 1;
+	result->meta.array.size = end - start;
 	return result;
 }
 
