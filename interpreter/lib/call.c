@@ -55,6 +55,13 @@ ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t 
 	scope->calleeName = func->name;
 
 	ptrs_var_t val;
+	if(funcvar->meta.this != NULL)
+	{
+		val.type = PTRS_TYPE_STRUCT;
+		val.value.structval = funcvar->meta.this;
+		ptrs_scope_set(scope, ptrs_thisSymbol, &val);
+	}
+
 	val.type = PTRS_TYPE_UNDEFINED;
 	for(int i = 0; i < func->argc; i++)
 	{
@@ -68,12 +75,6 @@ ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t 
 			ptrs_scope_set(scope, func->args[i], &val);
 	}
 
-	if(funcvar->meta.this != NULL)
-	{
-		val.type = PTRS_TYPE_STRUCT;
-		val.value.structval = funcvar->meta.this;
-		ptrs_scope_set(scope, ptrs_thisSymbol, &val);
-	}
 	if(func->vararg.scope != (unsigned)-1)
 	{
 		val.type = PTRS_TYPE_POINTER;

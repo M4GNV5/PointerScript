@@ -329,11 +329,7 @@ static ptrs_ast_t *parseScopelessBody(code_t *code, bool allowStmt)
 
 static ptrs_ast_t *parseBody(code_t *code, unsigned *stackOffset, bool allowStmt, bool isFunction)
 {
-	if(isFunction)
-	{
-		setSymbol(code, strdup("this"), 0);
-	}
-	else
+	if(!isFunction)
 	{
 		symbolScope_increase(code, 0);
 	}
@@ -347,6 +343,8 @@ static ptrs_ast_t *parseBody(code_t *code, unsigned *stackOffset, bool allowStmt
 static ptrs_function_t *parseFunction(code_t *code, char *name)
 {
 	symbolScope_increase(code, 1);
+	setSymbol(code, strdup("this"), 0);
+
 	ptrs_function_t *func = talloc(ptrs_function_t);
 	func->name = name;
 
@@ -534,6 +532,8 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		stmt->arg.function.name = name;
 
 		symbolScope_increase(code, 1);
+		setSymbol(code, strdup("this"), 0);
+
 		stmt->arg.function.argc = parseArgumentDefinitionList(code,
 			&stmt->arg.function.args, &stmt->arg.function.argv, &stmt->arg.function.vararg);
 
@@ -892,6 +892,8 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 		ast->arg.function.name = "(anonymous function)";
 
 		symbolScope_increase(code, 1);
+		setSymbol(code, strdup("this"), 0);
+
 		ast->arg.function.argc = parseArgumentDefinitionList(code,
 			&ast->arg.function.args, &ast->arg.function.argv, &ast->arg.function.vararg);
 
@@ -999,6 +1001,8 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 				code->curr = code->src[start];
 
 				symbolScope_increase(code, 1);
+				setSymbol(code, strdup("this"), 0);
+
 				ast = talloc(ptrs_ast_t);
 				ast->handler = PTRS_HANDLE_FUNCTION;
 				ast->arg.function.name = "(lambda expression)";
@@ -1207,6 +1211,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 		if(lookahead(code, "operator"))
 		{
 			symbolScope_increase(code, 1);
+			setSymbol(code, strdup("this"), 0);
 
 			const char *nameFormat;
 			const char *opLabel;
