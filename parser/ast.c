@@ -248,7 +248,7 @@ static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_
 			ptrs_symbol_t curr;
 			if(lookahead(code, "_"))
 			{
-				curr.scope = -1;
+				curr.scope = (unsigned)-1;
 			}
 			else
 			{
@@ -268,7 +268,7 @@ static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_
 
 			if(argv != NULL)
 			{
-				if(curr.scope != -1 && lookahead(code, "="))
+				if(curr.scope != (unsigned)-1 && lookahead(code, "="))
 				{
 					list->value = parseExpression(code);
 					hasArgv = true;
