@@ -510,6 +510,27 @@ ptrs_var_t *ptrs_handle_if(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *s
 	return result;
 }
 
+ptrs_var_t *ptrs_handle_switch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_switch stmt = node->arg.switchcase;
+	int64_t val = ptrs_vartoi(stmt.condition->handler(stmt.condition, result, scope));
+
+	struct ptrs_ast_case *curr = stmt.cases;
+	while(curr != NULL)
+	{
+		if(curr->value == val)
+			return curr->body->handler(curr->body, result, scope);
+
+		curr = curr->next;
+	}
+
+	if(stmt.defaultCase != NULL)
+		return stmt.defaultCase->handler(stmt.defaultCase, result, scope);
+
+	result->type = PTRS_TYPE_UNDEFINED;
+	return result;
+}
+
 ptrs_var_t *ptrs_handle_while(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	ptrs_var_t conditionv;

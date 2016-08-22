@@ -42,6 +42,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls);
 static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignoreCalls);
 static struct ptrs_astlist *parseExpressionList(code_t *code, char end);
 static void parseStruct(code_t *code, ptrs_struct_t *struc);
+static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt);
 
 static ptrs_vartype_t readTypeName(code_t *code);
 static ptrs_asthandler_t readPrefixOperator(code_t *code, const char **label);
@@ -557,6 +558,10 @@ static ptrs_ast_t *parseStatement(code_t *code)
 			stmt->arg.ifelse.elseBody = parseBody(code, &stmt->arg.ifelse.elseStackOffset,true, false);
 		else
 			stmt->arg.ifelse.elseBody = NULL;
+	}
+	else if(lookahead(code, "switch"))
+	{
+		parseSwitchCase(code, stmt);
 	}
 	else if(lookahead(code, "while"))
 	{
@@ -1190,6 +1195,103 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end)
 
 	curr->next = NULL;
 	return first;
+}
+
+static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
+{
+	consumec(code, '(');
+	stmt->arg.switchcase.condition = parseExpression(code);
+	consumec(code, ')');
+	consumec(code, '{');
+
+	bool isEnd = false;
+	char isDefault = 0; //0 = nothing, 1 = default's head, 2 = default's body, 3 = done
+
+	stmt->handler = PTRS_HANDLE_SWITCH;
+	stmt->arg.switchcase.defaultCase = NULL;
+
+	struct ptrs_ast_case first;
+	first.next = NULL;
+
+	struct ptrs_astlist *body;
+	struct ptrs_ast_case *cases = &first;
+	for(;;)
+	{
+		if(!isDefault && lookahead(code, "default"))
+			isDefault = 1;
+		else if(code->curr == '}')
+			isEnd = true;
+
+		if(isDefault == 1 || isEnd || lookahead(code, "case"))
+		{
+			ptrs_ast_t *expr = talloc(ptrs_ast_t);
+			expr->handler = PTRS_HANDLE_BODY;
+			expr->arg.astlist = body;
+
+			if(isDefault == 2)
+			{
+				stmt->arg.switchcase.defaultCase = expr;
+				isDefault = 3;
+			}
+
+			while(cases->next != NULL)
+			{
+				cases = cases->next;
+				cases->body = expr;
+			}
+			body = NULL;
+
+			if(isEnd)
+			{
+				consumec(code, '}');
+				break;
+			}
+
+			if(isDefault == 1)
+			{
+				isDefault = 2;
+			}
+			else
+			{
+				struct ptrs_ast_case *currCase = cases;
+				for(;;)
+				{
+					ptrs_ast_t *expr = parseExpression(code);
+					if(expr->handler != PTRS_HANDLE_CONSTANT || expr->arg.constval.type != PTRS_TYPE_INT)
+						unexpected(code, "integer constant");
+
+					currCase->next = talloc(struct ptrs_ast_case);
+					currCase = currCase->next;
+
+					currCase->value = expr->arg.constval.value.intval;
+					free(expr);
+					currCase->next = NULL;
+
+					if(code->curr == ':')
+						break;
+					consumec(code, ',');
+
+					currCase->next = NULL;
+				}
+			}
+			consumec(code, ':');
+		}
+		else
+		{
+			if(body == NULL)
+			{
+				body = talloc(struct ptrs_astlist);
+			}
+			else
+			{
+				body->next = talloc(struct ptrs_astlist);
+				body = body->next;
+			}
+			body->entry = parseStatement(code);
+		}
+	}
+
+	stmt->arg.switchcase.cases = first.next;
 }
 
 static void parseStruct(code_t *code, ptrs_struct_t *struc)

@@ -25,6 +25,7 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 ptrs_var_t *ptrs_handle_function(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_struct(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_if(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_switch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_while(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_dowhile(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_for(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
@@ -113,6 +114,7 @@ ptrs_var_t *ptrs_handle_suffix_dec(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 #define PTRS_HANDLE_FUNCTION ptrs_handle_function
 #define PTRS_HANDLE_STRUCT ptrs_handle_struct
 #define PTRS_HANDLE_IF ptrs_handle_if
+#define PTRS_HANDLE_SWITCH ptrs_handle_switch
 #define PTRS_HANDLE_WHILE ptrs_handle_while
 #define PTRS_HANDLE_DOWHILE ptrs_handle_dowhile
 #define PTRS_HANDLE_FOR ptrs_handle_for

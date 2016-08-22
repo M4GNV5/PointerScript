@@ -99,6 +99,19 @@ struct ptrs_ast_call
 	struct ptrs_astlist *arguments;
 };
 
+struct ptrs_ast_case
+{
+	int64_t value;
+	struct ptrs_ast *body;
+	struct ptrs_ast_case *next;
+};
+struct ptrs_ast_switch
+{
+	struct ptrs_ast *condition;
+	struct ptrs_ast_case *cases;
+	struct ptrs_ast *defaultCase;
+};
+
 struct ptrs_ast_ifelse
 {
 	struct ptrs_ast *condition;
@@ -162,6 +175,7 @@ union ptrs_ast_arg
 	struct ptrs_ast_slice slice;
 	struct ptrs_ast_call call;
 	struct ptrs_ast_ifelse ifelse;
+	struct ptrs_ast_switch switchcase;
 	struct ptrs_ast_control control;
 	struct ptrs_ast_for forstatement;
 	struct ptrs_ast_forin forin;
