@@ -22,6 +22,8 @@ struct symbollist
 struct ptrs_symboltable
 {
 	unsigned offset;
+	unsigned maxOffset;
+	bool isInline;
 	struct symbollist *current;
 	ptrs_symboltable_t *outer;
 };
@@ -58,7 +60,7 @@ static void setSymbol(code_t *code, char *text, unsigned offset);
 static ptrs_symbol_t addSymbol(code_t *code, char *text);
 static void addSpecialSymbol(code_t *code, char *name, ptrs_ast_t *ast);
 static ptrs_ast_t *getSymbol(code_t *code, char *text);
-static void symbolScope_increase(code_t *code, int buildInCount);
+static void symbolScope_increase(code_t *code, int buildInCount, bool isInline);
 static unsigned symbolScope_decrease(code_t *code);
 
 static bool lookahead(code_t *code, const char *str);
@@ -85,13 +87,17 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 	code.symbols = NULL;
 	next(&code);
 
-	symbolScope_increase(&code, 1);
+	symbolScope_increase(&code, 1, false);
 	setSymbol(&code, strdup("arguments"), 0);
 
 	ptrs_ast_t *ast = talloc(ptrs_ast_t);
 	ast->handler = PTRS_HANDLE_FILE;
 	ast->arg.scopestatement.body = parseStmtList(&code, 0);
-	ast->arg.scopestatement.stackOffset = code.symbols->offset;
+	if(code.symbols->offset > code.symbols->maxOffset)
+		ast->arg.scopestatement.stackOffset = code.symbols->offset;
+	else
+		ast->arg.scopestatement.stackOffset = code.symbols->maxOffset;
+
 	ast->file = filename;
 	ast->code = src;
 	ast->codepos = 0;
@@ -127,8 +133,9 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_symbol_t *o
 			curr = curr->next;
 		}
 
+		if(!symbols->isInline)
+			out->scope++;
 		symbols = symbols->outer;
-		out->scope++;
 	}
 	return 1;
 }
@@ -331,9 +338,7 @@ static ptrs_ast_t *parseScopelessBody(code_t *code, bool allowStmt)
 static ptrs_ast_t *parseBody(code_t *code, unsigned *stackOffset, bool allowStmt, bool isFunction)
 {
 	if(!isFunction)
-	{
-		symbolScope_increase(code, 0);
-	}
+		symbolScope_increase(code, 0, true);
 
 	ptrs_ast_t *result = parseScopelessBody(code, allowStmt);
 
@@ -343,7 +348,7 @@ static ptrs_ast_t *parseBody(code_t *code, unsigned *stackOffset, bool allowStmt
 
 static ptrs_function_t *parseFunction(code_t *code, char *name)
 {
-	symbolScope_increase(code, 1);
+	symbolScope_increase(code, 1, false);
 	setSymbol(code, strdup("this"), 0);
 
 	ptrs_function_t *func = talloc(ptrs_function_t);
@@ -507,7 +512,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 
 		if(lookahead(code, "catch"))
 		{
-			symbolScope_increase(code, 0);
+			symbolScope_increase(code, 0, true);
 			stmt->arg.trycatch.argc = parseArgumentDefinitionList(code, &stmt->arg.trycatch.args, NULL, NULL);
 			stmt->arg.trycatch.catchBody = parseScopelessBody(code, true);
 			stmt->arg.trycatch.catchStackOffset = symbolScope_decrease(code);
@@ -532,7 +537,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 			stmt->arg.function.symbol = addSymbol(code, strdup(name));
 		stmt->arg.function.name = name;
 
-		symbolScope_increase(code, 1);
+		symbolScope_increase(code, 1, false);
 		setSymbol(code, strdup("this"), 0);
 
 		stmt->arg.function.argc = parseArgumentDefinitionList(code,
@@ -574,7 +579,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "do"))
 	{
-		symbolScope_increase(code, 0);
+		symbolScope_increase(code, 0, true);
 		stmt->handler = PTRS_HANDLE_DOWHILE;
 		stmt->arg.control.body = parseScopelessBody(code, true);
 		consume(code, "while");
@@ -588,7 +593,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	else if(lookahead(code, "foreach"))
 	{
 		consumec(code, '(');
-		symbolScope_increase(code, 0);
+		symbolScope_increase(code, 0, false);
 		stmt->arg.forin.varcount = parseIdentifierList(code, "in", &stmt->arg.forin.varsymbols, NULL);
 
 		consume(code, "in");
@@ -602,7 +607,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	else if(lookahead(code, "for"))
 	{
 		stmt->handler = PTRS_HANDLE_FOR;
-		symbolScope_increase(code, 0);
+		symbolScope_increase(code, 0, true);
 
 		consumec(code, '(');
 		stmt->arg.forstatement.init = parseStatement(code);
@@ -896,7 +901,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 		ast->arg.function.isAnonymous = true;
 		ast->arg.function.name = "(anonymous function)";
 
-		symbolScope_increase(code, 1);
+		symbolScope_increase(code, 1, false);
 		setSymbol(code, strdup("this"), 0);
 
 		ast->arg.function.argc = parseArgumentDefinitionList(code,
@@ -1005,7 +1010,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 				code->pos = start;
 				code->curr = code->src[start];
 
-				symbolScope_increase(code, 1);
+				symbolScope_increase(code, 1, false);
 				setSymbol(code, strdup("this"), 0);
 
 				ast = talloc(ptrs_ast_t);
@@ -1312,7 +1317,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 	{
 		if(lookahead(code, "operator"))
 		{
-			symbolScope_increase(code, 1);
+			symbolScope_increase(code, 1, false);
 			setSymbol(code, strdup("this"), 0);
 
 			const char *nameFormat;
@@ -1790,13 +1795,18 @@ static ptrs_ast_t *getSymbol(code_t *code, char *text)
 	return ast; //doh
 }
 
-static void symbolScope_increase(code_t *code, int buildInCount)
+static void symbolScope_increase(code_t *code, int buildInCount, bool isInline)
 {
 	ptrs_symboltable_t *new = talloc(ptrs_symboltable_t);
 	new->offset = buildInCount * sizeof(ptrs_var_t);
+	new->maxOffset = 0;
+	new->isInline = isInline;
 	new->outer = code->symbols;
 	new->current = NULL;
+
 	code->symbols = new;
+	if(isInline)
+		new->offset += new->outer->offset;
 }
 
 static unsigned symbolScope_decrease(code_t *code)
@@ -1813,7 +1823,10 @@ static unsigned symbolScope_decrease(code_t *code)
 		free(old);
 	}
 
-	unsigned val = scope->offset;
+	unsigned val = scope->offset > scope->maxOffset ? scope->offset : scope->maxOffset;
+	if(code->symbols != NULL && val > code->symbols->maxOffset)
+		code->symbols->maxOffset = val;
+
 	free(scope);
 	return val;
 }

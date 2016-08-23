@@ -377,20 +377,18 @@ ptrs_var_t *ptrs_handle_throw(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_trycatch stmt = node->arg.trycatch;
-	ptrs_scope_t *tryScope = ptrs_scope_increase(scope, stmt.tryStackOffset);
 	ptrs_error_t error;
+	ptrs_error_t *oldError = scope->error;
 
-	tryScope->error = &error;
+	scope->error = &error;
 	int k = sigsetjmp(error.catch, 1);
 
 	if(k == 0)
 	{
-		result = stmt.tryBody->handler(stmt.tryBody, result, tryScope);
-		scope->exit = tryScope->exit;
+		result = stmt.tryBody->handler(stmt.tryBody, result, scope);
 	}
 	else if(stmt.catchBody != NULL)
 	{
-		ptrs_scope_t *catchScope = ptrs_scope_increase(scope, stmt.catchStackOffset);
 		ptrs_var_t val;
 		char *msg;
 
@@ -398,22 +396,22 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 		val.meta.array.readOnly = false;
 		if(stmt.argc > 0 && stmt.args[0].scope != (unsigned)-1)
 		{
-			msg = ptrs_alloc(catchScope, strlen(error.message) + 1);
+			msg = ptrs_alloc(scope, strlen(error.message) + 1);
 			strcpy(msg, error.message);
 			val.value.strval = msg;
-			ptrs_scope_set(catchScope, stmt.args[0], &val);
+			ptrs_scope_set(scope, stmt.args[0], &val);
 		}
 		if(stmt.argc > 1 && stmt.args[1].scope != (unsigned)-1)
 		{
-			msg = ptrs_alloc(catchScope, strlen(error.stack) + 1);
+			msg = ptrs_alloc(scope, strlen(error.stack) + 1);
 			strcpy(msg, error.stack);
 			val.value.strval = msg;
-			ptrs_scope_set(catchScope, stmt.args[1], &val);
+			ptrs_scope_set(scope, stmt.args[1], &val);
 		}
 		if(stmt.argc > 2 && stmt.args[2].scope != (unsigned)-1)
 		{
 			val.value.strval = error.file;
-			ptrs_scope_set(catchScope, stmt.args[2], &val);
+			ptrs_scope_set(scope, stmt.args[2], &val);
 		}
 		free(error.message);
 		free(error.stack);
@@ -423,17 +421,18 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 		if(stmt.argc > 3 && stmt.args[3].scope != (unsigned)-1)
 		{
 			val.value.intval = error.line;
-			ptrs_scope_set(catchScope, stmt.args[3], &val);
+			ptrs_scope_set(scope, stmt.args[3], &val);
 		}
 		if(stmt.argc > 4 && stmt.args[4].scope != (unsigned)-1)
 		{
 			val.value.intval = error.column;
-			ptrs_scope_set(catchScope, stmt.args[4], &val);
+			ptrs_scope_set(scope, stmt.args[4], &val);
 		}
 
-		result = stmt.catchBody->handler(stmt.catchBody, result, catchScope);
-		scope->exit = catchScope->exit;
+		result = stmt.catchBody->handler(stmt.catchBody, result, scope);
 	}
+
+	scope->error = oldError;
 	return result;
 }
 
@@ -492,20 +491,11 @@ ptrs_var_t *ptrs_handle_if(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *s
 	struct ptrs_ast_ifelse stmt = node->arg.ifelse;
 
 	ptrs_var_t *condition = stmt.condition->handler(stmt.condition, result, scope);
-	ptrs_scope_t *stmtScope;
 
 	if(ptrs_vartob(condition))
-	{
-		stmtScope = ptrs_scope_increase(scope, stmt.ifStackOffset);
-		result = stmt.ifBody->handler(stmt.ifBody, result, stmtScope);
-		scope->exit = stmtScope->exit;
-	}
+		result = stmt.ifBody->handler(stmt.ifBody, result, scope);
 	else if(stmt.elseBody != NULL)
-	{
-		stmtScope = ptrs_scope_increase(scope, stmt.elseStackOffset);
-		result = stmt.elseBody->handler(stmt.elseBody, result, stmtScope);
-		scope->exit = stmtScope->exit;
-	}
+		result = stmt.elseBody->handler(stmt.elseBody, result, scope);
 
 	return result;
 }
@@ -545,14 +535,15 @@ ptrs_var_t *ptrs_handle_while(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		if(!ptrs_vartob(condition))
 			break;
 
-		ptrs_scope_t *stmtScope = ptrs_scope_increase(scope, stmt.stackOffset);
 		result = _result;
-		result = stmt.body->handler(stmt.body, result, stmtScope);
+		result = stmt.body->handler(stmt.body, result, scope);
 
-		if(stmtScope->exit == 3)
-			scope->exit = 3;
-		if(stmtScope->exit > 1)
+		if(scope->exit > 1)
+		{
+			if(scope->exit != 3)
+				scope->exit = 0;
 			return result;
+		}
 	}
 
 	return result;
@@ -565,19 +556,20 @@ ptrs_var_t *ptrs_handle_dowhile(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope
 	ptrs_var_t *_result = result;
 
 	struct ptrs_ast_control stmt = node->arg.control;
-	ptrs_scope_t *stmtScope = ptrs_scope_increase(scope, stmt.stackOffset);
 
 	do
 	{
 		result = _result;
-		result = stmt.body->handler(stmt.body, result, stmtScope);
+		result = stmt.body->handler(stmt.body, result, scope);
 
-		if(stmtScope->exit == 3)
-			scope->exit = 3;
-		if(stmtScope->exit > 1)
+		if(scope->exit > 1)
+		{
+			if(scope->exit != 3)
+				scope->exit = 0;
 			return result;
+		}
 
-		condition = stmt.condition->handler(stmt.condition, &conditionv, stmtScope);
+		condition = stmt.condition->handler(stmt.condition, &conditionv, scope);
 	} while(ptrs_vartob(condition));
 
 	return result;
@@ -589,24 +581,24 @@ ptrs_var_t *ptrs_handle_for(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 	ptrs_var_t *condition;
 
 	struct ptrs_ast_for stmt = node->arg.forstatement;
-	ptrs_scope_t *stmtScope = ptrs_scope_increase(scope, stmt.stackOffset);
-
-	stmt.init->handler(stmt.init, result, stmtScope);
+	stmt.init->handler(stmt.init, result, scope);
 
 	for(;;)
 	{
-		condition = stmt.condition->handler(stmt.condition, &conditionv, stmtScope);
+		condition = stmt.condition->handler(stmt.condition, &conditionv, scope);
 		if(!ptrs_vartob(condition))
 			break;
 
-		stmt.body->handler(stmt.body, result, stmtScope);
+		stmt.body->handler(stmt.body, result, scope);
 
-		if(stmtScope->exit == 3)
-			scope->exit = 3;
-		if(stmtScope->exit > 1)
+		if(scope->exit > 1)
+		{
+			if(scope->exit != 3)
+				scope->exit = 0;
 			return result;
+		}
 
-		stmt.step->handler(stmt.step, result, stmtScope);
+		stmt.step->handler(stmt.step, result, scope);
 	}
 
 	return result;
@@ -742,9 +734,8 @@ ptrs_var_t *ptrs_handle_file(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 
 ptrs_var_t *ptrs_handle_scopestatement(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	ptrs_scope_t *stmtScope = ptrs_scope_increase(scope, node->arg.scopestatement.stackOffset);
 	ptrs_ast_t *body = node->arg.scopestatement.body;
-	return body->handler(body, result, stmtScope);
+	return body->handler(body, result, scope);
 }
 
 ptrs_var_t *ptrs_handle_exprstatement(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
