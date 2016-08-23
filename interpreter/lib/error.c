@@ -203,7 +203,6 @@ void ptrs_handle_signals()
 	signal(SIGILL, ptrs_handle_sig);
 	signal(SIGABRT, ptrs_handle_sig);
 	signal(SIGFPE, ptrs_handle_sig);
-	signal(SIGKILL, ptrs_handle_sig);
 	signal(SIGSEGV, ptrs_handle_sig);
 	signal(SIGPIPE, ptrs_handle_sig);
 }
