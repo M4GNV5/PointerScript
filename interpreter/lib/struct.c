@@ -23,8 +23,9 @@ ptrs_function_t *ptrs_struct_getOverload(ptrs_var_t *struc, ptrs_asthandler_t ha
 	return NULL;
 }
 
-ptrs_var_t *ptrs_struct_get(ptrs_struct_t *struc, ptrs_var_t *result, const char *key)
+ptrs_var_t *ptrs_struct_get(ptrs_struct_t *struc, ptrs_var_t *result, const char *key, ptrs_ast_t *ast, ptrs_scope_t *scope)
 {
+	ptrs_var_t func;
 	struct ptrs_structlist *curr = struc->member;
 	while(curr != NULL)
 	{
@@ -37,6 +38,13 @@ ptrs_var_t *ptrs_struct_get(ptrs_struct_t *struc, ptrs_var_t *result, const char
 			{
 				case PTRS_STRUCTMEMBER_VAR:
 					return struc->data + curr->offset;
+				case PTRS_STRUCTMEMBER_GETTER:
+					func.type = PTRS_TYPE_FUNCTION;
+					func.value.funcval = curr->value.function;
+					func.meta.this = struc;
+					return ptrs_callfunc(ast, result, scope, &func, 0, NULL);
+				case PTRS_STRUCTMEMBER_SETTER:
+					break;
 				case PTRS_STRUCTMEMBER_FUNCTION:
 					result->type = PTRS_TYPE_FUNCTION;
 					result->value.funcval = curr->value.function;
@@ -68,10 +76,24 @@ bool ptrs_struct_set(ptrs_struct_t *struc, ptrs_var_t *value, const char *key, p
 	{
 		if(strcmp(curr->name, key) == 0)
 		{
-			if(curr->type != PTRS_STRUCTMEMBER_VAR)
+			if(curr->type == PTRS_STRUCTMEMBER_VAR)
+			{
+				memcpy(struc->data + curr->offset, value, sizeof(ptrs_var_t));
+			}
+			else if(curr->type == PTRS_STRUCTMEMBER_SETTER)
+			{
+				ptrs_var_t func;
+				ptrs_var_t result;
+				func.type = PTRS_TYPE_FUNCTION;
+				func.value.funcval = curr->value.function;
+				func.meta.this = struc;
+				ptrs_callfunc(ast, &result, scope, &func, 1, value);
+			}
+			else
+			{
 				ptrs_error(ast, scope, "Cannot assign to non-variable and non-property struct member\n");
+			}
 
-			memcpy(struc->data + curr->offset, value, sizeof(ptrs_var_t));
 			return true;
 		}
 		curr = curr->next;

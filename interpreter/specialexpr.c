@@ -92,7 +92,7 @@ ptrs_var_t *ptrs_handle_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	if(base->type != PTRS_TYPE_STRUCT)
 		ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr.name, ptrs_typetoa(base->type));
 
-	ptrs_var_t *_result = ptrs_struct_get(base->value.structval, result, expr.name);
+	ptrs_var_t *_result = ptrs_struct_get(base->value.structval, result, expr.name, node, scope);
 
 	ptrs_var_t overload;
 	if(_result == NULL && (overload.value.funcval = ptrs_struct_getOverload(base, ptrs_handle_member, true)) != NULL)
@@ -199,7 +199,7 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	else if(valuet == PTRS_TYPE_STRUCT)
 	{
 		const char *key = ptrs_vartoa(index, buff, 32);
-		ptrs_var_t *_result = ptrs_struct_get(value->value.structval, result, key);
+		ptrs_var_t *_result = ptrs_struct_get(value->value.structval, result, key, node, scope);
 
 		ptrs_var_t overload;
 		if(_result == NULL && (overload.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_index, true)) != NULL)

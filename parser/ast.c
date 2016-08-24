@@ -1491,6 +1491,12 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			continue;
 		}
 
+		uint8_t isProperty = 0;
+		if(lookahead(code, "get"))
+			isProperty = 1;
+		else if(lookahead(code, "set"))
+			isProperty = 2;
+
 		name = readIdentifier(code);
 		struct ptrs_structlist *next = talloc(struct ptrs_structlist);
 		next->next = curr;
@@ -1498,7 +1504,38 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 		curr->name = name;
 
-		if(code->curr == '(')
+		if(isProperty > 0)
+		{
+			symbolScope_increase(code, 1, false);
+			setSymbol(code, strdup("this"), 0);
+
+			ptrs_function_t *func = talloc(ptrs_function_t);
+			func->name = malloc(structNameLen + strlen(name) + 6);
+			func->vararg.scope = (unsigned)-1;
+
+			if(isProperty == 1)
+			{
+				curr->type = PTRS_STRUCTMEMBER_GETTER;
+
+				func->argc = 0;
+				func->args = NULL;
+				func->argv = NULL;
+				sprintf(func->name, "%s.get %s", structName, name);
+			}
+			else
+			{
+				curr->type = PTRS_STRUCTMEMBER_SETTER;
+
+				func->argc = 1;
+				func->args = talloc(ptrs_symbol_t);
+				func->args[0] = addSymbol(code, strdup("value"));
+				sprintf(func->name, "%s.set %s", structName, name);
+			}
+
+			func->body = parseBody(code, &func->stackOffset, false, true);
+			curr->value.function = func;
+		}
+		else if(code->curr == '(')
 		{
 			char *funcName = malloc(structNameLen + strlen(name) + 2);
 			sprintf(funcName, "%s.%s", structName, name);

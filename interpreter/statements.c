@@ -471,7 +471,9 @@ ptrs_var_t *ptrs_handle_struct(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	struct ptrs_structlist *curr = struc->member;
 	while(curr != NULL)
 	{
-		if(curr->type == PTRS_STRUCTMEMBER_FUNCTION)
+		if(curr->type == PTRS_STRUCTMEMBER_FUNCTION
+			|| curr->type == PTRS_STRUCTMEMBER_GETTER
+			|| curr->type == PTRS_STRUCTMEMBER_SETTER)
 			curr->value.function->scope = scope;
 		curr = curr->next;
 	}
