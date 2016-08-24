@@ -12,29 +12,6 @@
 #include "include/struct.h"
 
 bool ptrs_overflowError = false;
-static ptrs_var_t *ptrs_assign(ptrs_ast_t *node, ptrs_scope_t *scope, ptrs_var_t *orginal, ptrs_var_t *left, ptrs_var_t *right)
-{
-	if(orginal == left)
-	{
-		if(left->meta.pointer != NULL && left->type == PTRS_TYPE_INT)
-		{
-			int64_t val = ptrs_vartoi(right);
-			if(ptrs_overflowError && (uint8_t)val != val)
-				ptrs_error(node, scope, "Overflow: Value %d does not fit into an int8", val);
-			*(left->meta.pointer) = right->value.intval;
-		}
-		else
-		{
-			ptrs_error(node, scope, "Cannot assign static expression");
-		}
-	}
-	else
-	{
-		memcpy(left, right, sizeof(ptrs_var_t));
-	}
-
-	return left;
-}
 
 static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *op, ptrs_vartype_t tleft, ptrs_vartype_t tright)
 {
@@ -155,7 +132,7 @@ static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *
 		} \
 		\
 		if(isAssign) \
-			return ptrs_assign(node, scope, &leftv, left, result); \
+			expr.left->setHandler(expr.left, result, scope); \
 		\
 		return result; \
 	} \
@@ -191,13 +168,12 @@ handle_binary(orassign, |=, "|=", true)
 
 ptrs_var_t *ptrs_handle_op_assign(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	ptrs_var_t rightv;
 	struct ptrs_ast_binary expr = node->arg.binary;
 
-	ptrs_var_t *left = expr.left->handler(expr.left, result, scope);
-	ptrs_var_t *right = expr.right->handler(expr.right, &rightv, scope);
+	ptrs_var_t *right = expr.right->handler(expr.right, result, scope);
+	expr.left->setHandler(expr.left, right, scope);
 
-	return ptrs_assign(node, scope, result, left, right);
+	return right;
 }
 
 ptrs_var_t *ptrs_handle_op_logicor(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)

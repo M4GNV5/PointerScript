@@ -188,6 +188,7 @@ struct ptrs_ast
 {
 	union ptrs_ast_arg arg;
 	ptrs_asthandler_t handler;
+	ptrs_asthandler_t setHandler;
 	int codepos;
 	char *code;
 	const char *file;

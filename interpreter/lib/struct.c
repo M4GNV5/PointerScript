@@ -61,6 +61,24 @@ ptrs_var_t *ptrs_struct_get(ptrs_struct_t *struc, ptrs_var_t *result, const char
 	return NULL;
 }
 
+bool ptrs_struct_set(ptrs_struct_t *struc, ptrs_var_t *value, const char *key, ptrs_ast_t *ast, ptrs_scope_t *scope)
+{
+	struct ptrs_structlist *curr = struc->member;
+	while(curr != NULL)
+	{
+		if(strcmp(curr->name, key) == 0)
+		{
+			if(curr->type != PTRS_STRUCTMEMBER_VAR)
+				ptrs_error(ast, scope, "Cannot assign to non-variable and non-property struct member\n");
+
+			memcpy(struc->data + curr->offset, value, sizeof(ptrs_var_t));
+			return true;
+		}
+		curr = curr->next;
+	}
+	return false;
+}
+
 ptrs_var_t *ptrs_struct_construct(ptrs_var_t *constructor, struct ptrs_astlist *arguments, bool allocateOnStack,
 		ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {

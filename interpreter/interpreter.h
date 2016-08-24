@@ -47,6 +47,11 @@ ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 ptrs_var_t *ptrs_handle_identifier(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_constant(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 
+ptrs_var_t *ptrs_handle_assign_identifier(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_assign_dereference(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_assign_index(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_assign_member(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
+
 ptrs_var_t *ptrs_handle_op_ternary(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_op_instanceof(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_op_typeequal(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
@@ -135,6 +140,11 @@ ptrs_var_t *ptrs_handle_suffix_dec(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 #define PTRS_HANDLE_CAST ptrs_handle_cast
 #define PTRS_HANDLE_IDENTIFIER ptrs_handle_identifier
 #define PTRS_HANDLE_CONSTANT ptrs_handle_constant
+
+#define PTRS_HANDLE_ASSIGN_IDENTIFIER ptrs_handle_assign_identifier
+#define PTRS_HANDLE_ASSIGN_DEREFERENCE ptrs_handle_assign_dereference
+#define PTRS_HANDLE_ASSIGN_INDEX ptrs_handle_assign_index
+#define PTRS_HANDLE_ASSIGN_MEMBER ptrs_handle_assign_member
 
 #define PTRS_HANDLE_OP_TERNARY ptrs_handle_op_ternary
 #define PTRS_HANDLE_OP_INSTANCEOF ptrs_handle_op_instanceof

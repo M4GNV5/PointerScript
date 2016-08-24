@@ -110,23 +110,26 @@ ptrs_var_t *ptrs_handle_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 
 	return _result;
 }
+ptrs_var_t *ptrs_handle_assign_member(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_member expr = node->arg.member;
+	ptrs_var_t basev;
+	ptrs_var_t *base = expr.base->handler(expr.base, &basev, scope);
+
+	if(base->type != PTRS_TYPE_STRUCT)
+		ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr.name, ptrs_typetoa(base->type));
+
+	if(!ptrs_struct_set(base->value.structval, value, expr.name, node, scope))
+		ptrs_error(node, scope, "Struct %s has no member '%s'", base->value.structval->name, expr.name);
+	return NULL;
+}
 
 ptrs_var_t *ptrs_handle_prefix_address(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	ptrs_var_t *val = node->arg.astval->handler(node->arg.astval, result, scope);
 
 	if(val == result)
-	{
-		if(val->meta.pointer != NULL)
-		{
-			result->type = PTRS_TYPE_NATIVE;
-			result->value.nativeval = val->meta.pointer;
-		}
-		else
-		{
-			ptrs_error(node, scope, "Cannot get address from static expression");
-		}
-	}
+		ptrs_error(node, scope, "Cannot get address from static expression");
 
 	result->type = PTRS_TYPE_POINTER;
 	result->value.ptrval = val;
@@ -140,10 +143,6 @@ ptrs_var_t *ptrs_handle_prefix_dereference(ptrs_ast_t *node, ptrs_var_t *result,
 
 	if(valuet == PTRS_TYPE_NATIVE)
 	{
-		if(val->meta.array.readOnly)
-			result->meta.pointer = NULL;
-		else
-			result->meta.pointer = val->value.nativeval;
 		result->type = PTRS_TYPE_INT;
 		result->value.intval = *val->value.strval;
 	}
@@ -156,6 +155,22 @@ ptrs_var_t *ptrs_handle_prefix_dereference(ptrs_ast_t *node, ptrs_var_t *result,
 		ptrs_error(node, scope, "Cannot dereference variable of type %s", ptrs_typetoa(valuet));
 	}
 	return result;
+}
+ptrs_var_t *ptrs_handle_assign_dereference(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope)
+{
+	ptrs_var_t valv;
+	ptrs_var_t *val = node->arg.astval->handler(node->arg.astval, &valv, scope);
+
+	if(val->type == PTRS_TYPE_NATIVE && !val->meta.array.readOnly)
+		*(uint8_t *)val->value.strval = (uint8_t)ptrs_vartoi(value);
+	else if(val->type == PTRS_TYPE_POINTER)
+		memcpy(val->value.ptrval, value, sizeof(ptrs_var_t));
+	else if(val->type == PTRS_TYPE_NATIVE && val->meta.array.readOnly)
+		ptrs_error(node, scope, "Cannot change a read-only string");
+	else
+		ptrs_error(node, scope, "Cannot dereference variable of type %s", ptrs_typetoa(val->type));
+
+	return NULL;
 }
 
 ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
@@ -180,10 +195,6 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		int64_t _index = ptrs_vartoi(index);
 		result->type = PTRS_TYPE_INT;
 		result->value.intval = value->value.strval[_index];
-		if(value->meta.array.readOnly)
-			result->meta.pointer = NULL;
-		else
-			result->meta.pointer = (uint8_t*)&value->value.strval[_index];
 	}
 	else if(valuet == PTRS_TYPE_STRUCT)
 	{
@@ -214,6 +225,42 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		ptrs_error(expr.left, scope, "Cannot get index '%s' of type %s", key, ptrs_typetoa(valuet));
 	}
 	return result;
+}
+ptrs_var_t *ptrs_handle_assign_index(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope)
+{
+	char buff[32];
+	ptrs_var_t valuev;
+	ptrs_var_t indexv;
+	struct ptrs_ast_binary expr = node->arg.binary;
+
+	ptrs_var_t *val = expr.left->handler(expr.left, &valuev, scope);
+	ptrs_var_t *index = expr.right->handler(expr.right, &indexv, scope);
+
+	if(val->type == PTRS_TYPE_POINTER)
+	{
+		int64_t _index = ptrs_vartoi(index);
+		memcpy(val->value.ptrval + _index, value, sizeof(ptrs_var_t));
+	}
+	else if(val->type == PTRS_TYPE_NATIVE)
+	{
+		if(val->meta.array.readOnly)
+			ptrs_error(node, scope, "Cannot change a read-only string");
+
+		int64_t _index = ptrs_vartoi(index);
+		*(uint8_t *)(val->value.strval + _index) = (uint8_t)ptrs_vartoi(value);
+	}
+	else if(val->type == PTRS_TYPE_STRUCT)
+	{
+		const char *key = ptrs_vartoa(index, buff, 32);
+		if(!ptrs_struct_set(val->value.structval, value, key, node, scope))
+			ptrs_error(node, scope, "Struct %s has no member '%s'", val->value.structval->name, key);
+	}
+	else
+	{
+		const char *key = ptrs_vartoa(index, buff, 32);
+		ptrs_error(expr.left, scope, "Cannot set index '%s' of type %s", key, ptrs_typetoa(val->type));
+	}
+	return NULL;
 }
 
 ptrs_var_t *ptrs_handle_slice(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
@@ -289,6 +336,11 @@ ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 ptrs_var_t *ptrs_handle_identifier(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	return ptrs_scope_get(scope, node->arg.varval);
+}
+ptrs_var_t *ptrs_handle_assign_identifier(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope)
+{
+	ptrs_scope_set(scope, node->arg.varval, value);
+	return NULL;
 }
 
 ptrs_var_t *ptrs_handle_constant(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)

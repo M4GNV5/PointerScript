@@ -94,6 +94,7 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 			code.pos++;
 			code.curr = code.src[code.pos];
 		}
+		next(&code);
 	}
 
 	symbolScope_increase(&code, 1, false);
@@ -393,6 +394,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 
 	ptrs_ast_t *stmt = talloc(ptrs_ast_t);
+	stmt->setHandler = NULL;
 	stmt->codepos = code->pos;
 	stmt->code = code->src;
 	stmt->file = code->filename;
@@ -782,11 +784,15 @@ static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 		ptrs_ast_t *_left = left;
 		left = talloc(ptrs_ast_t);
 		left->handler = op->handler;
+		left->setHandler = NULL;
 		left->arg.binary.left = _left;
 		left->arg.binary.right = right;
 		left->codepos = pos;
 		left->code = code->src;
 		left->file = code->filename;
+
+		if(op->rightToLeft && _left->setHandler == NULL)
+			PTRS_HANDLE_ASTERROR(left, "Invalid assign expression, left side is not a valid lvalue");
 	}
 	return left;
 }
@@ -821,6 +827,11 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 			ast = talloc(ptrs_ast_t);
 			ast->arg.astval = parseUnaryExpr(code, false);
 			ast->handler = prefixOps[i].handler;
+			if(ast->handler == PTRS_HANDLE_PREFIX_DEREFERENCE)
+				ast->setHandler = PTRS_HANDLE_ASSIGN_DEREFERENCE;
+			else
+				ast->setHandler = NULL;
+
 			ast->codepos = pos;
 			ast->code = code->src;
 			ast->file = code->filename;
@@ -836,6 +847,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 			ast->arg.constval.type = constants[i].type;
 			ast->arg.constval.value = constants[i].value;
 			ast->handler = PTRS_HANDLE_CONSTANT;
+			ast->setHandler = NULL;
 			return ast;
 		}
 	}
@@ -1063,6 +1075,8 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 		return NULL;
 	}
 
+	if(ast->handler != PTRS_HANDLE_IDENTIFIER)
+		ast->setHandler = NULL;
 	ast->codepos = pos;
 	ast->code = code->src;
 	ast->file = code->filename;
@@ -1083,6 +1097,7 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 	{
 		ptrs_ast_t *member = talloc(ptrs_ast_t);
 		member->handler = PTRS_HANDLE_MEMBER;
+		member->setHandler = PTRS_HANDLE_ASSIGN_MEMBER;
 		member->codepos = code->pos;
 		member->code = code->src;
 		member->file = code->filename;
@@ -1097,6 +1112,7 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 	{
 		ptrs_ast_t *call = talloc(ptrs_ast_t);
 		call->handler = PTRS_HANDLE_CALL;
+		call->setHandler = NULL;
 		call->codepos = code->pos;
 		call->code = code->src;
 		call->file = code->filename;
@@ -1128,6 +1144,7 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 		else
 		{
 			indexExpr->handler = PTRS_HANDLE_INDEX;
+			indexExpr->setHandler = PTRS_HANDLE_ASSIGN_INDEX;
 			indexExpr->arg.binary.left = ast;
 			indexExpr->arg.binary.right = expr;
 		}
@@ -1139,6 +1156,7 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 	{
 		ptrs_ast_t *dereference = talloc(ptrs_ast_t);
 		dereference->handler = PTRS_HANDLE_PREFIX_DEREFERENCE;
+		dereference->setHandler = PTRS_HANDLE_ASSIGN_DEREFERENCE;
 		dereference->codepos = code->pos - 2;
 		dereference->code = code->src;
 		dereference->file = code->filename;
@@ -1146,6 +1164,7 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 
 		ptrs_ast_t *member = talloc(ptrs_ast_t);
 		member->handler = PTRS_HANDLE_MEMBER;
+		member->setHandler = PTRS_HANDLE_ASSIGN_MEMBER;
 		member->codepos = code->pos;
 		member->code = code->src;
 		member->file = code->filename;
@@ -1168,6 +1187,7 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 				opAst->file = code->filename;
 				opAst->arg.astval = ast;
 				opAst->handler = suffixedOps[i].handler;
+				opAst->setHandler = NULL;
 				return opAst;
 			}
 		}
@@ -1793,6 +1813,7 @@ static ptrs_ast_t *getSymbol(code_t *code, char *text)
 		{
 			ast = talloc(ptrs_ast_t);
 			ast->handler = PTRS_HANDLE_IDENTIFIER;
+			ast->setHandler = PTRS_HANDLE_ASSIGN_IDENTIFIER;
 			ast->arg.varval = out;
 		}
 		return ast;
