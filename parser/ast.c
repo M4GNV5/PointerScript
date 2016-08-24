@@ -87,6 +87,15 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 	code.symbols = NULL;
 	next(&code);
 
+	if(src[0] == '#' && src[1] == '!')
+	{
+		while(code.curr != '\n')
+		{
+			code.pos++;
+			code.curr = code.src[code.pos];
+		}
+	}
+
 	symbolScope_increase(&code, 1, false);
 	setSymbol(&code, strdup("arguments"), 0);
 
