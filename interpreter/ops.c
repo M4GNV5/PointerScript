@@ -131,7 +131,7 @@ static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *
 			binary_typeerror(node, scope, oplabel, tleft, tright); \
 		} \
 		\
-		if(isAssign) \
+		if(isAssign && left == &leftv) \
 			expr.left->setHandler(expr.left, result, scope); \
 		\
 		return result; \
@@ -256,10 +256,11 @@ ptrs_var_t *ptrs_handle_prefix_length(ptrs_ast_t *node, ptrs_var_t *result, ptrs
 	return result;
 }
 
-#define handle_prefix(name, operator, opLabel, handlefloat, handleptr) \
+#define handle_prefix(name, operator, opLabel, isAssign, handlefloat, handleptr) \
 	ptrs_var_t *ptrs_handle_prefix_##name(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope) \
 	{ \
-		ptrs_var_t *value = node->arg.astval->handler(node->arg.astval, result, scope); \
+		ptrs_ast_t *expr = node->arg.astval; \
+		ptrs_var_t *value = expr->handler(expr, result, scope); \
 		ptrs_vartype_t type = value->type; \
 		ptrs_var_t overload; \
 		result->type = type; \
@@ -278,6 +279,9 @@ ptrs_var_t *ptrs_handle_prefix_length(ptrs_ast_t *node, ptrs_var_t *result, ptrs
 		else \
 			ptrs_error(node, scope, "Cannot use prefixed operator %s on variable of type %s", opLabel, ptrs_typetoa(type)); \
 		\
+		if(isAssign && result == value) \
+			expr->setHandler(expr, result, scope); \
+		\
 		result->meta = value->meta; \
 		return result; \
 	}
@@ -292,16 +296,18 @@ ptrs_var_t *ptrs_handle_prefix_length(ptrs_ast_t *node, ptrs_var_t *result, ptrs
 	else if(type == PTRS_TYPE_FLOAT) \
 		result->value.floatval = operator value->value.floatval;
 
-handle_prefix(inc, ++, "++", handle_prefix_float(++), handle_prefix_ptr(++))
-handle_prefix(dec, --, "--", handle_prefix_float(--), handle_prefix_ptr(--))
-handle_prefix(not, ~, "~", /*nothing*/, /*nothing*/)
-handle_prefix(plus, +, "+", handle_prefix_float(+), /*nothing*/)
-handle_prefix(minus, -, "-", handle_prefix_float(-), /*nothing*/)
+handle_prefix(inc, ++, "++", true, handle_prefix_float(++), handle_prefix_ptr(++))
+handle_prefix(dec, --, "--", true, handle_prefix_float(--), handle_prefix_ptr(--))
+handle_prefix(not, ~, "~", false, /*nothing*/, /*nothing*/)
+handle_prefix(plus, +, "+", false, handle_prefix_float(+), /*nothing*/)
+handle_prefix(minus, -, "-", false, handle_prefix_float(-), /*nothing*/)
 
 #define handle_suffix(name, operator, opLabel) \
 	ptrs_var_t *ptrs_handle_suffix_##name(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope) \
 	{ \
-		ptrs_var_t *value = node->arg.astval->handler(node->arg.astval, result, scope); \
+		ptrs_ast_t *expr = node->arg.astval; \
+		ptrs_var_t valuev; \
+		ptrs_var_t *value = expr->handler(expr, &valuev, scope); \
 		ptrs_vartype_t type = value->type; \
 		ptrs_var_t overload; \
 		result->type = type; \
@@ -323,6 +329,9 @@ handle_prefix(minus, -, "-", handle_prefix_float(-), /*nothing*/)
 			result->value.ptrval = value->value.ptrval operator; \
 		else \
 			ptrs_error(node, scope, "Cannot use suffixed operator %s on variable of type %s", opLabel, ptrs_typetoa(type)); \
+		\
+		if(value == &valuev) \
+			expr->setHandler(expr, value, scope); \
 		\
 		result->meta = value->meta; \
 		return result; \
