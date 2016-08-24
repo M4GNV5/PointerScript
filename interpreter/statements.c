@@ -358,7 +358,8 @@ ptrs_var_t *ptrs_handle_delete(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 		result = ptrs_callfunc(node, result, scope, &overload, 0, NULL);
 	}
 
-	free(val->value.structval);
+	if(!val->value.structval->isOnStack)
+		free(val->value.structval);
 	return result;
 }
 

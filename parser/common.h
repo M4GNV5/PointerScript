@@ -89,6 +89,7 @@ typedef struct ptrs_struct
 	struct ptrs_opoverload *overloads;
 	ptrs_scope_t *scope;
 	int size;
+	bool isOnStack;
 	void *data;
 } ptrs_struct_t;
 

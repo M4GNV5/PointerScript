@@ -77,6 +77,7 @@ ptrs_var_t *ptrs_struct_construct(ptrs_var_t *constructor, struct ptrs_astlist *
 
 	memcpy(instance, type, sizeof(ptrs_struct_t));
 	instance->data = instance + 1;
+	instance->isOnStack = allocateOnStack;
 
 	ptrs_scope_t *initScope = ptrs_scope_increase(scope, 0);
 	initScope->outer = instance->scope;
