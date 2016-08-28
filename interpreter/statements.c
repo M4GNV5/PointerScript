@@ -702,6 +702,8 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 						valvar->value.ptrval = val->value.structval->data + curr->offset;
 						valvar->meta.array.size = curr->value.size;
 						break;
+					default:
+						goto skip_curr;
 				}
 			}
 
@@ -712,6 +714,7 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 			if(stmtScope->exit > 1)
 				return result;
 
+			skip_curr:
 			curr = curr->next;
 		}
 
