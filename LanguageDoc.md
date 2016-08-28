@@ -1,7 +1,8 @@
 #Content
-- [Types](#types)
-	- [List](#typelist)
-	- [Usage](#typeusage)
+- [Usage](#usage)
+	- [Types](#types)
+	- [Structs](#structs)
+	- [Variable Arguments](#variablearguments)
 - [Operators](#operators)
 	- [Binary](#binaryoperators)
 	- [Prefixed](#prefixedoperators)
@@ -19,6 +20,8 @@
 	- [FunctionStatement](#functionstatement)
 	- [StructStatement](#structstatement)
 	- [DeleteStatement](#deletestatement)
+	- [SwitchStatement](#switchstatement)
+	- [ForEachStatement](#foreachstatement)
 	- [ControlStatements](#controlstatements)
 - [Expressions](#expressions)
 	- [CallExpression](#callexpression)
@@ -28,6 +31,7 @@
 	- [NewExpression](#newexpression)
 	- [MemberExpression](#memberexpression)
 	- [IndexExpression](#indexexpression)
+	- [ExpandExpression](#expandexpression)
 	- [AsExpression](#asexpression)
 	- [CastExpression](#castexpression)
 	- [IdentifierExpression](#identifierexpression)
@@ -36,9 +40,34 @@
 	- [PrefixedExpression](#prefixedexpression)
 	- [SuffixedExpression](#suffixedexpression)
 
-#Types
+#Usage
 
-##TypeList
+##Types
+
+###Type Usage
+Checking if a variable has a specific type, can be done via `typeof` and `type<...>`.
+The latter one will be replaced by a constant integer (the type) at parse time
+(comparing integer is generally faster than comparing strings like with JavaScript's typeof)
+```js
+var myVal = //...
+if(typeof myVal == type<int>)
+	//...
+```
+
+Converting a variable to an `int` or `float` or `native`.
+Casting to native will allocate memory on the stack and place a string representation in it.
+```js
+var myVal = cast<float>"3.14";
+var myString = cast<native>myVal;
+```
+
+Changing the type of a variable. Note: this will not touch the actual value.
+```js
+//by default all native functions return an int
+var ptr = as<native>malloc(1024);
+```
+
+###Type List
 | Name | Name in C | Description |
 |------|-----------|-------------|
 | `undefined` | - | A not defined value |
@@ -49,23 +78,78 @@
 | `function` | `ptrs_function_t *` | A PointerScript function |
 | `struct` | `ptrs_struct_t *` | A PointerScript struct |
 
-##TypeUsage
-Checking if a variable has a specific type:
+##Structs
+Structs are as powerful as classes in other languages (they support fields, functions, overlods, getters/setters, ...).
+Here is a example of basic/common struct usage.
+For things like operator overloading etc. see [struct.ptrs](examples/struct.ptrs) in the examples directory.
 ```js
-var myVal = //...
-if(typeof myVal == type<int>)
-	//...
+struct Request
+{
+	host;
+	port;
+	error = false;
+	buff{1024}; //byte array
+
+	constructor(host = "localhost", port = 80)
+	{
+		this.host = host;
+		this.port = port;
+	}
+	destructor()
+	{
+		//...
+	}
+
+	get data
+	{
+		if(this.error)
+			throw "Trying to get the data of a failed request";
+		return this.buff;
+	}
+
+	execute()
+	{
+		//...
+	}
+};
+
+//create a new instance of Request
+//alternatively you could use
+//	var req : Request("m4gnus.de"); //this would allocate memory for 'req' on the stack
+var req = new Request("m4gnus.de");
+
+//call the execute method
+req.execute();
+//print the data
+printf("data = %s\n", req.data);
+
+//free the previousely allocated memory and call the destructor
+delete req;
 ```
 
-Converting a variable to an `int` or `float`
+##Variable Arguments
+PointerScript uses a C#/Java like approach optionally converting variable arguments to an array.
 ```js
-var myVal = cast<float>"3.14";
-```
+function sum(values...)
+{
+	//as values is a normal array you can get its size using 'sizeof'
+	var result = 0;
+	for(var i = 0; i < sizeof values; i++)
+	{
+		result += values[i];
+	}
 
-Changing the type of a variable
+	return result;
+}
+```
+You can also pass the arguments to another function by extending the array using the `...args` syntax.
+Note: this works for any array, **not** only arrays received via varargs.
 ```js
-//by default all native functions return an int
-var ptr = as<native>malloc(1024);
+function printfln(fmt, args...)
+{
+	printf(fmt, ...args);
+	printf("\n");
+}
 ```
 
 #Operators
@@ -142,23 +226,13 @@ var foo[32];
 
 //'var' Identifier '[]' [ Expression ] '}' '=' '[' ExpressionList ']' ';'
 var foo[] = [31 * 12, 3.14, "Ahoi"];
-var bar{32} = [42, 13.37, foo];
+var bar[32] = [42, 13.37, foo];
 ```
 
 ##StructVariableDefinition
 Creates a struct on the stack.
 ```js
 //'var' Identifier ':' Identifier '(' ExpressionList ')' ';'
-struct Foo
-{
-	x;
-	y;
-	constructor(a, b)
-	{
-		this.x = a;
-		this.y = b;
-	}
-}
 var bar : Foo(42, 666);
 ```
 
@@ -172,7 +246,7 @@ const SEEK_END = 2;
 ```
 
 ##AliasDefinition
-Creates a parse-time alias thats get evaluated when being used like a variable
+Creates a parse-time alias that gets evaluated when being used like a variable
 ```js
 //'alias' Identifier '=' Expression ';'
 function foo(val)
@@ -201,10 +275,11 @@ function fibo(val)
 ```
 
 ##ScopeStatement
-Variables within a scope statement wont be available outside and thus also wont use any memory anymore
+Variables within a scope statement wont be available outside and thus also wont use memory anymore
 ```js
 //'{' StatementList '}'
 var myPublicVar = 42;
+
 {
 	var myHiddenVar = "supersecret";
 }
@@ -216,7 +291,7 @@ Executes the try body and catches any error (including signals) passing an error
 //'try' Statement 'catch' '(' IdentifierList ')' Statement
 try
 {
-	//this will let us receive a a SIGSEGV
+	//this will let us receive a SIGSEGV
 	printf("%s", 42);
 }
 catch(error, backtrace, file, line, column)
@@ -243,6 +318,7 @@ function bar(x, y = 42, z = foo(x, y))
 {
 
 }
+//for information on how to use varargs see the Variable Arguments section
 function tar(name, args...)
 {
 
@@ -262,71 +338,189 @@ The varargs argument will be set to an NULL terminated array of all additional a
 Defines a struct.
 ```js
 //'struct' Identifier '{' StructMemberDefinitionList '}' ';'
-struct MyStruct
+struct Person
 {
-	x;
-	y = 3.14;
-	a{128}; //128 bytes
-	b[16]; //16 variables
+	family;
+	age = 18;
+	name{128}; //128 bytes
+	items[16]; //16 variables
 
-	operator + (val)
+	operator this + val
 	{
-		return this.y + val;
+		return this.age + val;
 	}
 
-	constructor(len) //alias for operator new
+	constructor(familyCount)
 	{
-		this.x = malloc(len);
+		this.family = malloc(len);
 	}
-	destructor() //alias for operator delete
+	destructor()
 	{
-		free(this.x);
+		free(this.family);
 	}
 
 	myFunc(a, b)
 	{
 		return this.y * a + b;
 	}
+
+	get Age
+	{
+		return this.age;
+	}
+	set Age
+	{
+		this.age = value;
+	}
 }
 ```
 ###StructMemberDefinition
-Variable member.
+Note: the following code examples are only valid within a struct definition
+####Variable member
 ```js
 //Identifier [ '=' Expression ] ';'
+age = 18;
 ```
-Array member.
+####Array member
 ```js
 //Identifier '{' ConstantExpression '}' ';'
+name{128};
 //Identifier '[' ConstantExpression ']' ';'
+items[16];
 ```
-Function member.
+####Function member
 ```js
 //Identifier '(' ArgumentDefinitionList ')' '{' StatementList '}'
+executeRequest(host = "localhost", port = 80)
+{
+
+}
 ```
-Operator overload member. Note `constructor` is an alias for `operator new` and `destructor` for `operator delete`. Valid operators are:
-- all Binary operators (`+`, `-`, ...)
-- all prefixed operators (`++`, `~`, ...) excluding `&`and `*`
-- all suffixed operators (`++`, `--`) note that `++` and `--` will be supplied with an argument set to `true` in case they are used suffixed
-- `()` calling a struct
-- `[]` getting a member from a struct using `["key"]`
-- `.` getting a member from a struct using `.key`
-- `cast` casting the array to another type
-- `new` creating an instance either with the `NewExpression` or the `StructVariableDefinition`
-- `delete` deleting the struct using the `DeleteStatement`
+####Getter/Setter
 ```js
-//'operator' Operator '(' ArgumentDefinitionList ')' '{' StatementList '}'
+//'get' Identifier '{' StatementList '}'
+get Age
+{
+	return this.age;
+}
+//'set' Identifier '{' StatementList '}'
+set Age
+{
+	this.age = value;
+}
+```
+####Operator overload member
+```js
 //'constructor' '(' ArgumentDefinitionList ')' '{' StatementList '}'
+constructor(x, y = 10, z = x + y)
+{
+	this.age = 18;
+}
 //'destructor' '(' ArgumentDefinitionList ')' '{' StatementList '}'
+destructor()
+{
+}
+//'operator' 'this' Operator Identifier '{' StatementList '}'
+operator this / val
+{
+	return this.age / val;
+}
+//'operator' Identifier Operator 'this' '{' StatementList '}'
+operator val / this
+{
+	return val / this.age;
+}
+//'operator' 'this' SuffixedUnaryOperator '{' StatementList '}'
+operator this++
+{
+
+}
+//'operator' PrefixedUnaryOperator 'this' '{' StatementList '}'
+operator --this
+{
+
+}
+//'operator' 'this' '.' Identifier '{' StatementList '}'
+operator this.key
+{
+	printf("tried to get this.%s\n", key);
+}
+//'operator' 'this' . Identifier ']' '{' StatementList '}'
+operator this[key]
+{
+	printf("tried to get this[\"%s\"]\n", key);
+}
+//'operator' 'this' '(' ArgumentDefinitionList ')' '{' StatementList '}'
+operator this(a, b) //will be called when the struct is called like a function
+{
+	return a + b;
+}
+//'operator' 'in' 'this' '{' StatementList '}'
+operator in this //overloads the foreach statement
+{
+	for(var i = 0; i < 16; i++)
+	{
+		//the yield expression will execute the foreach body like a function
+		//if the yield expression returns a non-zero value the foreach body used 'break' or 'return'
+		if(yield this.items[i], i)
+			return;
+	}
+}
 ```
 
 ##DeleteStatement
 Calls the destructor of a given struct instance and free's its memory.
 ```js
+//'delete' Expression ';'
 var foo = new MyStruct(128);
 delete foo;
 ```
 
+##SwitchStatement
+Note: A break between one cases body and the next case is **not** necessary.
+Also one case statement can have multiple cases seperated by a comma (all cases must be constants of type integer).
+```js
+//'switch' '(' Expression ')' '{' SwitchCaseBody '}'
+//'case' ExpressionList ':'
+//'default' ':'
+
+var str;
+switch(getchar())
+{
+	case 'a', 'b':
+		str = "hey";
+	case ':', 10:
+		str = "ahoi";
+	default:
+		str = "hello";
+}
+```
+
+##ForEachStatement
+This statement can be used to iterate over arrays and structs.
+Note that having more than one iterator is optional.
+```js
+//'foreach' '(' IdentifierList 'in' Expression ')' Statement
+
+foreach(key, val in myStruct)
+{
+
+}
+//or
+var items[16];
+foreach(val in items)
+{
+
+}
+//or
+foreach(val, index in items)
+{
+
+}
+```
+
 ##ControlStatements
+These are the same as in any other language (C, D, Javascript, ...)
 ```js
 //'if' '(' Expression ')' Statement [ 'else' Statement ]
 if(x >= 3)
@@ -355,15 +549,9 @@ do
 
 //'for' '(' Statement ';' Expression ';' Expression ')' Statement
 for(var i = 0; i < 10; i++)
-	printf("z[%d] = %d\n", i, z[i]);
-
-//'for' '(' [ 'var' ] Identifier 'in' Expression ')' Statement
-var key;
-for(key in myStruct)
 {
+	printf("z[%d] = %d\n", i, z[i]);
 }
-for(var key in myStruct)
-	printf("myStruct has member %s\n", key);
 
 //'continue' ';'
 continue;
@@ -423,7 +611,17 @@ foo.bar
 ##IndexExpression
 ```js
 //Expression '[' Expression ']'
-foo["bar"]
+foo["bar"] //for structs
+items[7] //for arrays
+```
+
+##ExpandExpression
+```js
+//'...' Expression
+var args = [18, 666, "devil"];
+printf("age: %d, evil: %d, sentence: %s", ...args);
+
+var foo = [42, ...args, "hihi"];
 ```
 
 ##AsExpression
@@ -434,7 +632,7 @@ as<float>0x7fc00000
 ```
 
 ##CastExpression
-Converts a expression to a specific type. Currently only casting to int and float is supported.
+Converts a expression to a specific type. Currently only casting to int, float and native is supported.
 ```js
 //'cast' '<' TypeName '>' Expression
 cast<int>3.14
@@ -450,6 +648,9 @@ Note that constant mathematical expressions will be calculated during parse time
 ```C
 //String | Integer | Float
 "Hello!"
+'x' //char code not string
+`Hello \ Whats up?
+Are you fine?` //wysiwyg string
 42
 5f
 3.14 * 5 + 7
