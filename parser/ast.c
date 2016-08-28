@@ -1017,6 +1017,27 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 			ast->arg.constval.meta.array.size = len;
 		}
 	}
+	else if(curr == '`')
+	{
+		rawnext(code);
+		int len = 0;
+		char *src = &code->src[code->pos];
+
+		while(*src++ != '`')
+			len++;
+
+		char *str = malloc(len + 1);
+		strncpy(str, &code->src[code->pos], len);
+		str[len] = 0;
+		code->pos += len + 1;
+
+		ast = talloc(ptrs_ast_t);
+		ast->handler = PTRS_HANDLE_CONSTANT;
+		ast->arg.constval.type = PTRS_TYPE_NATIVE;
+		ast->arg.constval.value.strval = str;
+		ast->arg.constval.meta.array.readOnly = true;
+		ast->arg.constval.meta.array.size = len;
+	}
 	else if(curr == '(')
 	{
 		int start = code->pos;
