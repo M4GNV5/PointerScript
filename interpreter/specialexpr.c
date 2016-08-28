@@ -387,7 +387,6 @@ ptrs_var_t *ptrs_handle_op_instanceof(ptrs_ast_t *node, ptrs_var_t *result, ptrs
 	}
 
 	result->type = PTRS_TYPE_INT;
-	result->meta.pointer = NULL;
 	return result;
 }
 
@@ -403,7 +402,7 @@ ptrs_var_t *ptrs_handle_yield(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	struct ptrs_ast_forin *forStmt = yieldVal->value.nativeval;
 
 	ptrs_scope_t *stmtScope = ptrs_scope_increase(scope, forStmt->stackOffset);
-	stmtScope->outer = (void*)yieldVal->meta.pointer;
+	stmtScope->outer = (void*)yieldVal->meta.this;
 	stmtScope->callScope = scope;
 	stmtScope->callAst = node;
 	stmtScope->calleeName = "(for in loop)";

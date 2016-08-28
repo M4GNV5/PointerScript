@@ -418,7 +418,6 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 		free(error.stack);
 
 		val.type = PTRS_TYPE_INT;
-		val.meta.pointer = NULL;
 		if(stmt.argc > 3 && stmt.args[3].scope != (unsigned)-1)
 		{
 			val.value.intval = error.line;
@@ -619,7 +618,7 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	{
 		ptrs_var_t yieldVal;
 		yieldVal.value.nativeval = &node->arg.forin;
-		yieldVal.meta.pointer = (void*)scope;
+		yieldVal.meta.this = (void*)scope;
 
 		overload.type = PTRS_TYPE_FUNCTION;
 		overload.meta.this = val->value.structval;
@@ -645,13 +644,11 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		{
 			indexvar->type = PTRS_TYPE_INT;
 			indexvar->value.intval = i;
-			indexvar->meta.pointer = NULL;
 
 			if(valvar != NULL && val->type == PTRS_TYPE_NATIVE)
 			{
 				valvar->type = PTRS_TYPE_INT;
 				valvar->value.intval = val->value.strval[i];
-				valvar->meta.pointer = NULL;
 			}
 			else if(valvar != NULL)
 			{

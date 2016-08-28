@@ -252,7 +252,6 @@ ptrs_var_t *ptrs_handle_prefix_length(ptrs_ast_t *node, ptrs_var_t *result, ptrs
 		ptrs_error(node, scope, "Cannot get the size of variable of type %s", ptrs_typetoa(value->type));
 	}
 
-	result->meta.pointer = NULL;
 	return result;
 }
 

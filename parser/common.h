@@ -109,7 +109,6 @@ typedef union val
 typedef union meta
 {
 	ptrs_struct_t *this;
-	uint8_t *pointer;
 	struct
 	{
 		bool readOnly;
