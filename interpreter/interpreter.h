@@ -101,6 +101,13 @@ ptrs_var_t *ptrs_handle_prefix_minus(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 ptrs_var_t *ptrs_handle_suffix_inc(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_suffix_dec(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 
+ptrs_var_t *ptrs_handle_native_getInt(void *target, size_t size, ptrs_var_t *value);
+ptrs_var_t *ptrs_handle_native_setInt(void *target, size_t size, ptrs_var_t *value);
+ptrs_var_t *ptrs_handle_native_getUInt(void *target, size_t size, ptrs_var_t *value);
+ptrs_var_t *ptrs_handle_native_setUInt(void *target, size_t size, ptrs_var_t *value);
+ptrs_var_t *ptrs_handle_native_getFloat(void *target, size_t size, ptrs_var_t *value);
+ptrs_var_t *ptrs_handle_native_setFloat(void *target, size_t size, ptrs_var_t *value);
+
 
 
 #define PTRS_HANDLE_BODY ptrs_handle_body
@@ -194,6 +201,13 @@ ptrs_var_t *ptrs_handle_suffix_dec(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 
 #define PTRS_HANDLE_SUFFIX_INC ptrs_handle_suffix_inc
 #define PTRS_HANDLE_SUFFIX_DEC ptrs_handle_suffix_dec
+
+#define PTRS_HANDLE_NATIVE_GETINT ptrs_handle_native_getInt
+#define PTRS_HANDLE_NATIVE_SETINT ptrs_handle_native_setInt
+#define PTRS_HANDLE_NATIVE_GETUINT ptrs_handle_native_getUInt
+#define PTRS_HANDLE_NATIVE_SETUINT ptrs_handle_native_setUInt
+#define PTRS_HANDLE_NATIVE_GETFLOAT ptrs_handle_native_getFloat
+#define PTRS_HANDLE_NATIVE_SETFLOAT ptrs_handle_native_setFloat
 
 
 #endif

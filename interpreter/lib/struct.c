@@ -61,6 +61,8 @@ ptrs_var_t *ptrs_struct_get(ptrs_struct_t *struc, ptrs_var_t *result, const char
 					result->value.ptrval = struc->data + curr->offset;
 					result->meta.array.size = curr->value.size;
 					return result;
+				case PTRS_STRUCTMEMBER_TYPED:
+					return curr->value.type->getHandler(struc->data + curr->offset, curr->value.type->size, result);
 			}
 		}
 		curr = curr->next;
@@ -88,6 +90,11 @@ bool ptrs_struct_set(ptrs_struct_t *struc, ptrs_var_t *value, const char *key, p
 				func.value.funcval = curr->value.function;
 				func.meta.this = struc;
 				ptrs_callfunc(ast, &result, scope, &func, 1, value);
+			}
+			else if(curr->type == PTRS_STRUCTMEMBER_TYPED)
+			{
+				ptrs_nativetype_info_t *type = curr->value.type;
+				type->setHandler(struc->data + curr->offset, type->size, value);
 			}
 			else
 			{
