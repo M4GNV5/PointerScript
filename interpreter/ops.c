@@ -44,47 +44,59 @@ static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *
 		result->value.intval = left->value.intval operator right->value.intval; \
 	} \
 
-#define binary_pointer_add() \
+#define binary_pointer_add(operator, isAssign) \
 	else if((tleft == PTRS_TYPE_NATIVE) ^ (tright == PTRS_TYPE_NATIVE) \
 	 	&& (tleft == PTRS_TYPE_INT || tright == PTRS_TYPE_INT)) \
 	{ \
 		result->type = PTRS_TYPE_NATIVE; \
-		result->value.intval = left->value.intval + right->value.intval; \
+		result->value.intval = left->value.intval operator right->value.intval; \
 		result->meta.array.readOnly = tleft == PTRS_TYPE_NATIVE ? left->meta.array.readOnly : right->meta.array.readOnly; \
 	} \
 	else if(tleft == PTRS_TYPE_POINTER && tright == PTRS_TYPE_INT) \
 	{ \
 		result->type = PTRS_TYPE_POINTER; \
-		result->value.ptrval = left->value.ptrval + right->value.intval; \
+		result->value.ptrval = left->value.ptrval operator right->value.intval; \
 	} \
 	else if(tleft == PTRS_TYPE_INT && tright == PTRS_TYPE_POINTER) \
 	{ \
 		result->type = PTRS_TYPE_POINTER; \
 		result->value.ptrval = left->value.intval + right->value.ptrval; \
+		if(isAssign) \
+		{ \
+			left->type = PTRS_TYPE_POINTER; \
+			left->value.ptrval = result->value.ptrval; \
+		} \
 	}
 
-#define binary_pointer_sub() \
+#define binary_pointer_sub(operator, isAssign) \
 	else if((tleft == PTRS_TYPE_NATIVE) ^ (tright == PTRS_TYPE_NATIVE) \
 		&& (tleft == PTRS_TYPE_INT || tright == PTRS_TYPE_INT)) \
 	{ \
 		result->type = PTRS_TYPE_NATIVE; \
-		result->value.intval = left->value.intval - right->value.intval; \
+		result->value.intval = left->value.intval operator right->value.intval; \
 		result->meta.array.readOnly = tleft == PTRS_TYPE_NATIVE ? left->meta.array.readOnly : right->meta.array.readOnly; \
 	} \
 	else if(tleft == PTRS_TYPE_NATIVE && tright == PTRS_TYPE_NATIVE) \
 	{ \
 		result->type = PTRS_TYPE_INT; \
-		result->value.intval = left->value.strval - right->value.strval; \
+		if(isAssign) \
+			left->type = PTRS_TYPE_INT; \
+		result->value.intval = left->value.intval operator right->value.intval; \
 	} \
 	else if(tleft == PTRS_TYPE_POINTER && tright == PTRS_TYPE_INT) \
 	{ \
 		result->type = PTRS_TYPE_POINTER; \
-		result->value.ptrval = left->value.ptrval - right->value.intval; \
+		result->value.ptrval = left->value.ptrval operator right->value.intval; \
 	} \
 	else if(tleft == PTRS_TYPE_POINTER && tright == PTRS_TYPE_POINTER) \
 	{ \
 		result->type = PTRS_TYPE_INT; \
 		result->value.intval = left->value.ptrval - right->value.ptrval; \
+		if(isAssign) \
+		{ \
+			left->type = PTRS_TYPE_INT; \
+			left->value.intval = result->value.intval; \
+		} \
 	}
 
 
@@ -150,13 +162,13 @@ handle_binary(xor, ^, "^", false)
 handle_binary(and, &, "&", false)
 handle_binary(shr, >>, ">>", false)
 handle_binary(shl, <<, "<<", false)
-handle_binary(add, +, "+", false, binary_floatop(+) binary_pointer_add())
-handle_binary(sub, -, "-", false, binary_floatop(-) binary_pointer_sub())
+handle_binary(add, +, "+", false, binary_floatop(+) binary_pointer_add(+, false))
+handle_binary(sub, -, "-", false, binary_floatop(-) binary_pointer_sub(-, false))
 handle_binary(mul, *, "*", false, binary_floatop(*))
 handle_binary(div, /, "/", false, binary_floatop(/))
 handle_binary(mod, %, "%", false)
-handle_binary(addassign, +=, "+=", true, binary_floatop(+=) binary_pointer_add())
-handle_binary(subassign, -=, "-=", true, binary_floatop(-=) binary_pointer_sub())
+handle_binary(addassign, +=, "+=", true, binary_floatop(+=) binary_pointer_add(+=, true))
+handle_binary(subassign, -=, "-=", true, binary_floatop(-=) binary_pointer_sub(-=, true))
 handle_binary(mulassign, *=, "*=", true, binary_floatop(*=))
 handle_binary(divassign, /=, "/=", true, binary_floatop(/=))
 handle_binary(modassign, %=, "%=", true)
