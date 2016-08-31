@@ -24,6 +24,12 @@ struct ptrs_ast_member
 	char *name;
 };
 
+struct ptrs_ast_thismember
+{
+	ptrs_symbol_t base;
+	struct ptrs_structlist *member;
+};
+
 struct ptrs_ast_import
 {
 	int count;
@@ -164,6 +170,7 @@ union ptrs_ast_arg
 
 	struct ptrs_ast_define define;
 	struct ptrs_ast_member member;
+	struct ptrs_ast_thismember thismember;
 	struct ptrs_ast_import import;
 	struct ptrs_ast_trycatch trycatch;
 	struct ptrs_ast_function function;

@@ -124,6 +124,35 @@ ptrs_var_t *ptrs_handle_assign_member(ptrs_ast_t *node, ptrs_var_t *value, ptrs_
 	return NULL;
 }
 
+ptrs_var_t *ptrs_handle_thismember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_thismember expr = node->arg.thismember;
+	ptrs_var_t *base = ptrs_scope_get(scope, expr.base);
+
+	if(base->type != PTRS_TYPE_STRUCT)
+		ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr.member->name, ptrs_typetoa(base->type));
+
+	ptrs_var_t *_result = ptrs_struct_getMember(base->value.structval, result, expr.member, node, scope);
+	if(_result == NULL)
+	{
+		result->type = PTRS_TYPE_UNDEFINED;
+		return result;
+	}
+	return _result;
+}
+ptrs_var_t *ptrs_handle_assign_thismember(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_thismember expr = node->arg.thismember;
+	ptrs_var_t *base = ptrs_scope_get(scope, expr.base);
+
+	if(base->type != PTRS_TYPE_STRUCT)
+		ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr.member->name, ptrs_typetoa(base->type));
+
+	ptrs_struct_setMember(base->value.structval, value, expr.member, node, scope);
+
+	return NULL;
+}
+
 ptrs_var_t *ptrs_handle_prefix_address(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	ptrs_var_t *val = node->arg.astval->handler(node->arg.astval, result, scope);

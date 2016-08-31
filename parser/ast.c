@@ -65,6 +65,7 @@ static double readDouble(code_t *code);
 
 static ptrs_ast_t *defaultSymbolCreator(unsigned scopeLevel, struct symbollist *entry);
 static ptrs_ast_t *constSymbolCreator(unsigned scopeLevel, struct symbollist *entry);
+static ptrs_ast_t *structMemberSymbolCreator(unsigned scopeLevel, struct symbollist *entry);
 static void setSymbol(code_t *code, char *text, unsigned offset);
 static ptrs_symbol_t addSymbol(code_t *code, char *text);
 static struct symbollist *addSpecialSymbol(code_t *code, char *symbol, symbolcreator_t creator);
@@ -826,6 +827,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 {
 	char curr = code->curr;
 	int pos = code->pos;
+	bool noSetHandler = true;
 	ptrs_ast_t *ast;
 
 	for(int i = 0; i < prefixOpCount; i++)
@@ -961,6 +963,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 	{
 		char *name = readIdentifier(code);
 		ast = getSymbol(code, name);
+		noSetHandler = false;
 		free(name);
 	}
 	else if(isdigit(curr) || curr == '.')
@@ -1107,7 +1110,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 		return NULL;
 	}
 
-	if(ast->handler != PTRS_HANDLE_IDENTIFIER)
+	if(noSetHandler)
 		ast->setHandler = NULL;
 	ast->codepos = pos;
 	ast->code = code->src;
@@ -1373,6 +1376,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 	struc->data = NULL;
 	consumec(code, '{');
 
+	symbolScope_increase(code, 0, true);
 	struct ptrs_structlist *curr = NULL;
 	while(code->curr != '}')
 	{
@@ -1536,6 +1540,9 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 		curr->name = name;
 
+		struct symbollist *symbol = addSpecialSymbol(code, strdup(name), structMemberSymbolCreator);
+		symbol->arg.data = curr;
+
 		if(isProperty > 0)
 		{
 			symbolScope_increase(code, 1, false);
@@ -1621,6 +1628,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			consumec(code, ';');
 		}
 	}
+
+	symbolScope_decrease(code);
 	struc->member = curr;
 	consumec(code, '}');
 	consumec(code, ';');
@@ -1835,9 +1844,6 @@ static double readDouble(code_t *code)
 
 static ptrs_ast_t *defaultSymbolCreator(unsigned scopeLevel, struct symbollist *entry)
 {
-	if(scopeLevel == (unsigned)-1)
-		return NULL;
-
 	ptrs_ast_t *ast = talloc(ptrs_ast_t);
 	ast->handler = PTRS_HANDLE_IDENTIFIER;
 	ast->setHandler = PTRS_HANDLE_ASSIGN_IDENTIFIER;
@@ -1851,6 +1857,19 @@ static ptrs_ast_t *defaultSymbolCreator(unsigned scopeLevel, struct symbollist *
 static ptrs_ast_t *constSymbolCreator(unsigned scopeLevel, struct symbollist *entry)
 {
 	return entry->arg.data;
+}
+
+static ptrs_ast_t *structMemberSymbolCreator(unsigned scopeLevel, struct symbollist *entry)
+{
+	ptrs_ast_t *ast = talloc(ptrs_ast_t);
+	ast->handler = PTRS_HANDLE_THISMEMBER;
+	ast->setHandler = PTRS_HANDLE_ASSIGN_THISMEMBER;
+
+	ast->arg.thismember.base.scope = scopeLevel - 1;
+	ast->arg.thismember.base.offset = 0;
+	ast->arg.thismember.member = entry->arg.data;
+
+	return ast;
 }
 
 static void setSymbol(code_t *code, char *text, unsigned offset)

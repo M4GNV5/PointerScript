@@ -40,6 +40,7 @@ ptrs_var_t *ptrs_handle_vararrayexpr(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_new(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_thismember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_slice(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_as(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
@@ -51,6 +52,7 @@ ptrs_var_t *ptrs_handle_assign_identifier(ptrs_ast_t *node, ptrs_var_t *value, p
 ptrs_var_t *ptrs_handle_assign_dereference(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_assign_index(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_assign_member(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_assign_thismember(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
 
 ptrs_var_t *ptrs_handle_op_ternary(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_op_instanceof(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
@@ -134,6 +136,7 @@ ptrs_var_t *ptrs_handle_suffix_dec(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 #define PTRS_HANDLE_STRINGFORMAT ptrs_handle_stringformat
 #define PTRS_HANDLE_NEW ptrs_handle_new
 #define PTRS_HANDLE_MEMBER ptrs_handle_member
+#define PTRS_HANDLE_THISMEMBER ptrs_handle_thismember
 #define PTRS_HANDLE_INDEX ptrs_handle_index
 #define PTRS_HANDLE_SLICE ptrs_handle_slice
 #define PTRS_HANDLE_AS ptrs_handle_as
@@ -145,6 +148,7 @@ ptrs_var_t *ptrs_handle_suffix_dec(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 #define PTRS_HANDLE_ASSIGN_DEREFERENCE ptrs_handle_assign_dereference
 #define PTRS_HANDLE_ASSIGN_INDEX ptrs_handle_assign_index
 #define PTRS_HANDLE_ASSIGN_MEMBER ptrs_handle_assign_member
+#define PTRS_HANDLE_ASSIGN_THISMEMBER ptrs_handle_assign_thismember
 
 #define PTRS_HANDLE_OP_TERNARY ptrs_handle_op_ternary
 #define PTRS_HANDLE_OP_INSTANCEOF ptrs_handle_op_instanceof
