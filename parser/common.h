@@ -72,6 +72,7 @@ struct ptrs_structlist
 {
 	char *name;
 	unsigned int offset;
+	bool isPrivate;
 	enum ptrs_structmembertype type;
 	union ptrs_structmember value;
 	struct ptrs_structlist *next;

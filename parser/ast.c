@@ -1533,14 +1533,17 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 		else if(lookahead(code, "set"))
 			isProperty = 2;
 
-		name = readIdentifier(code);
 		struct ptrs_structlist *next = talloc(struct ptrs_structlist);
 		next->next = curr;
 		curr = next;
 
-		curr->name = name;
+		if(lookahead(code, "private"))
+			curr->isPrivate = true;
+		else
+			curr->isPrivate = false;
+		curr->name = readIdentifier(code);
 
-		struct symbollist *symbol = addSpecialSymbol(code, strdup(name), structMemberSymbolCreator);
+		struct symbollist *symbol = addSpecialSymbol(code, strdup(curr->name), structMemberSymbolCreator);
 		symbol->arg.data = curr;
 
 		if(isProperty > 0)

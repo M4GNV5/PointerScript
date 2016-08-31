@@ -67,7 +67,7 @@ ptrs_var_t *ptrs_struct_get(ptrs_struct_t *struc, ptrs_var_t *result, const char
 	struct ptrs_structlist *curr = struc->member;
 	while(curr != NULL)
 	{
-		if(strcmp(curr->name, key) == 0 && curr->type != PTRS_STRUCTMEMBER_SETTER)
+		if(strcmp(curr->name, key) == 0 && !curr->isPrivate && curr->type != PTRS_STRUCTMEMBER_SETTER)
 			return ptrs_struct_getMember(struc, result, curr, ast, scope);
 		curr = curr->next;
 	}

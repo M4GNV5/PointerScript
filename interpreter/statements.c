@@ -669,6 +669,9 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		struct ptrs_structlist *curr = val->value.structval->member;
 		while(curr != NULL)
 		{
+			if(curr->isPrivate)
+				goto skip_curr;
+
 			keyvar->type = PTRS_TYPE_NATIVE;
 			keyvar->value.strval = curr->name;
 			keyvar->meta.array.readOnly = true;
