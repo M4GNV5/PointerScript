@@ -273,7 +273,7 @@ void importScript(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 			ptrs_error(node, scope, "Script '%s' has no property '%s'", file, stmt.fields[i]);
 
 		ptrs_var_t valv;
-		ptrs_var_t *val = ast->handler(ast, &valv, scope);
+		ptrs_var_t *val = ast->handler(ast, &valv, cache->scope);
 		ptrs_scope_set(scope, stmt.symbols[i], val);
 	}
 }
