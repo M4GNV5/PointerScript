@@ -1541,7 +1541,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			curr->isPrivate = true;
 		else
 			curr->isPrivate = false;
-		curr->name = readIdentifier(code);
+
+		name = curr->name = readIdentifier(code);
 
 		struct symbollist *symbol = addSpecialSymbol(code, strdup(curr->name), structMemberSymbolCreator);
 		symbol->arg.data = curr;
