@@ -102,7 +102,7 @@ bool ptrs_struct_set(ptrs_struct_t *struc, ptrs_var_t *value, const char *key, p
 	struct ptrs_structlist *curr = struc->member;
 	while(curr != NULL)
 	{
-		if(strcmp(curr->name, key) == 0)
+		if(strcmp(curr->name, key) == 0 && !curr->isPrivate)
 		{
 			ptrs_struct_setMember(struc, value, curr, ast, scope);
 			return true;
