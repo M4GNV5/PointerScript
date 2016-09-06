@@ -57,6 +57,8 @@ ptrs_var_t *ptrs_struct_getMember(ptrs_struct_t *struc, ptrs_var_t *result, stru
 			result->value.ptrval = struc->data + member->offset;
 			result->meta.array.size = member->value.size;
 			return result;
+		case PTRS_STRUCTMEMBER_TYPED:
+			return member->value.type->getHandler(struc->data + member->offset, member->value.type->size, result);
 	}
 
 	return NULL;
@@ -90,6 +92,11 @@ void ptrs_struct_setMember(ptrs_struct_t *struc, ptrs_var_t *value, struct ptrs_
 		func.value.funcval = member->value.function;
 		func.meta.this = struc;
 		ptrs_callfunc(ast, &result, scope, &func, 1, value);
+	}
+	else if(member->type == PTRS_STRUCTMEMBER_TYPED)
+	{
+		ptrs_nativetype_info_t *type = member->value.type;
+		type->setHandler(struc->data + member->offset, type->size, value);
 	}
 	else
 	{

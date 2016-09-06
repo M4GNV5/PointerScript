@@ -54,6 +54,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc);
 static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt);
 
 static ptrs_vartype_t readTypeName(code_t *code);
+static ptrs_nativetype_info_t *readNativeType(code_t *code);
 static ptrs_asthandler_t readPrefixOperator(code_t *code, const char **label);
 static ptrs_asthandler_t readSuffixOperator(code_t *code, const char **label);
 static ptrs_asthandler_t readBinaryOperator(code_t *code, const char **label);
@@ -1618,6 +1619,16 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			struc->size += curr->value.size;
 			free(ast);
 		}
+		else if(code->curr == ':')
+		{
+			curr->type = PTRS_STRUCTMEMBER_TYPED;
+			consumec(code, ':');
+			curr->value.type = readNativeType(code);
+			consumec(code, ';');
+
+			curr->offset = struc->size;
+			struc->size += 8; //for align, TODO group multiple following members of size < 8
+		}
 		else
 		{
 			curr->type = PTRS_STRUCTMEMBER_VAR;
@@ -1666,6 +1677,45 @@ static ptrs_vartype_t readTypeName(code_t *code)
 	}
 
 	return PTRS_TYPE_STRUCT + 1;
+}
+
+static ptrs_nativetype_info_t nativeTypes[] = {
+	{"char", PTRS_CTYPE_CHAR, sizeof(char), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
+	{"short", PTRS_CTYPE_SHORT, sizeof(short), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
+	{"int", PTRS_CTYPE_INT, sizeof(int), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
+	{"long", PTRS_CTYPE_LONG, sizeof(long), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
+	{"longlong", PTRS_CTYPE_LONGLONG, sizeof(long long), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
+
+	{"uchar", PTRS_CTYPE_UCHAR, sizeof(unsigned char), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
+	{"ushort", PTRS_CTYPE_USHORT, sizeof(unsigned short), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
+	{"uint", PTRS_CTYPE_UINT, sizeof(unsigned int), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
+	{"ulong", PTRS_CTYPE_ULONG, sizeof(unsigned long), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
+	{"ulonglong", PTRS_CTYPE_ULONGLONG, sizeof(unsigned long long), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
+
+	{"i8", PTRS_CTYPE_I8, sizeof(int8_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
+	{"i16", PTRS_CTYPE_I16, sizeof(int16_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
+	{"i32", PTRS_CTYPE_I32, sizeof(int32_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
+	{"i64", PTRS_CTYPE_I64, sizeof(int64_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
+
+	{"u8", PTRS_CTYPE_U8, sizeof(uint8_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
+	{"u16", PTRS_CTYPE_U16, sizeof(uint16_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
+	{"u32", PTRS_CTYPE_U32, sizeof(uint32_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
+	{"u64", PTRS_CTYPE_U64, sizeof(uint64_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
+
+	{"single", PTRS_CTYPE_SINGLE, sizeof(float), PTRS_HANDLE_NATIVE_GETFLOAT, PTRS_HANDLE_NATIVE_SETFLOAT},
+	{"double", PTRS_CTYPE_DOUBLE, sizeof(double), PTRS_HANDLE_NATIVE_GETFLOAT, PTRS_HANDLE_NATIVE_SETFLOAT},
+	{"pointer", PTRS_CTYPE_POINTER, sizeof(void *), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
+};
+static int nativeTypeCount = sizeof(nativeTypes) / sizeof(ptrs_nativetype_info_t);
+
+static ptrs_nativetype_info_t *readNativeType(code_t *code)
+{
+	for(int i = 0; i < nativeTypeCount; i++)
+	{
+		if(lookahead(code, nativeTypes[i].name))
+			return &nativeTypes[i];
+	}
+	return NULL;
 }
 
 static ptrs_asthandler_t readOperatorFrom(code_t *code, const char **label, struct opinfo *ops, int opCount)

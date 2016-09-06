@@ -1,4 +1,18 @@
-import printf, strcmp;
+import printf, strcmp, gettimeofday;
+
+//C compatible structs
+struct Time
+{
+	seconds : i64;
+	microseconds : i32;
+};
+var now = new Time();
+
+gettimeofday(now, NULL);
+printf("milliseconds since epoch: %lld\n", now.seconds * 1000 + now.microseconds / 1000);
+delete now;
+
+
 
 struct Foo
 {
@@ -11,7 +25,7 @@ struct Foo
 	//and function-members
 	dump()
 	{
-		printf("%-20p%-20ld%-20ld\n", this, this.bar, this.tar);
+		printf("%-20p%-20ld%-20p\n", this, this.value, this.myValues);
 	}
 
 	//there is also a 'constructor' and 'destructor'

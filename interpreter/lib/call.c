@@ -173,6 +173,10 @@ intptr_t ptrs_callnative(void *func, int argc, ptrs_var_t *argv)
 				types[i] = &ffi_type_sint64;
 				values[i] = &argv[i].value.intval;
 				break;
+			case PTRS_TYPE_STRUCT:
+				types[i] = &ffi_type_pointer;
+				values[i] = &argv[i].value.structval->data;
+				break;
 			case PTRS_TYPE_FUNCTION:
 				callback = argv[i].value.funcval;
 				types[i] = &ffi_type_pointer;
