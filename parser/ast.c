@@ -1293,7 +1293,7 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 	struct ptrs_ast_case first;
 	first.next = NULL;
 
-	struct ptrs_astlist *body;
+	struct ptrs_astlist *body = NULL;
 	struct ptrs_ast_case *cases = &first;
 	for(;;)
 	{

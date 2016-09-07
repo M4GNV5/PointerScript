@@ -364,7 +364,10 @@ ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 
 ptrs_var_t *ptrs_handle_identifier(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	return ptrs_scope_get(scope, node->arg.varval);
+	if(node->arg.varval.scope == 0)
+		return scope->bp + node->arg.varval.offset;
+	else
+		return ptrs_scope_get(scope, node->arg.varval);
 }
 ptrs_var_t *ptrs_handle_assign_identifier(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope)
 {
