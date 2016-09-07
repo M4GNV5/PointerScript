@@ -18,7 +18,7 @@ ptrs_var_t *ptrs_handle_call(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 	struct ptrs_ast_call expr = node->arg.call;
 	ptrs_var_t funcv;
 	ptrs_var_t *func = expr.value->handler(expr.value, &funcv, scope);
-	result = ptrs_call(expr.value, func, result, expr.arguments, scope);
+	result = ptrs_call(expr.value, expr.retType, func, result, expr.arguments, scope);
 
 	return result;
 }
@@ -67,9 +67,9 @@ ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 	args[2].type = PTRS_TYPE_NATIVE;
 	args[2].value.strval = stmt.str;
 
-	args[1].value.intval = ptrs_callnative(snprintf, len, args) + 1;
+	args[1].value.intval = ptrs_callnative(PTRS_TYPE_INT, snprintf, len, args).intval + 1;
 	args[0].value.strval = ptrs_alloc(scope, args[1].value.intval);
-	ptrs_callnative(snprintf, len, args);
+	ptrs_callnative(PTRS_TYPE_INT, snprintf, len, args);
 
 	result->type = PTRS_TYPE_NATIVE;
 	result->value.strval = args[0].value.strval;

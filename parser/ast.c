@@ -895,12 +895,21 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 		if(type > PTRS_TYPE_STRUCT)
 			unexpectedm(code, NULL, "Syntax is as<TYPENAME>");
 
-		ast = talloc(ptrs_ast_t);
-		ast->handler = PTRS_HANDLE_AS;
-		ast->arg.cast.type = type;
 		consumec(code, '>');
+		ptrs_ast_t *val = parseUnaryExpr(code, false);
 
-		ast->arg.cast.value = parseUnaryExpr(code, false);
+		if(val->handler == PTRS_HANDLE_CALL)
+		{
+			val->arg.call.retType = type;
+			ast = val;
+		}
+		else
+		{
+			ast = talloc(ptrs_ast_t);
+			ast->handler = PTRS_HANDLE_AS;
+			ast->arg.cast.type = type;
+			ast->arg.cast.value = val;
+		}
 	}
 	else if(lookahead(code, "cast"))
 	{
@@ -1154,6 +1163,7 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 		call->file = code->filename;
 		consumec(code, '(');
 
+		call->arg.call.retType = PTRS_TYPE_INT;
 		call->arg.call.value = ast;
 		call->arg.call.arguments = parseExpressionList(code, ')');
 

@@ -101,6 +101,7 @@ struct ptrs_ast_cast
 
 struct ptrs_ast_call
 {
+	ptrs_vartype_t retType;
 	struct ptrs_ast *value;
 	struct ptrs_astlist *arguments;
 };

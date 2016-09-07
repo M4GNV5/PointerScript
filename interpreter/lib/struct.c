@@ -158,7 +158,7 @@ ptrs_var_t *ptrs_struct_construct(ptrs_var_t *constructor, struct ptrs_astlist *
 	{
 		overload.type = PTRS_TYPE_FUNCTION;
 		overload.meta.this = instance;
-		ptrs_call(node, &overload, result, arguments, scope);
+		ptrs_call(node, PTRS_TYPE_UNDEFINED, &overload, result, arguments, scope);
 	}
 
 	result->type = PTRS_TYPE_STRUCT;
