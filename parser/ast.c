@@ -659,18 +659,18 @@ struct opinfo
 
 struct opinfo binaryOps[] = {
 	// >> and << need to be before > and < or we will always lookahead greater / less
-	{">>", 9, false, PTRS_HANDLE_OP_SHR}, //shift right
-	{"<<", 9, false, PTRS_HANDLE_OP_SHL}, //shift left
+	{">>", 12, false, PTRS_HANDLE_OP_SHR}, //shift right
+	{"<<", 12, false, PTRS_HANDLE_OP_SHL}, //shift left
 
-	{"===", 8, false, PTRS_HANDLE_OP_TYPEEQUAL},
-	{"!==", 8, false, PTRS_HANDLE_OP_TYPEINEQUAL},
+	{"===", 9, false, PTRS_HANDLE_OP_TYPEEQUAL},
+	{"!==", 9, false, PTRS_HANDLE_OP_TYPEINEQUAL},
 
-	{"==", 8, false, PTRS_HANDLE_OP_EQUAL},
-	{"!=", 8, false, PTRS_HANDLE_OP_INEQUAL},
-	{"<=", 8, false, PTRS_HANDLE_OP_LESSEQUAL},
-	{">=", 8, false, PTRS_HANDLE_OP_GREATEREQUAL},
-	{"<", 8, false, PTRS_HANDLE_OP_LESS},
-	{">", 8, false, PTRS_HANDLE_OP_GREATER},
+	{"==", 9, false, PTRS_HANDLE_OP_EQUAL},
+	{"!=", 9, false, PTRS_HANDLE_OP_INEQUAL},
+	{"<=", 10, false, PTRS_HANDLE_OP_LESSEQUAL},
+	{">=", 10, false, PTRS_HANDLE_OP_GREATEREQUAL},
+	{"<", 10, false, PTRS_HANDLE_OP_LESS},
+	{">", 10, false, PTRS_HANDLE_OP_GREATER},
 
 	{"=", 1, true, PTRS_HANDLE_OP_ASSIGN},
 	{"+=", 1, true, PTRS_HANDLE_OP_ADDASSIGN},
@@ -687,42 +687,42 @@ struct opinfo binaryOps[] = {
 	{"?", 2, true, PTRS_HANDLE_OP_TERNARY},
 	{":", -1, true, PTRS_HANDLE_OP_TERNARY},
 
-	{"instanceof", 2, false, PTRS_HANDLE_OP_INSTANCEOF},
+	{"instanceof", 11, false, PTRS_HANDLE_OP_INSTANCEOF},
 
 	{"||", 3, false, PTRS_HANDLE_OP_LOGICOR},
-	{"^^", 3, false, PTRS_HANDLE_OP_LOGICXOR},
-	{"&&", 4, false, PTRS_HANDLE_OP_LOGICAND},
+	{"^^", 4, false, PTRS_HANDLE_OP_LOGICXOR},
+	{"&&", 5, false, PTRS_HANDLE_OP_LOGICAND},
 
-	{"|", 5, false, PTRS_HANDLE_OP_OR},
-	{"^", 6, false, PTRS_HANDLE_OP_XOR},
-	{"&", 7, false, PTRS_HANDLE_OP_AND},
+	{"|", 6, false, PTRS_HANDLE_OP_OR},
+	{"^", 7, false, PTRS_HANDLE_OP_XOR},
+	{"&", 8, false, PTRS_HANDLE_OP_AND},
 
-	{"+", 10, false, PTRS_HANDLE_OP_ADD},
-	{"-", 10, false, PTRS_HANDLE_OP_SUB},
+	{"+", 13, false, PTRS_HANDLE_OP_ADD},
+	{"-", 13, false, PTRS_HANDLE_OP_SUB},
 
-	{"*", 11, false, PTRS_HANDLE_OP_MUL},
-	{"/", 11, false, PTRS_HANDLE_OP_DIV},
-	{"%", 11, false, PTRS_HANDLE_OP_MOD}
+	{"*", 14, false, PTRS_HANDLE_OP_MUL},
+	{"/", 14, false, PTRS_HANDLE_OP_DIV},
+	{"%", 14, false, PTRS_HANDLE_OP_MOD}
 };
 static int binaryOpCount = sizeof(binaryOps) / sizeof(struct opinfo);
 
 struct opinfo prefixOps[] = {
-	{"typeof", 12, true, PTRS_HANDLE_OP_TYPEOF},
-	{"sizeof", 12, true, PTRS_HANDLE_PREFIX_LENGTH}, //length aka sizeof
-	{"++", 12, true, PTRS_HANDLE_PREFIX_INC}, //prefixed ++
-	{"--", 12, true, PTRS_HANDLE_PREFIX_DEC}, //prefixed --
-	{"!", 12, true, PTRS_HANDLE_PREFIX_LOGICNOT}, //logical NOT
-	{"~", 12, true, PTRS_HANDLE_PREFIX_NOT}, //bitwise NOT
-	{"&", 12, true, PTRS_HANDLE_PREFIX_ADDRESS}, //adress of
-	{"*", 12, true, PTRS_HANDLE_PREFIX_DEREFERENCE}, //dereference
-	{"+", 12, true, PTRS_HANDLE_PREFIX_PLUS}, //unary +
-	{"-", 12, true, PTRS_HANDLE_PREFIX_MINUS} //unary -
+	{"typeof", 0, true, PTRS_HANDLE_OP_TYPEOF},
+	{"sizeof", 0, true, PTRS_HANDLE_PREFIX_LENGTH}, //length aka sizeof
+	{"++", 0, true, PTRS_HANDLE_PREFIX_INC}, //prefixed ++
+	{"--", 0, true, PTRS_HANDLE_PREFIX_DEC}, //prefixed --
+	{"!", 0, true, PTRS_HANDLE_PREFIX_LOGICNOT}, //logical NOT
+	{"~", 0, true, PTRS_HANDLE_PREFIX_NOT}, //bitwise NOT
+	{"&", 0, true, PTRS_HANDLE_PREFIX_ADDRESS}, //adress of
+	{"*", 0, true, PTRS_HANDLE_PREFIX_DEREFERENCE}, //dereference
+	{"+", 0, true, PTRS_HANDLE_PREFIX_PLUS}, //unary +
+	{"-", 0, true, PTRS_HANDLE_PREFIX_MINUS} //unary -
 };
 static int prefixOpCount = sizeof(prefixOps) / sizeof(struct opinfo);
 
 struct opinfo suffixedOps[] = {
-	{"++", 13, false, PTRS_HANDLE_SUFFIX_INC}, //suffixed ++
-	{"--", 13, false, PTRS_HANDLE_SUFFIX_DEC} //suffixed --
+	{"++", 0, false, PTRS_HANDLE_SUFFIX_INC}, //suffixed ++
+	{"--", 0, false, PTRS_HANDLE_SUFFIX_DEC} //suffixed --
 };
 static int suffixedOpCount = sizeof(suffixedOps) / sizeof(struct opinfo);
 
