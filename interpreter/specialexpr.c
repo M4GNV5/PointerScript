@@ -119,8 +119,30 @@ ptrs_var_t *ptrs_handle_assign_member(ptrs_ast_t *node, ptrs_var_t *value, ptrs_
 	if(base->type != PTRS_TYPE_STRUCT)
 		ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr.name, ptrs_typetoa(base->type));
 
-	if(!ptrs_struct_set(base->value.structval, value, expr.name, node, scope))
+	if(ptrs_struct_set(base->value.structval, value, expr.name, node, scope))
+		return NULL;
+
+	ptrs_var_t overload;
+	if((overload.value.funcval = ptrs_struct_getOverload(base, ptrs_handle_assign_member, true)) != NULL)
+	{
+		overload.type = PTRS_TYPE_FUNCTION;
+		overload.meta.this = base->value.structval;
+
+		ptrs_var_t args[2];
+		args[0].type = PTRS_TYPE_NATIVE;
+		args[0].value.strval = expr.name;
+		args[0].meta.array.size = 0;
+		args[0].meta.array.readOnly = true;
+		memcpy(args + 1, value, sizeof(ptrs_var_t));
+
+		ptrs_var_t result;
+		ptrs_callfunc(node, &result, scope, &overload, 2, args);
+	}
+	else
+	{
 		ptrs_error(node, scope, "Struct %s has no member '%s'", base->value.structval->name, expr.name);
+	}
+
 	return NULL;
 }
 
@@ -282,7 +304,28 @@ ptrs_var_t *ptrs_handle_assign_index(ptrs_ast_t *node, ptrs_var_t *value, ptrs_s
 	{
 		const char *key = ptrs_vartoa(index, buff, 32);
 		if(!ptrs_struct_set(val->value.structval, value, key, node, scope))
-			ptrs_error(node, scope, "Struct %s has no member '%s'", val->value.structval->name, key);
+		{
+			ptrs_var_t overload;
+			if((overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_assign_index, true)) != NULL)
+			{
+				overload.type = PTRS_TYPE_FUNCTION;
+				overload.meta.this = val->value.structval;
+
+				ptrs_var_t args[2];
+				args[0].type = PTRS_TYPE_NATIVE;
+				args[0].value.strval = key;
+				args[0].meta.array.size = 0;
+				args[0].meta.array.readOnly = key != buff;
+				memcpy(args + 1, value, sizeof(ptrs_var_t));
+
+				ptrs_var_t result;
+				ptrs_callfunc(node, &result, scope, &overload, 2, args);
+			}
+			else
+			{
+				ptrs_error(node, scope, "Struct %s has no member '%s'", val->value.structval->name, key);
+			}
+		}
 	}
 	else
 	{

@@ -1435,30 +1435,44 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 						}
 						else
 						{
-							if(code->curr == '.')
+							char curr = code->curr;
+							if(curr == '.' || curr == '[')
 							{
 								next(code);
-								opLabel = ".";
-								nameFormat = "%1$s.op this.%3$s";
 								otherName = readIdentifier(code);
 
-								func->args = talloc(ptrs_symbol_t);
-								func->args[0] = addSymbol(code, otherName);
-								overload->op = PTRS_HANDLE_MEMBER;
-							}
-							else if(code->curr == '[')
-							{
-								next(code);
-								opLabel = "[]";
-								nameFormat = "%1$s.op this[%3$s]";
-								otherName = readIdentifier(code);
+								if(curr == '.')
+								{
+									nameFormat = "%1$s.op this.%3$s";
+									opLabel = ".";
+								}
+								else
+								{
+									nameFormat = "%1$s.op this[%3$s]";
+									opLabel = "[]";
+									consumec(code, ']');
+								}
 
-								func->args = talloc(ptrs_symbol_t);
-								func->args[0] = addSymbol(code, otherName);
-								consumec(code, ']');
-								overload->op = PTRS_HANDLE_INDEX;
+								if(code->curr == '=')
+								{
+									consumec(code, '=');
+
+									func->argc = 2;
+									func->args = malloc(sizeof(ptrs_symbol_t) * 2);
+									func->args[0] = addSymbol(code, otherName);
+									func->args[1] = addSymbol(code, readIdentifier(code));
+
+									overload->op = curr == '.' ? PTRS_HANDLE_ASSIGN_MEMBER : PTRS_HANDLE_ASSIGN_INDEX;
+								}
+								else
+								{
+									func->args = talloc(ptrs_symbol_t);
+									func->args[0] = addSymbol(code, otherName);
+
+									overload->op = curr == '.' ? PTRS_HANDLE_MEMBER : PTRS_HANDLE_INDEX;
+								}
 							}
-							else if(code->curr == '(')
+							else if(curr == '(')
 							{
 								func->argc = parseArgumentDefinitionList(code,
 									&func->args, &func->argv, &func->vararg);
