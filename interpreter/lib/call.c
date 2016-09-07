@@ -31,6 +31,7 @@ ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_vartype_t retType, ptrs_var_t *func,
 	{
 		result->type = retType;
 		result->value = ptrs_callnative(retType, func->value.nativeval, len, args);
+		memset(&result->meta, 0, sizeof(ptrs_meta_t));
 	}
 	else if(func->type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(func, ptrs_handle_call, true)) != NULL)
 	{
