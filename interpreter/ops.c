@@ -36,6 +36,16 @@ static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *
 		result->value.floatval = fleft operator fright; \
 	}
 
+#define binary_assignfloatop(operator) \
+	else if(tleft == PTRS_TYPE_FLOAT || tright == PTRS_TYPE_FLOAT) \
+	{ \
+		double fleft = ptrs_vartof(left); \
+		double fright = ptrs_vartof(right); \
+		\
+		result->type = left->type = PTRS_TYPE_FLOAT; \
+		result->value.floatval = left->value.floatval = fleft operator fright; \
+	}
+
 #define binary_pointer_compare(operator) \
 	else if((tleft == PTRS_TYPE_INT || tleft > PTRS_TYPE_FLOAT) \
 		&& (tright == PTRS_TYPE_INT || tright > PTRS_TYPE_FLOAT)) \
@@ -167,10 +177,10 @@ handle_binary(sub, -, "-", false, binary_floatop(-) binary_pointer_sub(-, false)
 handle_binary(mul, *, "*", false, binary_floatop(*))
 handle_binary(div, /, "/", false, binary_floatop(/))
 handle_binary(mod, %, "%", false)
-handle_binary(addassign, +=, "+=", true, binary_floatop(+=) binary_pointer_add(+=, true))
-handle_binary(subassign, -=, "-=", true, binary_floatop(-=) binary_pointer_sub(-=, true))
-handle_binary(mulassign, *=, "*=", true, binary_floatop(*=))
-handle_binary(divassign, /=, "/=", true, binary_floatop(/=))
+handle_binary(addassign, +=, "+=", true, binary_assignfloatop(+=) binary_pointer_add(+=, true))
+handle_binary(subassign, -=, "-=", true, binary_assignfloatop(-=) binary_pointer_sub(-=, true))
+handle_binary(mulassign, *=, "*=", true, binary_assignfloatop(*=))
+handle_binary(divassign, /=, "/=", true, binary_assignfloatop(/=))
 handle_binary(modassign, %=, "%=", true)
 handle_binary(shrassign, >>=, ">>=", true)
 handle_binary(shlassign, <<=, "<<=", true)
