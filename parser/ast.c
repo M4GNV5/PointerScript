@@ -1252,17 +1252,28 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end)
 
 	for(;;)
 	{
-		if(lookahead(code, "..."))
+		if(lookahead(code, "_"))
+		{
+			curr->expand = false;
+			curr->entry = NULL;
+		}
+		else if(lookahead(code, "..."))
 		{
 			curr->expand = true;
 			curr->entry = parseExpression(code);
 			if(curr->entry->handler != PTRS_HANDLE_IDENTIFIER)
 				unexpectedm(code, NULL, "Array spreading can only be used on identifiers");
+
+			if(curr->entry == NULL)
+				unexpected(code, "Expression");
 		}
 		else
 		{
 			curr->expand = false;
 			curr->entry = parseExpression(code);
+
+			if(curr->entry == NULL)
+				unexpected(code, "Expression");
 		}
 
 		if(!lookahead(code, ","))

@@ -30,6 +30,13 @@ void ptrs_astlist_handle(struct ptrs_astlist *list, ptrs_var_t *out, ptrs_scope_
 {
 	for(int i = 0; list != NULL; i++)
 	{
+		if(list->entry == NULL)
+		{
+			out[i].type = PTRS_TYPE_UNDEFINED;
+			list = list->next;
+			continue;
+		}
+
 		ptrs_var_t *curr = list->entry->handler(list->entry, &out[i], scope);
 
 		if(list->expand)

@@ -69,7 +69,7 @@ ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t 
 	{
 		if(i < argc && func->args[i].scope == (unsigned)-1)
 			continue;
-		else if(i < argc)
+		else if(i < argc && argv[i].type != PTRS_TYPE_UNDEFINED)
 			ptrs_scope_set(scope, func->args[i], &argv[i]);
 		else if(func->argv != NULL && func->argv[i] != NULL)
 			ptrs_scope_set(scope, func->args[i], func->argv[i]->handler(func->argv[i], result, scope));
