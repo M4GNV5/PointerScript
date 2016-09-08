@@ -609,6 +609,7 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	if(val->type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_forin, true)) != NULL)
 	{
 		ptrs_var_t yieldVal;
+		yieldVal.type = PTRS_TYPE_STRUCT + 1;
 		yieldVal.value.nativeval = &node->arg.forin;
 		yieldVal.meta.this = (void*)scope;
 

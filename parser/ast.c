@@ -421,6 +421,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 			}
 			else
 			{
+				stmt->arg.define.initExpr = NULL;
 				stmt->arg.define.initVal = NULL;
 			}
 		}
@@ -451,6 +452,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 			}
 			else
 			{
+				stmt->arg.define.initExpr = NULL;
 				stmt->arg.define.initVal = NULL;
 			}
 		}
