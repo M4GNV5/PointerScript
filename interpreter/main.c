@@ -93,8 +93,8 @@ int main(int argc, char **argv)
 	ptrs_scope_t *scope = calloc(1, sizeof(ptrs_scope_t));
 	ptrs_alloc(scope, 0);
 
-	int len = argc - i + 1;
-	ptrs_var_t arguments[len];
+	int len = argc - i;
+	ptrs_var_t arguments[len + 1];
 	for(int j = 0; j < len; j++)
 	{
 		arguments[j].type = PTRS_TYPE_NATIVE;
