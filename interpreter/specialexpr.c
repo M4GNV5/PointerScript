@@ -371,8 +371,35 @@ ptrs_var_t *ptrs_handle_assign_index(ptrs_ast_t *node, ptrs_var_t *value, ptrs_s
 ptrs_var_t *ptrs_handle_call_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
 	ptrs_ast_t *caller, struct ptrs_astlist *arguments)
 {
-	ptrs_error(node, scope, "Not yet implemented");
-	return NULL;
+	char buff[32];
+	ptrs_var_t valuev;
+	ptrs_var_t indexv;
+	struct ptrs_ast_binary expr = node->arg.binary;
+
+	ptrs_var_t *value = expr.left->handler(expr.left, &valuev, scope);
+	ptrs_var_t *index = expr.right->handler(expr.right, &indexv, scope);
+
+	ptrs_vartype_t valuet = value->type;
+
+	if(valuet == PTRS_TYPE_POINTER)
+	{
+		int64_t _index = ptrs_vartoi(index);
+		ptrs_var_t *func = &(value->value.ptrval[_index]);
+		return ptrs_call(node, PTRS_TYPE_UNDEFINED, NULL, func, result, arguments, scope);
+	}
+	else if(valuet == PTRS_TYPE_STRUCT)
+	{
+		const char *key = ptrs_vartoa(index, buff, 32);
+		ptrs_var_t *func = ptrs_struct_get(value->value.structval, &valuev, key, node, scope);
+
+		return ptrs_call(node, PTRS_TYPE_UNDEFINED, value->value.structval, func, result, arguments, scope);
+	}
+	else
+	{
+		const char *key = ptrs_vartoa(index, buff, 32);
+		ptrs_error(expr.left, scope, "Cannot call index '%s' of type %s", key, ptrs_typetoa(valuet));
+		return NULL; //doh
+	}
 }
 
 ptrs_var_t *ptrs_handle_slice(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
