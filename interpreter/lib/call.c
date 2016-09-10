@@ -14,7 +14,7 @@
 #include "../interpreter.h"
 #include "../../parser/common.h"
 
-ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_vartype_t retType, ptrs_var_t *func,
+ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_vartype_t retType, ptrs_struct_t *thisArg, ptrs_var_t *func,
 	ptrs_var_t *result, struct ptrs_astlist *arguments, ptrs_scope_t *scope)
 {
 	int len = ptrs_astlist_length(arguments, ast, scope);
@@ -25,7 +25,7 @@ ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_vartype_t retType, ptrs_var_t *func,
 
 	if(func->type == PTRS_TYPE_FUNCTION)
 	{
-		result = ptrs_callfunc(ast, result, scope, func, len, args);
+		result = ptrs_callfunc(ast, result, scope, thisArg, func, len, args);
 	}
 	else if(func->type == PTRS_TYPE_NATIVE)
 	{
@@ -36,8 +36,7 @@ ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_vartype_t retType, ptrs_var_t *func,
 	else if(func->type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(func, ptrs_handle_call, true)) != NULL)
 	{
 		overload.type = PTRS_TYPE_FUNCTION;
-		overload.meta.this = func->value.structval;
-		result = ptrs_callfunc(ast, result, scope, &overload, len, args);
+		result = ptrs_callfunc(ast, result, scope, func->value.structval, &overload, len, args);
 	}
 	else
 	{
@@ -47,7 +46,8 @@ ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_vartype_t retType, ptrs_var_t *func,
 	return result;
 }
 
-ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t *callScope, ptrs_var_t *funcvar, int argc, ptrs_var_t *argv)
+ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t *callScope,
+	ptrs_struct_t *thisArg, ptrs_var_t *funcvar, int argc, ptrs_var_t *argv)
 {
 	ptrs_function_t *func = funcvar->value.funcval;
 	ptrs_scope_t *scope = ptrs_scope_increase(callScope, func->stackOffset);
@@ -57,10 +57,10 @@ ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t 
 	scope->calleeName = func->name;
 
 	ptrs_var_t val;
-	if(funcvar->meta.this != NULL)
+	if(thisArg != NULL)
 	{
 		val.type = PTRS_TYPE_STRUCT;
-		val.value.structval = funcvar->meta.this;
+		val.value.structval = thisArg;
 		ptrs_scope_set(scope, ptrs_thisSymbol, &val);
 	}
 
@@ -128,7 +128,7 @@ void ptrs_callcallback(ffcb_return_t ret, ptrs_function_t *func, va_list ap)
 		argv[i].value.intval = va_arg(ap, intptr_t);
 	}
 
-	ptrs_callfunc(NULL, &result, &scope, &funcvar, func->argc, argv);
+	ptrs_callfunc(NULL, &result, &scope, NULL, &funcvar, func->argc, argv);
 
 	if(scope.stackstart != NULL)
 		free(scope.stackstart);

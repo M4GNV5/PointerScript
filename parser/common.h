@@ -151,7 +151,6 @@ typedef union val
 
 typedef union meta
 {
-	ptrs_struct_t *this;
 	struct
 	{
 		bool readOnly;
@@ -162,8 +161,8 @@ typedef union meta
 struct ptrs_var
 {
 	ptrs_val_t value;
-	ptrs_vartype_t type;
 	ptrs_meta_t meta;
+	ptrs_vartype_t type;
 };
 typedef struct ptrs_var ptrs_var_t;
 

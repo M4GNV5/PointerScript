@@ -37,14 +37,12 @@ ptrs_var_t *ptrs_struct_getMember(ptrs_struct_t *struc, ptrs_var_t *result, stru
 		case PTRS_STRUCTMEMBER_GETTER:
 			func.type = PTRS_TYPE_FUNCTION;
 			func.value.funcval = member->value.function;
-			func.meta.this = struc;
-			return ptrs_callfunc(ast, result, scope, &func, 0, NULL);
+			return ptrs_callfunc(ast, result, scope, struc, &func, 0, NULL);
 		case PTRS_STRUCTMEMBER_SETTER:
 			return NULL;
 		case PTRS_STRUCTMEMBER_FUNCTION:
 			result->type = PTRS_TYPE_FUNCTION;
 			result->value.funcval = member->value.function;
-			result->meta.this = struc;
 			return result;
 		case PTRS_STRUCTMEMBER_ARRAY:
 			result->type = PTRS_TYPE_NATIVE;
@@ -90,8 +88,7 @@ void ptrs_struct_setMember(ptrs_struct_t *struc, ptrs_var_t *value, struct ptrs_
 		ptrs_var_t result;
 		func.type = PTRS_TYPE_FUNCTION;
 		func.value.funcval = member->value.function;
-		func.meta.this = struc;
-		ptrs_callfunc(ast, &result, scope, &func, 1, value);
+		ptrs_callfunc(ast, &result, scope, struc, &func, 1, value);
 	}
 	else if(member->type == PTRS_STRUCTMEMBER_TYPED)
 	{
@@ -153,12 +150,11 @@ ptrs_var_t *ptrs_struct_construct(ptrs_var_t *constructor, struct ptrs_astlist *
 		member = member->next;
 	}
 
-	ptrs_var_t overload = {{.structval = instance}, PTRS_TYPE_STRUCT};
+	ptrs_var_t overload = {{.structval = instance}, .type = PTRS_TYPE_STRUCT};
 	if((overload.value.funcval = ptrs_struct_getOverload(&overload, ptrs_handle_new, true)) != NULL)
 	{
 		overload.type = PTRS_TYPE_FUNCTION;
-		overload.meta.this = instance;
-		ptrs_call(node, PTRS_TYPE_UNDEFINED, &overload, result, arguments, scope);
+		ptrs_call(node, PTRS_TYPE_UNDEFINED, instance, &overload, result, arguments, scope);
 	}
 
 	result->type = PTRS_TYPE_STRUCT;

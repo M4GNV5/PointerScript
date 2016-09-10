@@ -54,6 +54,13 @@ ptrs_var_t *ptrs_handle_assign_index(ptrs_ast_t *node, ptrs_var_t *value, ptrs_s
 ptrs_var_t *ptrs_handle_assign_member(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_assign_thismember(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
 
+ptrs_var_t *ptrs_handle_call_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
+	ptrs_ast_t *caller, struct ptrs_astlist *arguments);
+ptrs_var_t *ptrs_handle_call_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
+	ptrs_ast_t *caller, struct ptrs_astlist *arguments);
+ptrs_var_t *ptrs_handle_call_thismember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
+	ptrs_ast_t *caller, struct ptrs_astlist *arguments);
+
 ptrs_var_t *ptrs_handle_op_ternary(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_op_instanceof(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_op_typeequal(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
@@ -156,6 +163,10 @@ ptrs_var_t *ptrs_handle_native_setFloat(void *target, size_t size, ptrs_var_t *v
 #define PTRS_HANDLE_ASSIGN_INDEX ptrs_handle_assign_index
 #define PTRS_HANDLE_ASSIGN_MEMBER ptrs_handle_assign_member
 #define PTRS_HANDLE_ASSIGN_THISMEMBER ptrs_handle_assign_thismember
+
+#define PTRS_HANDLE_CALL_INDEX ptrs_handle_call_index
+#define PTRS_HANDLE_CALL_MEMBER ptrs_handle_call_member
+#define PTRS_HANDLE_CALL_THISMEMBER ptrs_handle_call_thismember
 
 #define PTRS_HANDLE_OP_TERNARY ptrs_handle_op_ternary
 #define PTRS_HANDLE_OP_INSTANCEOF ptrs_handle_op_instanceof

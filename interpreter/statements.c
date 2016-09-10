@@ -346,8 +346,7 @@ ptrs_var_t *ptrs_handle_delete(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	if((overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_delete, true)) != NULL)
 	{
 		overload.type = PTRS_TYPE_FUNCTION;
-		overload.meta.this = val->value.structval;
-		result = ptrs_callfunc(node, result, scope, &overload, 0, NULL);
+		result = ptrs_callfunc(node, result, scope, val->value.structval, &overload, 0, NULL);
 	}
 
 	if(!val->value.structval->isOnStack)
@@ -445,7 +444,6 @@ ptrs_var_t *ptrs_handle_function(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 
 	result->type = PTRS_TYPE_FUNCTION;
 	result->value.funcval = func;
-	result->meta.this = NULL;
 
 	if(!astfunc.isAnonymous) //lambda
 		ptrs_scope_set(scope, astfunc.symbol, result);
@@ -611,11 +609,10 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		ptrs_var_t yieldVal;
 		yieldVal.type = PTRS_TYPE_STRUCT + 1;
 		yieldVal.value.nativeval = &node->arg.forin;
-		yieldVal.meta.this = (void*)scope;
+		//yieldVal.meta.this = (void*)scope;
 
 		overload.type = PTRS_TYPE_FUNCTION;
-		overload.meta.this = val->value.structval;
-		val = ptrs_callfunc(node, result, scope, &overload, 1, &yieldVal);
+		val = ptrs_callfunc(node, result, scope, val->value.structval, &overload, 1, &yieldVal);
 
 		if(scope->exit == 3)
 			memcpy(result, &ptrs_forinOverloadResult, sizeof(ptrs_var_t));

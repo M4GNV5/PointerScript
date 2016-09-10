@@ -16,11 +16,17 @@
 ptrs_var_t *ptrs_handle_call(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_call expr = node->arg.call;
-	ptrs_var_t funcv;
-	ptrs_var_t *func = expr.value->handler(expr.value, &funcv, scope);
-	result = ptrs_call(expr.value, expr.retType, func, result, expr.arguments, scope);
 
-	return result;
+	if(expr.value->callHandler != NULL)
+	{
+		return expr.value->callHandler(expr.value, result, scope, node, expr.arguments);
+	}
+	else
+	{
+		ptrs_var_t funcv;
+		ptrs_var_t *func = expr.value->handler(expr.value, &funcv, scope);
+		return ptrs_call(expr.value, expr.retType, NULL, func, result, expr.arguments, scope);
+	}
 }
 
 ptrs_var_t *ptrs_handle_arrayexpr(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
@@ -98,9 +104,8 @@ ptrs_var_t *ptrs_handle_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	if(_result == NULL && (overload.value.funcval = ptrs_struct_getOverload(base, ptrs_handle_member, true)) != NULL)
 	{
 		overload.type = PTRS_TYPE_FUNCTION;
-		overload.meta.this = base->value.structval;
-		ptrs_var_t arg = {{.strval = expr.name}, PTRS_TYPE_NATIVE, {.array = {.readOnly = true}}};
-		return ptrs_callfunc(node, result, scope, &overload, 1, &arg);
+		ptrs_var_t arg = {{.strval = expr.name}, {.array = {.readOnly = true}}, PTRS_TYPE_NATIVE};
+		return ptrs_callfunc(node, result, scope, base->value.structval, &overload, 1, &arg);
 	}
 	else if(_result == NULL)
 	{
@@ -117,7 +122,7 @@ ptrs_var_t *ptrs_handle_assign_member(ptrs_ast_t *node, ptrs_var_t *value, ptrs_
 	ptrs_var_t *base = expr.base->handler(expr.base, &basev, scope);
 
 	if(base->type != PTRS_TYPE_STRUCT)
-		ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr.name, ptrs_typetoa(base->type));
+		ptrs_error(node, scope, "Cannot assign property '%s' of type %s", expr.name, ptrs_typetoa(base->type));
 
 	if(ptrs_struct_set(base->value.structval, value, expr.name, node, scope))
 		return NULL;
@@ -126,7 +131,6 @@ ptrs_var_t *ptrs_handle_assign_member(ptrs_ast_t *node, ptrs_var_t *value, ptrs_
 	if((overload.value.funcval = ptrs_struct_getOverload(base, ptrs_handle_assign_member, true)) != NULL)
 	{
 		overload.type = PTRS_TYPE_FUNCTION;
-		overload.meta.this = base->value.structval;
 
 		ptrs_var_t args[2];
 		args[0].type = PTRS_TYPE_NATIVE;
@@ -136,7 +140,7 @@ ptrs_var_t *ptrs_handle_assign_member(ptrs_ast_t *node, ptrs_var_t *value, ptrs_
 		memcpy(args + 1, value, sizeof(ptrs_var_t));
 
 		ptrs_var_t result;
-		ptrs_callfunc(node, &result, scope, &overload, 2, args);
+		ptrs_callfunc(node, &result, scope, base->value.structval, &overload, 2, args);
 	}
 	else
 	{
@@ -144,6 +148,19 @@ ptrs_var_t *ptrs_handle_assign_member(ptrs_ast_t *node, ptrs_var_t *value, ptrs_
 	}
 
 	return NULL;
+}
+ptrs_var_t *ptrs_handle_call_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
+	ptrs_ast_t *caller, struct ptrs_astlist *arguments)
+{
+	ptrs_var_t funcv;
+	struct ptrs_ast_member expr = node->arg.member;
+	ptrs_var_t *base = expr.base->handler(expr.base, result, scope);
+
+	if(base->type != PTRS_TYPE_STRUCT)
+		ptrs_error(node, scope, "Cannot call property '%s' of type %s", expr.name, ptrs_typetoa(base->type));
+
+	ptrs_var_t *func = ptrs_struct_get(base->value.structval, &funcv, expr.name, node, scope);
+	return ptrs_call(node, PTRS_TYPE_UNDEFINED, base->value.structval, func, result, arguments, scope);
 }
 
 ptrs_var_t *ptrs_handle_thismember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
@@ -168,11 +185,30 @@ ptrs_var_t *ptrs_handle_assign_thismember(ptrs_ast_t *node, ptrs_var_t *value, p
 	ptrs_var_t *base = ptrs_scope_get(scope, expr.base);
 
 	if(base->type != PTRS_TYPE_STRUCT)
-		ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr.member->name, ptrs_typetoa(base->type));
+		ptrs_error(node, scope, "Cannot assign property '%s' of type %s", expr.member->name, ptrs_typetoa(base->type));
 
 	ptrs_struct_setMember(base->value.structval, value, expr.member, node, scope);
 
 	return NULL;
+}
+ptrs_var_t *ptrs_handle_call_thismember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
+	ptrs_ast_t *caller, struct ptrs_astlist *arguments)
+{
+	ptrs_var_t funcv;
+	struct ptrs_ast_thismember expr = node->arg.thismember;
+	ptrs_var_t *base = ptrs_scope_get(scope, expr.base);
+
+	if(base->type != PTRS_TYPE_STRUCT)
+		ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr.member->name, ptrs_typetoa(base->type));
+
+	ptrs_var_t *func = ptrs_struct_getMember(base->value.structval, &funcv, expr.member, node, scope);
+	if(func == NULL)
+	{
+		func = &funcv;
+		funcv.type = PTRS_TYPE_UNDEFINED;
+	}
+
+	return ptrs_call(node, PTRS_TYPE_UNDEFINED, base->value.structval, func, result, arguments, scope);
 }
 
 ptrs_var_t *ptrs_handle_prefix_address(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
@@ -256,11 +292,10 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		if(_result == NULL && (overload.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_index, true)) != NULL)
 		{
 			overload.type = PTRS_TYPE_FUNCTION;
-			overload.meta.this = value->value.structval;
-			ptrs_var_t arg = {{.strval = key}, PTRS_TYPE_NATIVE};
+			ptrs_var_t arg = {{.strval = key}, .type = PTRS_TYPE_NATIVE};
 			arg.meta.array.readOnly = key == buff || index->meta.array.readOnly;
 			arg.meta.array.size = 0;
-			return ptrs_callfunc(node, result, scope, &overload, 1, &arg);
+			return ptrs_callfunc(node, result, scope, value->value.structval, &overload, 1, &arg);
 		}
 		else if(_result == NULL)
 		{
@@ -309,7 +344,6 @@ ptrs_var_t *ptrs_handle_assign_index(ptrs_ast_t *node, ptrs_var_t *value, ptrs_s
 			if((overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_assign_index, true)) != NULL)
 			{
 				overload.type = PTRS_TYPE_FUNCTION;
-				overload.meta.this = val->value.structval;
 
 				ptrs_var_t args[2];
 				args[0].type = PTRS_TYPE_NATIVE;
@@ -319,7 +353,7 @@ ptrs_var_t *ptrs_handle_assign_index(ptrs_ast_t *node, ptrs_var_t *value, ptrs_s
 				memcpy(args + 1, value, sizeof(ptrs_var_t));
 
 				ptrs_var_t result;
-				ptrs_callfunc(node, &result, scope, &overload, 2, args);
+				ptrs_callfunc(node, &result, scope, val->value.structval, &overload, 2, args);
 			}
 			else
 			{
@@ -332,6 +366,12 @@ ptrs_var_t *ptrs_handle_assign_index(ptrs_ast_t *node, ptrs_var_t *value, ptrs_s
 		const char *key = ptrs_vartoa(index, buff, 32);
 		ptrs_error(expr.left, scope, "Cannot set index '%s' of type %s", key, ptrs_typetoa(val->type));
 	}
+	return NULL;
+}
+ptrs_var_t *ptrs_handle_call_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
+	ptrs_ast_t *caller, struct ptrs_astlist *arguments)
+{
+	ptrs_error(node, scope, "Not yet implemented");
 	return NULL;
 }
 
@@ -477,7 +517,7 @@ ptrs_var_t *ptrs_handle_yield(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	struct ptrs_ast_forin *forStmt = yieldVal->value.nativeval;
 
 	ptrs_scope_t *stmtScope = ptrs_scope_increase(scope, forStmt->stackOffset);
-	stmtScope->outer = (void*)yieldVal->meta.this;
+	//stmtScope->outer = (void*)yieldVal->meta.this;
 	stmtScope->callScope = scope;
 	stmtScope->callAst = node;
 	stmtScope->calleeName = "(for in loop)";

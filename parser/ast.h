@@ -190,13 +190,16 @@ union ptrs_ast_arg
 	struct ptrs_ast_yield yield;
 };
 
-typedef ptrs_var_t* (*ptrs_asthandler_t)(struct ptrs_ast *, ptrs_var_t *, ptrs_scope_t *);
+typedef ptrs_var_t *(*ptrs_asthandler_t)(struct ptrs_ast *, ptrs_var_t *, ptrs_scope_t *);
+typedef ptrs_var_t *(*ptrs_callhandler_t)(struct ptrs_ast *, ptrs_var_t *, ptrs_scope_t *,
+	struct ptrs_ast *, struct ptrs_astlist *);
 
 struct ptrs_ast
 {
 	union ptrs_ast_arg arg;
 	ptrs_asthandler_t handler;
 	ptrs_asthandler_t setHandler;
+	ptrs_callhandler_t callHandler;
 	int codepos;
 	char *code;
 	const char *file;

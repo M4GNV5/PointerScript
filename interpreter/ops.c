@@ -126,13 +126,13 @@ static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *
 		\
 		if(tleft == PTRS_TYPE_STRUCT && (overload = ptrs_struct_getOverload(left, ptrs_handle_op_##name, true)) != NULL) \
 		{ \
-			ptrs_var_t func = {{.funcval = overload}, PTRS_TYPE_FUNCTION, {.this = left->value.structval}}; \
-			return ptrs_callfunc(node, result, scope, &func, 1, right); \
+			ptrs_var_t func = {{.funcval = overload}, .type = PTRS_TYPE_FUNCTION}; \
+			return ptrs_callfunc(node, result, scope, left->value.structval, &func, 1, right); \
 		} \
 		else if(tright == PTRS_TYPE_STRUCT && (overload = ptrs_struct_getOverload(right, ptrs_handle_op_##name, false)) != NULL) \
 		{ \
-			ptrs_var_t func = {{.funcval = overload}, PTRS_TYPE_FUNCTION, {.this = right->value.structval}}; \
-			return ptrs_callfunc(node, result, scope, &func, 1, left); \
+			ptrs_var_t func = {{.funcval = overload}, .type = PTRS_TYPE_FUNCTION}; \
+			return ptrs_callfunc(node, result, scope, right->value.structval, &func, 1, left); \
 		} \
 		else if(tleft == PTRS_TYPE_INT && tright == PTRS_TYPE_INT) \
 		{ \
@@ -260,8 +260,7 @@ ptrs_var_t *ptrs_handle_prefix_length(ptrs_ast_t *node, ptrs_var_t *result, ptrs
 		if((overload.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_prefix_length, true)) != NULL)
 		{
 			overload.type = PTRS_TYPE_FUNCTION;
-			overload.meta.this = value->value.structval;
-			value = ptrs_callfunc(node, result, scope, &overload, 0, NULL);
+			value = ptrs_callfunc(node, result, scope, value->value.structval, &overload, 0, NULL);
 			result->value.intval = ptrs_vartoi(value);
 		}
 		else
@@ -289,8 +288,7 @@ ptrs_var_t *ptrs_handle_prefix_length(ptrs_ast_t *node, ptrs_var_t *result, ptrs
 		if(type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_prefix_##name, true)) != NULL) \
 		{ \
 			overload.type = PTRS_TYPE_FUNCTION; \
-			overload.meta.this = value->value.structval; \
-			return ptrs_callfunc(node, result, scope, &overload, 0, NULL); \
+			return ptrs_callfunc(node, result, scope, value->value.structval, &overload, 0, NULL); \
 		} \
 		\
 		if(type == PTRS_TYPE_INT) \
@@ -336,8 +334,7 @@ handle_prefix(minus, -, "-", false, handle_prefix_float(-), /*nothing*/)
 		if(type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_suffix_##name, true)) != NULL) \
 		{ \
 			overload.type = PTRS_TYPE_FUNCTION; \
-			overload.meta.this = value->value.structval; \
-			return ptrs_callfunc(node, result, scope, &overload, 0, NULL); \
+			return ptrs_callfunc(node, result, scope, value->value.structval, &overload, 0, NULL); \
 		} \
 		\
 		if(type == PTRS_TYPE_INT) \
