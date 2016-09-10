@@ -160,7 +160,29 @@ ptrs_var_t *ptrs_handle_call_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_s
 		ptrs_error(node, scope, "Cannot call property '%s' of type %s", expr.name, ptrs_typetoa(base->type));
 
 	ptrs_var_t *func = ptrs_struct_get(base->value.structval, &funcv, expr.name, node, scope);
-	return ptrs_call(node, PTRS_TYPE_UNDEFINED, base->value.structval, func, result, arguments, scope);
+
+	if(func != NULL)
+	{
+		return ptrs_call(node, PTRS_TYPE_UNDEFINED, base->value.structval, func, result, arguments, scope);
+	}
+	else if((funcv.value.funcval = ptrs_struct_getOverload(base, ptrs_handle_call_member, true)) != NULL)
+	{
+		funcv.type = PTRS_TYPE_FUNCTION;
+
+		int len = ptrs_astlist_length(arguments, node, scope) + 1;
+		ptrs_var_t args[len];
+		ptrs_astlist_handle(arguments, args + 1, scope);
+		args[0].type = PTRS_TYPE_NATIVE;
+		args[0].value.strval = expr.name;
+		args[0].meta.array.readOnly = true;
+
+		return ptrs_callfunc(node, result, scope, base->value.structval, &funcv, len, args);
+	}
+	else
+	{
+		ptrs_error(node, scope, "Struct %s has no member '%s'", base->value.structval->name, expr.name);
+		return NULL; //doh
+	}
 }
 
 ptrs_var_t *ptrs_handle_thismember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
@@ -390,9 +412,30 @@ ptrs_var_t *ptrs_handle_call_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 	else if(valuet == PTRS_TYPE_STRUCT)
 	{
 		const char *key = ptrs_vartoa(index, buff, 32);
-		ptrs_var_t *func = ptrs_struct_get(value->value.structval, &valuev, key, node, scope);
+		ptrs_var_t *func = ptrs_struct_get(value->value.structval, &indexv, key, node, scope);
 
-		return ptrs_call(node, PTRS_TYPE_UNDEFINED, value->value.structval, func, result, arguments, scope);
+		if(func != NULL)
+		{
+			return ptrs_call(node, PTRS_TYPE_UNDEFINED, value->value.structval, func, result, arguments, scope);
+		}
+		else if((indexv.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_call_index, true)) != NULL)
+		{
+			indexv.type = PTRS_TYPE_FUNCTION;
+
+			int len = ptrs_astlist_length(arguments, node, scope) + 1;
+			ptrs_var_t args[len];
+			ptrs_astlist_handle(arguments, args + 1, scope);
+			args[0].type = PTRS_TYPE_NATIVE;
+			args[0].value.strval = key;
+			args[0].meta.array.readOnly = true;
+
+			return ptrs_callfunc(node, result, scope, value->value.structval, &indexv, len, args);
+		}
+		else
+		{
+			ptrs_error(node, scope, "Struct %s has no member '%s'", value->value.structval->name, key);
+			return NULL; //doh
+		}
 	}
 	else
 	{

@@ -11,7 +11,7 @@
 #include "../include/astlist.h"
 #include "../include/call.h"
 
-ptrs_function_t *ptrs_struct_getOverload(ptrs_var_t *struc, ptrs_asthandler_t handler, bool isLeftSide)
+ptrs_function_t *ptrs_struct_getOverload(ptrs_var_t *struc, void *handler, bool isLeftSide)
 {
 	struct ptrs_opoverload *curr = struc->value.structval->overloads;
 	while(curr != NULL)

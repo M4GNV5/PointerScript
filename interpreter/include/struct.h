@@ -5,7 +5,7 @@
 
 #include "../../parser/common.h"
 
-ptrs_function_t *ptrs_struct_getOverload(ptrs_var_t *struc, ptrs_asthandler_t handler, bool isLeftSide);
+ptrs_function_t *ptrs_struct_getOverload(ptrs_var_t *struc, void *handler, bool isLeftSide);
 
 ptrs_var_t *ptrs_struct_getMember(ptrs_struct_t *struc, ptrs_var_t *result, struct ptrs_structlist *member,
 	ptrs_ast_t *ast, ptrs_scope_t *scope);

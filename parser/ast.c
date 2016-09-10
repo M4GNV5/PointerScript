@@ -1488,6 +1488,31 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 									overload->op = curr == '.' ? PTRS_HANDLE_ASSIGN_MEMBER : PTRS_HANDLE_ASSIGN_INDEX;
 								}
+								else if(code->curr == '(')
+								{
+									func->argc = parseArgumentDefinitionList(code,
+										&func->args, &func->argv, &func->vararg);
+									overload->op = curr == '.' ? PTRS_HANDLE_CALL_MEMBER : PTRS_HANDLE_CALL_INDEX;
+									func->argc++;
+
+									ptrs_symbol_t *newArgs = malloc(sizeof(ptrs_symbol_t) * func->argc);
+									newArgs[0] = addSymbol(code, otherName);
+
+									memcpy(newArgs + 1, func->args, sizeof(ptrs_symbol_t) * (func->argc - 1));
+									free(func->args);
+									func->args = newArgs;
+
+
+									if(func->argv != NULL)
+									{
+										ptrs_ast_t **newArgv = malloc(sizeof(ptrs_symbol_t) * func->argc);
+										newArgv[0] = NULL;
+
+										memcpy(newArgv + 1, func->argv, sizeof(ptrs_symbol_t) * (func->argc - 1));
+										free(func->argv);
+										func->argv = newArgv;
+									}
+								}
 								else
 								{
 									func->args = talloc(ptrs_symbol_t);
