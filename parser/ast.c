@@ -1467,13 +1467,11 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 								if(curr == '.')
 								{
-									nameFormat = "%1$s.op this.%3$s";
-									opLabel = ".";
+									nameFormat = "%1$s.op this.%3$s%2$s";
 								}
 								else
 								{
-									nameFormat = "%1$s.op this[%3$s]";
-									opLabel = "[]";
+									nameFormat = "%1$s.op this[%3$s]%2$s";
 									consumec(code, ']');
 								}
 
@@ -1486,14 +1484,18 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 									func->args[0] = addSymbol(code, otherName);
 									func->args[1] = addSymbol(code, readIdentifier(code));
 
+									opLabel = " = value";
 									overload->op = curr == '.' ? PTRS_HANDLE_ASSIGN_MEMBER : PTRS_HANDLE_ASSIGN_INDEX;
 								}
 								else if(code->curr == '(')
 								{
 									func->argc = parseArgumentDefinitionList(code,
 										&func->args, &func->argv, &func->vararg);
-									overload->op = curr == '.' ? PTRS_HANDLE_CALL_MEMBER : PTRS_HANDLE_CALL_INDEX;
 									func->argc++;
+
+									opLabel = "()";
+									overload->op = curr == '.' ? PTRS_HANDLE_CALL_MEMBER : PTRS_HANDLE_CALL_INDEX;
+
 
 									ptrs_symbol_t *newArgs = malloc(sizeof(ptrs_symbol_t) * func->argc);
 									newArgs[0] = addSymbol(code, otherName);
@@ -1518,6 +1520,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 									func->args = talloc(ptrs_symbol_t);
 									func->args[0] = addSymbol(code, otherName);
 
+									opLabel = "";
 									overload->op = curr == '.' ? PTRS_HANDLE_MEMBER : PTRS_HANDLE_INDEX;
 								}
 							}
