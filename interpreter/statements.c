@@ -606,13 +606,12 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	ptrs_var_t overload;
 	if(val->type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_forin, true)) != NULL)
 	{
-		ptrs_var_t yieldVal;
-		yieldVal.type = PTRS_TYPE_STRUCT + 1;
-		yieldVal.value.nativeval = &node->arg.forin;
-		//yieldVal.meta.this = (void*)scope;
+		void *yieldVal[2];
+		yieldVal[0] = &node->arg.forin;
+		yieldVal[1] = (void*)scope;
 
 		overload.type = PTRS_TYPE_FUNCTION;
-		val = ptrs_callfunc(node, result, scope, val->value.structval, &overload, 1, &yieldVal);
+		val = ptrs_callfunc(node, result, scope, val->value.structval, &overload, 1, (void *)&yieldVal);
 
 		if(scope->exit == 3)
 			memcpy(result, &ptrs_forinOverloadResult, sizeof(ptrs_var_t));

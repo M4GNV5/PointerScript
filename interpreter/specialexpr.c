@@ -583,11 +583,11 @@ ptrs_var_t *ptrs_handle_yield(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	ptrs_var_t vals[len];
 	ptrs_astlist_handle(node->arg.yield.values, vals, scope);
 
-	ptrs_var_t *yieldVal = ptrs_scope_get(scope, expr.yieldVal);
-	struct ptrs_ast_forin *forStmt = yieldVal->value.nativeval;
+	void **yieldVal = (void **)ptrs_scope_get(scope, expr.yieldVal);
+	struct ptrs_ast_forin *forStmt = yieldVal[0];
 
 	ptrs_scope_t *stmtScope = ptrs_scope_increase(scope, forStmt->stackOffset);
-	//stmtScope->outer = (void*)yieldVal->meta.this;
+	stmtScope->outer = yieldVal[1];
 	stmtScope->callScope = scope;
 	stmtScope->callAst = node;
 	stmtScope->calleeName = "(for in loop)";
@@ -595,11 +595,11 @@ ptrs_var_t *ptrs_handle_yield(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	for(int i = 0; i < forStmt->varcount; i++)
 		ptrs_scope_set(stmtScope, forStmt->varsymbols[i], &vals[i]);
 
-	yieldVal = forStmt->body->handler(forStmt->body, result, stmtScope);
+	ptrs_var_t *_result = forStmt->body->handler(forStmt->body, result, stmtScope);
 
 	if(stmtScope->exit > 1)
 	{
-		memcpy(&ptrs_forinOverloadResult, yieldVal, sizeof(ptrs_var_t));
+		memcpy(&ptrs_forinOverloadResult, _result, sizeof(ptrs_var_t));
 		result->value.intval = true;
 
 		if(stmtScope->exit == 3)
@@ -610,6 +610,6 @@ ptrs_var_t *ptrs_handle_yield(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		result->value.intval = false;
 	}
 
-	result->type = PTRS_TYPE_POINTER;
+	result->type = PTRS_TYPE_INT;
 	return result;
 }
