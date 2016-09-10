@@ -111,7 +111,7 @@ constantexpression		: 'true' 		//type int, value 1
 						| 'false'		//type int, value 0
 						| 'null'		//type pointer, value 0
 						| 'NULL'		//type native, value 0
-						| 'VARSIZE'		//type int, value size of a variable (currently 24)
+						| 'VARSIZE'		//type int, value size of a variable (currently 16)
 						| 'undefined'	//type undefined
 						;
 

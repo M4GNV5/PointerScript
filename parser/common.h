@@ -153,16 +153,16 @@ typedef union meta
 {
 	struct
 	{
-		bool readOnly;
 		uint32_t size;
-	} array;
+		bool readOnly;
+	} __attribute__((packed)) array;
 } ptrs_meta_t;
 
 struct ptrs_var
 {
 	ptrs_val_t value;
 	ptrs_meta_t meta;
-	ptrs_vartype_t type;
+	uint8_t type;
 };
 typedef struct ptrs_var ptrs_var_t;
 
