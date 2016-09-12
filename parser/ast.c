@@ -1610,9 +1610,13 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 		else if(lookahead(code, "set"))
 			isProperty = 2;
 
-		struct ptrs_structlist *next = talloc(struct ptrs_structlist);
-		next->next = curr;
-		curr = next;
+		struct ptrs_structlist *old = curr;
+		curr = talloc(struct ptrs_structlist);
+
+		if(old == NULL)
+			struc->member = curr;
+		else
+			old->next = curr;
 
 		if(lookahead(code, "private"))
 			curr->isPrivate = true;
@@ -1697,13 +1701,25 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 		}
 		else if(code->curr == ':')
 		{
-			curr->type = PTRS_STRUCTMEMBER_TYPED;
 			consumec(code, ':');
-			curr->value.type = readNativeType(code);
+			ptrs_nativetype_info_t *type = readNativeType(code);
 			consumec(code, ';');
 
-			curr->offset = struc->size;
-			struc->size += 8; //for align, TODO group multiple following members of size < 8
+			curr->type = PTRS_STRUCTMEMBER_TYPED;
+			curr->value.type = type;
+
+			if(old != NULL && old->type == PTRS_STRUCTMEMBER_TYPED)
+			{
+				if(old->value.type->size < type->size)
+					curr->offset = (old->offset & ~(type->size - 1)) + type->size;
+				else
+					curr->offset = old->offset + old->value.type->size;
+				struc->size = (curr->offset & ~7) + 8;
+			}
+			else
+			{
+				curr->offset = struc->size;
+			}
 		}
 		else
 		{
@@ -1721,7 +1737,6 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 	}
 
 	symbolScope_decrease(code);
-	struc->member = curr;
 	consumec(code, '}');
 	consumec(code, ';');
 }
