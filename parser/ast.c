@@ -1719,6 +1719,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			else
 			{
 				curr->offset = struc->size;
+				struc->size += 8;
 			}
 		}
 		else
@@ -1734,6 +1735,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 			consumec(code, ';');
 		}
+		printf("%s.%s offset %d\n", struc->name, curr->name, curr->offset);
 	}
 
 	symbolScope_decrease(code);
