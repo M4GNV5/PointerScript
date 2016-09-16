@@ -365,10 +365,20 @@ struct Person
 ```
 ###StructMemberDefinition
 Note: the following code examples are only valid within a struct definition
+Any of these can be preceded by `private` then they wont be accesible through the `.` and `[]` operators
+but like local variables inside the struct functions
 ####Variable member
 ```js
 //Identifier [ '=' Expression ] ';'
 age = 18;
+```
+####Typed member
+```js
+//Identifier ':' NativeTypeName
+foo : long //char, int, long, longlong, uchar, uint, ulong, ulonglong
+bar : i64 //i8, i16, i32, i64, u8, u16, u32, u64
+tar : pointer
+xar : single //single, double
 ```
 ####Array member
 ```js
@@ -434,10 +444,30 @@ operator this.key
 {
 	printf("tried to get this.%s\n", key);
 }
-//'operator' 'this' . Identifier ']' '{' StatementList '}'
+//'operator' 'this' '.' Identifier '=' Identifier '{' StatementList '}'
+operator this.key = val
+{
+	printf("tried to set this.%s to %d\n", key, cast<int>val);
+}
+//'operator' 'this' '.' Identifier '(' IdentifierList ')' '{' StatementList '}'
+operator this.key(foo, bar...)
+{
+	printf("calling this.%s\n", key);
+}
+//'operator' 'this' '[' Identifier ']' '{' StatementList '}'
 operator this[key]
 {
 	printf("tried to get this[\"%s\"]\n", key);
+}
+//'operator' 'this' '[' Identifier ']' '=' Identifier '{' StatementList '}'
+operator this[key] = val
+{
+	printf("tried to set this[\"%s\"] to %d\n", key, cast<int>val);
+}
+//'operator' 'this' '.' Identifier '(' IdentifierList ')' '{' StatementList '}'
+operator this[key](foo, bar...)
+{
+	printf("calling this.%s\n", key);
 }
 //'operator' 'this' '(' ArgumentDefinitionList ')' '{' StatementList '}'
 operator this(a, b) //will be called when the struct is called like a function
