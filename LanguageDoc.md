@@ -13,6 +13,7 @@
 	- [ArrayDefinitionStatement](#arraydefinitionstatement)
 	- [VarArrayDefinitionStatement](#vararraydefinitionstatement)
 	- [StructVariableDefinition](#structvariabledefinition)
+	- [ConstDefinition](#constdefinition)
 	- [ImportStatement](#importstatement)
 	- [ScopeStatement](#scopestatement)
 	- [TryCatchStatement](#trycatchstatement)
@@ -243,18 +244,6 @@ Creates a parse-time variable with a constant value
 const SEEK_SET = 0;
 const SEEK_CUR = 1;
 const SEEK_END = 2;
-```
-
-##AliasDefinition
-Creates a parse-time alias that gets evaluated when being used like a variable
-```js
-//'alias' Identifier '=' Expression ';'
-function foo(val)
-{
-	printf("%d\n", val)
-}
-alias bar = foo(4) * 2 + 7;
-printf("%d\n", bar + bar); //foo will be called twice
 ```
 
 ##ImportStatement
