@@ -159,17 +159,19 @@ function printfln(fmt, args...)
 | Precedence | Operator | Description | Associativity |
 |------------|----------|-------------|---------------|
 | 1 | `= += -= *= /= %= <<= >>= &= ^= |=` | Assignment operators | Right-to-Left |
-| 2 | `?: instanceof` | Ternary, instanceof | Left-to-Right |
-| 3 | `|| ^^` | Logical OR, logical XOR | Left-to-Right |
-| 4 | `&&` | Logical AND | Left-to-Right |
-| 5 | `|` | Bitwise OR | Left-to-Right |
-| 6 | `^` | Bitwise XOR | Left-to-Right |
-| 7 | `&` | Bitwise AND | Left-to-Right |
-| 8 | `== != === !== <= >= < >` | Comparasion operators | Left-to-Right |
-| 8 | `=== !==` | Typesafe comparasion operators | Left-to-Right |
-| 9 | `<< >>` | Shifting operators | Left-to-Right |
-| 10 | `+ -` | Addition, subtraction | Left-to-Right |
-| 11 | `* / %` | Multiplication, division, division remainder | Left-to-Right |
+| 2 | `?:` | Ternary | Left-to-Right |
+| 3 | `||` | Logical OR | Left-to-Right |
+| 4 | `^^` | logical XOR | Left-to-Right |
+| 5 | `&&` | Logical AND | Left-to-Right |
+| 6 | `|` | Bitwise OR | Left-to-Right |
+| 7 | `^` | Bitwise XOR | Left-to-Right |
+| 8 | `&` | Bitwise AND | Left-to-Right |
+| 9 | `== != === !==` | (Typesafe-) Comparasion operators | Left-to-Right |
+| 10 | `<= >= < >` | Comparasion operators | Left-to-Right |
+| 11 | `instanceof` | Instanceof operator | Left-to-Right |
+| 12 | `<< >>` | Shifting operators | Left-to-Right |
+| 13 | `+ -` | Addition, subtraction | Left-to-Right |
+| 14 | `* / %` | Multiplication, division, division remainder | Left-to-Right |
 
 ##PrefixedOperators
 | Operator | Description |
