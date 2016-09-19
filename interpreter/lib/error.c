@@ -15,7 +15,6 @@
 
 ptrs_ast_t *ptrs_lastast = NULL;
 ptrs_scope_t *ptrs_lastscope = NULL;
-static bool backtracingError = false;
 
 typedef struct codepos
 {
@@ -65,16 +64,17 @@ char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative)
 	char *buffptr = buff;
 
 #ifdef _GNU_SOURCE
-	if(backtracingError)
+	static bool hadError;
+	if(hadError)
 	{
 		buffptr += sprintf(buffptr,
 			"It appears like we raised a signal when backtracing the native stack.\n"
 			"Skipping native backtrace.\n");
-		backtracingError = false;
+		hadError = false;
 	}
 	else
 	{
-		backtracingError = true;
+		hadError = true;
 		void *trace[32];
 		int count = backtrace(trace, 32);
 		Dl_info infos[count];
@@ -100,7 +100,7 @@ char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative)
 				buffptr += sprintf(buffptr, "(unknown)\n");
 		}
 
-		backtracingError = false;
+		hadError = false;
 	}
 #endif
 
