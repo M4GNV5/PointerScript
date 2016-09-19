@@ -130,10 +130,29 @@ memberdefinition		: identifier [ '=' expression ] ';'
 
 //in function definitions you can define argument default values
 //e.g. function foo(bar = 42 * 3112) {}
+//the last argument can be followed by '...'
+//	it will be an array of variables containing additional arguments (varargs)
+//e.g. function baz(foo, bar...)
 argumentdefinitonlist	: argumentdefiniton [ ',' argumentdefinitonlist ]
 						|
 						;
 argumentdefiniton		: identifier [ '=' expression ]
+						| identifier '...'
 						;
 
+//You can also expand arrays into expression lists
+/*e.g.
+var vals = ['m', 3.14, "hi"];
+printf("%c %g %s\n", ...vals);
+
+function printfln(fmt, args...)
+{
+	printf(fmt, ...args); //expand 'args'
+	printf("\n");
+}
+*/
+expressionlist			: expression [ ',' expressionlist ]
+						| '...' expression [ ',' expressionlist ]
+						|
+						;
 ```
