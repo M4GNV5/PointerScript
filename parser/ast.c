@@ -958,6 +958,59 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 
 		ast->arg.function.body = parseBody(code, &ast->arg.function.stackOffset, false, true);
 	}
+	else if(lookahead(code, "map"))
+	{
+		ptrs_struct_t *struc = talloc(ptrs_struct_t);
+		ptrs_ast_t *constExpr = talloc(ptrs_ast_t);
+
+		ast = talloc(ptrs_ast_t);
+		ast->handler = PTRS_HANDLE_NEW;
+		ast->arg.call.value = constExpr;
+		ast->arg.call.arguments = NULL;
+
+		constExpr->handler = PTRS_HANDLE_CONSTANT;
+		constExpr->arg.constval.type = PTRS_TYPE_STRUCT;
+		constExpr->arg.constval.value.structval = struc;
+
+		struc->size = 0;
+		struc->name = "(map)";
+		struc->overloads = NULL;
+
+		consumec(code, '{');
+
+		struct ptrs_structlist *curr = NULL;
+		for(;;)
+		{
+			if(curr == NULL)
+			{
+				curr = talloc(struct ptrs_structlist);
+				struc->member = curr;
+			}
+			else
+			{
+				curr->next = talloc(struct ptrs_structlist);
+				curr = curr->next;
+			}
+			curr->type = PTRS_STRUCTMEMBER_VAR;
+			curr->isPrivate = false;
+			curr->offset = struc->size;
+			struc->size += sizeof(ptrs_var_t);
+
+			if(lookahead(code, "\""))
+				curr->name = readString(code, NULL);
+			else
+				curr->name = readIdentifier(code);
+
+			consumec(code, ':');
+			curr->value.startval = parseExpression(code);
+
+			if(code->curr == '}')
+				break;
+			consumec(code, ',');
+		}
+
+		consumec(code, '}');
+	}
 	else if(curr == '[')
 	{
 		next(code);
@@ -1881,7 +1934,9 @@ static char *readString(code_t *code, int *length)
 		else
 			break;
 	}
-	*length = len;
+
+	if(length != NULL)
+		*length = len;
 
 	code->pos = start;
 	code->curr = code->src[code->pos];
