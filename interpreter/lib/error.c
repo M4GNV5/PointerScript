@@ -54,10 +54,6 @@ int ptrs_printpos(char *buff, ptrs_ast_t *ast)
 	return sprintf(buff, "(%s:%d:%d)\n", ast->file, pos.line, pos.column);
 }
 
-#ifdef _GNU_SOURCE
-extern int main(int argc, char **argv);
-#endif
-
 char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative)
 {
 	char buff[1024];
@@ -80,7 +76,7 @@ char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative)
 		Dl_info infos[count];
 
 		Dl_info selfInfo;
-		dladdr(main, &selfInfo);
+		dladdr(dlsym(NULL, "ffi_call"), &selfInfo);
 
 		for(int i = skipNative; i < count - 1; i++)
 		{
