@@ -378,11 +378,13 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 	if(k == 0)
 	{
 		result = stmt.tryBody->handler(stmt.tryBody, result, scope);
+		scope->error = oldError;
 	}
 	else if(stmt.catchBody != NULL)
 	{
 		ptrs_var_t val;
 		char *msg;
+		scope->error = oldError;
 
 		val.type = PTRS_TYPE_NATIVE;
 		val.meta.array.readOnly = false;
@@ -423,7 +425,6 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 		result = stmt.catchBody->handler(stmt.catchBody, result, scope);
 	}
 
-	scope->error = oldError;
 	return result;
 }
 
