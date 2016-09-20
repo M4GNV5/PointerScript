@@ -583,7 +583,7 @@ ptrs_var_t *ptrs_handle_yield(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	ptrs_var_t vals[len];
 	ptrs_astlist_handle(node->arg.yield.values, vals, scope);
 
-	void **yieldVal = (void **)ptrs_scope_get(scope, expr.yieldVal);
+	void **yieldVal = ptrs_scope_get(scope, expr.yieldVal)->value.nativeval;
 	struct ptrs_ast_forin *forStmt = yieldVal[0];
 
 	ptrs_scope_t *stmtScope = ptrs_scope_increase(scope, forStmt->stackOffset);

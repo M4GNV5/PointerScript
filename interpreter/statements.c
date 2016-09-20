@@ -609,9 +609,13 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		void *yieldVal[2];
 		yieldVal[0] = &node->arg.forin;
 		yieldVal[1] = (void*)scope;
+		
+		ptrs_var_t arg;
+		arg.type = PTRS_TYPE_NATIVE;
+		arg.value.nativeval = yieldVal;
 
 		overload.type = PTRS_TYPE_FUNCTION;
-		val = ptrs_callfunc(node, result, scope, val->value.structval, &overload, 1, (void *)&yieldVal);
+		val = ptrs_callfunc(node, result, scope, val->value.structval, &overload, 1, &arg);
 
 		if(scope->exit == 3)
 			memcpy(result, &ptrs_forinOverloadResult, sizeof(ptrs_var_t));
