@@ -56,7 +56,8 @@ int ptrs_printpos(char *buff, ptrs_ast_t *ast)
 
 char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative)
 {
-	char buff[1024];
+	int bufflen = 1024;
+	char *buff = malloc(bufflen);
 	char *buffptr = buff;
 
 #ifdef _GNU_SOURCE
@@ -84,6 +85,14 @@ char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative)
 
 			if(infos[i].dli_fbase == selfInfo.dli_fbase)
 				break;
+				
+			if(buffptr - buff > bufflen - 128)
+			{
+				int diff = buffptr - buff;
+				bufflen *= 2;
+				buff = realloc(buff, bufflen);
+				buffptr = buff + diff;
+			}
 
 			if(infos[i].dli_sname != NULL)
 				buffptr += sprintf(buffptr, "    at %s ", infos[i].dli_sname);
@@ -103,6 +112,14 @@ char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative)
 	ptrs_scope_t *start = scope;
 	while(scope != NULL)
 	{
+		if(buffptr - buff > bufflen - 128)
+		{
+			int diff = buffptr - buff;
+			bufflen *= 2;
+			buff = realloc(buff, bufflen);
+			buffptr = buff + diff;
+		}
+		
 		if(scope == start)
 			buffptr += sprintf(buffptr, "    >> ");
 		else
@@ -116,7 +133,7 @@ char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative)
 		pos = scope->callAst;
 		scope = scope->callScope;
 	}
-	return strdup(buff);
+	return buff;
 }
 
 void ptrs_showpos(FILE *fd, ptrs_ast_t *ast)
