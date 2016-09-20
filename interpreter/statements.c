@@ -337,7 +337,8 @@ ptrs_var_t *ptrs_handle_continue(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 ptrs_var_t *ptrs_handle_delete(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	ptrs_ast_t *ast = node->arg.astval;
-	ptrs_var_t *val = ast->handler(ast, result, scope);
+	ptrs_var_t valv;
+	ptrs_var_t *val = ast->handler(ast, &valv, scope);
 
 	if(val->type != PTRS_TYPE_STRUCT)
 		ptrs_error(node, scope, "Cannot delete value of type %s", ptrs_typetoa(val->type));
