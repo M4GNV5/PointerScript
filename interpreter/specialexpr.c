@@ -537,8 +537,8 @@ ptrs_var_t *ptrs_handle_constant(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 ptrs_var_t *ptrs_handle_prefix_typeof(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	ptrs_var_t *val = node->arg.astval->handler(node->arg.astval, result, scope);
-	result->type = PTRS_TYPE_INT;
 	result->value.intval = val->type;
+	result->type = PTRS_TYPE_INT;
 	return result;
 }
 
