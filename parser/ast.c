@@ -437,7 +437,6 @@ static ptrs_ast_t *parseStatement(code_t *code)
 				if(lookahead(code, "{"))
 				{
 					stmt->arg.define.initExpr = NULL;
-					consumec(code, '{');
 					stmt->arg.define.initVal = parseExpressionList(code, '}');
 					consumec(code, '}');
 				}
