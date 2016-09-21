@@ -469,7 +469,8 @@ ptrs_var_t *ptrs_handle_struct(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 		else if(curr->isStatic && curr->type == PTRS_STRUCTMEMBER_VAR)
 		{
 			ptrs_ast_t *startval = curr->value.startval;
-			memcpy(struc->staticData + curr->offset, startval->handler(startval, result, scope), sizeof(ptrs_var_t));
+			if(startval != NULL)
+				memcpy(struc->staticData + curr->offset, startval->handler(startval, result, scope), sizeof(ptrs_var_t));
 		}
 		curr = curr->next;
 	}
