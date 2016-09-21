@@ -1975,44 +1975,38 @@ static char readEscapeSequence(code_t *code)
 	{
 		case 'a':
 			return '\a';
-			break;
 		case 'b':
 			return '\b';
-			break;
 		case 'f':
 			return '\f';
-			break;
 		case 'n':
 			return '\n';
-			break;
 		case 'r':
 			return '\r';
-			break;
 		case 't':
 			return '\t';
-			break;
 		case 'v':
 			return '\v';
-			break;
 		case '\\':
 			return '\\';
-			break;
 		case '\'':
 			return '\'';
-			break;
 		case '"':
 			return '"';
-			break;
 		case '?':
 			return '\?';
-			break;
 		case 'x':
 			rawnext(code);
-			return (char)readInt(code, 16);
-			break;
+			char val = readInt(code, 16);
+			code->pos--;
+			return val;
 		default:
 			if(isdigit(code->curr))
-				return (char)readInt(code, 8);
+			{
+				char val = readInt(code, 8);
+				code->pos--;
+				return val;
+			}
 	}
 	char msg[] = "Unknown escape sequence \\X";
 	msg[25] = code->curr;
