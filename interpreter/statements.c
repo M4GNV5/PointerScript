@@ -454,10 +454,8 @@ ptrs_var_t *ptrs_handle_function(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 
 ptrs_var_t *ptrs_handle_struct(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	result->type = PTRS_TYPE_STRUCT;
 	ptrs_struct_t *struc = &node->arg.structval;
 	struc->scope = scope;
-	result->value.structval = struc;
 
 	struct ptrs_structlist *curr = struc->member;
 	while(curr != NULL)
@@ -465,7 +463,14 @@ ptrs_var_t *ptrs_handle_struct(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 		if(curr->type == PTRS_STRUCTMEMBER_FUNCTION
 			|| curr->type == PTRS_STRUCTMEMBER_GETTER
 			|| curr->type == PTRS_STRUCTMEMBER_SETTER)
+		{
 			curr->value.function->scope = scope;
+		}
+		else if(curr->isStatic && curr->type == PTRS_STRUCTMEMBER_VAR)
+		{
+			ptrs_ast_t *startval = curr->value.startval;
+			memcpy(struc->staticData + curr->offset, startval->handler(startval, result, scope), sizeof(ptrs_var_t));
+		}
 		curr = curr->next;
 	}
 
@@ -476,6 +481,8 @@ ptrs_var_t *ptrs_handle_struct(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 		currop = currop->next;
 	}
 
+	result->type = PTRS_TYPE_STRUCT;
+	result->value.structval = struc;
 	ptrs_scope_set(scope, struc->symbol, result);
 	return result;
 }
@@ -611,7 +618,7 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		void *yieldVal[2];
 		yieldVal[0] = &node->arg.forin;
 		yieldVal[1] = (void*)scope;
-		
+
 		ptrs_var_t arg;
 		arg.type = PTRS_TYPE_NATIVE;
 		arg.value.nativeval = yieldVal;

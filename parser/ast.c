@@ -1455,6 +1455,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 	char *name;
 	char *structName = readIdentifier(code);
 	int structNameLen = strlen(structName);
+	int staticMemSize = 0;
 
 	struc->name = strdup(structName);
 	struc->symbol = addSymbol(code, structName);
@@ -1675,6 +1676,18 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 		else
 			curr->isPrivate = false;
 
+		int currSize;
+		if(lookahead(code, "static"))
+		{
+			currSize = staticMemSize;
+			curr->isStatic = true;
+		}
+		else
+		{
+			currSize = struc->size;
+			curr->isStatic = false;
+		}
+
 		name = curr->name = readIdentifier(code);
 
 		struct symbollist *symbol = addSpecialSymbol(code, strdup(curr->name), structMemberSymbolCreator);
@@ -1731,8 +1744,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				PTRS_HANDLE_ASTERROR(ast, "Struct array member size must be a constant");
 
 			curr->value.size = ast->arg.constval.value.intval * sizeof(ptrs_var_t);
-			curr->offset = struc->size;
-			struc->size += curr->value.size;
+			curr->offset = currSize;
+			currSize += curr->value.size;
 			free(ast);
 		}
 		else if(code->curr == '{')
@@ -1747,8 +1760,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				PTRS_HANDLE_ASTERROR(ast, "Struct array member size must be a constant");
 
 			curr->value.size = ast->arg.constval.value.intval;
-			curr->offset = struc->size;
-			struc->size += curr->value.size;
+			curr->offset = currSize;
+			currSize += curr->value.size;
 			free(ast);
 		}
 		else if(code->curr == ':')
@@ -1760,25 +1773,25 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			curr->type = PTRS_STRUCTMEMBER_TYPED;
 			curr->value.type = type;
 
-			if(old != NULL && old->type == PTRS_STRUCTMEMBER_TYPED)
+			if(old != NULL && old->type == PTRS_STRUCTMEMBER_TYPED && old->isStatic == curr->isStatic)
 			{
 				if(old->value.type->size < type->size)
 					curr->offset = (old->offset & ~(type->size - 1)) + type->size;
 				else
 					curr->offset = old->offset + old->value.type->size;
-				struc->size = (curr->offset & ~7) + 8;
+				currSize = (curr->offset & ~7) + 8;
 			}
 			else
 			{
-				curr->offset = struc->size;
-				struc->size += 8;
+				curr->offset = currSize;
+				currSize += 8;
 			}
 		}
 		else
 		{
 			curr->type = PTRS_STRUCTMEMBER_VAR;
-			curr->offset = struc->size;
-			struc->size += sizeof(ptrs_var_t);
+			curr->offset = currSize;
+			currSize += sizeof(ptrs_var_t);
 
 			if(lookahead(code, "="))
 				curr->value.startval = parseExpression(code);
@@ -1787,7 +1800,17 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 			consumec(code, ';');
 		}
+
+		if(curr->isStatic)
+			staticMemSize = currSize;
+		else
+			struc->size = currSize;
 	}
+
+	if(staticMemSize != 0)
+		struc->staticData = malloc(staticMemSize);
+	else
+		struc->staticData = NULL;
 
 	curr->next = NULL;
 	symbolScope_decrease(code);

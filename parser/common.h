@@ -114,7 +114,8 @@ struct ptrs_structlist
 {
 	char *name;
 	unsigned int offset;
-	bool isPrivate;
+	uint8_t isPrivate : 1;
+	uint8_t isStatic : 1;
 	enum ptrs_structmembertype type;
 	union ptrs_structmember value;
 	struct ptrs_structlist *next;
@@ -135,6 +136,7 @@ typedef struct ptrs_struct
 	ptrs_scope_t *scope;
 	int size;
 	bool isOnStack;
+	void *staticData;
 	void *data;
 } ptrs_struct_t;
 

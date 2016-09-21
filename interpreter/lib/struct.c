@@ -26,14 +26,20 @@ ptrs_function_t *ptrs_struct_getOverload(ptrs_var_t *struc, void *handler, bool 
 ptrs_var_t *ptrs_struct_getMember(ptrs_struct_t *struc, ptrs_var_t *result, struct ptrs_structlist *member,
 	ptrs_ast_t *ast, ptrs_scope_t *scope)
 {
-	if(struc->data == NULL && member->type != PTRS_STRUCTMEMBER_FUNCTION)
-		return NULL;
+	void *data = struc->data;
+	if(data == NULL || member->isStatic)
+	{
+		if(!member->isStatic)
+			ptrs_error(ast, scope, "Cannot access non-static property of struct %s", struc->name);
+
+		data = struc->staticData;
+	}
 
 	ptrs_var_t func;
 	switch(member->type)
 	{
 		case PTRS_STRUCTMEMBER_VAR:
-			return struc->data + member->offset;
+			return data + member->offset;
 		case PTRS_STRUCTMEMBER_GETTER:
 			func.type = PTRS_TYPE_FUNCTION;
 			func.value.funcval = member->value.function;
@@ -46,17 +52,17 @@ ptrs_var_t *ptrs_struct_getMember(ptrs_struct_t *struc, ptrs_var_t *result, stru
 			return result;
 		case PTRS_STRUCTMEMBER_ARRAY:
 			result->type = PTRS_TYPE_NATIVE;
-			result->value.nativeval = struc->data + member->offset;
+			result->value.nativeval = data + member->offset;
 			result->meta.array.readOnly = false;
 			result->meta.array.size = member->value.size;
 			return result;
 		case PTRS_STRUCTMEMBER_VARARRAY:
 			result->type = PTRS_TYPE_POINTER;
-			result->value.ptrval = struc->data + member->offset;
+			result->value.ptrval = data + member->offset;
 			result->meta.array.size = member->value.size;
 			return result;
 		case PTRS_STRUCTMEMBER_TYPED:
-			return member->value.type->getHandler(struc->data + member->offset, member->value.type->size, result);
+			return member->value.type->getHandler(data + member->offset, member->value.type->size, result);
 	}
 
 	return NULL;
@@ -78,9 +84,18 @@ ptrs_var_t *ptrs_struct_get(ptrs_struct_t *struc, ptrs_var_t *result, const char
 void ptrs_struct_setMember(ptrs_struct_t *struc, ptrs_var_t *value, struct ptrs_structlist *member,
 	ptrs_ast_t *ast, ptrs_scope_t *scope)
 {
+	void *data = struc->data;
+	if(data == NULL || member->isStatic)
+	{
+		if(!member->isStatic)
+			ptrs_error(ast, scope, "Cannot assign non-static property of struct %s", struc->name);
+
+		data = struc->staticData;
+	}
+
 	if(member->type == PTRS_STRUCTMEMBER_VAR)
 	{
-		memcpy(struc->data + member->offset, value, sizeof(ptrs_var_t));
+		memcpy(data + member->offset, value, sizeof(ptrs_var_t));
 	}
 	else if(member->type == PTRS_STRUCTMEMBER_SETTER)
 	{
@@ -93,7 +108,7 @@ void ptrs_struct_setMember(ptrs_struct_t *struc, ptrs_var_t *value, struct ptrs_
 	else if(member->type == PTRS_STRUCTMEMBER_TYPED)
 	{
 		ptrs_nativetype_info_t *type = member->value.type;
-		type->setHandler(struc->data + member->offset, type->size, value);
+		type->setHandler(data + member->offset, type->size, value);
 	}
 	else
 	{
