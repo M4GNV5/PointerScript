@@ -178,15 +178,6 @@ void ptrs_vthrow(ptrs_ast_t *ast, ptrs_scope_t *scope, const char *format, va_li
 	error->line = pos.line;
 	error->column = pos.column;
 
-	while(scope->error == error)
-	{
-		scope->error = error;
-		if(scope->callScope != NULL && scope->callScope->error == error)
-			scope = scope->callScope;
-		else
-			scope = scope->outer;
-	}
-
 	siglongjmp(error->catch, 1);
 }
 
