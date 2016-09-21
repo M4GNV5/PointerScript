@@ -1789,6 +1789,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 		}
 	}
 
+	curr->next = NULL;
 	symbolScope_decrease(code);
 	consumec(code, '}');
 	consumec(code, ';');
