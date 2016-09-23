@@ -575,6 +575,26 @@ ptrs_var_t *ptrs_handle_op_instanceof(ptrs_ast_t *node, ptrs_var_t *result, ptrs
 	return result;
 }
 
+ptrs_var_t *ptrs_handle_op_in(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_binary stmt = node->arg.binary;
+	char buff[16];
+	ptrs_var_t *left = stmt.left->handler(stmt.left, result, scope);
+	const char *key = ptrs_vartoa(left, buff, 16);
+
+	ptrs_var_t *right = stmt.right->handler(stmt.right, result, scope);
+	if(right->type != PTRS_TYPE_STRUCT)
+		ptrs_error(node, scope, "Cannot use the 'in' operator on a variable of type %s", ptrs_typetoa(right->type));
+
+	if(ptrs_struct_get(right->value.structval, result, key, node, scope) == NULL)
+		result->value.intval = false;
+	else
+		result->value.intval = true;
+
+	result->type = PTRS_TYPE_INT;
+	return result;
+}
+
 extern ptrs_var_t __thread ptrs_forinOverloadResult;
 ptrs_var_t *ptrs_handle_yield(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
