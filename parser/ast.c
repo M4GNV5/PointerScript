@@ -823,6 +823,7 @@ struct constinfo constants[] = {
 	{"NULL", PTRS_TYPE_NATIVE, {.nativeval = NULL}},
 	{"null", PTRS_TYPE_POINTER, {.ptrval = NULL}},
 	{"VARSIZE", PTRS_TYPE_INT, {.intval = sizeof(ptrs_var_t)}},
+	{"PTRSIZE", PTRS_TYPE_INT, {.intval = sizeof(void *)}},
 	{"undefined", PTRS_TYPE_UNDEFINED, {}},
 	{"NaN", PTRS_TYPE_FLOAT, {.floatval = NAN}},
 };

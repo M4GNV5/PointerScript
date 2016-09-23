@@ -112,6 +112,7 @@ constantexpression		: 'true' 		//type int, value 1
 						| 'null'		//type pointer, value 0
 						| 'NULL'		//type native, value 0
 						| 'VARSIZE'		//type int, value size of a variable (currently 16)
+						| 'PTRSIZE'		//type int, value size of a pointer (8 for 64bit and 4 for 32bit)
 						| 'undefined'	//type undefined
 						;
 
