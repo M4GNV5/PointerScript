@@ -584,10 +584,26 @@ ptrs_var_t *ptrs_handle_op_in(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	if(right->type != PTRS_TYPE_STRUCT)
 		ptrs_error(node, scope, "Cannot use the 'in' operator on a variable of type %s", ptrs_typetoa(right->type));
 
-	if(ptrs_struct_get(right->value.structval, result, key, node, scope) == NULL)
-		result->value.intval = false;
-	else
+	ptrs_var_t overload;
+	if(ptrs_struct_get(right->value.structval, result, key, node, scope) != NULL)
+	{
 		result->value.intval = true;
+	}
+	else if((overload.value.funcval = ptrs_struct_getOverload(right, ptrs_handle_op_in, false)) != NULL)
+	{
+		ptrs_var_t arg;
+		arg.type = PTRS_TYPE_NATIVE;
+		arg.value.strval = key;
+		arg.meta.array.size = 0;
+		arg.meta.array.readOnly = false;
+
+		overload.type = PTRS_TYPE_FUNCTION;
+		return ptrs_callfunc(node, result, scope, right->value.structval, &overload, 1, &arg);
+	}
+	else
+	{
+		result->value.intval = false;
+	}
 
 	result->type = PTRS_TYPE_INT;
 	return result;
