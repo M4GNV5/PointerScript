@@ -109,8 +109,7 @@ ptrs_var_t *ptrs_handle_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	}
 	else if(_result == NULL)
 	{
-		result->type = PTRS_TYPE_UNDEFINED;
-		return result;
+		ptrs_error(node, scope, "Struct %s has no property '%s'", base->value.structval->name, expr.name);
 	}
 
 	return _result;
@@ -321,8 +320,7 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		}
 		else if(_result == NULL)
 		{
-			result->type = PTRS_TYPE_UNDEFINED;
-			return result;
+			ptrs_error(node, scope, "Struct %s has no property '%s'", value->value.structval->name, key);
 		}
 
 		return _result;
