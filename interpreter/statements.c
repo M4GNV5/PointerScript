@@ -726,8 +726,8 @@ ptrs_var_t *ptrs_handle_file(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 
 ptrs_var_t *ptrs_handle_scopestatement(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	ptrs_ast_t *body = node->arg.scopestatement.body;
-	return body->handler(body, result, scope);
+	struct ptrs_ast_scopestmt stmt = node->arg.scopestatement;
+	return stmt.body->handler(stmt.body, result, ptrs_scope_increase(scope, stmt.stackOffset));
 }
 
 ptrs_var_t *ptrs_handle_exprstatement(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)

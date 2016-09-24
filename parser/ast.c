@@ -537,7 +537,8 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	else if(code->curr == '{')
 	{
 		stmt->handler = PTRS_HANDLE_SCOPESTATEMENT;
-		stmt->arg.scopestatement.body = parseBody(code, &stmt->arg.scopestatement.stackOffset, false, false);
+		symbolScope_increase(code, 0, false);
+		stmt->arg.scopestatement.body = parseBody(code, &stmt->arg.scopestatement.stackOffset, false, true);
 	}
 	else if(lookahead(code, "function"))
 	{
