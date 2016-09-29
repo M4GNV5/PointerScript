@@ -22,6 +22,7 @@ ptrs_var_t *ptrs_handle_yield(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 ptrs_var_t *ptrs_handle_delete(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_throw(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_asm(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_function(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_struct(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_if(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
@@ -133,6 +134,7 @@ ptrs_var_t *ptrs_handle_native_setFloat(void *target, size_t size, ptrs_var_t *v
 #define PTRS_HANDLE_DELETE ptrs_handle_delete
 #define PTRS_HANDLE_THROW ptrs_handle_throw
 #define PTRS_HANDLE_TRYCATCH ptrs_handle_trycatch
+#define PTRS_HANDLE_ASM ptrs_handle_asm
 #define PTRS_HANDLE_FUNCTION ptrs_handle_function
 #define PTRS_HANDLE_STRUCT ptrs_handle_struct
 #define PTRS_HANDLE_IF ptrs_handle_if

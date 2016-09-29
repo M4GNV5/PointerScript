@@ -2,8 +2,10 @@ CC = gcc
 FFI_DIR = /usr/include/x86_64-linux-gnu/
 FFCB_DIR = libffcb/src
 FFCB_BIN = libffcb/bin/libffcb.a
+JITAS_DIR = libjitas/src
+JITAS_BIN = libjitas/bin/libjitas.a
 INTERPRETER_INCLUDE = "../interpreter/interpreter.h"
-CFLAGS = -Wall -O2 '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -D_GNU_SOURCE --std=c99 -g -I$(FFI_DIR) -I$(FFCB_DIR)
+CFLAGS = -Wall '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -D_GNU_SOURCE --std=c99 -g -I$(FFI_DIR) -I$(FFCB_DIR) -I$(JITAS_DIR)
 
 BIN = bin
 RUN = $(BIN)/ptrs
@@ -30,7 +32,7 @@ all: debug
 
 debug: $(RUN)
 
-release: CFLAGS = '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -D_GNU_SOURCE --std=c99 -O2 -I$(FFI_DIR) -I$(FFCB_DIR)
+release: CFLAGS = '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -D_GNU_SOURCE --std=c99 -O2 -I$(FFI_DIR) -I$(FFCB_DIR) -I$(JITAS_DIR)
 release: $(RUN)
 
 install: release
@@ -43,7 +45,7 @@ clean:
 	if [ -d $(BIN) ]; then rm -r $(BIN); fi
 
 $(RUN): $(BIN) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS)
-	$(CC) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) $(FFCB_BIN) -o $(BIN)/ptrs -rdynamic -ldl -lffi
+	$(CC) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) $(FFCB_BIN) $(JITAS_BIN) -o $(BIN)/ptrs -rdynamic -ldl -lffi
 
 $(BIN):
 	mkdir $(BIN)

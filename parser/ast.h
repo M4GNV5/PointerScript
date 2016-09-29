@@ -48,6 +48,21 @@ struct ptrs_ast_trycatch
 	ptrs_symbol_t *args;
 };
 
+struct ptrs_ast_asm
+{
+	int importCount;
+	int exportCount;
+
+	const char **imports;
+	struct ptrs_ast **importAsts;
+
+	void **exports;
+	ptrs_symbol_t *exportSymbols;
+
+	intptr_t (*asmFunc)();
+	struct jitas_context *context;
+};
+
 struct ptrs_ast_function
 {
 	ptrs_symbol_t symbol;
@@ -174,6 +189,7 @@ union ptrs_ast_arg
 	struct ptrs_ast_thismember thismember;
 	struct ptrs_ast_import import;
 	struct ptrs_ast_trycatch trycatch;
+	struct ptrs_ast_asm asmstmt;
 	struct ptrs_ast_function function;
 	struct ptrs_ast_scopestmt scopestatement;
 	struct ptrs_ast_strformat strformat;

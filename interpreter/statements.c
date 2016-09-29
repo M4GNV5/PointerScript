@@ -4,6 +4,7 @@
 #include <libgen.h>
 #include <setjmp.h>
 #include <dlfcn.h>
+#include <jitas.h>
 
 #include "../parser/ast.h"
 #include "../parser/common.h"
@@ -426,6 +427,87 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 		result = stmt.catchBody->handler(stmt.catchBody, result, scope);
 	}
 
+	return result;
+}
+
+struct ptrs_asmContext
+{
+	struct ptrs_ast_asm *stmt;
+	void **importPtrs;
+};
+static void **ptrs_asmSymbolResolver(const char *symbol, struct ptrs_asmContext *ctx)
+{
+	for(int i = 0; i < ctx->stmt->importCount; i++)
+	{
+		if(strcmp(ctx->stmt->imports[i], symbol) == 0)
+			return ctx->importPtrs[i];
+	}
+	return NULL;
+}
+ptrs_var_t *ptrs_handle_asm(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_asm stmt = node->arg.asmstmt;
+	ptrs_var_t importValues[stmt.importCount];
+
+	{
+		void *importPtrs[stmt.importCount];
+		struct ptrs_asmContext ctx = {
+			.stmt = &stmt,
+			.importPtrs = importPtrs
+		};
+
+		for(int i = 0; i < stmt.importCount; i++)
+		{
+			ptrs_var_t *val = stmt.importAsts[i]->handler(stmt.importAsts[i], importValues + i, scope);
+			switch(val->type)
+			{
+				case PTRS_TYPE_UNDEFINED:
+					importPtrs[i] = NULL;
+					break;
+				case PTRS_TYPE_INT:
+				case PTRS_TYPE_FLOAT:
+					importPtrs[i] = val;
+					break;
+				case PTRS_TYPE_NATIVE:
+				case PTRS_TYPE_POINTER:
+					importPtrs[i] = val->value.nativeval;
+					break;
+				//TODO PTRS_TYPE_FUNCTION
+				case PTRS_TYPE_STRUCT:
+					importPtrs[i] = val->value.structval->data;
+					break;
+			}
+		}
+
+		stmt.context->resolver = (void *)ptrs_asmSymbolResolver;
+		jitas_link(stmt.context, &ctx);
+
+		int line;
+		char *errorMessage = jitas_error(stmt.context, &line);
+		while(jitas_error(stmt.context, NULL) != NULL); //skip all other errors
+
+		if(errorMessage != NULL)
+			ptrs_error(node, scope, "%s\nLink error (asm line %d)", errorMessage, line);
+	}
+
+	for(int i = 0; i < stmt.exportCount; i++)
+	{
+		ptrs_var_t *val = ptrs_scope_get(scope, stmt.exportSymbols[i]);
+		val->type = PTRS_TYPE_NATIVE;
+		val->value.nativeval = stmt.exports[i];
+		val->meta.array.size = 0;
+		val->meta.array.readOnly = true;
+	}
+
+	if(stmt.exportCount == 0)
+	{
+		result->type = PTRS_TYPE_INT;
+		result->value.intval = stmt.asmFunc();
+	}
+	else
+	{
+		result->type = PTRS_TYPE_UNDEFINED;
+	}
 	return result;
 }
 

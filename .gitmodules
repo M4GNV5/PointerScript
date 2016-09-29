@@ -1,3 +1,6 @@
 [submodule "libffcb"]
 	path = libffcb
 	url = https://github.com/M4GNV5/libffcb
+[submodule "libjitas"]
+	path = libjitas
+	url = https://github.com/M4GNV5/libjitas
