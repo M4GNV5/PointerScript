@@ -433,14 +433,18 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 struct ptrs_asmContext
 {
 	struct ptrs_ast_asm *stmt;
-	void **importPtrs;
+	ptrs_var_t *importValues;
+	ptrs_scope_t *scope;
 };
-static void **ptrs_asmSymbolResolver(const char *symbol, struct ptrs_asmContext *ctx)
+static void *ptrs_asmSymbolResolver(const char *symbol, struct ptrs_asmContext *ctx)
 {
 	for(int i = 0; i < ctx->stmt->importCount; i++)
 	{
 		if(strcmp(ctx->stmt->imports[i], symbol) == 0)
-			return ctx->importPtrs[i];
+		{
+			ptrs_ast_t *ast = ctx->stmt->importAsts[i];
+			return ast->handler(ast, ctx->importValues + i, ctx->scope);
+		}
 	}
 	return NULL;
 }
@@ -450,34 +454,11 @@ ptrs_var_t *ptrs_handle_asm(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 	ptrs_var_t importValues[stmt.importCount];
 
 	{
-		void *importPtrs[stmt.importCount];
 		struct ptrs_asmContext ctx = {
 			.stmt = &stmt,
-			.importPtrs = importPtrs
+			.importValues = importValues,
+			.scope = scope
 		};
-
-		for(int i = 0; i < stmt.importCount; i++)
-		{
-			ptrs_var_t *val = stmt.importAsts[i]->handler(stmt.importAsts[i], importValues + i, scope);
-			switch(val->type)
-			{
-				case PTRS_TYPE_UNDEFINED:
-					importPtrs[i] = NULL;
-					break;
-				case PTRS_TYPE_INT:
-				case PTRS_TYPE_FLOAT:
-					importPtrs[i] = val;
-					break;
-				case PTRS_TYPE_NATIVE:
-				case PTRS_TYPE_POINTER:
-					importPtrs[i] = val->value.nativeval;
-					break;
-				//TODO PTRS_TYPE_FUNCTION
-				case PTRS_TYPE_STRUCT:
-					importPtrs[i] = val->value.structval->data;
-					break;
-			}
-		}
 
 		stmt.context->resolver = (void *)ptrs_asmSymbolResolver;
 		jitas_link(stmt.context, &ctx);
