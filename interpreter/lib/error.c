@@ -13,8 +13,8 @@
 #include "../include/call.h"
 #include "../include/error.h"
 
-ptrs_ast_t *ptrs_lastast = NULL;
-ptrs_scope_t *ptrs_lastscope = NULL;
+__thread ptrs_ast_t *ptrs_lastast = NULL;
+__thread ptrs_scope_t *ptrs_lastscope = NULL;
 
 typedef struct codepos
 {
@@ -87,7 +87,7 @@ char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative)
 
 			if(infos[i].dli_fbase == selfInfo.dli_fbase || infos[i].dli_fbase == ffiInfo.dli_fbase)
 				break;
-				
+
 			if(buffptr - buff > bufflen - 128)
 			{
 				int diff = buffptr - buff;
@@ -121,7 +121,7 @@ char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative)
 			buff = realloc(buff, bufflen);
 			buffptr = buff + diff;
 		}
-		
+
 		if(scope == start)
 			buffptr += sprintf(buffptr, "    >> ");
 		else
