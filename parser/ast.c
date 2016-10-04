@@ -1465,7 +1465,14 @@ static void *asmBuff = NULL;
 static void parseAsm(code_t *code, ptrs_ast_t *stmt)
 {
 	struct ptrs_ast_asm *arg = &stmt->arg.asmstmt;
+
+	if(asmBuff == NULL)
+		asmBuff = mmap(NULL, 0x1000, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+	arg->asmFunc = asmBuff;
 	arg->context = malloc(sizeof(jitas_context_t));
+	jitas_init(arg->context, asmBuff, NULL);
+	arg->context->identifierToken = "._*";
 
 	char **fields;
 	if(code->curr == '{')
@@ -1475,34 +1482,55 @@ static void parseAsm(code_t *code, ptrs_ast_t *stmt)
 			&arg->exportSymbols, &fields);
 
 	consumec(code, '{');
-	char *src = &code->src[code->pos];
-	while(*src != '}') //TODO find a better way that allows '}' within the assembly code
-		src++;
-	*src = 0;
 
-	if(asmBuff == NULL)
-		asmBuff = mmap(NULL, 0x1000, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	arg->context->ptr = asmBuff;
-	arg->context->identifierToken = "._*";
-	arg->asmFunc = asmBuff;
+	char buff[128];
+	char *buffptr = buff;
+	int startPos = code->pos;
+	jitas_symboltable_t *curr = NULL;
+	jitas_symboltable_t *last = NULL;
 
-	//TODO check for overflow
-	asmBuff += jitas_assemble(arg->context, &code->src[code->pos]);
+	while(code->curr != '}' && code->curr != 0)
+	{
+		if(code->curr == '\n' || skipComments(code))
+		{
+			*buffptr = 0;
+			rawnext(code);
+			buffptr = buff;
 
+			jitas_assemble(arg->context, buff);
 
-	*src = '}';
-	code->pos = src - code->src + 1;
+			int line;
+			char *error = jitas_error(arg->context, &line);
+			if(error != NULL)
+			{
+				while(jitas_error(arg->context, NULL) != NULL);
 
-	int line;
-	char *errorMessage = jitas_error(arg->context, &line);
+				ptrs_ast_t errstmt;
+				memcpy(&errstmt, stmt, sizeof(ptrs_ast_t));
+				errstmt.codepos = startPos;
+				PTRS_HANDLE_ASTERROR(&errstmt, "%s", error);
+			}
 
-	while(jitas_error(arg->context, NULL) != NULL); //skip all other errors
+			curr = arg->context->symbols;
+			while(curr != last)
+			{
+				curr->line = startPos;
+				curr = curr->next;
+			}
+			last = curr;
 
-	if(errorMessage != NULL)
-		PTRS_HANDLE_ASTERROR(stmt, "%s\nAssembly error (asm line %d)", errorMessage, line);
+			startPos = code->pos;
+		}
+		else
+		{
+			*buffptr++ = code->curr;
+			rawnext(code);
+		}
+	}
+	consumec(code, '}');
 
 	arg->importCount = 0;
-	jitas_symboltable_t *curr = arg->context->symbols;
+	curr = arg->context->symbols;
 	while(curr != NULL)
 	{
 		if(jitas_findLocalSymbol(arg->context, curr->symbol) == NULL)
@@ -1516,7 +1544,7 @@ static void parseAsm(code_t *code, ptrs_ast_t *stmt)
 		arg->imports = malloc(sizeof(const char *) * arg->importCount);
 		arg->importAsts = malloc(sizeof(ptrs_ast_t **) * arg->importCount);
 
-		jitas_symboltable_t *curr = arg->context->symbols;
+		curr = arg->context->symbols;
 		int index = 0;
 		while(curr != NULL)
 		{
@@ -1534,20 +1562,22 @@ static void parseAsm(code_t *code, ptrs_ast_t *stmt)
 		}
 	}
 
-	arg->exports = malloc(sizeof(void *) * arg->exportCount);
-	arg->exportSymbols = malloc(sizeof(ptrs_symbol_t) * arg->exportCount);
-	for(int i = 0; i < arg->exportCount; i++)
-	{
-		void *ptr = jitas_findLocalSymbol(arg->context, fields[i]);
-		if(ptr == NULL)
-			PTRS_HANDLE_ASTERROR(stmt, "Assembly code has no symbol '%s'", fields[i]);
-
-		arg->exports[i] = ptr;
-		arg->exportSymbols[i] = addSymbol(code, fields[i]);
-	}
-
 	if(arg->exportCount != 0)
+	{
+		arg->exports = malloc(sizeof(void *) * arg->exportCount);
+		arg->exportSymbols = malloc(sizeof(ptrs_symbol_t) * arg->exportCount);
+		for(int i = 0; i < arg->exportCount; i++)
+		{
+			void *ptr = jitas_findLocalSymbol(arg->context, fields[i]);
+			if(ptr == NULL)
+				PTRS_HANDLE_ASTERROR(stmt, "Assembly code has no symbol '%s'", fields[i]);
+
+			arg->exports[i] = ptr;
+			arg->exportSymbols[i] = addSymbol(code, fields[i]);
+		}
+
 		free(fields);
+	}
 }
 
 static void parseStruct(code_t *code, ptrs_struct_t *struc)

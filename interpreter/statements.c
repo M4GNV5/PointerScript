@@ -482,11 +482,16 @@ ptrs_var_t *ptrs_handle_asm(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 		jitas_link(stmt.context, &ctx);
 
 		int line;
-		char *errorMessage = jitas_error(stmt.context, &line);
-		while(jitas_error(stmt.context, NULL) != NULL); //skip all other errors
+		char *error = jitas_error(stmt.context, &line);
+		if(error != NULL)
+		{
+			while(jitas_error(stmt.context, NULL) != NULL); //skip all other errors
 
-		if(errorMessage != NULL)
-			ptrs_error(node, scope, "%s\nLink error (asm line %d)", errorMessage, line);
+			ptrs_ast_t errorstmt;
+			memcpy(&errorstmt, node, sizeof(ptrs_ast_t));
+			errorstmt.codepos = line;
+			ptrs_error(node, scope, "%s", error);
+		}
 	}
 
 	for(int i = 0; i < stmt.exportCount; i++)
