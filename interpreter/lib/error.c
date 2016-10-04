@@ -81,9 +81,13 @@ char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative)
 		dladdr(ptrs_backtrace, &selfInfo);
 		dladdr(dlsym(NULL, "ffi_call"), &ffiInfo);
 
-		for(int i = skipNative; i < count - 1; i++)
+		for(int i = skipNative; i < count; i++)
 		{
-			dladdr(trace[i], &infos[i]);
+			if(dladdr(trace[i], &infos[i]) == 0)
+			{
+				infos[i].dli_sname = NULL;
+				infos[i].dli_fname = NULL;
+			}
 
 			if(infos[i].dli_fbase == selfInfo.dli_fbase || infos[i].dli_fbase == ffiInfo.dli_fbase)
 				break;
