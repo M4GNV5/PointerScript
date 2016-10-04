@@ -43,12 +43,20 @@ remove:
 
 clean:
 	if [ -d $(BIN) ]; then rm -r $(BIN); fi
+	$(MAKE) -C libffcb clean
+	$(MAKE) -C libjitas clean
 
-$(RUN): $(BIN) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS)
+$(RUN): $(FFCB_BIN) $(JITAS_BIN) $(BIN) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS)
 	$(CC) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) $(FFCB_BIN) $(JITAS_BIN) -o $(BIN)/ptrs -rdynamic -ldl -lffi
 
 $(BIN):
 	mkdir $(BIN)
+
+$(FFCB_BIN):
+	$(MAKE) -C libffcb
+
+$(JITAS_BIN):
+	$(MAKE) -C libjitas
 
 $(BIN)/%.o: parser/%.c
 	$(CC) $(CFLAGS) -c $< -o $@

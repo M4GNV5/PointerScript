@@ -35,10 +35,8 @@ installation there shouldnt be any difference to other distros.
 sudo apt-get install libffi-dev build-essential
 
 git clone --recursive https://github.com/M4GNV5/PointerScript
-cd PointerScript/libffcb
-make
+cd PointerScript
 
-cd ..
 make release #OR debug if you want less speed but debug symbols for gdb
 sudo make install #optional (copies bin/ptrs to /usr/local/bin/ptrs)
 ```
