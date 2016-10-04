@@ -434,6 +434,7 @@ struct ptrs_asmContext
 {
 	struct ptrs_ast_asm *stmt;
 	ptrs_var_t *importValues;
+	ptrs_ast_t *node;
 	ptrs_scope_t *scope;
 };
 static void *ptrs_asmSymbolResolver(const char *symbol, struct ptrs_asmContext *ctx)
@@ -443,7 +444,23 @@ static void *ptrs_asmSymbolResolver(const char *symbol, struct ptrs_asmContext *
 		if(strcmp(ctx->stmt->imports[i], symbol) == 0)
 		{
 			ptrs_ast_t *ast = ctx->stmt->importAsts[i];
-			return ast->handler(ast, ctx->importValues + i, ctx->scope);
+			ptrs_var_t *val = ast->handler(ast, ctx->importValues + i, ctx->scope);
+			if(symbol[0] == '*')
+			{
+				switch(val->type)
+				{
+					case PTRS_TYPE_NATIVE:
+						return val->value.nativeval;
+					case PTRS_TYPE_POINTER:
+						return val->value.ptrval;
+					case PTRS_TYPE_STRUCT:
+						return val->value.structval->data;
+				}
+				ptrs_error(ctx->node, ctx->scope, "Cannot dereference symbol '%s' of type %s",
+					symbol + 1, ptrs_typetoa(val->type));
+				return NULL; //doh
+			}
+			return val;
 		}
 	}
 	return NULL;
@@ -457,6 +474,7 @@ ptrs_var_t *ptrs_handle_asm(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 		struct ptrs_asmContext ctx = {
 			.stmt = &stmt,
 			.importValues = importValues,
+			.node = node,
 			.scope = scope
 		};
 

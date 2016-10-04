@@ -1483,6 +1483,7 @@ static void parseAsm(code_t *code, ptrs_ast_t *stmt)
 	if(asmBuff == NULL)
 		asmBuff = mmap(NULL, 0x1000, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	arg->context->ptr = asmBuff;
+	arg->context->identifierToken = "._*";
 	arg->asmFunc = asmBuff;
 
 	//TODO check for overflow
@@ -1522,7 +1523,10 @@ static void parseAsm(code_t *code, ptrs_ast_t *stmt)
 			if(jitas_findLocalSymbol(arg->context, curr->symbol) == NULL)
 			{
 				arg->imports[index] = curr->symbol;
-				arg->importAsts[index] = getSymbol(code, (char *)curr->symbol);
+				if(curr->symbol[0] == '*')
+					arg->importAsts[index] = getSymbol(code, (char *)curr->symbol + 1);
+				else
+					arg->importAsts[index] = getSymbol(code, (char *)curr->symbol);
 				index++;
 			}
 
