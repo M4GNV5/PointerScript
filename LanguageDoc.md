@@ -169,6 +169,7 @@ function printfln(fmt, args...)
 | 9 | `== != === !==` | (Typesafe-) Comparasion operators | Left-to-Right |
 | 10 | `<= >= < >` | Comparasion operators | Left-to-Right |
 | 11 | `instanceof` | Instanceof operator | Left-to-Right |
+| 11 | `in` | Has-property operator | Left-to-Right |
 | 12 | `<< >>` | Shifting operators | Left-to-Right |
 | 13 | `+ -` | Addition, subtraction | Left-to-Right |
 | 14 | `* / %` | Multiplication, division, division remainder | Left-to-Right |
@@ -179,13 +180,13 @@ function printfln(fmt, args...)
 | `++ --` | Increment, decrement |
 | `!` | Logical NOT |
 | `~` | Bitwise NOT |
-| typeof | Type of |
-| `#` | Length of |
+| `typeof` | Type of |
+| `sizeof` | Size of |
 | `&` | Address of |
 | `*` | Dereference |
 | `+ -` | Unary plus, minus |
 
-###SuffixedOperators
+##SuffixedOperators
 | Operator | Description |
 |------------|----------|
 | `++ --` | Increment, decrement |
@@ -477,7 +478,7 @@ operator this(a, b) //will be called when the struct is called like a function
 	return a + b;
 }
 //'operator' 'in' 'this' '{' StatementList '}'
-operator in this //overloads the foreach statement
+operator foreach in this //overloads the foreach statement
 {
 	for(var i = 0; i < 16; i++)
 	{
