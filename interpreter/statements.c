@@ -454,7 +454,10 @@ static void *ptrs_asmSymbolResolver(const char *symbol, struct ptrs_asmContext *
 					case PTRS_TYPE_POINTER:
 						return val->value.ptrval;
 					case PTRS_TYPE_STRUCT:
-						return val->value.structval->data;
+						if(val->value.structval->data == NULL)
+							return val->value.structval->staticData;
+						else
+							return val->value.structval->data;
 				}
 				ptrs_error(ctx->node, ctx->scope, "Cannot dereference symbol '%s' of type %s",
 					symbol + 1, ptrs_typetoa(val->type));
