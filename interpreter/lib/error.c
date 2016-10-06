@@ -89,7 +89,7 @@ char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative)
 				infos[i].dli_fname = NULL;
 			}
 
-			if(infos[i].dli_fbase == selfInfo.dli_fbase || infos[i].dli_fbase == ffiInfo.dli_fbase)
+			if(i != skipNative && (infos[i].dli_fbase == selfInfo.dli_fbase || infos[i].dli_fbase == ffiInfo.dli_fbase))
 				break;
 
 			if(buffptr - buff > bufflen - 128)
