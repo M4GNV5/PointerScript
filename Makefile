@@ -35,6 +35,10 @@ debug: $(RUN)
 release: CFLAGS = '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -D_GNU_SOURCE --std=c99 -O2 -I$(FFI_DIR) -I$(FFCB_DIR) -I$(JITAS_DIR)
 release: $(RUN)
 
+portable: CFLAGS = '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -D_XOPEN_SOURCE=700 -std=c99 -O2 -I$(FFI_DIR)
+portable: $(BIN) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS)
+	$(CC) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) -o $(BIN)/ptrs -rdynamic -ldl -lffi
+
 install: release
 	cp $(RUN) /usr/local/bin/
 

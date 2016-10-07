@@ -6,6 +6,10 @@
 #include <setjmp.h>
 #include <stdbool.h>
 
+#ifndef _GNU_SOURCE
+#define strdup(str) (strcpy(malloc(strlen(str) + 1), str))
+#endif
+
 struct ptrs_var;
 struct ptrs_ast;
 

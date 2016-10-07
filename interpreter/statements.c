@@ -4,7 +4,10 @@
 #include <libgen.h>
 #include <setjmp.h>
 #include <dlfcn.h>
+
+#ifdef _GNU_SOURCE
 #include <jitas.h>
+#endif
 
 #include "../parser/ast.h"
 #include "../parser/common.h"
@@ -430,6 +433,7 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 	return result;
 }
 
+#ifdef _GNU_SOURCE
 struct ptrs_asmContext
 {
 	struct ptrs_ast_asm *stmt;
@@ -517,6 +521,7 @@ ptrs_var_t *ptrs_handle_asm(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 	}
 	return result;
 }
+#endif
 
 ptrs_var_t *ptrs_handle_function(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {

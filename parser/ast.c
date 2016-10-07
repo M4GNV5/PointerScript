@@ -4,8 +4,11 @@
 #include <ctype.h>
 #include <string.h>
 #include <math.h>
+
+#ifdef _GNU_SOURCE
 #include <jitas.h>
 #include <sys/mman.h>
+#endif
 
 #include "common.h"
 #include INTERPRETER_INCLUDE
@@ -539,8 +542,12 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "asm"))
 	{
+#ifdef _GNU_SOURCE
 		stmt->handler = PTRS_HANDLE_ASM;
 		parseAsm(code, stmt);
+#else
+		PTRS_HANDLE_ASTERROR(stmt, "Inline assembly is not available");
+#endif
 	}
 	else if(code->curr == '{')
 	{
@@ -1461,6 +1468,7 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 	stmt->arg.switchcase.cases = first.next;
 }
 
+#ifdef _GNU_SOURCE
 static void *asmBuff = NULL;
 static void parseAsm(code_t *code, ptrs_ast_t *stmt)
 {
@@ -1579,6 +1587,7 @@ static void parseAsm(code_t *code, ptrs_ast_t *stmt)
 		free(fields);
 	}
 }
+#endif
 
 static void parseStruct(code_t *code, ptrs_struct_t *struc)
 {
