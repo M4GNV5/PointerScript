@@ -5,7 +5,7 @@
 #include <setjmp.h>
 #include <dlfcn.h>
 
-#ifdef _GNU_SOURCE
+#ifndef _PTRS_NOASM
 #include <jitas.h>
 #endif
 
@@ -433,7 +433,7 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 	return result;
 }
 
-#ifdef _GNU_SOURCE
+#ifndef _PTRS_NOASM
 struct ptrs_asmContext
 {
 	struct ptrs_ast_asm *stmt;

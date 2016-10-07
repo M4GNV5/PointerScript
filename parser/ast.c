@@ -5,7 +5,7 @@
 #include <string.h>
 #include <math.h>
 
-#ifdef _GNU_SOURCE
+#ifndef _PTRS_NOASM
 #include <jitas.h>
 #include <sys/mman.h>
 #endif
@@ -542,7 +542,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "asm"))
 	{
-#ifdef _GNU_SOURCE
+#ifndef _PTRS_NOASM
 		stmt->handler = PTRS_HANDLE_ASM;
 		parseAsm(code, stmt);
 #else
@@ -1468,7 +1468,7 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 	stmt->arg.switchcase.cases = first.next;
 }
 
-#ifdef _GNU_SOURCE
+#ifndef _PTRS_NOASM
 static void *asmBuff = NULL;
 static void parseAsm(code_t *code, ptrs_ast_t *stmt)
 {

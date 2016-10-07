@@ -4,7 +4,7 @@
 #include <string.h>
 #include <ffi.h>
 
-#ifdef _GNU_SOURCE
+#ifndef _PTRS_NOCALLBACK
 #include <ffcb.h>
 #endif
 
@@ -112,7 +112,7 @@ ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t 
 	return result;
 }
 
-#ifdef _GNU_SOURCE
+#ifndef _PTRS_NOCALLBACK
 void ptrs_callcallback(ffcb_return_t ret, ptrs_function_t *func, va_list ap)
 {
 	ptrs_var_t argv[func->argc];
@@ -163,14 +163,14 @@ ptrs_val_t ptrs_callnative(ptrs_vartype_t retType, void *func, int argc, ptrs_va
 	ffi_type *types[argc];
 	void *values[argc];
 
-#ifdef _GNU_SOURCE
+#ifndef _PTRS_NOCALLBACK
 	bool hasCallbackArgs = false;
 	void *callbackArgs[argc];
 #endif
 
 	for(int i = 0; i < argc; i++)
 	{
-#ifdef _GNU_SOURCE
+#ifndef _PTRS_NOCALLBACK
 		callbackArgs[i] = NULL;
 #endif
 
@@ -188,7 +188,7 @@ ptrs_val_t ptrs_callnative(ptrs_vartype_t retType, void *func, int argc, ptrs_va
 				types[i] = &ffi_type_pointer;
 				values[i] = &argv[i].value.structval->data;
 				break;
-#ifdef _GNU_SOURCE
+#ifndef _PTRS_NOCALLBACK
 			case PTRS_TYPE_FUNCTION:
 				callback = argv[i].value.funcval;
 				types[i] = &ffi_type_pointer;
@@ -230,7 +230,7 @@ ptrs_val_t ptrs_callnative(ptrs_vartype_t retType, void *func, int argc, ptrs_va
 	}
 	ffi_call(&cif, func, &retVal, values);
 
-#ifdef _GNU_SOURCE
+#ifndef _PTRS_NOCALLBACK
 	if(hasCallbackArgs)
 	{
 		for(int i = 0; i < argc; i++)
