@@ -50,7 +50,9 @@ however there are a couple of useful libraries (networking, regexp, etc.) in [th
 ###More example code
 There are many examples including usage of Types, Structs, Arrays, Threading and many more in the [examples](examples/) directory of this repository. The most interresting ones are listed here:
 
+- [pi](examples/pi.ptrs) and [circle](examples/circle.ptrs) Basic mathematic expressions and loops
 - [types](examples/types.ptrs) Using typeof and type<...>
+- [fork](examples/fork.ptrs) Using posix functions for creating child processes
 - [array](examples/array.ptrs) and [bubblesort](examples/bubblesort.ptrs) Basic array usage
 - [struct](examples/struct.ptrs) Basic struct usage
 - [threads](examples/threads.ptrs) Using libpthread (or generally native functions that take function pointer arguments) with Pointerscript
