@@ -751,7 +751,7 @@ static ptrs_ast_t *parseExpression(code_t *code)
 {
 	ptrs_ast_t *expr = parseBinaryExpr(code, parseUnaryExpr(code, false), 0);
 
-	if(expr->handler == PTRS_HANDLE_ALGORITHM)
+	if(expr != NULL && expr->handler == PTRS_HANDLE_ALGORITHM)
 	{
 		ptrs_ast_t *left = expr->arg.binary.left;
 		struct ptrs_astlist *prev;
