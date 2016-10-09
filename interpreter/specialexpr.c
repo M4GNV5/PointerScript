@@ -66,6 +66,9 @@ ptrs_var_t *ptrs_handle_algorithm(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sco
 	ptrs_var_t handler[len];
 	ptrs_astlist_handle(node->arg.astlist, handler, scope);
 
+	int inputOffset = 0;
+	int outputOffset = 0;
+
 	ptrs_var_t currv;
 	currv.value.intval = 0;
 	ptrs_var_t *curr = &currv;
@@ -83,8 +86,38 @@ ptrs_var_t *ptrs_handle_algorithm(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sco
 				val = ptrs_callfunc(node, val, scope, NULL, handler + i, 1, curr);
 				break;
 			case PTRS_TYPE_NATIVE:
-				val->type = PTRS_TYPE_INT;
-				val->value.intval = ptrs_callnative(PTRS_TYPE_INT, handler[i].value.nativeval, 1, curr).intval;
+				if(i == 0 && !handler[i].meta.array.readOnly)
+				{
+					if(inputOffset < handler[i].meta.array.size)
+					{
+						val->type = PTRS_TYPE_INT;
+						val->value.intval = handler[i].value.strval[inputOffset];
+						inputOffset++;
+					}
+					else
+					{
+						result->type = PTRS_TYPE_UNDEFINED;
+						return result;
+					}
+				}
+				else if(i == len - 1 && !handler[i].meta.array.readOnly)
+				{
+					if(outputOffset < handler[i].meta.array.size)
+					{
+						((uint8_t *)handler[i].value.nativeval)[outputOffset] = ptrs_vartoi(curr);
+						outputOffset++;
+						val->type = PTRS_TYPE_UNDEFINED;
+					}
+					else
+					{
+						val = handler + i;
+					}
+				}
+				else
+				{
+					val->type = PTRS_TYPE_INT;
+					val->value.intval = ptrs_callnative(PTRS_TYPE_INT, handler[i].value.nativeval, 1, curr).intval;
+				}
 				break;
 			case PTRS_TYPE_STRUCT:
 				if((overload.value.funcval = ptrs_struct_getOverload(handler + i, ptrs_handle_algorithm, i == 0)) != NULL)
@@ -100,6 +133,36 @@ ptrs_var_t *ptrs_handle_algorithm(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sco
 						ptrs_error(node, scope, "Struct %s does not overload 'val => this'", handler[i].value.structval->name);
 				}
 				break;
+			case PTRS_TYPE_POINTER:
+				if(i == 0)
+				{
+					if(inputOffset < handler[i].meta.array.size)
+					{
+						val = handler[i].value.ptrval + inputOffset;
+						inputOffset++;
+					}
+					else
+					{
+						result->type = PTRS_TYPE_UNDEFINED;
+						return result;
+					}
+					break;
+				}
+				else if(i == len - 1)
+				{
+					if(outputOffset < handler[i].meta.array.size)
+					{
+						memcpy(handler[i].value.ptrval + outputOffset, curr, sizeof(ptrs_var_t));
+						outputOffset++;
+						val->type = PTRS_TYPE_UNDEFINED;
+					}
+					else
+					{
+						val = handler + i;
+					}
+					break;
+				}
+				//fallthrough
 			default:
 				ptrs_error(node, scope, "Invalid variable of type %s in algorithm expression", ptrs_typetoa(handler[i].type));
 		}
