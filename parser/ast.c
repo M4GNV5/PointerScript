@@ -690,6 +690,8 @@ struct opinfo binaryOps[] = {
 	{"<", 10, false, PTRS_HANDLE_OP_LESS},
 	{">", 10, false, PTRS_HANDLE_OP_GREATER},
 
+	{"=>", 2, false, PTRS_HANDLE_ALGORITHM},
+
 	{"=", 1, true, PTRS_HANDLE_OP_ASSIGN},
 	{"+=", 1, true, PTRS_HANDLE_OP_ADDASSIGN},
 	{"-=", 1, true, PTRS_HANDLE_OP_SUBASSIGN},
@@ -747,7 +749,39 @@ static int suffixedOpCount = sizeof(suffixedOps) / sizeof(struct opinfo);
 
 static ptrs_ast_t *parseExpression(code_t *code)
 {
-	return parseBinaryExpr(code, parseUnaryExpr(code, false), 0);
+	ptrs_ast_t *expr = parseBinaryExpr(code, parseUnaryExpr(code, false), 0);
+
+	if(expr->handler == PTRS_HANDLE_ALGORITHM)
+	{
+		ptrs_ast_t *left = expr->arg.binary.left;
+		struct ptrs_astlist *prev;
+		struct ptrs_astlist *curr = talloc(struct ptrs_astlist);
+		curr->entry = expr->arg.binary.right;
+		curr->next = NULL;
+		curr->expand = false;
+
+		while(left->handler == PTRS_HANDLE_ALGORITHM)
+		{
+			prev = talloc(struct ptrs_astlist);
+			prev->entry = left->arg.binary.right;
+			prev->next = curr;
+			prev->expand = false;
+			curr = prev;
+
+			ptrs_ast_t *_left = left;
+			left = left->arg.binary.left;
+			free(_left);
+		}
+
+		prev = talloc(struct ptrs_astlist);
+		prev->entry = left;
+		prev->next = curr;
+		prev->expand = false;
+		curr = prev;
+
+		expr->arg.astlist = curr;
+	}
+	return expr;
 }
 
 static struct opinfo *peekBinaryOp(code_t *code)
@@ -840,6 +874,7 @@ struct constinfo constants[] = {
 	{"null", PTRS_TYPE_POINTER, {.ptrval = NULL}},
 	{"VARSIZE", PTRS_TYPE_INT, {.intval = sizeof(ptrs_var_t)}},
 	{"PTRSIZE", PTRS_TYPE_INT, {.intval = sizeof(void *)}},
+	{"ALGORITHM_END", PTRS_TYPE_NATIVE, {.nativeval = PTRS_HANDLE_ALGORITHM}},
 	{"undefined", PTRS_TYPE_UNDEFINED, {}},
 	{"NaN", PTRS_TYPE_FLOAT, {.floatval = NAN}},
 };

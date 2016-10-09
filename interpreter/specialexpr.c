@@ -59,6 +59,85 @@ ptrs_var_t *ptrs_handle_vararrayexpr(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 	return result;
 }
 
+ptrs_var_t *ptrs_handle_algorithm(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	ptrs_var_t overload;
+	int len = ptrs_astlist_length(node->arg.astlist, node, scope);
+	ptrs_var_t handler[len];
+	ptrs_astlist_handle(node->arg.astlist, handler, scope);
+
+	ptrs_var_t currv;
+	currv.value.intval = 0;
+	ptrs_var_t *curr = &currv;
+	for(int i = 0; i < len; i++)
+	{
+		ptrs_var_t *val;
+		if(i == 0)
+			val = &currv;
+		else
+			val = result;
+
+		switch(handler[i].type)
+		{
+			case PTRS_TYPE_FUNCTION:
+				val = ptrs_callfunc(node, val, scope, NULL, handler + i, 1, curr);
+				break;
+			case PTRS_TYPE_NATIVE:
+				val->type = PTRS_TYPE_INT;
+				val->value.intval = ptrs_callnative(PTRS_TYPE_INT, handler[i].value.nativeval, 1, curr).intval;
+				break;
+			case PTRS_TYPE_STRUCT:
+				if((overload.value.funcval = ptrs_struct_getOverload(handler + i, ptrs_handle_algorithm, i == 0)) != NULL)
+				{
+					overload.type = PTRS_TYPE_FUNCTION;
+					val = ptrs_callfunc(node, val, scope, handler[i].value.structval, &overload, 1, curr);
+				}
+				else
+				{
+					if(i == 0)
+						ptrs_error(node, scope, "Struct %s does not overload 'this => val'", handler[i].value.structval->name);
+					else
+						ptrs_error(node, scope, "Struct %s does not overload 'val => this'", handler[i].value.structval->name);
+				}
+				break;
+			default:
+				ptrs_error(node, scope, "Invalid variable of type %s in algorithm expression", ptrs_typetoa(handler[i].type));
+		}
+
+		if(i == 0)
+		{
+			curr = val;
+		}
+		else
+		{
+			if(val->type == PTRS_TYPE_NATIVE && val->value.nativeval == ptrs_handle_algorithm)
+			{
+				result->type = PTRS_TYPE_UNDEFINED;
+				return result;
+			}
+			else if(val->type == PTRS_TYPE_INT && val->value.intval == 1)
+			{
+				if(i == len - 1)
+					break;
+			}
+			else if(val->type == PTRS_TYPE_UNDEFINED || (val->type == PTRS_TYPE_INT && val->value.intval == 0))
+			{
+				i = -1;
+			}
+			else
+			{
+				if(i == len - 1)
+					return val;
+				else
+					curr = val;
+			}
+		}
+	}
+
+	result->type = PTRS_TYPE_UNDEFINED;
+	return result;
+}
+
 ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_strformat stmt = node->arg.strformat;

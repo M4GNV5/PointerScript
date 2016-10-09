@@ -38,6 +38,7 @@ ptrs_var_t *ptrs_handle_exprstatement(ptrs_ast_t *node, ptrs_var_t *result, ptrs
 ptrs_var_t *ptrs_handle_call(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_arrayexpr(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_vararrayexpr(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_algorithm(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_new(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
@@ -150,6 +151,7 @@ ptrs_var_t *ptrs_handle_native_setFloat(void *target, size_t size, ptrs_var_t *v
 #define PTRS_HANDLE_CALL ptrs_handle_call
 #define PTRS_HANDLE_ARRAYEXPR ptrs_handle_arrayexpr
 #define PTRS_HANDLE_VARARRAYEXPR ptrs_handle_vararrayexpr
+#define PTRS_HANDLE_ALGORITHM ptrs_handle_algorithm
 #define PTRS_HANDLE_STRINGFORMAT ptrs_handle_stringformat
 #define PTRS_HANDLE_NEW ptrs_handle_new
 #define PTRS_HANDLE_MEMBER ptrs_handle_member
