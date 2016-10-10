@@ -690,8 +690,6 @@ struct opinfo binaryOps[] = {
 	{"<", 10, false, PTRS_HANDLE_OP_LESS},
 	{">", 10, false, PTRS_HANDLE_OP_GREATER},
 
-	{"=>", 2, false, PTRS_HANDLE_ALGORITHM},
-
 	{"=", 1, true, PTRS_HANDLE_OP_ASSIGN},
 	{"+=", 1, true, PTRS_HANDLE_OP_ADDASSIGN},
 	{"-=", 1, true, PTRS_HANDLE_OP_SUBASSIGN},
@@ -1676,7 +1674,18 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 						else
 						{
 							char curr = code->curr;
-							if(curr == '.' || curr == '[')
+							if(lookahead(code, "=>"))
+							{
+								otherName = "any";
+								consume(code, "any");
+									
+								func->argc = 0;
+								func->args = NULL;
+									
+								opLabel = "=>";
+								overload->op = PTRS_HANDLE_ALGORITHM;
+							}
+							else if(curr == '.' || curr == '[')
 							{
 								next(code);
 								otherName = readIdentifier(code);
@@ -1772,9 +1781,18 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					func->argc = 1;
 					func->args = talloc(ptrs_symbol_t);
 					func->args[0] = addSymbol(code, otherName);
-
+					
+					if(lookahead(code, "=>"))
+					{
+						opLabel = "=>";
+						overload->op = PTRS_HANDLE_ALGORITHM;
+					}
+					else
+					{
+						overload->op = readBinaryOperator(code, &opLabel);
+					}
+					
 					overload->isLeftSide = false;
-					overload->op = readBinaryOperator(code, &opLabel);
 					consume(code, "this");
 				}
 
