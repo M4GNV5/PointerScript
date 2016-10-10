@@ -52,8 +52,8 @@ static ptrs_ast_t *parseStmtList(code_t *code, char end);
 static ptrs_ast_t *parseStatement(code_t *code);
 static ptrs_ast_t *parseExpression(code_t *code);
 static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec);
-static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls);
-static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignoreCalls);
+static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlgo);
+static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignoreCalls, bool ignoreAlgo);
 static struct ptrs_astlist *parseExpressionList(code_t *code, char end);
 static void parseAsm(code_t *code, ptrs_ast_t *stmt);
 static void parseStruct(code_t *code, ptrs_struct_t *struc);
@@ -465,7 +465,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		else if(lookahead(code, ":"))
 		{
 			stmt->handler = PTRS_HANDLE_STRUCTVAR;
-			stmt->arg.define.value = parseUnaryExpr(code, true);
+			stmt->arg.define.value = parseUnaryExpr(code, true, false);
 
 			consumec(code, '(');
 			stmt->arg.define.initVal = parseExpressionList(code, ')');
@@ -749,39 +749,7 @@ static int suffixedOpCount = sizeof(suffixedOps) / sizeof(struct opinfo);
 
 static ptrs_ast_t *parseExpression(code_t *code)
 {
-	ptrs_ast_t *expr = parseBinaryExpr(code, parseUnaryExpr(code, false), 0);
-
-	if(expr != NULL && expr->handler == PTRS_HANDLE_ALGORITHM)
-	{
-		ptrs_ast_t *left = expr->arg.binary.left;
-		struct ptrs_astlist *prev;
-		struct ptrs_astlist *curr = talloc(struct ptrs_astlist);
-		curr->entry = expr->arg.binary.right;
-		curr->next = NULL;
-		curr->expand = false;
-
-		while(left->handler == PTRS_HANDLE_ALGORITHM)
-		{
-			prev = talloc(struct ptrs_astlist);
-			prev->entry = left->arg.binary.right;
-			prev->next = curr;
-			prev->expand = false;
-			curr = prev;
-
-			ptrs_ast_t *_left = left;
-			left = left->arg.binary.left;
-			free(_left);
-		}
-
-		prev = talloc(struct ptrs_astlist);
-		prev->entry = left;
-		prev->next = curr;
-		prev->expand = false;
-		curr = prev;
-
-		expr->arg.astlist = curr;
-	}
-	return expr;
+	return parseBinaryExpr(code, parseUnaryExpr(code, false, false), 0);
 }
 
 static struct opinfo *peekBinaryOp(code_t *code)
@@ -807,7 +775,7 @@ static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 		struct opinfo *op = ahead;
 		int pos = code->pos;
 		consume(code, ahead->op);
-		ptrs_ast_t *right = parseUnaryExpr(code, false);
+		ptrs_ast_t *right = parseUnaryExpr(code, false, false);
 		ahead = peekBinaryOp(code);
 
 		while(ahead != NULL && ahead->precendence > op->precendence)
@@ -880,7 +848,7 @@ struct constinfo constants[] = {
 };
 int constantCount = sizeof(constants) / sizeof(struct constinfo);
 
-static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
+static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlgo)
 {
 	char curr = code->curr;
 	int pos = code->pos;
@@ -892,7 +860,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 		if(lookahead(code, prefixOps[i].op))
 		{
 			ast = talloc(ptrs_ast_t);
-			ast->arg.astval = parseUnaryExpr(code, false);
+			ast->arg.astval = parseUnaryExpr(code, false, true);
 			ast->handler = prefixOps[i].handler;
 			if(ast->handler == PTRS_HANDLE_PREFIX_DEREFERENCE)
 				ast->setHandler = PTRS_HANDLE_ASSIGN_DEREFERENCE;
@@ -924,7 +892,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 	{
 		ast = talloc(ptrs_ast_t);
 		ast->handler = PTRS_HANDLE_NEW;
-		ast->arg.call.value = parseUnaryExpr(code, true);
+		ast->arg.call.value = parseUnaryExpr(code, true, false);
 
 		consumec(code, '(');
 		ast->arg.call.arguments = parseExpressionList(code, ')');
@@ -953,7 +921,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 			unexpectedm(code, NULL, "Syntax is as<TYPENAME>");
 
 		consumec(code, '>');
-		ptrs_ast_t *val = parseUnaryExpr(code, false);
+		ptrs_ast_t *val = parseUnaryExpr(code, false, true);
 
 		if(val->handler == PTRS_HANDLE_CALL)
 		{
@@ -981,7 +949,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 		ast->arg.cast.type = type;
 		consumec(code, '>');
 
-		ast->arg.cast.value = parseUnaryExpr(code, false);
+		ast->arg.cast.value = parseUnaryExpr(code, false, true);
 	}
 	else if(lookahead(code, "yield"))
 	{
@@ -1242,13 +1210,13 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 	ptrs_ast_t *old;
 	do {
 		old = ast;
-		ast = parseUnaryExtension(code, ast, ignoreCalls);
+		ast = parseUnaryExtension(code, ast, ignoreCalls, ignoreAlgo);
 	} while(ast != old);
 
 	return ast;
 }
 
-static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignoreCalls)
+static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignoreCalls, bool ignoreAlgo)
 {
 	char curr = code->curr;
 	if(curr == '.' && code->src[code->pos + 1] != '.')
@@ -1336,6 +1304,27 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 		member->arg.member.name = readIdentifier(code);
 
 		ast = member;
+	}
+	else if(!ignoreAlgo && lookahead(code, "=>"))
+	{
+		struct ptrs_astlist *curr = talloc(struct ptrs_astlist);
+		curr->entry = ast;
+		curr->expand = false;
+
+		ast = talloc(ptrs_ast_t);
+		ast->handler = PTRS_HANDLE_ALGORITHM;
+		ast->arg.astlist = curr;
+
+		do
+		{
+			curr->next = talloc(struct ptrs_astlist);
+			curr = curr->next;
+
+			curr->entry = parseUnaryExpr(code, false, true);
+			curr->expand = false;
+		} while(lookahead(code, "=>"));
+
+		curr->next = NULL;
 	}
 	else
 	{

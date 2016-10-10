@@ -25,6 +25,7 @@ RUN_LIB_OBJECTS += $(BIN)/nativetypes.o
 
 RUN_OBJECTS += $(BIN)/statements.o
 RUN_OBJECTS += $(BIN)/specialexpr.o
+RUN_OBJECTS += $(BIN)/algorithm.o
 RUN_OBJECTS += $(BIN)/ops.o
 RUN_OBJECTS += $(BIN)/main.o
 
