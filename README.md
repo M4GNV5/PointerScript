@@ -55,6 +55,7 @@ There are many examples including usage of Types, Structs, Arrays, Threading and
 - [fork](examples/fork.ptrs) Using posix functions for creating child processes
 - [array](examples/array.ptrs) and [bubblesort](examples/bubblesort.ptrs) Basic array usage
 - [struct](examples/struct.ptrs) Basic struct usage
+- [asm](examples/asm.ptrs) Basic inline assembly usage
 - [threads](examples/threads.ptrs) Using libpthread (or generally native functions that take function pointer arguments) with Pointerscript
 - [gtk](examples/gtk.ptrs) Using GTK for creating a window with a clickable button.
 - [window](examples/window.ptrs) Using libSDL for creating X windows. (Example orginally by [@Webfreak001](https://github.com/WebFreak001))
