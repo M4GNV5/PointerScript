@@ -32,19 +32,70 @@ struct ptrs_algoContext
 bool ptrs_algorithm_step(struct ptrs_algoContext *ctx)
 {
 	ptrs_var_t *handler = ctx->handler + ctx->index;
+	ptrs_var_t valv;
+	ptrs_var_t *val;
 
 	if(handler->type == PTRS_TYPE_STRUCT)
 	{
-		//TODO
-
 		ptrs_var_t overload;
-		if((overload.value.funcval = ptrs_struct_getOverload(handler, ptrs_handle_algorithm, false)) != NULL)
+
+		if(ctx->index == 0)
+		{
+			if((overload.value.funcval = ptrs_struct_getOverload(handler, ptrs_handle_algorithm, true)) != NULL)
+			{
+				overload.type = PTRS_TYPE_FUNCTION;
+				ctx->curr = ptrs_callfunc(ctx->node, &ctx->currv, ctx->scope, handler->value.structval, &overload, 0, NULL);
+
+				if(ctx->curr->type == PTRS_TYPE_UNDEFINED)
+					return false;
+				return true;
+			}
+		}
+		else if((overload.value.funcval = ptrs_struct_getOverload(handler, ptrs_handle_algorithm, false)) != NULL)
 		{
 			overload.type = PTRS_TYPE_FUNCTION;
-			ptrs_callfunc(ctx->node, NULL, ctx->scope, handler->value.structval, &overload, 1, ctx->curr);
+			val = ptrs_callfunc(ctx->node, &valv, ctx->scope, handler->value.structval, &overload, 1, ctx->curr);
+
+			if((overload.value.funcval = ptrs_struct_getOverload(handler, ptrs_handle_algorithm, true)) != NULL)
+			{
+				overload.type = PTRS_TYPE_FUNCTION;
+				int index = ++ctx->index;
+
+				val = ctx->curr;
+				while(true)
+				{
+					ctx->curr = ptrs_callfunc(ctx->node, &valv, ctx->scope, handler->value.structval, &overload, 0, NULL);
+
+					if(ctx->curr->type == PTRS_TYPE_UNDEFINED)
+						break;
+
+					ctx->index = index;
+					while(ptrs_algorithm_step(ctx))
+					{
+						if(ctx->index < 0 || ++ctx->index >= ctx->len)
+							break;
+					}
+				}
+
+				ctx->curr = val;
+				ctx->index = -1;
+				return true;
+			}
+			else if(val->type == PTRS_TYPE_UNDEFINED)
+			{
+				return false;
+			}
+			else if(!ptrs_vartob(val))
+			{
+				ctx->index = -1;
+			}
+
+			return true;
 		}
+
+		ptrs_error(ctx->node, ctx->scope, "Struct %s does not overload 'this => val'", handler->value.structval->name);
 	}
-	
+
 	if(ctx->index == 0)
 	{
 		switch(handler->type)
@@ -69,8 +120,6 @@ bool ptrs_algorithm_step(struct ptrs_algoContext *ctx)
 	}
 	else
 	{
-		ptrs_var_t valv;
-		ptrs_var_t *val;
 		switch(handler->type)
 		{
 			case PTRS_TYPE_FUNCTION:
@@ -84,16 +133,23 @@ bool ptrs_algorithm_step(struct ptrs_algoContext *ctx)
 			case PTRS_TYPE_POINTER:
 				if(ctx->index == ctx->len - 1)
 				{
-					if(ctx->outputIndex < handler->meta.array.size)
-						memcpy(handler->value.ptrval + ctx->outputIndex++, ctx->curr, sizeof(ptrs_var_t));
-					else
+					if(ctx->outputIndex >= handler->meta.array.size)
 						return false;
-					break;
+
+					memcpy(handler->value.ptrval + ctx->outputIndex++, ctx->curr, sizeof(ptrs_var_t));
+					return true;
 				}
 				//fallthrough
 			default:
 				ptrs_error(ctx->node, ctx->scope, "Invalid variable of type %s as algorithm filter", ptrs_typetoa(handler->type));
 		}
+
+		if(val->type == PTRS_TYPE_UNDEFINED)
+			return false;
+		else if(!ptrs_vartob(val))
+			ctx->index = -1;
+
+		return true;
 	}
 
 	return true;
@@ -101,11 +157,24 @@ bool ptrs_algorithm_step(struct ptrs_algoContext *ctx)
 
 ptrs_var_t *ptrs_handle_algorithm(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	int len = ptrs_astlist_length(node->arg.astlist, node, scope);
-	ptrs_var_t handler[len];
+	struct ptrs_algoContext ctx;
+	ctx.index = 0;
+	ctx.inputIndex = 0;
+	ctx.outputIndex = 0;
+	ctx.node = node;
+	ctx.scope = scope;
+
+	ctx.len = ptrs_astlist_length(node->arg.astlist, node, scope);
+	ptrs_var_t handler[ctx.len];
 	ptrs_astlist_handle(node->arg.astlist, handler, scope);
 
-	//TODO
+	ctx.handler = handler;
+
+	while(ptrs_algorithm_step(&ctx))
+	{
+		if(++ctx.index >= ctx.len)
+			ctx.index = 0;
+	}
 
 	result->type = PTRS_TYPE_UNDEFINED;
 	return result;

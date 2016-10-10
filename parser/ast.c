@@ -1661,105 +1661,107 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 					if(overload->op == NULL)
 					{
-						func->argc = 1;
-						overload->op = readBinaryOperator(code, &opLabel);
-
-						if(overload->op != NULL)
+						if(lookahead(code, "=>"))
 						{
-							nameFormat = "%1$s.op this %2$s %3$s";
-							otherName = readIdentifier(code);
-							func->args = talloc(ptrs_symbol_t);
-							func->args[0] = addSymbol(code, otherName);
+							otherName = "any";
+							consume(code, "any");
+
+							func->argc = 0;
+							func->args = NULL;
+
+							opLabel = "=>";
+							overload->op = PTRS_HANDLE_ALGORITHM;
 						}
 						else
 						{
-							char curr = code->curr;
-							if(lookahead(code, "=>"))
+							func->argc = 1;
+							overload->op = readBinaryOperator(code, &opLabel);
+
+							if(overload->op != NULL)
 							{
-								otherName = "any";
-								consume(code, "any");
-									
-								func->argc = 0;
-								func->args = NULL;
-									
-								opLabel = "=>";
-								overload->op = PTRS_HANDLE_ALGORITHM;
-							}
-							else if(curr == '.' || curr == '[')
-							{
-								next(code);
+								nameFormat = "%1$s.op this %2$s %3$s";
 								otherName = readIdentifier(code);
-
-								if(curr == '.')
+								func->args = talloc(ptrs_symbol_t);
+								func->args[0] = addSymbol(code, otherName);
+							}
+							else
+							{
+								char curr = code->curr;
+								if(curr == '.' || curr == '[')
 								{
-									nameFormat = "%1$s.op this.%3$s%2$s";
-								}
-								else
-								{
-									nameFormat = "%1$s.op this[%3$s]%2$s";
-									consumec(code, ']');
-								}
+									next(code);
+									otherName = readIdentifier(code);
 
-								if(code->curr == '=')
-								{
-									consumec(code, '=');
+									if(curr == '.')
+									{
+										nameFormat = "%1$s.op this.%3$s%2$s";
+									}
+									else
+									{
+										nameFormat = "%1$s.op this[%3$s]%2$s";
+										consumec(code, ']');
+									}
 
-									func->argc = 2;
-									func->args = malloc(sizeof(ptrs_symbol_t) * 2);
-									func->args[0] = addSymbol(code, otherName);
-									func->args[1] = addSymbol(code, readIdentifier(code));
+									if(code->curr == '=')
+									{
+										consumec(code, '=');
 
-									opLabel = " = value";
-									overload->op = curr == '.' ? PTRS_HANDLE_ASSIGN_MEMBER : PTRS_HANDLE_ASSIGN_INDEX;
+										func->argc = 2;
+										func->args = malloc(sizeof(ptrs_symbol_t) * 2);
+										func->args[0] = addSymbol(code, otherName);
+										func->args[1] = addSymbol(code, readIdentifier(code));
+
+										opLabel = " = value";
+										overload->op = curr == '.' ? PTRS_HANDLE_ASSIGN_MEMBER : PTRS_HANDLE_ASSIGN_INDEX;
+									}
+									else if(code->curr == '(')
+									{
+										func->argc = parseArgumentDefinitionList(code,
+											&func->args, &func->argv, &func->vararg);
+										func->argc++;
+
+										opLabel = "()";
+										overload->op = curr == '.' ? PTRS_HANDLE_CALL_MEMBER : PTRS_HANDLE_CALL_INDEX;
+
+
+										ptrs_symbol_t *newArgs = malloc(sizeof(ptrs_symbol_t) * func->argc);
+										newArgs[0] = addSymbol(code, otherName);
+
+										memcpy(newArgs + 1, func->args, sizeof(ptrs_symbol_t) * (func->argc - 1));
+										free(func->args);
+										func->args = newArgs;
+
+
+										if(func->argv != NULL)
+										{
+											ptrs_ast_t **newArgv = malloc(sizeof(ptrs_symbol_t) * func->argc);
+											newArgv[0] = NULL;
+
+											memcpy(newArgv + 1, func->argv, sizeof(ptrs_symbol_t) * (func->argc - 1));
+											free(func->argv);
+											func->argv = newArgv;
+										}
+									}
+									else
+									{
+										func->args = talloc(ptrs_symbol_t);
+										func->args[0] = addSymbol(code, otherName);
+
+										opLabel = "";
+										overload->op = curr == '.' ? PTRS_HANDLE_MEMBER : PTRS_HANDLE_INDEX;
+									}
 								}
-								else if(code->curr == '(')
+								else if(curr == '(')
 								{
 									func->argc = parseArgumentDefinitionList(code,
 										&func->args, &func->argv, &func->vararg);
-									func->argc++;
+									overload->op = PTRS_HANDLE_CALL;
 
 									opLabel = "()";
-									overload->op = curr == '.' ? PTRS_HANDLE_CALL_MEMBER : PTRS_HANDLE_CALL_INDEX;
-
-
-									ptrs_symbol_t *newArgs = malloc(sizeof(ptrs_symbol_t) * func->argc);
-									newArgs[0] = addSymbol(code, otherName);
-
-									memcpy(newArgs + 1, func->args, sizeof(ptrs_symbol_t) * (func->argc - 1));
-									free(func->args);
-									func->args = newArgs;
-
-
-									if(func->argv != NULL)
-									{
-										ptrs_ast_t **newArgv = malloc(sizeof(ptrs_symbol_t) * func->argc);
-										newArgv[0] = NULL;
-
-										memcpy(newArgv + 1, func->argv, sizeof(ptrs_symbol_t) * (func->argc - 1));
-										free(func->argv);
-										func->argv = newArgv;
-									}
+									nameFormat = "%1$s.op this()";
 								}
-								else
-								{
-									func->args = talloc(ptrs_symbol_t);
-									func->args[0] = addSymbol(code, otherName);
-
-									opLabel = "";
-									overload->op = curr == '.' ? PTRS_HANDLE_MEMBER : PTRS_HANDLE_INDEX;
-								}
-							}
-							else if(curr == '(')
-							{
-								func->argc = parseArgumentDefinitionList(code,
-									&func->args, &func->argv, &func->vararg);
-								overload->op = PTRS_HANDLE_CALL;
-
-								opLabel = "()";
-								nameFormat = "%1$s.op this()";
 							}
 						}
-
 					}
 				}
 				else if(lookahead(code, "foreach"))
@@ -1781,7 +1783,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					func->argc = 1;
 					func->args = talloc(ptrs_symbol_t);
 					func->args[0] = addSymbol(code, otherName);
-					
+
 					if(lookahead(code, "=>"))
 					{
 						opLabel = "=>";
@@ -1791,7 +1793,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					{
 						overload->op = readBinaryOperator(code, &opLabel);
 					}
-					
+
 					overload->isLeftSide = false;
 					consume(code, "this");
 				}
