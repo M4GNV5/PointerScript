@@ -171,7 +171,11 @@ struct ptrs_ast_forin
 struct ptrs_ast_yield
 {
 	ptrs_symbol_t yieldVal;
-	struct ptrs_astlist *values;
+	union
+	{
+		struct ptrs_astlist *values;
+		struct ptrs_ast *value;
+	};
 };
 
 union ptrs_ast_arg

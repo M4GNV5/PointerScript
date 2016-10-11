@@ -13,6 +13,7 @@
 #include "include/astlist.h"
 
 ptrs_var_t *ptrs_handle_algorithm(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_yield_algorithm(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 
 struct ptrs_algoContext
 {
@@ -21,6 +22,7 @@ struct ptrs_algoContext
 	int inputIndex;
 	int outputIndex;
 
+	ptrs_var_t yieldVar;
 	ptrs_var_t currv;
 	ptrs_var_t *curr;
 	ptrs_var_t *handler;
@@ -44,56 +46,46 @@ bool ptrs_algorithm_step(struct ptrs_algoContext *ctx)
 			if((overload.value.funcval = ptrs_struct_getOverload(handler, ptrs_handle_algorithm, true)) != NULL)
 			{
 				overload.type = PTRS_TYPE_FUNCTION;
-				ctx->curr = ptrs_callfunc(ctx->node, &ctx->currv, ctx->scope, handler->value.structval, &overload, 0, NULL);
-
-				if(ctx->curr->type == PTRS_TYPE_UNDEFINED)
-					return false;
-				return true;
+				val = ptrs_callfunc(ctx->node, &valv, ctx->scope, handler->value.structval, &overload, 1, &ctx->yieldVar);
+			}
+			else
+			{
+				ptrs_error(ctx->node, ctx->scope, "Struct %s does not overload 'this => any'", handler->value.structval->name);
 			}
 		}
-		else if((overload.value.funcval = ptrs_struct_getOverload(handler, ptrs_handle_algorithm, false)) != NULL)
+		else if(ctx->index == ctx->len - 1)
 		{
-			overload.type = PTRS_TYPE_FUNCTION;
-			val = ptrs_callfunc(ctx->node, &valv, ctx->scope, handler->value.structval, &overload, 1, ctx->curr);
-
-			if((overload.value.funcval = ptrs_struct_getOverload(handler, ptrs_handle_algorithm, true)) != NULL)
+			if((overload.value.funcval = ptrs_struct_getOverload(handler, ptrs_handle_algorithm, false)) != NULL)
 			{
 				overload.type = PTRS_TYPE_FUNCTION;
-				int index = ++ctx->index;
-
-				val = ctx->curr;
-				while(true)
-				{
-					ctx->curr = ptrs_callfunc(ctx->node, &valv, ctx->scope, handler->value.structval, &overload, 0, NULL);
-
-					if(ctx->curr->type == PTRS_TYPE_UNDEFINED)
-						break;
-
-					ctx->index = index;
-					while(ptrs_algorithm_step(ctx))
-					{
-						if(ctx->index < 0 || ++ctx->index >= ctx->len)
-							break;
-					}
-				}
-
-				ctx->curr = val;
-				ctx->index = -1;
-				return true;
+				val = ptrs_callfunc(ctx->node, &valv, ctx->scope, handler->value.structval, &overload, 1, ctx->curr);
 			}
-			else if(val->type == PTRS_TYPE_UNDEFINED)
+			else
 			{
-				return false;
+				ptrs_error(ctx->node, ctx->scope, "Struct %s does not overload 'val => this'", handler->value.structval->name);
 			}
-			else if(!ptrs_vartob(val))
+		}
+		else
+		{
+			if((overload.value.funcval = ptrs_struct_getOverload(handler, ptrs_handle_yield_algorithm, false)) != NULL)
 			{
-				ctx->index = -1;
-			}
+				overload.type = PTRS_TYPE_FUNCTION;
+				ptrs_var_t args[2];
+				memcpy(args, &ctx->yieldVar, sizeof(ptrs_var_t));
+				memcpy(args + 1, ctx->curr, sizeof(ptrs_var_t));
 
-			return true;
+				val = ptrs_callfunc(ctx->node, &valv, ctx->scope, handler->value.structval, &overload, 2, args);
+			}
+			else
+			{
+				ptrs_error(ctx->node, ctx->scope, "Struct %s does not overload 'val => this => any'", handler->value.structval->name);
+			}
 		}
 
-		ptrs_error(ctx->node, ctx->scope, "Struct %s does not overload 'this => val'", handler->value.structval->name);
+		if(val->type == PTRS_TYPE_UNDEFINED)
+			return false;
+		ctx->index = -1;
+		return true;
 	}
 
 	if(ctx->index == 0)
@@ -180,6 +172,8 @@ ptrs_var_t *ptrs_handle_algorithm(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sco
 	ctx.outputIndex = 0;
 	ctx.node = node;
 	ctx.scope = scope;
+	ctx.yieldVar.type = PTRS_TYPE_NATIVE;
+	ctx.yieldVar.value.nativeval = &ctx;
 
 	ctx.len = ptrs_astlist_length(node->arg.astlist, node, scope);
 	ptrs_var_t handler[ctx.len];
@@ -194,5 +188,26 @@ ptrs_var_t *ptrs_handle_algorithm(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sco
 	}
 
 	result->type = PTRS_TYPE_UNDEFINED;
+	return result;
+}
+
+ptrs_var_t *ptrs_handle_yield_algorithm(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_yield expr = node->arg.yield;
+	struct ptrs_algoContext *ctx = ptrs_scope_get(scope, expr.yieldVal)->value.nativeval;
+	ctx->index++;
+	ctx->curr = expr.value->handler(expr.value, &ctx->currv, scope);
+
+	result->type = PTRS_TYPE_INT;
+	while(ptrs_algorithm_step(ctx))
+	{
+		if(ctx->index < 0 || ++ctx->index >= ctx->len)
+		{
+			result->value.intval = 0;
+			return result;
+		}
+	}
+
+	result->value.intval = 1;
 	return result;
 }

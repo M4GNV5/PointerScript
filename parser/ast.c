@@ -963,15 +963,22 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 	}
 	else if(lookahead(code, "yield"))
 	{
-		ast = talloc(ptrs_ast_t);
-		ptrs_ast_t *oldAst;
-		if(ptrs_ast_getSymbol(code->symbols, ".yield", &oldAst) != 0)
-			unexpectedm(code, NULL, "Yield expressions are only allowed in 'in this' operator overloads");
-
-		ast->handler = PTRS_HANDLE_YIELD;
-		ast->arg.yield.values = parseExpressionList(code, ';');
-		ast->arg.yield.yieldVal = oldAst->arg.varval;
-		free(oldAst);
+		if(ptrs_ast_getSymbol(code->symbols, ".yield", &ast) == 0)
+		{
+			ast->handler = PTRS_HANDLE_YIELD;
+			ast->arg.yield.yieldVal = ast->arg.varval;
+			ast->arg.yield.values = parseExpressionList(code, ';');
+		}
+		else if(ptrs_ast_getSymbol(code->symbols, ".yield_algorithm", &ast) == 0)
+		{
+			ast->handler = PTRS_HANDLE_YIELD_ALGORITHM;
+			ast->arg.yield.yieldVal = ast->arg.varval;
+			ast->arg.yield.value = parseExpression(code);
+		}
+		else
+		{
+			unexpectedm(code, NULL, "Yield expressions are only allowed in foreach and algorithm overloads");
+		}
 	}
 	else if(lookahead(code, "function"))
 	{
@@ -1678,8 +1685,9 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 							otherName = "any";
 							consume(code, "any");
 
-							func->argc = 0;
-							func->args = NULL;
+							func->argc = 1;
+							func->args = talloc(ptrs_symbol_t);
+							func->args[0] = addSymbol(code, strdup(".yield_algorithm"));
 
 							opLabel = "=>";
 							overload->op = PTRS_HANDLE_ALGORITHM;
@@ -1789,25 +1797,49 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				}
 				else
 				{
-					nameFormat = "%1$s.op %3$s %2$s this";
 					otherName = readIdentifier(code);
-
-					func->argc = 1;
-					func->args = talloc(ptrs_symbol_t);
-					func->args[0] = addSymbol(code, otherName);
 
 					if(lookahead(code, "=>"))
 					{
-						opLabel = "=>";
-						overload->op = PTRS_HANDLE_ALGORITHM;
+						consume(code, "this");
+
+						if(lookahead(code, "=>"))
+						{
+							nameFormat = "%1$s.op %3$s => this => any";
+							consume(code, "any");
+
+							func->argc = 2;
+							func->args = malloc(sizeof(ptrs_symbol_t) * 2);
+							func->args[0] = addSymbol(code, strdup(".yield_algorithm"));
+							func->args[1] = addSymbol(code, otherName);
+
+							overload->isLeftSide = false;
+							overload->op = PTRS_HANDLE_YIELD_ALGORITHM;
+						}
+						else
+						{
+							nameFormat = "%1$s.op %3$s => this";
+
+							func->argc = 1;
+							func->args = talloc(ptrs_symbol_t);
+							func->args[0] = addSymbol(code, otherName);
+
+							overload->isLeftSide = false;
+							overload->op = PTRS_HANDLE_ALGORITHM;
+						}
 					}
 					else
 					{
-						overload->op = readBinaryOperator(code, &opLabel);
-					}
+						func->argc = 1;
+						func->args = talloc(ptrs_symbol_t);
+						func->args[0] = addSymbol(code, otherName);
 
-					overload->isLeftSide = false;
-					consume(code, "this");
+						overload->isLeftSide = false;
+						overload->op = readBinaryOperator(code, &opLabel);
+
+						nameFormat = "%1$s.op %3$s %2$s this";
+						consume(code, "this");
+					}
 				}
 
 				if(overload->op == NULL)
