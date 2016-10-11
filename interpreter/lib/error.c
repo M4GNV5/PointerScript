@@ -54,7 +54,7 @@ int ptrs_printpos(char *buff, ptrs_ast_t *ast)
 	return sprintf(buff, "(%s:%d:%d)\n", ast->file, pos.line, pos.column);
 }
 
-char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative)
+char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative, bool gotSig)
 {
 	int bufflen = 1024;
 	char *buff = malloc(bufflen);
@@ -89,7 +89,8 @@ char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative)
 				infos[i].dli_fname = NULL;
 			}
 
-			if(i != skipNative && (infos[i].dli_fbase == selfInfo.dli_fbase || infos[i].dli_fbase == ffiInfo.dli_fbase))
+			if((!gotSig || i != skipNative)
+				&& (infos[i].dli_fbase == selfInfo.dli_fbase || infos[i].dli_fbase == ffiInfo.dli_fbase))
 				break;
 
 			if(buffptr - buff > bufflen - 128)
@@ -177,7 +178,7 @@ void ptrs_vthrow(ptrs_ast_t *ast, ptrs_scope_t *scope, const char *format, va_li
 	ptrs_getpos(&pos, ast);
 
 	error->message = msg;
-	error->stack = ptrs_backtrace(ast, scope, 5);
+	error->stack = ptrs_backtrace(ast, scope, 5, false);
 	error->file = ast->file;
 	error->line = pos.line;
 	error->column = pos.column;
@@ -202,7 +203,7 @@ void ptrs_handle_sig(int sig)
 
 	fprintf(stderr, "Received signal: %s", strsignal(sig));
 	ptrs_showpos(stderr, ptrs_lastast);
-	fprintf(stderr, "%s", ptrs_backtrace(ptrs_lastast, ptrs_lastscope, 3));
+	fprintf(stderr, "%s", ptrs_backtrace(ptrs_lastast, ptrs_lastscope, 3, true));
 	exit(3);
 }
 
@@ -237,7 +238,7 @@ void ptrs_error(ptrs_ast_t *ast, ptrs_scope_t *scope, const char *msg, ...)
 	{
 		ptrs_showpos(stderr, ast);
 		if(scope != NULL)
-			fprintf(stderr, "%s\n", ptrs_backtrace(ast, scope, 2));
+			fprintf(stderr, "%s\n", ptrs_backtrace(ast, scope, 2, false));
 	}
 	exit(3);
 }
