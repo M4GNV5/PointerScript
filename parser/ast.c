@@ -868,6 +868,18 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			ast->codepos = pos;
 			ast->code = code->src;
 			ast->file = code->filename;
+
+#ifndef PTRS_DISABLE_CONSTRESOLVE
+			if(ast->arg.astval->handler == PTRS_HANDLE_CONSTANT)
+			{
+				ptrs_var_t result;
+				ast->handler(ast, &result, NULL);
+				ast->handler = PTRS_HANDLE_CONSTANT;
+
+				free(ast->arg.astval);
+				memcpy(&ast->arg.constval, &result, sizeof(ptrs_var_t));
+			}
+#endif
 			return ast;
 		}
 	}
