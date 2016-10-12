@@ -1689,6 +1689,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 							func->args = talloc(ptrs_symbol_t);
 							func->args[0] = addSymbol(code, strdup(".yield_algorithm"));
 
+							nameFormat = "%1$s.op this => any";
 							opLabel = "=>";
 							overload->op = PTRS_HANDLE_ALGORITHM;
 						}
