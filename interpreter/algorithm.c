@@ -45,8 +45,12 @@ bool ptrs_algorithm_step(struct ptrs_algoContext *ctx)
 		{
 			if((overload.value.funcval = ptrs_struct_getOverload(handler, ptrs_handle_algorithm, true)) != NULL)
 			{
+				ctx->index++;
 				overload.type = PTRS_TYPE_FUNCTION;
-				val = ptrs_callfunc(ctx->node, &valv, ctx->scope, handler->value.structval, &overload, 1, &ctx->yieldVar);
+				ptrs_callfunc(ctx->node, &valv, ctx->scope, handler->value.structval, &overload, 1, &ctx->yieldVar);
+
+				ctx->index = -1;
+				return false;
 			}
 			else
 			{
@@ -69,6 +73,7 @@ bool ptrs_algorithm_step(struct ptrs_algoContext *ctx)
 		{
 			if((overload.value.funcval = ptrs_struct_getOverload(handler, ptrs_handle_yield_algorithm, false)) != NULL)
 			{
+				ctx->index++;
 				overload.type = PTRS_TYPE_FUNCTION;
 				ptrs_var_t args[2];
 				memcpy(args, &ctx->yieldVar, sizeof(ptrs_var_t));
@@ -195,19 +200,26 @@ ptrs_var_t *ptrs_handle_yield_algorithm(ptrs_ast_t *node, ptrs_var_t *result, pt
 {
 	struct ptrs_ast_yield expr = node->arg.yield;
 	struct ptrs_algoContext *ctx = ptrs_scope_get(scope, expr.yieldVal)->value.nativeval;
-	ctx->index++;
 	ctx->curr = expr.value->handler(expr.value, &ctx->currv, scope);
+
+	int index = ctx->index;
+	ptrs_scope_t *oldScope = ctx->scope;
+	ctx->scope = scope;
 
 	result->type = PTRS_TYPE_INT;
 	while(ptrs_algorithm_step(ctx))
 	{
-		if(ctx->index < 0 || ++ctx->index >= ctx->len)
+		if(ctx->index < index || ++ctx->index >= ctx->len)
 		{
+			ctx->index = index;
+			ctx->scope = oldScope;
 			result->value.intval = 0;
 			return result;
 		}
 	}
 
+	ctx->index = index;
+	ctx->scope = oldScope;
 	result->value.intval = 1;
 	return result;
 }
