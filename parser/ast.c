@@ -523,6 +523,12 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		stmt->arg.astval = parseExpression(code);
 		consumec(code, ';');
 	}
+	else if(lookahead(code, "scoped"))
+	{
+		stmt->handler = PTRS_HANDLE_SCOPESTATEMENT;
+		symbolScope_increase(code, 0, false);
+		stmt->arg.scopestatement.body = parseBody(code, &stmt->arg.scopestatement.stackOffset, true, true);
+	}
 	else if(lookahead(code, "try"))
 	{
 		stmt->handler = PTRS_HANDLE_TRYCATCH;
@@ -548,12 +554,6 @@ static ptrs_ast_t *parseStatement(code_t *code)
 #else
 		PTRS_HANDLE_ASTERROR(stmt, "Inline assembly is not available");
 #endif
-	}
-	else if(code->curr == '{')
-	{
-		stmt->handler = PTRS_HANDLE_SCOPESTATEMENT;
-		symbolScope_increase(code, 0, false);
-		stmt->arg.scopestatement.body = parseBody(code, &stmt->arg.scopestatement.stackOffset, false, true);
 	}
 	else if(lookahead(code, "function"))
 	{
