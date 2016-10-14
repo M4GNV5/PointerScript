@@ -121,6 +121,13 @@ struct ptrs_ast_call
 	struct ptrs_astlist *arguments;
 };
 
+struct ptrs_ast_new
+{
+	bool onStack;
+	struct ptrs_ast *value;
+	struct ptrs_astlist *arguments;
+};
+
 struct ptrs_ast_case
 {
 	int64_t value;
@@ -202,6 +209,7 @@ union ptrs_ast_arg
 	struct ptrs_ast_ternary ternary;
 	struct ptrs_ast_slice slice;
 	struct ptrs_ast_call call;
+	struct ptrs_ast_new newexpr;
 	struct ptrs_ast_ifelse ifelse;
 	struct ptrs_ast_switch switchcase;
 	struct ptrs_ast_control control;

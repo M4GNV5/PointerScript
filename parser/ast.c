@@ -902,10 +902,22 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 	{
 		ast = talloc(ptrs_ast_t);
 		ast->handler = PTRS_HANDLE_NEW;
-		ast->arg.call.value = parseUnaryExpr(code, true, false);
+		ast->arg.newexpr.onStack = false;
+		ast->arg.newexpr.value = parseUnaryExpr(code, true, false);
 
 		consumec(code, '(');
-		ast->arg.call.arguments = parseExpressionList(code, ')');
+		ast->arg.newexpr.arguments = parseExpressionList(code, ')');
+		consumec(code, ')');
+	}
+	else if(lookahead(code, "new_stack")) //TODO find a better syntax for this
+	{
+		ast = talloc(ptrs_ast_t);
+		ast->handler = PTRS_HANDLE_NEW;
+		ast->arg.newexpr.onStack = true;
+		ast->arg.newexpr.value = parseUnaryExpr(code, true, false);
+
+		consumec(code, '(');
+		ast->arg.newexpr.arguments = parseExpressionList(code, ')');
 		consumec(code, ')');
 	}
 	else if(lookahead(code, "type"))

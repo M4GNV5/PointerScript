@@ -85,9 +85,9 @@ ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 
 ptrs_var_t *ptrs_handle_new(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_call expr = node->arg.call;
+	struct ptrs_ast_new expr = node->arg.newexpr;
 	return ptrs_struct_construct(expr.value->handler(expr.value, result, scope),
-		expr.arguments, false, node, result, scope);
+		expr.arguments, expr.onStack, node, result, scope);
 }
 
 ptrs_var_t *ptrs_handle_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
