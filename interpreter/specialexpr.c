@@ -162,7 +162,7 @@ ptrs_var_t *ptrs_handle_call_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_s
 
 	if(func != NULL)
 	{
-		return ptrs_call(node, PTRS_TYPE_UNDEFINED, base->value.structval, func, result, arguments, scope);
+		return ptrs_call(node, PTRS_TYPE_INT, base->value.structval, func, result, arguments, scope);
 	}
 	else if((funcv.value.funcval = ptrs_struct_getOverload(base, ptrs_handle_call_member, true)) != NULL)
 	{
@@ -229,7 +229,7 @@ ptrs_var_t *ptrs_handle_call_thismember(ptrs_ast_t *node, ptrs_var_t *result, pt
 		funcv.type = PTRS_TYPE_UNDEFINED;
 	}
 
-	return ptrs_call(node, PTRS_TYPE_UNDEFINED, base->value.structval, func, result, arguments, scope);
+	return ptrs_call(node, PTRS_TYPE_INT, base->value.structval, func, result, arguments, scope);
 }
 
 ptrs_var_t *ptrs_handle_prefix_address(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
@@ -405,7 +405,7 @@ ptrs_var_t *ptrs_handle_call_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 	{
 		int64_t _index = ptrs_vartoi(index);
 		ptrs_var_t *func = &(value->value.ptrval[_index]);
-		return ptrs_call(node, PTRS_TYPE_UNDEFINED, NULL, func, result, arguments, scope);
+		return ptrs_call(node, PTRS_TYPE_INT, NULL, func, result, arguments, scope);
 	}
 	else if(valuet == PTRS_TYPE_STRUCT)
 	{
