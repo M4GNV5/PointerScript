@@ -840,7 +840,6 @@ struct constinfo constants[] = {
 	{"null", PTRS_TYPE_POINTER, {.ptrval = NULL}},
 	{"VARSIZE", PTRS_TYPE_INT, {.intval = sizeof(ptrs_var_t)}},
 	{"PTRSIZE", PTRS_TYPE_INT, {.intval = sizeof(void *)}},
-	{"ALGORITHM_END", PTRS_TYPE_NATIVE, {.nativeval = PTRS_HANDLE_ALGORITHM}},
 	{"undefined", PTRS_TYPE_UNDEFINED, {}},
 	{"NaN", PTRS_TYPE_FLOAT, {.floatval = NAN}},
 };
