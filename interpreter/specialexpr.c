@@ -19,7 +19,7 @@ ptrs_var_t *ptrs_handle_call(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 
 	if(expr.value->callHandler != NULL)
 	{
-		return expr.value->callHandler(expr.value, result, scope, node, expr.arguments);
+		return expr.value->callHandler(expr.value, result, scope, expr.retType, node, expr.arguments);
 	}
 	else
 	{
@@ -149,7 +149,7 @@ ptrs_var_t *ptrs_handle_assign_member(ptrs_ast_t *node, ptrs_var_t *value, ptrs_
 	return NULL;
 }
 ptrs_var_t *ptrs_handle_call_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
-	ptrs_ast_t *caller, struct ptrs_astlist *arguments)
+	ptrs_vartype_t retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments)
 {
 	ptrs_var_t funcv;
 	struct ptrs_ast_member expr = node->arg.member;
@@ -162,7 +162,7 @@ ptrs_var_t *ptrs_handle_call_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_s
 
 	if(func != NULL)
 	{
-		return ptrs_call(node, PTRS_TYPE_INT, base->value.structval, func, result, arguments, scope);
+		return ptrs_call(node, retType, base->value.structval, func, result, arguments, scope);
 	}
 	else if((funcv.value.funcval = ptrs_struct_getOverload(base, ptrs_handle_call_member, true)) != NULL)
 	{
@@ -213,7 +213,7 @@ ptrs_var_t *ptrs_handle_assign_thismember(ptrs_ast_t *node, ptrs_var_t *value, p
 	return NULL;
 }
 ptrs_var_t *ptrs_handle_call_thismember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
-	ptrs_ast_t *caller, struct ptrs_astlist *arguments)
+	ptrs_vartype_t retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments)
 {
 	ptrs_var_t funcv;
 	struct ptrs_ast_thismember expr = node->arg.thismember;
@@ -229,7 +229,7 @@ ptrs_var_t *ptrs_handle_call_thismember(ptrs_ast_t *node, ptrs_var_t *result, pt
 		funcv.type = PTRS_TYPE_UNDEFINED;
 	}
 
-	return ptrs_call(node, PTRS_TYPE_INT, base->value.structval, func, result, arguments, scope);
+	return ptrs_call(node, retType, base->value.structval, func, result, arguments, scope);
 }
 
 ptrs_var_t *ptrs_handle_prefix_address(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
@@ -389,7 +389,7 @@ ptrs_var_t *ptrs_handle_assign_index(ptrs_ast_t *node, ptrs_var_t *value, ptrs_s
 	return NULL;
 }
 ptrs_var_t *ptrs_handle_call_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
-	ptrs_ast_t *caller, struct ptrs_astlist *arguments)
+	ptrs_vartype_t retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments)
 {
 	char buff[32];
 	ptrs_var_t valuev;
@@ -405,7 +405,7 @@ ptrs_var_t *ptrs_handle_call_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 	{
 		int64_t _index = ptrs_vartoi(index);
 		ptrs_var_t *func = &(value->value.ptrval[_index]);
-		return ptrs_call(node, PTRS_TYPE_INT, NULL, func, result, arguments, scope);
+		return ptrs_call(node, retType, NULL, func, result, arguments, scope);
 	}
 	else if(valuet == PTRS_TYPE_STRUCT)
 	{

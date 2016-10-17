@@ -220,7 +220,7 @@ union ptrs_ast_arg
 
 typedef ptrs_var_t *(*ptrs_asthandler_t)(struct ptrs_ast *, ptrs_var_t *, ptrs_scope_t *);
 typedef ptrs_var_t *(*ptrs_callhandler_t)(struct ptrs_ast *, ptrs_var_t *, ptrs_scope_t *,
-	struct ptrs_ast *, struct ptrs_astlist *);
+	ptrs_vartype_t, struct ptrs_ast *, struct ptrs_astlist *);
 
 struct ptrs_ast
 {

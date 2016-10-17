@@ -58,11 +58,11 @@ ptrs_var_t *ptrs_handle_assign_member(ptrs_ast_t *node, ptrs_var_t *value, ptrs_
 ptrs_var_t *ptrs_handle_assign_thismember(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
 
 ptrs_var_t *ptrs_handle_call_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
-	ptrs_ast_t *caller, struct ptrs_astlist *arguments);
+	ptrs_vartype_t retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments);
 ptrs_var_t *ptrs_handle_call_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
-	ptrs_ast_t *caller, struct ptrs_astlist *arguments);
+	ptrs_vartype_t retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments);
 ptrs_var_t *ptrs_handle_call_thismember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
-	ptrs_ast_t *caller, struct ptrs_astlist *arguments);
+	ptrs_vartype_t retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments);
 
 ptrs_var_t *ptrs_handle_op_ternary(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_op_instanceof(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
