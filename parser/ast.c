@@ -1024,6 +1024,8 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		struc->size = 0;
 		struc->name = "(map)";
 		struc->overloads = NULL;
+		struc->data = NULL;
+		struc->staticData = NULL;
 
 		consumec(code, '{');
 
