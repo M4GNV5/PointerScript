@@ -1345,6 +1345,9 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 		ast = talloc(ptrs_ast_t);
 		ast->handler = PTRS_HANDLE_ALGORITHM;
 		ast->arg.astlist = curr;
+		ast->code = code->src;
+		ast->codepos = curr->entry->codepos;
+		ast->file = curr->entry->file;
 
 		do
 		{

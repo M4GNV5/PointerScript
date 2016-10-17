@@ -203,7 +203,9 @@ ptrs_var_t *ptrs_handle_yield_algorithm(ptrs_ast_t *node, ptrs_var_t *result, pt
 	ctx->curr = expr.value->handler(expr.value, &ctx->currv, scope);
 
 	int index = ctx->index;
+	ptrs_ast_t *oldAst = ctx->node;
 	ptrs_scope_t *oldScope = ctx->scope;
+	ctx->node = node;
 	ctx->scope = scope;
 
 	result->type = PTRS_TYPE_INT;
@@ -219,6 +221,7 @@ ptrs_var_t *ptrs_handle_yield_algorithm(ptrs_ast_t *node, ptrs_var_t *result, pt
 	}
 
 	ctx->index = index;
+	ctx->node = oldAst;
 	ctx->scope = oldScope;
 	result->value.intval = 1;
 	return result;
