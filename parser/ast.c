@@ -1526,17 +1526,18 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 }
 
 #ifndef _PTRS_NOASM
-static void *asmBuff = NULL;
+void *ptrs_asmBuff = NULL;
+size_t ptrs_asmSize = 4096;
 static void parseAsm(code_t *code, ptrs_ast_t *stmt)
 {
 	struct ptrs_ast_asm *arg = &stmt->arg.asmstmt;
 
-	if(asmBuff == NULL)
-		asmBuff = mmap(NULL, 0x1000, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if(ptrs_asmBuff == NULL)
+		ptrs_asmBuff = mmap(NULL, ptrs_asmSize, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
-	arg->asmFunc = asmBuff;
+	arg->asmFunc = ptrs_asmBuff;
 	arg->context = malloc(sizeof(jitas_context_t));
-	jitas_init(arg->context, asmBuff, NULL);
+	jitas_init(arg->context, ptrs_asmBuff, NULL);
 	arg->context->identifierToken = "._*";
 
 	char **fields;
@@ -1561,6 +1562,9 @@ static void parseAsm(code_t *code, ptrs_ast_t *stmt)
 			*buffptr = 0;
 			rawnext(code);
 			buffptr = buff;
+			
+			if(arg->context->ptr - (uint8_t *)ptrs_asmBuff > ptrs_asmSize)
+				PTRS_HANDLE_ASTERROR(stmt, "Inline assembly size exceed. Try running with --asm-size <value>");
 
 			jitas_assemble(arg->context, buff);
 
