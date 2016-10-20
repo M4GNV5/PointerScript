@@ -1526,6 +1526,16 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 }
 
 #ifndef _PTRS_NOASM
+struct ptrs_asmStatement
+{
+	uint8_t *start;
+	uint8_t *end;
+	ptrs_ast_t *ast;
+	jitas_context_t *context;
+	struct ptrs_asmStatement *next;
+};
+struct ptrs_asmStatement *ptrs_asmStatements = NULL;
+void *ptrs_asmBuffStart = NULL;
 void *ptrs_asmBuff = NULL;
 size_t ptrs_asmSize = 4096;
 static void parseAsm(code_t *code, ptrs_ast_t *stmt)
@@ -1533,7 +1543,10 @@ static void parseAsm(code_t *code, ptrs_ast_t *stmt)
 	struct ptrs_ast_asm *arg = &stmt->arg.asmstmt;
 
 	if(ptrs_asmBuff == NULL)
+	{
 		ptrs_asmBuff = mmap(NULL, ptrs_asmSize, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		ptrs_asmBuffStart = ptrs_asmBuff;
+	}
 
 	arg->asmFunc = ptrs_asmBuff;
 	arg->context = malloc(sizeof(jitas_context_t));
@@ -1597,6 +1610,16 @@ static void parseAsm(code_t *code, ptrs_ast_t *stmt)
 		}
 	}
 	consumec(code, '}');
+	
+	struct ptrs_asmStatement *asmStmt = malloc(sizeof(struct ptrs_asmStatement));
+	asmStmt->start = ptrs_asmBuff;
+	asmStmt->end = arg->context->ptr - 1;
+	asmStmt->ast = stmt;
+	asmStmt->context = arg->context;
+	asmStmt->next = ptrs_asmStatements;
+	ptrs_asmStatements = asmStmt;
+	
+	ptrs_asmBuff = arg->context->ptr;
 
 	arg->importCount = 0;
 	curr = arg->context->symbols;

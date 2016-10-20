@@ -7,6 +7,7 @@
 #include <execinfo.h>
 #include <setjmp.h>
 #include <dlfcn.h>
+#include <jitas.h>
 
 #include "../../parser/common.h"
 #include "../../parser/ast.h"
@@ -15,6 +16,18 @@
 
 __thread ptrs_ast_t *ptrs_lastast = NULL;
 __thread ptrs_scope_t *ptrs_lastscope = NULL;
+
+struct ptrs_asmStatement
+{
+	uint8_t *start;
+	uint8_t *end;
+	ptrs_ast_t *ast;
+	jitas_context_t *context;
+	struct ptrs_asmStatement *next;
+};
+extern struct ptrs_asmStatement *ptrs_asmStatements;
+extern uint8_t *ptrs_asmBuffStart;
+extern size_t ptrs_asmSize;
 
 typedef struct codepos
 {
@@ -72,8 +85,8 @@ char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative, bool 
 	else
 	{
 		hadError = true;
-		void *trace[32];
-		int count = backtrace(trace, 32);
+		uint8_t *trace[32];
+		int count = backtrace((void **)trace, 32);
 		Dl_info infos[count];
 
 		Dl_info selfInfo;
@@ -83,6 +96,42 @@ char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative, bool 
 
 		for(int i = skipNative; i < count; i++)
 		{
+			if(trace[i] >= ptrs_asmBuffStart && trace[i] < ptrs_asmBuffStart + ptrs_asmSize)
+			{
+				struct ptrs_asmStatement *curr = ptrs_asmStatements;
+				jitas_symboltable_t *symbol = NULL;
+				
+				while(curr != NULL)
+				{
+					if(trace[i] >= curr->start && trace[i] <= curr->end)
+					{
+						symbol = curr->context->localSymbols;
+						while(symbol != NULL)
+						{
+							if(symbol->next == NULL || symbol->next->ptr > trace[i])
+								break;
+							
+							symbol = symbol->next;
+						}
+						
+						break;
+					}
+						
+					curr = curr->next;
+				}
+				
+				if(curr != NULL)
+				{
+					if(symbol == NULL)
+						buffptr += sprintf(buffptr, "    at asm+%lX ", (unsigned long)(trace[i] - curr->start));
+					else
+						buffptr += sprintf(buffptr, "    at %s+%lX ", symbol->symbol, (unsigned long)(trace[i] - symbol->ptr));
+						
+					buffptr +=  ptrs_printpos(buffptr, curr->ast);
+					continue;
+				}
+			}
+			
 			if(dladdr(trace[i], &infos[i]) == 0)
 			{
 				infos[i].dli_sname = NULL;
