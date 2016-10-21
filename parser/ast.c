@@ -1691,6 +1691,12 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 	struct ptrs_structlist *curr = NULL;
 	while(code->curr != '}')
 	{
+		bool isStatic;
+		if(lookahead(code, "static"))
+			isStatic = true;
+		else
+			isStatic = false;
+		
 		if(lookahead(code, "operator"))
 		{
 			symbolScope_increase(code, 1, false);
@@ -1706,6 +1712,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 			struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
 			overload->isLeftSide = true;
+			overload->isStatic = isStatic;
 
 			overload->op = readPrefixOperator(code, &opLabel);
 
@@ -1949,7 +1956,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			curr->isPrivate = false;
 
 		int currSize;
-		if(lookahead(code, "static"))
+		if(isStatic || lookahead(code, "static"))
 		{
 			currSize = staticMemSize;
 			curr->isStatic = true;

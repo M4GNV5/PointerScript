@@ -13,10 +13,12 @@
 
 ptrs_function_t *ptrs_struct_getOverload(ptrs_var_t *struc, void *handler, bool isLeftSide)
 {
+	bool isInstance = struc->value.structval->data != NULL;
 	struct ptrs_opoverload *curr = struc->value.structval->overloads;
 	while(curr != NULL)
 	{
-		if(curr->op == handler && curr->isLeftSide == isLeftSide)
+		if(curr->op == handler && curr->isLeftSide == isLeftSide
+			&& (isInstance || curr->isStatic))
 			return curr->handler;
 		curr = curr->next;
 	}
