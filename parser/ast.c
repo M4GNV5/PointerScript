@@ -2084,7 +2084,10 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 	else
 		struc->staticData = NULL;
 
-	curr->next = NULL;
+	if(curr == NULL)
+		struc->member = NULL;
+	else
+		curr->next = NULL;
 	symbolScope_decrease(code);
 	consumec(code, '}');
 	consumec(code, ';');
