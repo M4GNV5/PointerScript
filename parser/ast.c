@@ -418,7 +418,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 
 			if(lookahead(code, "="))
 			{
-				consumecm(code, '[', "Array initializer for array");
+				consumecm(code, '[');
 				stmt->arg.define.initVal = parseExpressionList(code, ']');
 				consumec(code, ']');
 			}
