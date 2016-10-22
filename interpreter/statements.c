@@ -86,10 +86,13 @@ ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 
 		ptrs_var_t vals[len];
 		ptrs_astlist_handle(stmt.initVal, vals, scope);
-		for(int i = 0; i < len; i++)
-		{
+		
+		int i;
+		for(i = 0; i < len; i++)
 			array[i] = ptrs_vartoi(&vals[i]);
-		}
+		for(; i < size; i++)
+			array[i] = array[len - 1];
+		
 		result->value.nativeval = array;
 	}
 	else if(stmt.initExpr != NULL)
@@ -145,8 +148,13 @@ ptrs_var_t *ptrs_handle_vararray(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 		else if(size < len)
 			ptrs_error(node, scope, "Array size (%d) is too small for initializer size (%d)", size, len);
 
-		result->value.ptrval = ptrs_alloc(scope, size);
-		ptrs_astlist_handle(stmt.initVal, result->value.ptrval, scope);
+		ptrs_var_t *array = ptrs_alloc(scope, size);
+		ptrs_astlist_handle(stmt.initVal, array, scope);
+		
+		for(int i = len; i < size; i++)
+			memcpy(array + i, array + len - 1, sizeof(ptrs_var_t));
+			
+		result->value.ptrval = array;
 	}
 	else
 	{
