@@ -418,7 +418,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 
 			if(lookahead(code, "="))
 			{
-				consumecm(code, '[');
+				consumec(code, '[');
 				stmt->arg.define.initVal = parseExpressionList(code, ']');
 				consumec(code, ']');
 			}
@@ -1575,7 +1575,7 @@ static void parseAsm(code_t *code, ptrs_ast_t *stmt)
 			*buffptr = 0;
 			rawnext(code);
 			buffptr = buff;
-			
+
 			if(arg->context->ptr - (uint8_t *)ptrs_asmBuff > ptrs_asmSize)
 				PTRS_HANDLE_ASTERROR(stmt, "Inline assembly size exceed. Try running with --asm-size <value>");
 
@@ -1610,7 +1610,7 @@ static void parseAsm(code_t *code, ptrs_ast_t *stmt)
 		}
 	}
 	consumec(code, '}');
-	
+
 	struct ptrs_asmStatement *asmStmt = malloc(sizeof(struct ptrs_asmStatement));
 	asmStmt->start = ptrs_asmBuff;
 	asmStmt->end = arg->context->ptr - 1;
@@ -1618,7 +1618,7 @@ static void parseAsm(code_t *code, ptrs_ast_t *stmt)
 	asmStmt->context = arg->context;
 	asmStmt->next = ptrs_asmStatements;
 	ptrs_asmStatements = asmStmt;
-	
+
 	ptrs_asmBuff = arg->context->ptr;
 
 	arg->importCount = 0;
@@ -1696,7 +1696,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			isStatic = true;
 		else
 			isStatic = false;
-		
+
 		if(lookahead(code, "operator"))
 		{
 			symbolScope_increase(code, 1, false);
