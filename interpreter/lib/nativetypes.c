@@ -87,6 +87,29 @@ ptrs_var_t *ptrs_handle_native_setUInt(void *target, size_t size, ptrs_var_t *va
 	return NULL;
 }
 
+ptrs_var_t *ptrs_handle_native_getNative(void *target, size_t size, ptrs_var_t *value)
+{
+	value->type = PTRS_TYPE_POINTER;
+	value->value.ptrval = *(ptrs_var_t **)target;
+	return value;
+}
+
+ptrs_var_t *ptrs_handle_native_getPointer(void *target, size_t size, ptrs_var_t *value)
+{
+	value->type = PTRS_TYPE_POINTER;
+	value->value.ptrval = *(ptrs_var_t **)target;
+	return value;
+}
+
+ptrs_var_t *ptrs_handle_native_setPointer(void *target, size_t size, ptrs_var_t *value)
+{
+	if(value->type == PTRS_TYPE_FLOAT)
+		*(void **)target = (void *)(uint64_t)value->value.floatval;
+	else
+		*(void **)target = value->value.nativeval;
+	return NULL;
+}
+
 ptrs_var_t *ptrs_handle_native_getFloat(void *target, size_t size, ptrs_var_t *value)
 {
 	value->type = PTRS_TYPE_FLOAT;

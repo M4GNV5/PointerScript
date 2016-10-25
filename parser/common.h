@@ -71,6 +71,8 @@ typedef enum
 
 	PTRS_CTYPE_SINGLE,
 	PTRS_CTYPE_DOUBLE,
+
+	PTRS_CTYPE_NATIVE,
 	PTRS_CTYPE_POINTER,
 } ptrs_nativetype_t;
 

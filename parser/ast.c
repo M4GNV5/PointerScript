@@ -2153,7 +2153,7 @@ static ptrs_vartype_t readTypeName(code_t *code)
 }
 
 static ptrs_nativetype_info_t nativeTypes[] = {
-	{"char", PTRS_CTYPE_CHAR, sizeof(char), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
+	{"char", PTRS_CTYPE_CHAR, sizeof(signed char), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
 	{"short", PTRS_CTYPE_SHORT, sizeof(short), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
 	{"int", PTRS_CTYPE_INT, sizeof(int), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
 	{"long", PTRS_CTYPE_LONG, sizeof(long), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
@@ -2177,7 +2177,9 @@ static ptrs_nativetype_info_t nativeTypes[] = {
 
 	{"single", PTRS_CTYPE_SINGLE, sizeof(float), PTRS_HANDLE_NATIVE_GETFLOAT, PTRS_HANDLE_NATIVE_SETFLOAT},
 	{"double", PTRS_CTYPE_DOUBLE, sizeof(double), PTRS_HANDLE_NATIVE_GETFLOAT, PTRS_HANDLE_NATIVE_SETFLOAT},
-	{"pointer", PTRS_CTYPE_POINTER, sizeof(void *), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
+
+	{"native", PTRS_CTYPE_NATIVE, sizeof(char *), PTRS_HANDLE_NATIVE_GETNATIVE, PTRS_HANDLE_NATIVE_SETNATIVE},
+	{"pointer", PTRS_CTYPE_POINTER, sizeof(ptrs_var_t *), PTRS_HANDLE_NATIVE_GETPOINTER, PTRS_HANDLE_NATIVE_SETPOINTER},
 };
 static int nativeTypeCount = sizeof(nativeTypes) / sizeof(ptrs_nativetype_info_t);
 
