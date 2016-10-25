@@ -107,10 +107,10 @@ ptrs_var_t *ptrs_handle_native_setFloat(void *target, size_t size, ptrs_var_t *v
 	double val = ptrs_vartof(value);
 	switch(size)
 	{
-		case 1:
+		case 4:
 			*(float *)target = val;
 			break;
-		case 2:
+		case 8:
 			*(double *)target = val;
 			break;
 	}
