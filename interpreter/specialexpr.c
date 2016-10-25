@@ -535,10 +535,15 @@ ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 
 	ptrs_var_t *value = expr.value->handler(expr.value, result, scope);
 
-	ptrs_struct_t *struc = malloc(sizeof(ptrs_struct_t));
+	ptrs_struct_t *struc;
+	if(expr.onStack)
+		struc = ptrs_alloc(scope, sizeof(ptrs_struct_t));
+	else
+		struc = malloc(sizeof(ptrs_struct_t));
+
 	memcpy(struc, type->value.structval, sizeof(ptrs_struct_t));
 	struc->data = value->value.nativeval;
-	struc->isOnStack = false;
+	struc->isOnStack = expr.onStack;
 
 	result->type = PTRS_TYPE_STRUCT;
 	result->value.structval = struc;

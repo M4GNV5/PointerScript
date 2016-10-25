@@ -110,12 +110,13 @@ struct ptrs_ast_slice
 
 struct ptrs_ast_cast
 {
-	struct
+	union
 	{
 		ptrs_vartype_t builtinType;
 		struct ptrs_ast *type;
 	};
 	struct ptrs_ast *value;
+	bool onStack;
 };
 
 struct ptrs_ast_call

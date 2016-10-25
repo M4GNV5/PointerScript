@@ -957,6 +957,20 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			ast->arg.cast.value = val;
 		}
 	}
+	else if(lookahead(code, "cast_stack")) //TODO find a better syntax for this
+	{
+		consumec(code, '<');
+		ast = talloc(ptrs_ast_t);
+		ast->handler = PTRS_HANDLE_CAST;
+		ast->arg.cast.type = parseUnaryExpr(code, false, false);
+		ast->arg.cast.onStack = true;
+
+		if(ast->arg.cast.type == NULL)
+			unexpectedm(code, NULL, "Syntax is cast_stack<TYPE>");
+
+		consumec(code, '>');
+		ast->arg.cast.value = parseUnaryExpr(code, false, true);
+	}
 	else if(lookahead(code, "cast"))
 	{
 		consumec(code, '<');
@@ -973,6 +987,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			ast = talloc(ptrs_ast_t);
 			ast->handler = PTRS_HANDLE_CAST;
 			ast->arg.cast.type = parseUnaryExpr(code, false, false);
+			ast->arg.cast.onStack = false;
 
 			if(ast->arg.cast.type == NULL)
 				unexpectedm(code, NULL, "Syntax is cast<TYPE>");
