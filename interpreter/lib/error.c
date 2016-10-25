@@ -100,7 +100,7 @@ char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative, bool 
 			{
 				struct ptrs_asmStatement *curr = ptrs_asmStatements;
 				jitas_symboltable_t *symbol = NULL;
-				
+
 				while(curr != NULL)
 				{
 					if(trace[i] >= curr->start && trace[i] <= curr->end)
@@ -110,28 +110,28 @@ char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative, bool 
 						{
 							if(symbol->next == NULL || symbol->next->ptr > trace[i])
 								break;
-							
+
 							symbol = symbol->next;
 						}
-						
+
 						break;
 					}
-						
+
 					curr = curr->next;
 				}
-				
+
 				if(curr != NULL)
 				{
 					if(symbol == NULL)
 						buffptr += sprintf(buffptr, "    at asm+%lX ", (unsigned long)(trace[i] - curr->start));
 					else
 						buffptr += sprintf(buffptr, "    at %s+%lX ", symbol->symbol, (unsigned long)(trace[i] - symbol->ptr));
-						
+
 					buffptr +=  ptrs_printpos(buffptr, curr->ast);
 					continue;
 				}
 			}
-			
+
 			if(dladdr(trace[i], &infos[i]) == 0)
 			{
 				infos[i].dli_sname = NULL;

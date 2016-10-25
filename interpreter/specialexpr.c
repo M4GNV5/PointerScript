@@ -516,19 +516,19 @@ ptrs_var_t *ptrs_handle_cast_builtin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_cast expr = node->arg.cast;
-	
+
 	ptrs_var_t typev;
 	ptrs_var_t *type = expr.type->handler(expr.type, &typev, scope);
 	if(type->type != PTRS_TYPE_STRUCT)
 		ptrs_error(node, scope, "Type of a cast has to be a variable type struct not %s", ptrs_typetoa(type->type));
-		
+
 	ptrs_var_t *value = expr.value->handler(expr.value, result, scope);
-		
+
 	ptrs_struct_t *struc = malloc(sizeof(ptrs_struct_t));
 	memcpy(struc, type->value.structval, sizeof(ptrs_struct_t));
 	struc->data = value->value.nativeval;
 	struc->isOnStack = false;
-	
+
 	result->type = PTRS_TYPE_STRUCT;
 	result->value.structval = struc;
 	return result;

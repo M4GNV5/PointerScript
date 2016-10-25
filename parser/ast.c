@@ -973,11 +973,11 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			ast = talloc(ptrs_ast_t);
 			ast->handler = PTRS_HANDLE_CAST;
 			ast->arg.cast.type = parseUnaryExpr(code, false, false);
-			
+
 			if(ast->arg.cast.type == NULL)
 				unexpectedm(code, NULL, "Syntax is cast<TYPE>");
 		}
-		
+
 		consumec(code, '>');
 		ast->arg.cast.value = parseUnaryExpr(code, false, true);
 	}
