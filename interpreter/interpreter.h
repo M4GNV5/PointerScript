@@ -47,6 +47,7 @@ ptrs_var_t *ptrs_handle_thismember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_slice(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_as(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_cast_builtin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_identifier(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_constant(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
@@ -161,6 +162,7 @@ ptrs_var_t *ptrs_handle_native_setFloat(void *target, size_t size, ptrs_var_t *v
 #define PTRS_HANDLE_INDEX ptrs_handle_index
 #define PTRS_HANDLE_SLICE ptrs_handle_slice
 #define PTRS_HANDLE_AS ptrs_handle_as
+#define PTRS_HANDLE_CAST_BUILTIN ptrs_handle_cast_builtin
 #define PTRS_HANDLE_CAST ptrs_handle_cast
 #define PTRS_HANDLE_IDENTIFIER ptrs_handle_identifier
 #define PTRS_HANDLE_CONSTANT ptrs_handle_constant

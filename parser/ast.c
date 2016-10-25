@@ -939,7 +939,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		ptrs_vartype_t type = readTypeName(code);
 
 		if(type > PTRS_TYPE_STRUCT)
-			unexpectedm(code, NULL, "Syntax is as<TYPENAME>");
+			unexpectedm(code, NULL, "Syntax is as<TYPE>");
 
 		consumec(code, '>');
 		ptrs_ast_t *val = parseUnaryExpr(code, false, true);
@@ -953,7 +953,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		{
 			ast = talloc(ptrs_ast_t);
 			ast->handler = PTRS_HANDLE_AS;
-			ast->arg.cast.type = type;
+			ast->arg.cast.builtinType = type;
 			ast->arg.cast.value = val;
 		}
 	}
@@ -962,14 +962,23 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		consumec(code, '<');
 		ptrs_vartype_t type = readTypeName(code);
 
-		if(type > PTRS_TYPE_STRUCT)
-			unexpectedm(code, NULL, "Syntax is cast<TYPENAME>");
-
-		ast = talloc(ptrs_ast_t);
-		ast->handler = PTRS_HANDLE_CAST;
-		ast->arg.cast.type = type;
+		if(type <= PTRS_TYPE_STRUCT)
+		{
+			ast = talloc(ptrs_ast_t);
+			ast->handler = PTRS_HANDLE_CAST_BUILTIN;
+			ast->arg.cast.builtinType = type;
+		}
+		else
+		{
+			ast = talloc(ptrs_ast_t);
+			ast->handler = PTRS_HANDLE_CAST;
+			ast->arg.cast.type = parseUnaryExpr(code, false, false);
+			
+			if(ast->arg.cast.type == NULL)
+				unexpectedm(code, NULL, "Syntax is cast<TYPE>");
+		}
+		
 		consumec(code, '>');
-
 		ast->arg.cast.value = parseUnaryExpr(code, false, true);
 	}
 	else if(lookahead(code, "yield"))

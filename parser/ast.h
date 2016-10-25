@@ -110,7 +110,11 @@ struct ptrs_ast_slice
 
 struct ptrs_ast_cast
 {
-	ptrs_vartype_t type;
+	struct
+	{
+		ptrs_vartype_t builtinType;
+		struct ptrs_ast *type;
+	};
 	struct ptrs_ast *value;
 };
 

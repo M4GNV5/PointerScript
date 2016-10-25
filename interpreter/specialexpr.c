@@ -480,18 +480,18 @@ ptrs_var_t *ptrs_handle_as(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *s
 	struct ptrs_ast_cast expr = node->arg.cast;
 	ptrs_var_t *value = expr.value->handler(expr.value, result, scope);
 
-	result->type = expr.type;
+	result->type = expr.builtinType;
 	result->value = value->value;
 	memset(&result->meta, 0, sizeof(ptrs_meta_t));
 	return result;
 }
 
-ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+ptrs_var_t *ptrs_handle_cast_builtin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_cast expr = node->arg.cast;
 	ptrs_var_t *value = expr.value->handler(expr.value, result, scope);
 
-	switch(expr.type)
+	switch(expr.builtinType)
 	{
 		case PTRS_TYPE_INT:
 			result->value.intval = ptrs_vartoi(value);
@@ -505,11 +505,32 @@ ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 			result->value.strval = ptrs_vartoa(value, buff, 32);
 			break;
 		default:
-			ptrs_error(node, scope, "Cannot cast to %s", ptrs_typetoa(expr.type));
+			ptrs_error(node, scope, "Cannot cast to %s", ptrs_typetoa(expr.builtinType));
 	}
 	memset(&result->meta, 0, sizeof(ptrs_meta_t));
 
-	result->type = expr.type;
+	result->type = expr.builtinType;
+	return result;
+}
+
+ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_cast expr = node->arg.cast;
+	
+	ptrs_var_t typev;
+	ptrs_var_t *type = expr.type->handler(expr.type, &typev, scope);
+	if(type->type != PTRS_TYPE_STRUCT)
+		ptrs_error(node, scope, "Type of a cast has to be a variable type struct not %s", ptrs_typetoa(type->type));
+		
+	ptrs_var_t *value = expr.value->handler(expr.value, result, scope);
+		
+	ptrs_struct_t *struc = malloc(sizeof(ptrs_struct_t));
+	memcpy(struc, type->value.structval, sizeof(ptrs_struct_t));
+	struc->data = value->value.nativeval;
+	struc->isOnStack = false;
+	
+	result->type = PTRS_TYPE_STRUCT;
+	result->value.structval = struc;
 	return result;
 }
 
