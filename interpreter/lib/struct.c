@@ -156,7 +156,7 @@ ptrs_var_t *ptrs_struct_construct(ptrs_var_t *constructor, struct ptrs_astlist *
 	struct ptrs_structlist *member = instance->member;
 	while(member != NULL)
 	{
-		if(member->type == PTRS_STRUCTMEMBER_VAR && member->value.startval != NULL)
+		if(member->type == PTRS_STRUCTMEMBER_VAR && member->value.startval != NULL && !member->isStatic)
 		{
 			ptrs_ast_t *ast = member->value.startval;
 			ptrs_var_t *memberAddr = instance->data + member->offset;
