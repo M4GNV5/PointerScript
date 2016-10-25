@@ -491,6 +491,17 @@ ptrs_var_t *ptrs_handle_cast_builtin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 	struct ptrs_ast_cast expr = node->arg.cast;
 	ptrs_var_t *value = expr.value->handler(expr.value, result, scope);
 
+	ptrs_var_t overload;
+	if(value->type == PTRS_TYPE_STRUCT
+		&& (overload.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_cast_builtin, true)) != NULL)
+	{
+		overload.type = PTRS_TYPE_FUNCTION;
+		ptrs_var_t arg;
+		arg.type = PTRS_TYPE_INT;
+		arg.value.intval = expr.builtinType;
+		return ptrs_callfunc(node, result, scope, value->value.structval, &overload, 1, &arg);
+	}
+
 	switch(expr.builtinType)
 	{
 		case PTRS_TYPE_INT:

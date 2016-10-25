@@ -1855,6 +1855,20 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					func->args = talloc(ptrs_symbol_t);
 					func->args[0] = addSymbol(code, strdup(".yield"));
 				}
+				else if(lookahead(code, "cast"))
+				{
+					consumec(code, '<');
+					otherName = readIdentifier(code);
+					consumec(code, '>');
+					consume(code, "this");
+
+					nameFormat = "%1$s.op cast<%3$s>this";
+					overload->op = PTRS_HANDLE_CAST_BUILTIN;
+
+					func->argc = 1;
+					func->args = talloc(ptrs_symbol_t);
+					func->args[0] = addSymbol(code, otherName);
+				}
 				else
 				{
 					otherName = readIdentifier(code);
