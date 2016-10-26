@@ -89,7 +89,7 @@ ptrs_var_t *ptrs_handle_native_setUInt(void *target, size_t size, ptrs_var_t *va
 
 ptrs_var_t *ptrs_handle_native_getNative(void *target, size_t size, ptrs_var_t *value)
 {
-	value->type = PTRS_TYPE_POINTER;
+	value->type = PTRS_TYPE_NATIVE;
 	value->value.ptrval = *(ptrs_var_t **)target;
 	return value;
 }
