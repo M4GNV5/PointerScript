@@ -1703,9 +1703,22 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 	char *structName = readIdentifier(code);
 	int structNameLen = strlen(structName);
 	int staticMemSize = 0;
+	
+	ptrs_ast_t *oldAst;
+	if(ptrs_ast_getSymbol(code->symbols, structName, &oldAst) == 0)
+	{
+		if(oldAst->handler != PTRS_HANDLE_IDENTIFIER)
+			PTRS_HANDLE_ASTERROR(NULL, "Cannot redefine special symbol %s as a function", structName);
 
-	struc->name = strdup(structName);
-	struc->symbol = addSymbol(code, structName);
+		struc->symbol = oldAst->arg.varval;
+		free(oldAst);
+	}
+	else
+	{
+		struc->symbol = addSymbol(code, strdup(structName));
+	}
+
+	struc->name = structName;
 	struc->overloads = NULL;
 	struc->size = 0;
 	struc->data = NULL;
