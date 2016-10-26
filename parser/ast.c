@@ -1469,6 +1469,7 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 	first.next = NULL;
 
 	struct ptrs_astlist *body = NULL;
+	struct ptrs_astlist *bodyStart = NULL;
 	struct ptrs_ast_case *cases = &first;
 	for(;;)
 	{
@@ -1481,7 +1482,7 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 		{
 			ptrs_ast_t *expr = talloc(ptrs_ast_t);
 			expr->handler = PTRS_HANDLE_BODY;
-			expr->arg.astlist = body;
+			expr->arg.astlist = bodyStart;
 
 			if(isDefault == 2)
 			{
@@ -1535,7 +1536,7 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 		{
 			if(body == NULL)
 			{
-				body = talloc(struct ptrs_astlist);
+				bodyStart = body = talloc(struct ptrs_astlist);
 			}
 			else
 			{
