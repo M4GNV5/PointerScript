@@ -2216,6 +2216,12 @@ static ptrs_nativetype_info_t nativeTypes[] = {
 
 	{"native", sizeof(char *), PTRS_HANDLE_NATIVE_GETNATIVE, PTRS_HANDLE_NATIVE_SETNATIVE},
 	{"pointer", sizeof(ptrs_var_t *), PTRS_HANDLE_NATIVE_GETPOINTER, PTRS_HANDLE_NATIVE_SETPOINTER},
+
+	{"ssize", sizeof(ssize_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
+	{"size", sizeof(size_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
+	{"intptr", sizeof(uintptr_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
+	{"uintptr", sizeof(intptr_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
+	{"ptrdiff", sizeof(ptrdiff_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
 };
 static int nativeTypeCount = sizeof(nativeTypes) / sizeof(ptrs_nativetype_info_t);
 
