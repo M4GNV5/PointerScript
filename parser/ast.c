@@ -539,14 +539,14 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	else if(lookahead(code, "try"))
 	{
 		stmt->handler = PTRS_HANDLE_TRYCATCH;
-		stmt->arg.trycatch.tryBody = parseBody(code, &stmt->arg.trycatch.tryStackOffset, true, false);
+		stmt->arg.trycatch.tryBody = parseBody(code, NULL, true, false);
 
 		if(lookahead(code, "catch"))
 		{
 			symbolScope_increase(code, 0, true);
 			stmt->arg.trycatch.argc = parseArgumentDefinitionList(code, &stmt->arg.trycatch.args, NULL, NULL);
 			stmt->arg.trycatch.catchBody = parseScopelessBody(code, true);
-			stmt->arg.trycatch.catchStackOffset = symbolScope_decrease(code);
+			symbolScope_decrease(code);
 		}
 		else
 		{
@@ -603,10 +603,10 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		consumec(code, '(');
 		stmt->arg.ifelse.condition = parseExpression(code);
 		consumec(code, ')');
-		stmt->arg.ifelse.ifBody = parseBody(code, &stmt->arg.ifelse.ifStackOffset, true, false);
+		stmt->arg.ifelse.ifBody = parseBody(code, NULL, true, false);
 
 		if(lookahead(code, "else"))
-			stmt->arg.ifelse.elseBody = parseBody(code, &stmt->arg.ifelse.elseStackOffset,true, false);
+			stmt->arg.ifelse.elseBody = parseBody(code, NULL,true, false);
 		else
 			stmt->arg.ifelse.elseBody = NULL;
 	}
@@ -621,7 +621,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		consumec(code, '(');
 		stmt->arg.control.condition = parseExpression(code);
 		consumec(code, ')');
-		stmt->arg.control.body = parseBody(code, &stmt->arg.control.stackOffset, true, false);
+		stmt->arg.control.body = parseBody(code, NULL, true, false);
 	}
 	else if(lookahead(code, "do"))
 	{
@@ -634,7 +634,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		stmt->arg.control.condition = parseExpression(code);
 		consumec(code, ')');
 		consumec(code, ';');
-		stmt->arg.control.stackOffset = symbolScope_decrease(code);
+		symbolScope_decrease(code);
 	}
 	else if(lookahead(code, "foreach"))
 	{
@@ -663,7 +663,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		consumec(code, ')');
 
 		stmt->arg.forstatement.body = parseScopelessBody(code, true);
-		stmt->arg.forstatement.stackOffset = symbolScope_decrease(code);
+		symbolScope_decrease(code);
 	}
 	else
 	{

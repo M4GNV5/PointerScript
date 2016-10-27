@@ -42,8 +42,6 @@ struct ptrs_ast_trycatch
 {
 	struct ptrs_ast *tryBody;
 	struct ptrs_ast *catchBody;
-	unsigned tryStackOffset;
-	unsigned catchStackOffset;
 	int argc;
 	ptrs_symbol_t *args;
 };
@@ -151,15 +149,12 @@ struct ptrs_ast_ifelse
 	struct ptrs_ast *condition;
 	struct ptrs_ast *ifBody;
 	struct ptrs_ast *elseBody;
-	unsigned ifStackOffset;
-	unsigned elseStackOffset;
 };
 
 struct ptrs_ast_control
 {
 	struct ptrs_ast *condition;
 	struct ptrs_ast *body;
-	unsigned stackOffset;
 };
 
 struct ptrs_ast_for
@@ -168,7 +163,6 @@ struct ptrs_ast_for
 	struct ptrs_ast *condition;
 	struct ptrs_ast *step;
 	struct ptrs_ast *body;
-	unsigned stackOffset;
 };
 
 struct ptrs_ast_forin
