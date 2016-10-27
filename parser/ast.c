@@ -367,7 +367,7 @@ static ptrs_ast_t *parseBody(code_t *code, unsigned *stackOffset, bool allowStmt
 	int offset = symbolScope_decrease(code);
 	if(stackOffset != NULL)
 		*stackOffset = offset;
-	
+
 	return result;
 }
 
@@ -1711,7 +1711,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 	char *structName = readIdentifier(code);
 	int structNameLen = strlen(structName);
 	int staticMemSize = 0;
-	
+
 	ptrs_ast_t *oldAst;
 	if(ptrs_ast_getSymbol(code->symbols, structName, &oldAst) == 0)
 	{
@@ -2189,33 +2189,33 @@ static ptrs_vartype_t readTypeName(code_t *code)
 }
 
 static ptrs_nativetype_info_t nativeTypes[] = {
-	{"char", PTRS_CTYPE_CHAR, sizeof(signed char), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
-	{"short", PTRS_CTYPE_SHORT, sizeof(short), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
-	{"int", PTRS_CTYPE_INT, sizeof(int), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
-	{"long", PTRS_CTYPE_LONG, sizeof(long), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
-	{"longlong", PTRS_CTYPE_LONGLONG, sizeof(long long), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
+	{"char", sizeof(signed char), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
+	{"short", sizeof(short), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
+	{"int", sizeof(int), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
+	{"long", sizeof(long), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
+	{"longlong", sizeof(long long), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
 
-	{"uchar", PTRS_CTYPE_UCHAR, sizeof(unsigned char), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
-	{"ushort", PTRS_CTYPE_USHORT, sizeof(unsigned short), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
-	{"uint", PTRS_CTYPE_UINT, sizeof(unsigned int), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
-	{"ulong", PTRS_CTYPE_ULONG, sizeof(unsigned long), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
-	{"ulonglong", PTRS_CTYPE_ULONGLONG, sizeof(unsigned long long), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
+	{"uchar", sizeof(unsigned char), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
+	{"ushort", sizeof(unsigned short), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
+	{"uint", sizeof(unsigned int), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
+	{"ulong", sizeof(unsigned long), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
+	{"ulonglong", sizeof(unsigned long long), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
 
-	{"i8", PTRS_CTYPE_I8, sizeof(int8_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
-	{"i16", PTRS_CTYPE_I16, sizeof(int16_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
-	{"i32", PTRS_CTYPE_I32, sizeof(int32_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
-	{"i64", PTRS_CTYPE_I64, sizeof(int64_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
+	{"i8", sizeof(int8_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
+	{"i16", sizeof(int16_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
+	{"i32", sizeof(int32_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
+	{"i64", sizeof(int64_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
 
-	{"u8", PTRS_CTYPE_U8, sizeof(uint8_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
-	{"u16", PTRS_CTYPE_U16, sizeof(uint16_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
-	{"u32", PTRS_CTYPE_U32, sizeof(uint32_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
-	{"u64", PTRS_CTYPE_U64, sizeof(uint64_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
+	{"u8", sizeof(uint8_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
+	{"u16", sizeof(uint16_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
+	{"u32", sizeof(uint32_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
+	{"u64", sizeof(uint64_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
 
-	{"single", PTRS_CTYPE_SINGLE, sizeof(float), PTRS_HANDLE_NATIVE_GETFLOAT, PTRS_HANDLE_NATIVE_SETFLOAT},
-	{"double", PTRS_CTYPE_DOUBLE, sizeof(double), PTRS_HANDLE_NATIVE_GETFLOAT, PTRS_HANDLE_NATIVE_SETFLOAT},
+	{"single", sizeof(float), PTRS_HANDLE_NATIVE_GETFLOAT, PTRS_HANDLE_NATIVE_SETFLOAT},
+	{"double", sizeof(double), PTRS_HANDLE_NATIVE_GETFLOAT, PTRS_HANDLE_NATIVE_SETFLOAT},
 
-	{"native", PTRS_CTYPE_NATIVE, sizeof(char *), PTRS_HANDLE_NATIVE_GETNATIVE, PTRS_HANDLE_NATIVE_SETNATIVE},
-	{"pointer", PTRS_CTYPE_POINTER, sizeof(ptrs_var_t *), PTRS_HANDLE_NATIVE_GETPOINTER, PTRS_HANDLE_NATIVE_SETPOINTER},
+	{"native", sizeof(char *), PTRS_HANDLE_NATIVE_GETNATIVE, PTRS_HANDLE_NATIVE_SETNATIVE},
+	{"pointer", sizeof(ptrs_var_t *), PTRS_HANDLE_NATIVE_GETPOINTER, PTRS_HANDLE_NATIVE_SETPOINTER},
 };
 static int nativeTypeCount = sizeof(nativeTypes) / sizeof(ptrs_nativetype_info_t);
 
