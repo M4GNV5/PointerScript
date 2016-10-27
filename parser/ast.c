@@ -364,7 +364,10 @@ static ptrs_ast_t *parseBody(code_t *code, unsigned *stackOffset, bool allowStmt
 
 	ptrs_ast_t *result = parseScopelessBody(code, allowStmt);
 
-	*stackOffset = symbolScope_decrease(code);
+	int offset = symbolScope_decrease(code);
+	if(stackOffset != NULL)
+		*stackOffset = offset;
+	
 	return result;
 }
 
@@ -384,7 +387,11 @@ static ptrs_function_t *parseFunction(code_t *code, char *name)
 
 static ptrs_ast_t *parseStatement(code_t *code)
 {
-	if(lookahead(code, "const"))
+	if(code->curr == '{')
+	{
+		return parseBody(code, NULL, false, false);
+	}
+	else if(lookahead(code, "const"))
 	{
 		char *name = readIdentifier(code);
 		consumec(code, '=');
