@@ -27,7 +27,8 @@ static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *
 	}
 
 #define binary_floatop(operator) \
-	else if(tleft == PTRS_TYPE_FLOAT || tright == PTRS_TYPE_FLOAT) \
+	else if((tleft == PTRS_TYPE_FLOAT || tleft == PTRS_TYPE_INT) \
+	 	&& (tright == PTRS_TYPE_FLOAT || tright == PTRS_TYPE_INT)) \
 	{ \
 		double fleft = ptrs_vartof(left); \
 		double fright = ptrs_vartof(right); \
@@ -37,7 +38,8 @@ static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *
 	}
 
 #define binary_assignfloatop(operator) \
-	else if(tleft == PTRS_TYPE_FLOAT || tright == PTRS_TYPE_FLOAT) \
+	else if((tleft == PTRS_TYPE_FLOAT || tleft == PTRS_TYPE_INT) \
+	 	&& (tright == PTRS_TYPE_FLOAT || tright == PTRS_TYPE_INT)) \
 	{ \
 		double fleft = ptrs_vartof(left); \
 		double fright = ptrs_vartof(right); \
@@ -140,14 +142,6 @@ static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *
 			result->value.intval = left->value.intval operator right->value.intval; \
 		} \
 		__VA_ARGS__ \
-		else if(tleft == PTRS_TYPE_INT || tright == PTRS_TYPE_INT) \
-		{ \
-			int64_t ileft = ptrs_vartoi(left); \
-			int64_t iright = ptrs_vartoi(right); \
-			\
-			result->type = PTRS_TYPE_INT; \
-			result->value.intval = ileft operator iright; \
-		} \
 		else \
 		{ \
 			binary_typeerror(node, scope, oplabel, tleft, tright); \
