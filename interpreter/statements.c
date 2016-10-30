@@ -179,38 +179,6 @@ ptrs_var_t *ptrs_handle_structvar(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sco
 	return result;
 }
 
-void importNative(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
-{
-	struct ptrs_ast_import stmt = node->arg.import;
-	const char *error;
-
-	dlerror();
-
-	void *handle = NULL;
-	if(from != NULL)
-	{
-		handle = dlopen(from, RTLD_LAZY);
-
-		error = dlerror();
-		if(error != NULL)
-			ptrs_error(stmt.from, scope, "%s", error);
-	}
-
-	for(int i = 0; i < stmt.count; i++)
-	{
-		ptrs_var_t func;
-		func.type = PTRS_TYPE_NATIVE;
-		func.value.nativeval = dlsym(handle, stmt.fields[i]);
-		func.meta.array.readOnly = true;
-
-		error = dlerror();
-		if(error != NULL)
-			ptrs_error(node, scope, "%s", error);
-
-		ptrs_scope_set(scope, stmt.symbols[i], &func);
-	}
-}
-
 typedef struct ptrs_cache
 {
 	const char *path;
@@ -287,6 +255,47 @@ void importScript(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 		ptrs_var_t valv;
 		ptrs_var_t *val = ast->handler(ast, &valv, cache->scope);
 		ptrs_scope_set(scope, stmt.symbols[i], val);
+	}
+}
+
+void importNative(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_import stmt = node->arg.import;
+	const char *error;
+
+	dlerror();
+
+	void *handle = NULL;
+	if(from != NULL)
+	{
+		char *actualPath;
+		if(from[0] == '.' || from[0] == '/')
+			actualPath = resolveRelPath(node, scope, from);
+		else
+			actualPath = (char *)from;
+
+		handle = dlopen(actualPath, RTLD_LAZY);
+
+		if(actualPath != from)
+			free(actualPath);
+
+		error = dlerror();
+		if(error != NULL)
+			ptrs_error(stmt.from, scope, "%s", error);
+	}
+
+	for(int i = 0; i < stmt.count; i++)
+	{
+		ptrs_var_t func;
+		func.type = PTRS_TYPE_NATIVE;
+		func.value.nativeval = dlsym(handle, stmt.fields[i]);
+		func.meta.array.readOnly = true;
+
+		error = dlerror();
+		if(error != NULL)
+			ptrs_error(node, scope, "%s", error);
+
+		ptrs_scope_set(scope, stmt.symbols[i], &func);
 	}
 }
 
