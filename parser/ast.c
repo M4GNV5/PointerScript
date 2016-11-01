@@ -2149,8 +2149,6 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			consumec(code, ';');
 		}
 
-		printf("%s.%s offset %d\n", structName, curr->name, curr->offset);
-
 		if(curr->isStatic)
 			staticMemSize = currSize;
 		else
