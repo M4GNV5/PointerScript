@@ -2098,8 +2098,15 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				PTRS_HANDLE_ASTERROR(ast, "Struct array member size must be a constant");
 
 			curr->value.size = ast->arg.constval.value.intval;
-			curr->offset = currSize;
-			currSize += curr->value.size;
+
+			if(old != NULL && old->isStatic == curr->isStatic && old->type == PTRS_STRUCTMEMBER_TYPED)
+				curr->offset = old->offset + old->value.type->size;
+			else if(old != NULL && old->isStatic == curr->isStatic && old->type == PTRS_STRUCTMEMBER_ARRAY)
+				curr->offset = old->offset + old->value.size;
+			else
+				curr->offset = currSize;
+
+			currSize = ((curr->offset + curr->value.size - 1) & ~7) + 8;
 			free(ast);
 		}
 		else if(code->curr == ':')
@@ -2111,19 +2118,22 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			curr->type = PTRS_STRUCTMEMBER_TYPED;
 			curr->value.type = type;
 
-			if(old != NULL && old->type == PTRS_STRUCTMEMBER_TYPED && old->isStatic == curr->isStatic)
+			if(old != NULL && old->isStatic == curr->isStatic && old->type == PTRS_STRUCTMEMBER_TYPED)
 			{
 				if(old->value.type->size < type->size)
 					curr->offset = (old->offset & ~(type->size - 1)) + type->size;
 				else
 					curr->offset = old->offset + old->value.type->size;
-				currSize = (curr->offset & ~7) + 8;
+			}
+			else if(old != NULL && old->isStatic == curr->isStatic && old->type == PTRS_STRUCTMEMBER_ARRAY)
+			{
+				curr->offset = (old->offset & ~(type->size - 1)) + type->size;
 			}
 			else
 			{
 				curr->offset = currSize;
-				currSize += 8;
 			}
+			currSize = (curr->offset & ~7) + 8;
 		}
 		else
 		{
@@ -2138,6 +2148,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 			consumec(code, ';');
 		}
+
+		printf("%s.%s offset %d\n", structName, curr->name, curr->offset);
 
 		if(curr->isStatic)
 			staticMemSize = currSize;
