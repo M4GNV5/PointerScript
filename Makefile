@@ -17,7 +17,6 @@ RUN_LIB_OBJECTS += $(BIN)/error.o
 RUN_LIB_OBJECTS += $(BIN)/debug.o
 RUN_LIB_OBJECTS += $(BIN)/scope.o
 RUN_LIB_OBJECTS += $(BIN)/call.o
-RUN_LIB_OBJECTS += $(BIN)/stack.o
 RUN_LIB_OBJECTS += $(BIN)/run.o
 RUN_LIB_OBJECTS += $(BIN)/struct.o
 RUN_LIB_OBJECTS += $(BIN)/astlist.o

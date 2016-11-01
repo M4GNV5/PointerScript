@@ -6,7 +6,6 @@
 #include "../interpreter.h"
 
 #include "../include/error.h"
-#include "../include/stack.h"
 #include "../include/conversion.h"
 #include "../include/astlist.h"
 #include "../include/call.h"

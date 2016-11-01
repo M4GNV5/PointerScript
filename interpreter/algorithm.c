@@ -7,7 +7,6 @@
 #include "../parser/common.h"
 #include "include/error.h"
 #include "include/conversion.h"
-#include "include/stack.h"
 #include "include/call.h"
 #include "include/struct.h"
 #include "include/astlist.h"

@@ -15,7 +15,6 @@
 #include "include/error.h"
 #include "include/debug.h"
 #include "include/conversion.h"
-#include "include/stack.h"
 #include "include/scope.h"
 #include "include/run.h"
 #include "include/call.h"

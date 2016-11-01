@@ -5,7 +5,6 @@
 #include <getopt.h>
 #include "../parser/ast.h"
 #include "../parser/common.h"
-#include "include/stack.h"
 #include "include/scope.h"
 #include "include/debug.h"
 #include "include/conversion.h"

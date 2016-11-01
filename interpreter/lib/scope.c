@@ -1,9 +1,10 @@
+#include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
 
 #include "../../parser/common.h"
-#include "../include/stack.h"
 #include "../include/scope.h"
+#include "../include/error.h"
 
 const ptrs_symbol_t ptrs_thisSymbol = {0, 0};
 
@@ -33,4 +34,28 @@ ptrs_scope_t *ptrs_scope_increase(ptrs_scope_t *outer, unsigned stackOffset)
 	scope->sp += stackOffset;
 
 	return scope;
+}
+
+size_t ptrs_stacksize = PTRS_STACK_SIZE;
+bool ptrs_zeroMemory = false;
+
+void *ptrs_alloc(ptrs_scope_t *scope, size_t size)
+{
+	if(scope->sp == NULL)
+	{
+		scope->sp = malloc(ptrs_stacksize);
+		scope->bp = scope->sp;
+		scope->stackstart = scope->sp;
+	}
+
+	if(scope->sp + size >= scope->stackstart + ptrs_stacksize)
+		ptrs_error(NULL, scope, "Out of memory");
+
+	void *ptr = scope->sp;
+	scope->sp += ((size - 1) & ~15) + 16;
+
+	if(ptrs_zeroMemory)
+		memset(ptr, 0, size);
+
+	return ptr;
 }
