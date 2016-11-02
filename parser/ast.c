@@ -849,6 +849,8 @@ struct constinfo constants[] = {
 	{"PTRSIZE", PTRS_TYPE_INT, {.intval = sizeof(void *)}},
 	{"undefined", PTRS_TYPE_UNDEFINED, {}},
 	{"NaN", PTRS_TYPE_FLOAT, {.floatval = NAN}},
+	{"PI", PTRS_TYPE_FLOAT, {.floatval = M_PI}},
+	{"E", PTRS_TYPE_FLOAT, {.floatval = M_E}},
 };
 int constantCount = sizeof(constants) / sizeof(struct constinfo);
 
