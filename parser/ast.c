@@ -1559,7 +1559,13 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 	stmt->arg.switchcase.cases = first.next;
 }
 
+
+void *ptrs_asmBuffStart = NULL;
+void *ptrs_asmBuff = NULL;
+size_t ptrs_asmSize = 4096;
+
 #ifndef _PTRS_NOASM
+
 struct ptrs_asmStatement
 {
 	uint8_t *start;
@@ -1569,9 +1575,7 @@ struct ptrs_asmStatement
 	struct ptrs_asmStatement *next;
 };
 struct ptrs_asmStatement *ptrs_asmStatements = NULL;
-void *ptrs_asmBuffStart = NULL;
-void *ptrs_asmBuff = NULL;
-size_t ptrs_asmSize = 4096;
+
 static void parseAsm(code_t *code, ptrs_ast_t *stmt)
 {
 	struct ptrs_ast_asm *arg = &stmt->arg.asmstmt;

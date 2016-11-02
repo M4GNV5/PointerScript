@@ -7,7 +7,6 @@
 #include <execinfo.h>
 #include <setjmp.h>
 #include <dlfcn.h>
-#include <jitas.h>
 
 #include "../../parser/common.h"
 #include "../../parser/ast.h"
@@ -16,6 +15,9 @@
 
 __thread ptrs_ast_t *ptrs_lastast = NULL;
 __thread ptrs_scope_t *ptrs_lastscope = NULL;
+
+#ifndef _PTRS_NOASM
+#include <jitas.h>
 
 struct ptrs_asmStatement
 {
@@ -28,6 +30,7 @@ struct ptrs_asmStatement
 extern struct ptrs_asmStatement *ptrs_asmStatements;
 extern uint8_t *ptrs_asmBuffStart;
 extern size_t ptrs_asmSize;
+#endif
 
 typedef struct codepos
 {
@@ -96,6 +99,7 @@ char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative, bool 
 
 		for(int i = skipNative; i < count; i++)
 		{
+#ifndef _PTRS_NOASM
 			if(trace[i] >= ptrs_asmBuffStart && trace[i] < ptrs_asmBuffStart + ptrs_asmSize)
 			{
 				struct ptrs_asmStatement *curr = ptrs_asmStatements;
@@ -131,6 +135,7 @@ char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative, bool 
 					continue;
 				}
 			}
+#endif
 
 			if(dladdr(trace[i], &infos[i]) == 0)
 			{
