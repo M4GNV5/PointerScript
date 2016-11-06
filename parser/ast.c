@@ -58,6 +58,7 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end);
 static void parseAsm(code_t *code, ptrs_ast_t *stmt);
 static void parseStruct(code_t *code, ptrs_struct_t *struc);
 static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt);
+static void parseAlgorithmExpression(code_t *code, struct ptrs_algorithmlist *curr, bool canBeLast);
 
 static ptrs_vartype_t readTypeName(code_t *code);
 static ptrs_nativetype_info_t *readNativeType(code_t *code);
@@ -1370,27 +1371,19 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 	}
 	else if(!ignoreAlgo && lookahead(code, "=>"))
 	{
-		struct ptrs_astlist *curr = talloc(struct ptrs_astlist);
+		struct ptrs_algorithmlist *curr = talloc(struct ptrs_algorithmlist);
 		curr->entry = ast;
-		curr->expand = false;
+		curr->flags = 0;
+		curr->orCombine = false;
+
+		parseAlgorithmExpression(code, curr, true);
 
 		ast = talloc(ptrs_ast_t);
 		ast->handler = PTRS_HANDLE_ALGORITHM;
-		ast->arg.astlist = curr;
+		ast->arg.algolist = curr;
 		ast->code = code->src;
 		ast->codepos = curr->entry->codepos;
 		ast->file = curr->entry->file;
-
-		do
-		{
-			curr->next = talloc(struct ptrs_astlist);
-			curr = curr->next;
-
-			curr->entry = parseUnaryExpr(code, false, true);
-			curr->expand = false;
-		} while(lookahead(code, "=>"));
-
-		curr->next = NULL;
 	}
 	else
 	{
@@ -1459,6 +1452,39 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end)
 
 	curr->next = NULL;
 	return first;
+}
+
+static void parseAlgorithmExpression(code_t *code, struct ptrs_algorithmlist *curr, bool canBeLast)
+{
+	curr->next = talloc(struct ptrs_algorithmlist);
+	curr = curr->next;
+
+	if(lookahead(code, "?"))
+		curr->flags = 2;
+	else if(lookahead(code, "!"))
+		curr->flags = 1;
+	else
+		curr->flags = 0;
+
+	curr->entry = parseUnaryExpr(code, false, true);
+
+	if(lookahead(code, "=>"))
+	{
+		curr->orCombine = false;
+		parseAlgorithmExpression(code, curr, true);
+	}
+	else if(curr->flags != 2 && lookahead(code, "||"))
+	{
+		curr->orCombine = true;
+		parseAlgorithmExpression(code, curr, false);
+	}
+	else
+	{
+		if(canBeLast)
+			curr->next = NULL;
+		else
+			unexpected(code, "=>");
+	}
 }
 
 static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)

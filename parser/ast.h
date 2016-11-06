@@ -193,6 +193,7 @@ union ptrs_ast_arg
 
 	struct ptrs_ast *astval;
 	struct ptrs_astlist *astlist;
+	struct ptrs_algorithmlist *algolist;
 
 	struct ptrs_ast_define define;
 	struct ptrs_ast_member member;
@@ -238,6 +239,14 @@ struct ptrs_astlist
 	struct ptrs_ast *entry;
 	struct ptrs_astlist *next;
 	bool expand;
+};
+
+struct ptrs_algorithmlist
+{
+	struct ptrs_ast *entry;
+	struct ptrs_algorithmlist *next;
+	uint8_t flags : 2; //0 = filter, 1 = negated filter, 2 = value replacer
+	uint8_t orCombine : 1; //is || combined with next one
 };
 
 ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **symbols);
