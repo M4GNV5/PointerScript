@@ -237,40 +237,6 @@ ptrs_var_t *ptrs_handle_prefix_logicnot(ptrs_ast_t *node, ptrs_var_t *result, pt
 	return result;
 }
 
-ptrs_var_t *ptrs_handle_prefix_length(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
-{
-	ptrs_var_t valuev;
-	ptrs_var_t *value = node->arg.astval->handler(node->arg.astval, &valuev, scope);
-	result->type = PTRS_TYPE_INT;
-	if(value->type == PTRS_TYPE_NATIVE || value->type == PTRS_TYPE_POINTER)
-	{
-		uint32_t size = value->meta.array.size;
-		if(size == 0 && value->type == PTRS_TYPE_NATIVE)
-			size = strlen(value->value.strval);
-		result->value.intval = size;
-	}
-	else if(value->type == PTRS_TYPE_STRUCT)
-	{
-		ptrs_var_t overload;
-		if((overload.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_prefix_length, true)) != NULL)
-		{
-			overload.type = PTRS_TYPE_FUNCTION;
-			value = ptrs_callfunc(node, result, scope, value->value.structval, &overload, 0, NULL);
-			result->value.intval = ptrs_vartoi(value);
-		}
-		else
-		{
-			result->value.intval = value->value.structval->size;
-		}
-	}
-	else
-	{
-		ptrs_error(node, scope, "Cannot get the size of variable of type %s", ptrs_typetoa(value->type));
-	}
-
-	return result;
-}
-
 #define handle_prefix(name, operator, opLabel, isAssign, handlefloat, handleptr) \
 	ptrs_var_t *ptrs_handle_prefix_##name(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope) \
 	{ \
