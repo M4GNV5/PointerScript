@@ -408,6 +408,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 
 	ptrs_ast_t *stmt = talloc(ptrs_ast_t);
 	stmt->setHandler = NULL;
+	stmt->addressHandler = NULL;
 	stmt->callHandler = NULL;
 	stmt->codepos = code->pos;
 	stmt->code = code->src;
@@ -822,6 +823,7 @@ static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 		left = talloc(ptrs_ast_t);
 		left->handler = op->handler;
 		left->setHandler = NULL;
+		left->addressHandler = NULL;
 		left->callHandler = NULL;
 		left->arg.binary.left = _left;
 		left->arg.binary.right = right;
@@ -869,6 +871,8 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			ast = talloc(ptrs_ast_t);
 			ast->arg.astval = parseUnaryExpr(code, false, true);
 			ast->handler = prefixOps[i].handler;
+			ast->addressHandler = NULL;
+			ast->callHandler = NULL;
 			if(ast->handler == PTRS_HANDLE_PREFIX_DEREFERENCE)
 				ast->setHandler = PTRS_HANDLE_ASSIGN_DEREFERENCE;
 			else
@@ -902,6 +906,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			ast->arg.constval.value = constants[i].value;
 			ast->handler = PTRS_HANDLE_CONSTANT;
 			ast->setHandler = NULL;
+			ast->addressHandler = NULL;
 			ast->callHandler = NULL;
 			return ast;
 		}
@@ -1265,6 +1270,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 	if(noSetHandler)
 	{
 		ast->setHandler = NULL;
+		ast->addressHandler = NULL;
 		ast->callHandler = NULL;
 	}
 	ast->codepos = pos;
@@ -1288,6 +1294,7 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 		ptrs_ast_t *member = talloc(ptrs_ast_t);
 		member->handler = PTRS_HANDLE_MEMBER;
 		member->setHandler = PTRS_HANDLE_ASSIGN_MEMBER;
+		member->addressHandler = PTRS_HANDLE_ADDRESSOF_MEMBER;
 		member->callHandler = PTRS_HANDLE_CALL_MEMBER;
 		member->codepos = code->pos;
 		member->code = code->src;
@@ -1304,6 +1311,7 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 		ptrs_ast_t *call = talloc(ptrs_ast_t);
 		call->handler = PTRS_HANDLE_CALL;
 		call->setHandler = NULL;
+		call->addressHandler = NULL;
 		call->codepos = code->pos;
 		call->code = code->src;
 		call->file = code->filename;
@@ -1337,6 +1345,7 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 		{
 			indexExpr->handler = PTRS_HANDLE_INDEX;
 			indexExpr->setHandler = PTRS_HANDLE_ASSIGN_INDEX;
+			indexExpr->addressHandler = PTRS_HANDLE_ADDRESSOF_INDEX;
 			indexExpr->callHandler = PTRS_HANDLE_CALL_INDEX;
 			indexExpr->arg.binary.left = ast;
 			indexExpr->arg.binary.right = expr;
@@ -1359,6 +1368,7 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 		ptrs_ast_t *member = talloc(ptrs_ast_t);
 		member->handler = PTRS_HANDLE_MEMBER;
 		member->setHandler = PTRS_HANDLE_ASSIGN_MEMBER;
+		member->addressHandler = PTRS_HANDLE_ADDRESSOF_MEMBER;
 		member->callHandler = PTRS_HANDLE_CALL_MEMBER;
 		member->codepos = code->pos;
 		member->code = code->src;
@@ -2476,6 +2486,7 @@ static ptrs_ast_t *structMemberSymbolCreator(unsigned scopeLevel, struct symboll
 	ptrs_ast_t *ast = talloc(ptrs_ast_t);
 	ast->handler = PTRS_HANDLE_THISMEMBER;
 	ast->setHandler = PTRS_HANDLE_ASSIGN_THISMEMBER;
+	ast->addressHandler = PTRS_HANDLE_ADDRESSOF_THISMEMBER;
 	ast->callHandler = PTRS_HANDLE_CALL_THISMEMBER;
 
 	ast->arg.thismember.base.scope = scopeLevel - 1;

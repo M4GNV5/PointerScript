@@ -147,6 +147,17 @@ ptrs_var_t *ptrs_handle_assign_member(ptrs_ast_t *node, ptrs_var_t *value, ptrs_
 
 	return NULL;
 }
+ptrs_var_t *ptrs_handle_addressof_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_member expr = node->arg.member;
+	ptrs_var_t *base = expr.base->handler(expr.base, result, scope);
+
+	if(base->type != PTRS_TYPE_STRUCT)
+		ptrs_error(node, scope, "Cannot get address property '%s' of type %s", expr.name, ptrs_typetoa(base->type));
+
+	ptrs_struct_addressOf(base->value.structval, result, expr.name, node, scope);
+	return result;
+}
 ptrs_var_t *ptrs_handle_call_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
 	ptrs_vartype_t retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments)
 {
@@ -211,6 +222,17 @@ ptrs_var_t *ptrs_handle_assign_thismember(ptrs_ast_t *node, ptrs_var_t *value, p
 
 	return NULL;
 }
+ptrs_var_t *ptrs_handle_addressof_thismember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_thismember expr = node->arg.thismember;
+	ptrs_var_t *base = ptrs_scope_get(scope, expr.base);
+
+	if(base->type != PTRS_TYPE_STRUCT)
+		ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr.member->name, ptrs_typetoa(base->type));
+
+	ptrs_struct_addressOfMember(base->value.structval, result, expr.member, node, scope);
+	return result;
+}
 ptrs_var_t *ptrs_handle_call_thismember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
 	ptrs_vartype_t retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments)
 {
@@ -234,29 +256,20 @@ ptrs_var_t *ptrs_handle_call_thismember(ptrs_ast_t *node, ptrs_var_t *result, pt
 ptrs_var_t *ptrs_handle_prefix_address(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	ptrs_ast_t *ast = node->arg.astval;
-	ptrs_var_t *val;
-
-	if(ast->handler == ptrs_handle_member)
+	if(ast->addressHandler != NULL)
 	{
-		struct ptrs_ast_member expr = ast->arg.member;
-		val = expr.base->handler(expr.base, result, scope);
-
-		if(val->type != PTRS_TYPE_STRUCT)
-			ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr.name, ptrs_typetoa(val->type));
-
-		ptrs_struct_addressOf(val->value.structval, result, expr.name, ast, scope);
+		return ast->addressHandler(ast, result, scope);
 	}
 	else
 	{
-		val = ast->handler(ast, result, scope);
+		ptrs_var_t *val = ast->handler(ast, result, scope);
 		if(val == result)
 			ptrs_error(node, scope, "Cannot get address from static expression");
 
 		result->type = PTRS_TYPE_POINTER;
 		result->value.ptrval = val;
+		return result;
 	}
-
-	return result;
 }
 
 ptrs_var_t *ptrs_handle_prefix_dereference(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
@@ -402,6 +415,42 @@ ptrs_var_t *ptrs_handle_assign_index(ptrs_ast_t *node, ptrs_var_t *value, ptrs_s
 		ptrs_error(expr.left, scope, "Cannot set index '%s' of type %s", key, ptrs_typetoa(val->type));
 	}
 	return NULL;
+}
+ptrs_var_t *ptrs_handle_addressof_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	char buff[32];
+	ptrs_var_t valuev;
+	ptrs_var_t indexv;
+	struct ptrs_ast_binary expr = node->arg.binary;
+
+	ptrs_var_t *value = expr.left->handler(expr.left, &valuev, scope);
+	ptrs_var_t *index = expr.right->handler(expr.right, &indexv, scope);
+
+	if(value->type == PTRS_TYPE_POINTER)
+	{
+		int64_t _index = ptrs_vartoi(index);
+		result->type = PTRS_TYPE_POINTER;
+		result->value.ptrval = &(value->value.ptrval[_index]);
+		result->meta.array.size = value->meta.array.size - _index;
+	}
+	else if(value->type == PTRS_TYPE_NATIVE)
+	{
+		int64_t _index = ptrs_vartoi(index);
+		result->type = PTRS_TYPE_INT;
+		result->value.intval = value->value.strval[_index];
+	}
+	else if(value->type == PTRS_TYPE_STRUCT)
+	{
+		const char *key = ptrs_vartoa(index, buff, 32);
+		ptrs_struct_addressOf(value->value.structval, result, key, node, scope);
+		return result;
+	}
+	else
+	{
+		const char *key = ptrs_vartoa(index, buff, 32);
+		ptrs_error(expr.left, scope, "Cannot get index '%s' of type %s", key, ptrs_typetoa(value->type));
+	}
+	return result;
 }
 ptrs_var_t *ptrs_handle_call_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
 	ptrs_vartype_t retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments)

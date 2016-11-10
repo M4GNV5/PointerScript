@@ -227,6 +227,7 @@ struct ptrs_ast
 	union ptrs_ast_arg arg;
 	ptrs_asthandler_t handler;
 	ptrs_asthandler_t setHandler;
+	ptrs_asthandler_t addressHandler;
 	ptrs_callhandler_t callHandler;
 	int codepos;
 	char *code;
