@@ -244,7 +244,7 @@ ptrs_var_t *ptrs_handle_prefix_address(ptrs_ast_t *node, ptrs_var_t *result, ptr
 		if(val->type != PTRS_TYPE_STRUCT)
 			ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr.name, ptrs_typetoa(val->type));
 
-		ptrs_struct_getAddressOf(val->value.structval, result, expr.name, ast, scope);
+		ptrs_struct_addressOf(val->value.structval, result, expr.name, ast, scope);
 	}
 	else
 	{

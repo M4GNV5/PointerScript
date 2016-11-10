@@ -132,7 +132,7 @@ bool ptrs_struct_set(ptrs_struct_t *struc, ptrs_var_t *value, const char *key, p
 	return false;
 }
 
-void ptrs_struct_getAddressOfMember(ptrs_struct_t *struc, ptrs_var_t *result, struct ptrs_structlist *member,
+void ptrs_struct_addressOfMember(ptrs_struct_t *struc, ptrs_var_t *result, struct ptrs_structlist *member,
 	ptrs_ast_t *ast, ptrs_scope_t *scope)
 {
 	void *data = struc->data;
@@ -162,7 +162,7 @@ void ptrs_struct_getAddressOfMember(ptrs_struct_t *struc, ptrs_var_t *result, st
 	}
 }
 
-void ptrs_struct_getAddressOf(ptrs_struct_t *struc, ptrs_var_t *result, const char *key,
+void ptrs_struct_addressOf(ptrs_struct_t *struc, ptrs_var_t *result, const char *key,
 	ptrs_ast_t *ast, ptrs_scope_t *scope)
 {
 	struct ptrs_structlist *curr = struc->member;
@@ -170,7 +170,7 @@ void ptrs_struct_getAddressOf(ptrs_struct_t *struc, ptrs_var_t *result, const ch
 	{
 		if(strcmp(curr->name, key) == 0 && !curr->isPrivate)
 		{
-			ptrs_struct_getAddressOfMember(struc, result, curr, ast, scope);
+			ptrs_struct_addressOfMember(struc, result, curr, ast, scope);
 			return;
 		}
 		curr = curr->next;
