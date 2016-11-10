@@ -436,14 +436,13 @@ ptrs_var_t *ptrs_handle_addressof_index(ptrs_ast_t *node, ptrs_var_t *result, pt
 	else if(value->type == PTRS_TYPE_NATIVE)
 	{
 		int64_t _index = ptrs_vartoi(index);
-		result->type = PTRS_TYPE_INT;
+		result->type = PTRS_TYPE_NATIVE;
 		result->value.intval = value->value.strval[_index];
 	}
 	else if(value->type == PTRS_TYPE_STRUCT)
 	{
 		const char *key = ptrs_vartoa(index, buff, 32);
 		ptrs_struct_addressOf(value->value.structval, result, key, node, scope);
-		return result;
 	}
 	else
 	{

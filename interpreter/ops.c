@@ -239,7 +239,8 @@ ptrs_var_t *ptrs_handle_prefix_logicnot(ptrs_ast_t *node, ptrs_var_t *result, pt
 
 ptrs_var_t *ptrs_handle_prefix_length(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	ptrs_var_t *value = node->arg.astval->handler(node->arg.astval, result, scope);
+	ptrs_var_t valuev;
+	ptrs_var_t *value = node->arg.astval->handler(node->arg.astval, &valuev, scope);
 	result->type = PTRS_TYPE_INT;
 	if(value->type == PTRS_TYPE_NATIVE || value->type == PTRS_TYPE_POINTER)
 	{
