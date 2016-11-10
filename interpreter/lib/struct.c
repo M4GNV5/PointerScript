@@ -113,7 +113,7 @@ void ptrs_struct_setMember(ptrs_struct_t *struc, ptrs_var_t *value, struct ptrs_
 	}
 	else
 	{
-		ptrs_error(ast, scope, "Cannot assign to non-variable and non-property struct member\n");
+		ptrs_error(ast, scope, "Cannot assign to non-variable and non-property struct member");
 	}
 }
 
@@ -130,6 +130,51 @@ bool ptrs_struct_set(ptrs_struct_t *struc, ptrs_var_t *value, const char *key, p
 		curr = curr->next;
 	}
 	return false;
+}
+
+void ptrs_struct_getAddressOfMember(ptrs_struct_t *struc, ptrs_var_t *result, struct ptrs_structlist *member,
+	ptrs_ast_t *ast, ptrs_scope_t *scope)
+{
+	void *data = struc->data;
+	if(data == NULL || member->isStatic)
+	{
+		if(!member->isStatic)
+			ptrs_error(ast, scope, "Cannot get address of non-static property of struct %s", struc->name);
+
+		data = struc->staticData;
+	}
+
+	if(member->type == PTRS_STRUCTMEMBER_VAR)
+	{
+		result->type = PTRS_TYPE_POINTER;
+		result->value.ptrval = data + member->offset;
+		result->meta.array.size = 1;
+	}
+	else if(member->type == PTRS_STRUCTMEMBER_TYPED)
+	{
+		result->type = PTRS_TYPE_NATIVE;
+		result->value.nativeval = data + member->offset;
+		result->meta.array.size = member->value.type->size;
+	}
+	else
+	{
+		ptrs_error(ast, scope, "Cannot get address of non-property struct member");
+	}
+}
+
+void ptrs_struct_getAddressOf(ptrs_struct_t *struc, ptrs_var_t *result, const char *key,
+	ptrs_ast_t *ast, ptrs_scope_t *scope)
+{
+	struct ptrs_structlist *curr = struc->member;
+	while(curr != NULL)
+	{
+		if(strcmp(curr->name, key) == 0 && !curr->isPrivate)
+		{
+			ptrs_struct_getAddressOfMember(struc, result, curr, ast, scope);
+			return;
+		}
+		curr = curr->next;
+	}
 }
 
 ptrs_var_t *ptrs_struct_construct(ptrs_var_t *constructor, struct ptrs_astlist *arguments, bool allocateOnStack,

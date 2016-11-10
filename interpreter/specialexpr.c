@@ -233,13 +233,29 @@ ptrs_var_t *ptrs_handle_call_thismember(ptrs_ast_t *node, ptrs_var_t *result, pt
 
 ptrs_var_t *ptrs_handle_prefix_address(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	ptrs_var_t *val = node->arg.astval->handler(node->arg.astval, result, scope);
+	ptrs_ast_t *ast = node->arg.astval;
+	ptrs_var_t *val;
 
-	if(val == result)
-		ptrs_error(node, scope, "Cannot get address from static expression");
+	if(ast->handler == ptrs_handle_member)
+	{
+		struct ptrs_ast_member expr = ast->arg.member;
+		val = expr.base->handler(expr.base, result, scope);
 
-	result->type = PTRS_TYPE_POINTER;
-	result->value.ptrval = val;
+		if(val->type != PTRS_TYPE_STRUCT)
+			ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr.name, ptrs_typetoa(val->type));
+
+		ptrs_struct_getAddressOf(val->value.structval, result, expr.name, ast, scope);
+	}
+	else
+	{
+		val = ast->handler(ast, result, scope);
+		if(val == result)
+			ptrs_error(node, scope, "Cannot get address from static expression");
+
+		result->type = PTRS_TYPE_POINTER;
+		result->value.ptrval = val;
+	}
+
 	return result;
 }
 
