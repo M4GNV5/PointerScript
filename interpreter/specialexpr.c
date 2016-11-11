@@ -377,10 +377,7 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		if(_result == NULL && (overload.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_index, true)) != NULL)
 		{
 			overload.type = PTRS_TYPE_FUNCTION;
-			ptrs_var_t arg = {{.strval = key}, .type = PTRS_TYPE_NATIVE};
-			arg.meta.array.readOnly = key == buff || index->meta.array.readOnly;
-			arg.meta.array.size = 0;
-			return ptrs_callfunc(node, result, scope, value->value.structval, &overload, 1, &arg);
+			return ptrs_callfunc(node, result, scope, value->value.structval, &overload, 1, index);
 		}
 		else if(_result == NULL)
 		{
@@ -430,14 +427,10 @@ ptrs_var_t *ptrs_handle_assign_index(ptrs_ast_t *node, ptrs_var_t *value, ptrs_s
 				overload.type = PTRS_TYPE_FUNCTION;
 
 				ptrs_var_t args[2];
-				args[0].type = PTRS_TYPE_NATIVE;
-				args[0].value.strval = key;
-				args[0].meta.array.size = 0;
-				args[0].meta.array.readOnly = key != buff;
+				memcpy(args, index, sizeof(ptrs_var_t));
 				memcpy(args + 1, value, sizeof(ptrs_var_t));
 
-				ptrs_var_t result;
-				ptrs_callfunc(node, &result, scope, val->value.structval, &overload, 2, args);
+				ptrs_callfunc(node, &indexv, scope, val->value.structval, &overload, 2, args);
 			}
 			else
 			{
@@ -523,9 +516,7 @@ ptrs_var_t *ptrs_handle_call_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 			int len = ptrs_astlist_length(arguments, node, scope) + 1;
 			ptrs_var_t args[len];
 			ptrs_astlist_handle(arguments, args + 1, scope);
-			args[0].type = PTRS_TYPE_NATIVE;
-			args[0].value.strval = key;
-			args[0].meta.array.readOnly = true;
+			memcpy(args, index, sizeof(ptrs_var_t));
 
 			return ptrs_callfunc(node, result, scope, value->value.structval, &indexv, len, args);
 		}
