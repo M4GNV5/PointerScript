@@ -155,7 +155,9 @@ ptrs_var_t *ptrs_handle_addressof_member(ptrs_ast_t *node, ptrs_var_t *result, p
 	if(base->type != PTRS_TYPE_STRUCT)
 		ptrs_error(node, scope, "Cannot get address property '%s' of type %s", expr.name, ptrs_typetoa(base->type));
 
-	ptrs_struct_addressOf(base->value.structval, result, expr.name, node, scope);
+	if(!ptrs_struct_addressOf(base->value.structval, result, expr.name, node, scope))
+		ptrs_error(node, scope, "Struct %s has no property '%s'", base->value.structval->name, expr.name);
+
 	return result;
 }
 ptrs_var_t *ptrs_handle_call_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
@@ -476,7 +478,8 @@ ptrs_var_t *ptrs_handle_addressof_index(ptrs_ast_t *node, ptrs_var_t *result, pt
 	else if(value->type == PTRS_TYPE_STRUCT)
 	{
 		const char *key = ptrs_vartoa(index, buff, 32);
-		ptrs_struct_addressOf(value->value.structval, result, key, node, scope);
+		if(!ptrs_struct_addressOf(value->value.structval, result, key, node, scope))
+			ptrs_error(node, scope, "Struct %s has no property '%s'", value->value.structval->name, key);
 	}
 	else
 	{

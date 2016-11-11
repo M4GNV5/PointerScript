@@ -162,7 +162,7 @@ void ptrs_struct_addressOfMember(ptrs_struct_t *struc, ptrs_var_t *result, struc
 	}
 }
 
-void ptrs_struct_addressOf(ptrs_struct_t *struc, ptrs_var_t *result, const char *key,
+bool ptrs_struct_addressOf(ptrs_struct_t *struc, ptrs_var_t *result, const char *key,
 	ptrs_ast_t *ast, ptrs_scope_t *scope)
 {
 	struct ptrs_structlist *curr = struc->member;
@@ -171,10 +171,12 @@ void ptrs_struct_addressOf(ptrs_struct_t *struc, ptrs_var_t *result, const char 
 		if(strcmp(curr->name, key) == 0 && !curr->isPrivate)
 		{
 			ptrs_struct_addressOfMember(struc, result, curr, ast, scope);
-			return;
+			return true;
 		}
 		curr = curr->next;
 	}
+
+	return false;
 }
 
 ptrs_var_t *ptrs_struct_construct(ptrs_var_t *constructor, struct ptrs_astlist *arguments, bool allocateOnStack,
