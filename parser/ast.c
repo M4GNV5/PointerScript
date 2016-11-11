@@ -1805,8 +1805,34 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 			if(overload->op != NULL)
 			{
-				nameFormat = "%1$s.op %2$sthis";
 				consume(code, "this");
+
+				if(overload->op == PTRS_HANDLE_PREFIX_ADDRESS && (code->curr == '.' || code->curr == '['))
+				{
+					char curr = code->curr;
+					next(code);
+					otherName = readIdentifier(code);
+
+					if(curr == '.')
+					{
+						nameFormat = "%1$s.op &this.%3$s";
+						overload->op = PTRS_HANDLE_ADDRESSOF_MEMBER;
+					}
+					else
+					{
+						consumec(code, ']');
+						nameFormat = "%1$s.op &this[%3$s]";
+						overload->op = PTRS_HANDLE_ADDRESSOF_INDEX;
+					}
+
+					func->argc = 1;
+					func->args = talloc(ptrs_symbol_t);
+					func->args[0] = addSymbol(code, otherName);
+				}
+				else
+				{
+					nameFormat = "%1$s.op %2$sthis";
+				}
 			}
 			else
 			{

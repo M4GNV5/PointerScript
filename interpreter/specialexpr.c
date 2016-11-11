@@ -156,7 +156,25 @@ ptrs_var_t *ptrs_handle_addressof_member(ptrs_ast_t *node, ptrs_var_t *result, p
 		ptrs_error(node, scope, "Cannot get address property '%s' of type %s", expr.name, ptrs_typetoa(base->type));
 
 	if(!ptrs_struct_addressOf(base->value.structval, result, expr.name, node, scope))
-		ptrs_error(node, scope, "Struct %s has no property '%s'", base->value.structval->name, expr.name);
+	{
+		ptrs_var_t overload;
+		if((overload.value.funcval = ptrs_struct_getOverload(base, ptrs_handle_addressof_member, true)) != NULL)
+		{
+			overload.type = PTRS_TYPE_FUNCTION;
+
+			ptrs_var_t arg;
+			arg.type = PTRS_TYPE_NATIVE;
+			arg.value.strval = expr.name;
+			arg.meta.array.size = 0;
+			arg.meta.array.readOnly = true;
+
+			return ptrs_callfunc(node, result, scope, base->value.structval, &overload, 1, &arg);
+		}
+		else
+		{
+			ptrs_error(node, scope, "Struct %s has no member '%s'", base->value.structval->name, expr.name);
+		}
+	}
 
 	return result;
 }
@@ -472,7 +490,18 @@ ptrs_var_t *ptrs_handle_addressof_index(ptrs_ast_t *node, ptrs_var_t *result, pt
 	{
 		const char *key = ptrs_vartoa(index, buff, 32);
 		if(!ptrs_struct_addressOf(value->value.structval, result, key, node, scope))
-			ptrs_error(node, scope, "Struct %s has no property '%s'", value->value.structval->name, key);
+		{
+			ptrs_var_t overload;
+			if((overload.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_addressof_index, true)) != NULL)
+			{
+				overload.type = PTRS_TYPE_FUNCTION;
+				return ptrs_callfunc(node, result, scope, value->value.structval, &overload, 1, index);
+			}
+			else
+			{
+				ptrs_error(node, scope, "Struct %s has no member '%s'", value->value.structval->name, key);
+			}
+		}
 	}
 	else
 	{
