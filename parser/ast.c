@@ -2492,6 +2492,7 @@ static ptrs_ast_t *defaultSymbolCreator(unsigned scopeLevel, struct symbollist *
 	ptrs_ast_t *ast = talloc(ptrs_ast_t);
 	ast->handler = PTRS_HANDLE_IDENTIFIER;
 	ast->setHandler = PTRS_HANDLE_ASSIGN_IDENTIFIER;
+	ast->addressHandler = NULL;
 	ast->callHandler = NULL;
 
 	ast->arg.varval.scope = scopeLevel;
