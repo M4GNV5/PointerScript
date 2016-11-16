@@ -11,8 +11,6 @@
 #include "include/call.h"
 #include "include/struct.h"
 
-bool ptrs_overflowError = false;
-
 static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *op, ptrs_vartype_t tleft, ptrs_vartype_t tright)
 {
 	ptrs_error(node, scope, "Cannot use operator %s on variables of type %s and %s",

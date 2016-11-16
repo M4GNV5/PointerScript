@@ -13,19 +13,17 @@
 
 static bool handleSignals = true;
 extern size_t ptrs_arraymax;
-extern bool ptrs_overflowError;
 extern bool ptrs_zeroMemory;
 extern int ptrs_asmSize;
 
 static struct option options[] = {
 	{"stack-size", required_argument, 0, 1},
 	{"array-max", required_argument, 0, 2},
-	{"overflow", no_argument, 0, 3},
-	{"no-sig", no_argument, 0, 4},
-	{"zero-mem", no_argument, 0, 5},
-	{"debug", no_argument, 0, 6},
-	{"asm-size", required_argument, 0, 7},
-	{"help", no_argument, 0, 8},
+	{"no-sig", no_argument, 0, 3},
+	{"zero-mem", no_argument, 0, 4},
+	{"debug", no_argument, 0, 5},
+	{"asm-size", required_argument, 0, 6},
+	{"help", no_argument, 0, 7},
 	{0, 0, 0, 0}
 };
 
@@ -46,28 +44,24 @@ static int parseOptions(int argc, char **argv)
 				ptrs_arraymax = strtoul(optarg, NULL, 0);
 				break;
 			case 3:
-				ptrs_overflowError = true;
-				break;
-			case 4:
 				handleSignals = false;
 				break;
-			case 5:
+			case 4:
 				ptrs_zeroMemory = true;
 				break;
-			case 6:
+			case 5:
 				ptrs_debugEnabled = true;
 				break;
-			case 7:
+			case 6:
 				ptrs_asmSize = strtoul(optarg, NULL, 0);
 				break;
-			case 8:
+			case 7:
 				printf("Usage: ptrs [options ...] <file> [script options ...]\n"
 					"Valid Options:\n"
 						"\t--help               Show this information\n"
 						"\t--stack-size <size>  Set stack size to 'size' bytes. Default: 0x%X\n"
 						"\t--array-max <size>   Set maximal allowed array size to 'size' bytes. Default: 0x%X\n"
 						"\t--asm-size <size>    Set size of memory region containing inline assembly. Default: 0x1000\n"
-						"\t--overflow           Throw an error when trying to assign a non fitting value.\n"
 						"\t--no-sig             Do not listen to signals.\n"
 						"\t--zero-mem           Zero memory of arrays when created on the stack\n"
 					"Source code can be found at https://github.com/M4GNV5/PointerScript\n", PTRS_STACK_SIZE, PTRS_STACK_SIZE);
