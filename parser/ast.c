@@ -56,6 +56,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignoreCalls, bool ignoreAlgo);
 static struct ptrs_astlist *parseExpressionList(code_t *code, char end);
 static void parseAsm(code_t *code, ptrs_ast_t *stmt);
+static void parseMap(code_t *code, ptrs_ast_t *expr);
 static void parseStruct(code_t *code, ptrs_struct_t *struc);
 static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt);
 static void parseAlgorithmExpression(code_t *code, struct ptrs_algorithmlist *curr, bool canBeLast);
@@ -1045,60 +1046,17 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 
 		ast->arg.function.body = parseBody(code, &ast->arg.function.stackOffset, false, true);
 	}
+	else if(lookahead(code, "map_stack"))
+	{
+		ast = talloc(ptrs_ast_t);
+		ast->arg.newexpr.onStack = true;
+		parseMap(code, ast);
+	}
 	else if(lookahead(code, "map"))
 	{
-		ptrs_struct_t *struc = talloc(ptrs_struct_t);
-		ptrs_ast_t *constExpr = talloc(ptrs_ast_t);
-
 		ast = talloc(ptrs_ast_t);
-		ast->handler = PTRS_HANDLE_NEW;
-		ast->arg.call.value = constExpr;
-		ast->arg.call.arguments = NULL;
-
-		constExpr->handler = PTRS_HANDLE_CONSTANT;
-		constExpr->arg.constval.type = PTRS_TYPE_STRUCT;
-		constExpr->arg.constval.value.structval = struc;
-
-		struc->size = 0;
-		struc->name = "(map)";
-		struc->overloads = NULL;
-		struc->data = NULL;
-		struc->staticData = NULL;
-
-		consumec(code, '{');
-
-		struct ptrs_structlist *curr = NULL;
-		for(;;)
-		{
-			if(curr == NULL)
-			{
-				curr = talloc(struct ptrs_structlist);
-				struc->member = curr;
-			}
-			else
-			{
-				curr->next = talloc(struct ptrs_structlist);
-				curr = curr->next;
-			}
-			curr->type = PTRS_STRUCTMEMBER_VAR;
-			curr->isPrivate = false;
-			curr->offset = struc->size;
-			struc->size += sizeof(ptrs_var_t);
-
-			if(lookahead(code, "\""))
-				curr->name = readString(code, NULL);
-			else
-				curr->name = readIdentifier(code);
-
-			consumec(code, ':');
-			curr->value.startval = parseExpression(code);
-
-			if(code->curr == '}')
-				break;
-			consumec(code, ',');
-		}
-
-		consumec(code, '}');
+		ast->arg.newexpr.onStack = false;
+		parseMap(code, ast);
 	}
 	else if(curr == '[')
 	{
@@ -1746,6 +1704,61 @@ static void parseAsm(code_t *code, ptrs_ast_t *stmt)
 	}
 }
 #endif
+
+static void parseMap(code_t *code, ptrs_ast_t *ast)
+{
+	ptrs_struct_t *struc = talloc(ptrs_struct_t);
+	ptrs_ast_t *constExpr = talloc(ptrs_ast_t);
+
+	ast->handler = PTRS_HANDLE_NEW;
+	ast->arg.newexpr.value = constExpr;
+	ast->arg.newexpr.arguments = NULL;
+
+	constExpr->handler = PTRS_HANDLE_CONSTANT;
+	constExpr->arg.constval.type = PTRS_TYPE_STRUCT;
+	constExpr->arg.constval.value.structval = struc;
+
+	struc->size = 0;
+	struc->name = "(map)";
+	struc->overloads = NULL;
+	struc->data = NULL;
+	struc->staticData = NULL;
+
+	consumec(code, '{');
+
+	struct ptrs_structlist *curr = NULL;
+	for(;;)
+	{
+		if(curr == NULL)
+		{
+			curr = talloc(struct ptrs_structlist);
+			struc->member = curr;
+		}
+		else
+		{
+			curr->next = talloc(struct ptrs_structlist);
+			curr = curr->next;
+		}
+		curr->type = PTRS_STRUCTMEMBER_VAR;
+		curr->isPrivate = false;
+		curr->offset = struc->size;
+		struc->size += sizeof(ptrs_var_t);
+
+		if(lookahead(code, "\""))
+			curr->name = readString(code, NULL);
+		else
+			curr->name = readIdentifier(code);
+
+		consumec(code, ':');
+		curr->value.startval = parseExpression(code);
+
+		if(code->curr == '}')
+			break;
+		consumec(code, ',');
+	}
+
+	consumec(code, '}');
+}
 
 static void parseStruct(code_t *code, ptrs_struct_t *struc)
 {
