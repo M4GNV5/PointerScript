@@ -1740,7 +1740,7 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 			curr = curr->next;
 		}
 		curr->type = PTRS_STRUCTMEMBER_VAR;
-		curr->isPrivate = false;
+		curr->protection = 0;
 		curr->offset = struc->size;
 		struc->size += sizeof(ptrs_var_t);
 
@@ -2091,9 +2091,13 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			old->next = curr;
 
 		if(lookahead(code, "private"))
-			curr->isPrivate = true;
+			curr->protection = 2;
+		else if(lookahead(code, "internal"))
+			curr->protection = 1;
+		else if(lookahead(code, "public"))
+			curr->protection = 0;
 		else
-			curr->isPrivate = false;
+			curr->protection = 0;
 
 		int currSize;
 		if(isStatic || lookahead(code, "static"))

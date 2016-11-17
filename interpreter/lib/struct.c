@@ -24,6 +24,25 @@ ptrs_function_t *ptrs_struct_getOverload(ptrs_var_t *struc, void *handler, bool 
 	return NULL;
 }
 
+bool ptrs_struct_canAccess(ptrs_struct_t *struc, struct ptrs_structlist *member, ptrs_ast_t *node, ptrs_scope_t *scope)
+{
+	switch(member->protection)
+	{
+		case 0:
+			return true;
+		case 1:
+			while(scope->outer != NULL)
+				scope = scope->outer;
+			if(struc->scope->stackstart == scope->stackstart)
+				return true;
+			//fallthrough
+		default:
+			if(node != NULL)
+				ptrs_error(node, scope, "Cannot access property %s of struct %s\n", member->name, struc->name);
+			return false;
+	}
+}
+
 ptrs_var_t *ptrs_struct_getMember(ptrs_struct_t *struc, ptrs_var_t *result, struct ptrs_structlist *member,
 	ptrs_ast_t *ast, ptrs_scope_t *scope)
 {
@@ -74,7 +93,8 @@ ptrs_var_t *ptrs_struct_get(ptrs_struct_t *struc, ptrs_var_t *result, const char
 	struct ptrs_structlist *curr = struc->member;
 	while(curr != NULL)
 	{
-		if(strcmp(curr->name, key) == 0 && !curr->isPrivate && curr->type != PTRS_STRUCTMEMBER_SETTER)
+		if(strcmp(curr->name, key) == 0 && curr->type != PTRS_STRUCTMEMBER_SETTER
+			&& ptrs_struct_canAccess(struc, curr, ast, scope))
 			return ptrs_struct_getMember(struc, result, curr, ast, scope);
 		curr = curr->next;
 	}
@@ -122,7 +142,8 @@ bool ptrs_struct_set(ptrs_struct_t *struc, ptrs_var_t *value, const char *key, p
 	struct ptrs_structlist *curr = struc->member;
 	while(curr != NULL)
 	{
-		if(strcmp(curr->name, key) == 0 && !curr->isPrivate)
+		if(strcmp(curr->name, key) == 0 && curr->type != PTRS_STRUCTMEMBER_GETTER
+			&& ptrs_struct_canAccess(struc, curr, ast, scope))
 		{
 			ptrs_struct_setMember(struc, value, curr, ast, scope);
 			return true;
@@ -168,7 +189,7 @@ bool ptrs_struct_addressOf(ptrs_struct_t *struc, ptrs_var_t *result, const char 
 	struct ptrs_structlist *curr = struc->member;
 	while(curr != NULL)
 	{
-		if(strcmp(curr->name, key) == 0 && !curr->isPrivate)
+		if(strcmp(curr->name, key) == 0 && ptrs_struct_canAccess(struc, curr, ast, scope))
 		{
 			ptrs_struct_addressOfMember(struc, result, curr, ast, scope);
 			return true;
