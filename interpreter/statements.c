@@ -791,7 +791,10 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		while(curr != NULL)
 		{
 			if(!ptrs_struct_canAccess(val->value.structval, curr, NULL, scope))
-				goto skip_curr;
+			{
+				curr = curr->next;
+				continue;
+			}
 
 			keyvar->type = PTRS_TYPE_NATIVE;
 			keyvar->value.strval = curr->name;
@@ -801,7 +804,11 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 			{
 				ptrs_var_t *_valvar = ptrs_struct_getMember(val->value.structval, valvar, curr, node, scope);
 				if(_valvar == NULL)
-					goto skip_curr;
+				{
+					curr = curr->next;
+					continue;
+				}
+
 				if(_valvar != valvar)
 					memcpy(valvar, _valvar, sizeof(ptrs_var_t));
 			}
@@ -813,7 +820,6 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 			if(stmtScope->exit > 1)
 				return result;
 
-			skip_curr:
 			curr = curr->next;
 		}
 
