@@ -18,7 +18,13 @@
 
 typedef struct code code_t;
 struct symbollist;
-typedef ptrs_ast_t *(*symbolcreator_t)(unsigned scopeLevel, struct symbollist *entry);
+
+typedef enum
+{
+	PTRS_SYMBOL_DEFAULT,
+	PTRS_SYMBOL_CONST,
+	PTRS_SYMBOL_THISMEMBER,
+} ptrs_symboltype_t;
 
 struct symbollist
 {
@@ -27,7 +33,7 @@ struct symbollist
 		unsigned offset;
 		void *data;
 	} arg;
-	symbolcreator_t creator;
+	ptrs_symboltype_t type;
 	char *text;
 	struct symbollist *next;
 };
@@ -72,12 +78,9 @@ static char readEscapeSequence(code_t *code);
 static int64_t readInt(code_t *code, int base);
 static double readDouble(code_t *code);
 
-static ptrs_ast_t *defaultSymbolCreator(unsigned scopeLevel, struct symbollist *entry);
-static ptrs_ast_t *constSymbolCreator(unsigned scopeLevel, struct symbollist *entry);
-static ptrs_ast_t *structMemberSymbolCreator(unsigned scopeLevel, struct symbollist *entry);
 static void setSymbol(code_t *code, char *text, unsigned offset);
 static ptrs_symbol_t addSymbol(code_t *code, char *text);
-static struct symbollist *addSpecialSymbol(code_t *code, char *symbol, symbolcreator_t creator);
+static struct symbollist *addSpecialSymbol(code_t *code, char *symbol, ptrs_symboltype_t type);
 static ptrs_ast_t *getSymbol(code_t *code, char *text);
 static void symbolScope_increase(code_t *code, int buildInCount, bool isInline);
 static unsigned symbolScope_decrease(code_t *code);
@@ -151,7 +154,37 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 		{
 			if(strcmp(curr->text, text) == 0)
 			{
-				*node = curr->creator(level, curr);
+				ptrs_ast_t *ast;
+				switch(curr->type)
+				{
+					case PTRS_SYMBOL_DEFAULT:
+						*node = ast = talloc(ptrs_ast_t);
+						ast->handler = PTRS_HANDLE_IDENTIFIER;
+						ast->setHandler = PTRS_HANDLE_ASSIGN_IDENTIFIER;
+						ast->addressHandler = NULL;
+						ast->callHandler = NULL;
+
+						ast->arg.varval.scope = level;
+						ast->arg.varval.offset = curr->arg.offset;
+						break;
+
+					case PTRS_SYMBOL_CONST:
+						*node = ast = talloc(ptrs_ast_t);
+						memcpy(ast, curr->arg.data, sizeof(ptrs_ast_t));
+						break;
+
+					case PTRS_SYMBOL_THISMEMBER:
+						*node = ast = talloc(ptrs_ast_t);
+						ast->handler = PTRS_HANDLE_THISMEMBER;
+						ast->setHandler = PTRS_HANDLE_ASSIGN_THISMEMBER;
+						ast->addressHandler = PTRS_HANDLE_ADDRESSOF_THISMEMBER;
+						ast->callHandler = PTRS_HANDLE_CALL_THISMEMBER;
+
+						ast->arg.thismember.base.scope = level - 1;
+						ast->arg.thismember.base.offset = 0;
+						ast->arg.thismember.member = curr->arg.data;
+						break;
+				}
 				return 0;
 			}
 			curr = curr->next;
@@ -401,7 +434,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		if(ast->handler != PTRS_HANDLE_CONSTANT)
 			unexpectedm(code, NULL, "Initializer for 'const' variable is not a constant");
 
-		struct symbollist *entry = addSpecialSymbol(code, name, constSymbolCreator);
+		struct symbollist *entry = addSpecialSymbol(code, name, PTRS_SYMBOL_CONST);
 		entry->arg.data = ast;
 		consumec(code, ';');
 		return NULL;
@@ -2113,7 +2146,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 		name = curr->name = readIdentifier(code);
 
-		struct symbollist *symbol = addSpecialSymbol(code, strdup(curr->name), structMemberSymbolCreator);
+		struct symbollist *symbol = addSpecialSymbol(code, strdup(curr->name), PTRS_SYMBOL_THISMEMBER);
 		symbol->arg.data = curr;
 
 		if(isProperty > 0)
@@ -2504,48 +2537,12 @@ static double readDouble(code_t *code)
 	return val;
 }
 
-static ptrs_ast_t *defaultSymbolCreator(unsigned scopeLevel, struct symbollist *entry)
-{
-	ptrs_ast_t *ast = talloc(ptrs_ast_t);
-	ast->handler = PTRS_HANDLE_IDENTIFIER;
-	ast->setHandler = PTRS_HANDLE_ASSIGN_IDENTIFIER;
-	ast->addressHandler = NULL;
-	ast->callHandler = NULL;
-
-	ast->arg.varval.scope = scopeLevel;
-	ast->arg.varval.offset = entry->arg.offset;
-
-	return ast;
-}
-
-static ptrs_ast_t *constSymbolCreator(unsigned scopeLevel, struct symbollist *entry)
-{
-	ptrs_ast_t *ast = talloc(ptrs_ast_t);
-	memcpy(ast, entry->arg.data, sizeof(ptrs_ast_t));
-	return ast;
-}
-
-static ptrs_ast_t *structMemberSymbolCreator(unsigned scopeLevel, struct symbollist *entry)
-{
-	ptrs_ast_t *ast = talloc(ptrs_ast_t);
-	ast->handler = PTRS_HANDLE_THISMEMBER;
-	ast->setHandler = PTRS_HANDLE_ASSIGN_THISMEMBER;
-	ast->addressHandler = PTRS_HANDLE_ADDRESSOF_THISMEMBER;
-	ast->callHandler = PTRS_HANDLE_CALL_THISMEMBER;
-
-	ast->arg.thismember.base.scope = scopeLevel - 1;
-	ast->arg.thismember.base.offset = 0;
-	ast->arg.thismember.member = entry->arg.data;
-
-	return ast;
-}
-
 static void setSymbol(code_t *code, char *text, unsigned offset)
 {
 	ptrs_symboltable_t *curr = code->symbols;
 	struct symbollist *entry = talloc(struct symbollist);
 
-	entry->creator = defaultSymbolCreator;
+	entry->type = PTRS_SYMBOL_DEFAULT;
 	entry->text = text;
 	entry->arg.offset = offset;
 	entry->next = curr->current;
@@ -2557,7 +2554,7 @@ static ptrs_symbol_t addSymbol(code_t *code, char *symbol)
 	ptrs_symboltable_t *curr = code->symbols;
 	struct symbollist *entry = talloc(struct symbollist);
 
-	entry->creator = defaultSymbolCreator;
+	entry->type = PTRS_SYMBOL_DEFAULT;
 	entry->text = symbol;
 	entry->next = curr->current;
 	entry->arg.offset = curr->offset;
@@ -2568,13 +2565,13 @@ static ptrs_symbol_t addSymbol(code_t *code, char *symbol)
 	return result;
 }
 
-static struct symbollist *addSpecialSymbol(code_t *code, char *symbol, symbolcreator_t creator)
+static struct symbollist *addSpecialSymbol(code_t *code, char *symbol, ptrs_symboltype_t type)
 {
 	ptrs_symboltable_t *curr = code->symbols;
 	struct symbollist *entry = talloc(struct symbollist);
 
 	entry->text = symbol;
-	entry->creator = creator;
+	entry->type = type;
 	entry->next = curr->current;
 	curr->current = entry;
 
