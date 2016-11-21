@@ -641,6 +641,41 @@ Creates an instance of a struct allocating its memory using malloc
 new MyStruct(32);
 ```
 
+##NewStackExpression
+Creates an instance of a struct allocating its memory on the stack
+```js
+//'new_stack' Identifier '(' ExpressionList ')'
+new_stack MyStruct(32);
+```
+
+##MapExpression
+Creates a map of key->values in the form of a struct instance. This is a short form for
+defining a struct, useful when defining constant data.
+```js
+//MapExpression		:=	'map' '{' MapEntryList '}'
+//MapEntryList		:=	Identifier ':' Expression [ ',' MapEntryList ]
+//					|	StringLiteral ':' Expression [ ',' MapEntryList ]
+
+var escapes = map {
+	n: '\n',
+	"?": '\?',
+	r: '\r',
+	"\\": '\\'
+};
+```
+
+##MapStackExpression
+Same as [MapExpression](#mapexpression) but memory for the map is allocated on the stack
+```js
+//'map_stack' '{' MapEntryList '}'
+
+map_stack {
+	foo: 3,
+	bar: function(a, b) { return a + b; }
+	foobar: "1337",
+}
+```
+
 ##MemberExpression
 ```js
 //Expression '.' Identifier
@@ -670,11 +705,41 @@ Note this will not convert any values, it will only change the type
 as<float>0x7fc00000
 ```
 
-##CastExpression
+##CastBuiltinExpression
 Converts a expression to a specific type. Currently only casting to int, float and native is supported.
 ```js
 //'cast' '<' TypeName '>' Expression
 cast<int>3.14
+```
+
+##CastExpression
+Creates a struct of a specific type using the provided expression as the memory region.
+This allows interop to C structs. This will **not** call the struct constructor
+Note that this will allocate memory for struct metadata that has to be free'd using 'delete'
+```js
+//'cast' '<' Identifier '>' Expression
+
+//see `man readdir` or http://man7.org/linux/man-pages/man3/readdir.3.html
+struct dirent
+{
+	ino : u64;
+	off : u64;
+	reclen : ushort;
+	type : uchar;
+	name{256};
+};
+//... (you probably want to do a diropen first)
+var entry = cast<dirent>readdir(dp);
+//... (you probably want to use 'entry' here)
+delete entry; //cast will allocate memory that can be freed using 'delete'
+```
+
+##CastStackExpression
+Same as [CastExpression](#castexpression) but the memory for the struct metadata will be allocated
+on the stack, thus a 'delete' is not necessary
+```js
+//'cast_stack' '<' Identifier '>' Expression
+cast_stack<foo>bar;
 ```
 
 ##IdentifierExpression
