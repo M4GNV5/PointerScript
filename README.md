@@ -44,11 +44,11 @@ sudo make install #optional (copies bin/ptrs to /usr/local/bin/ptrs)
 ##Language
 
 ###Standard Library
-PointerScript has no standard-library. You can use all C libraries using the built-in ffi (importstatement),
-however there are a couple of useful libraries (networking, regexp, etc.) in [this repo](https://github.com/M4GNV5/PtrsStuff)
+PointerScript has no standard-library. You can use all C libraries using the built-in ffi ([Import statement](LanguageDoc.md#importstatement)),
+however there are a couple of useful libraries (networking, regexp, lists, maps etc.) in [this repo](https://github.com/M4GNV5/PtrsStuff)
 
 ###More example code
-There are many examples including usage of Types, Structs, Arrays, Threading and many more in the [examples](examples/) directory of this repository. The most interresting ones are listed here:
+There are examples including the usage of Types, Structs, Arrays, Threading and many more in the [examples](examples/) directory of this repository. The most interresting ones are listed here:
 
 - [pi](examples/pi.ptrs) and [circle](examples/circle.ptrs) Basic mathematic expressions and loops
 - [types](examples/types.ptrs) Using typeof and type<...>
@@ -62,7 +62,7 @@ There are many examples including usage of Types, Structs, Arrays, Threading and
 
 ###Performance
 Generally PointerScript runs faster than many other scripting languages due to the absence of a Garbage Collector and the usage of native libraries.
-You can create call graphs for the code examples in this repo using:
+You can create call graphs for the code examples in this repository using:
 ```bash
 sudo apt-get install valgrind graphviz python3
 curl -O ../gprof2dot.py https://raw.githubusercontent.com/jrfonseca/gprof2dot/master/gprof2dot.py
