@@ -267,14 +267,17 @@ function fibo(val)
 ```
 
 ##ScopeStatement
-Variables within a scope statement wont be available outside and thus also wont use memory anymore
+Variables and stack allocations within a scoped statement won't be available outside the statement. Please note that all statements (except `foreach`) dont create a scope by themselves so doing stack allocations within a loop (e.g. by doing `var buff{1024};`) is probably a bad idea
 ```js
-//'{' StatementList '}'
+//'scoped' '{' StatementList '}'
 var myPublicVar = 42;
 
-{
+scoped {
 	var myHiddenVar = "supersecret";
+	var myData{1024};
 }
+
+//the 1024 bytes used by myData are available again here
 ```
 
 ##TryCatchStatement
@@ -367,9 +370,12 @@ struct Person
 }
 ```
 ###StructMemberDefinition
-Note: the following code examples are only valid within a struct definition
-Any of these can be preceded by `private` then they wont be accesible through the `.` and `[]` operators
-but like local variables inside the struct functions
+Note: the following code examples are only valid within a struct definition.
+Modifiers:
+- `private` wont be accesible through the `.` and `[]` operators
+- `internal` wont be accesible from other files
+- `public` (default) always accesible
+- `static` all instances use the same value
 ####Variable member
 ```js
 //Identifier [ '=' Expression ] ';'
@@ -382,6 +388,7 @@ foo : long //char, int, long, longlong, uchar, uint, ulong, ulonglong
 bar : i64 //i8, i16, i32, i64, u8, u16, u32, u64
 tar : pointer
 xar : single //single, double
+zar : ptrdiff //ssize, size, intptr, uintptr, ptrdiff
 ```
 ####Array member
 ```js
@@ -452,6 +459,11 @@ operator this.key = val
 {
 	printf("tried to set this.%s to %d\n", key, cast<int>val);
 }
+//'operator' '&' 'this' '.' Identifier '{' StatementList '}'
+operator &this.key
+{
+	printf("tried to get the address of this.%s\n", key);
+}
 //'operator' 'this' '.' Identifier '(' IdentifierList ')' '{' StatementList '}'
 operator this.key(foo, bar...)
 {
@@ -466,6 +478,11 @@ operator this[key]
 operator this[key] = val
 {
 	printf("tried to set this[\"%s\"] to %d\n", key, cast<int>val);
+}
+//'operator' '&' 'this' '[' Identifier ']' '{' StatementList '}'
+operator &this[key]
+{
+	printf("tried to get the address of this.%s\n", key);
 }
 //'operator' 'this' '.' Identifier '(' IdentifierList ')' '{' StatementList '}'
 operator this[key](foo, bar...)
@@ -530,12 +547,12 @@ foreach(key, val in myStruct)
 }
 //or
 var items[16];
-foreach(val in items)
+foreach(i in items)
 {
 
 }
 //or
-foreach(val, index in items)
+foreach(index, val in items)
 {
 
 }
