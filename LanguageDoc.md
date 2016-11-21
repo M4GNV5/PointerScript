@@ -341,18 +341,18 @@ Defines a struct.
 struct Person
 {
 	family;
-	age = 18;
+	private _age = 18;
 	name{128}; //128 bytes
-	items[16]; //16 variables
+	items[16]; //16 variables (16 * VARSIZE bytes)
 
 	operator this + val
 	{
-		return this.age + val;
+		return _age + val;
 	}
 
 	constructor(familyCount)
 	{
-		this.family = malloc(len);
+		this.family = malloc(familyCount);
 	}
 	destructor()
 	{
@@ -361,16 +361,18 @@ struct Person
 
 	myFunc(a, b)
 	{
-		return this.y * a + b;
+		return this.family[a + b];
 	}
 
-	get Age
+	get age
 	{
-		return this.age;
+		return _age;
 	}
-	set Age
+	set age
 	{
-		this.age = value;
+		if(age < 0 || age > 200)
+			throw "Invalid age";
+		_age = value;
 	}
 }
 ```
@@ -381,11 +383,13 @@ Modifiers:
 - `internal` wont be accesible from other files
 - `public` (default) always accesible
 - `static` all instances use the same value
+
 ####Variable member
 ```js
 //Identifier [ '=' Expression ] ';'
 age = 18;
 ```
+
 ####Typed member
 ```js
 //Identifier ':' NativeTypeName
@@ -395,6 +399,7 @@ tar : pointer
 xar : single //single, double
 zar : ptrdiff //ssize, size, intptr, uintptr, ptrdiff
 ```
+
 ####Array member
 ```js
 //Identifier '{' ConstantExpression '}' ';'
@@ -402,6 +407,7 @@ name{128};
 //Identifier '[' ConstantExpression ']' ';'
 items[16];
 ```
+
 ####Function member
 ```js
 //Identifier '(' ArgumentDefinitionList ')' '{' StatementList '}'
@@ -413,16 +419,17 @@ executeRequest(host = "localhost", port = 80)
 ####Getter/Setter
 ```js
 //'get' Identifier '{' StatementList '}'
-get Age
+get age
 {
-	return this.age;
+	return _age;
 }
 //'set' Identifier '{' StatementList '}'
-set Age
+set age
 {
-	this.age = value;
+	_age = value;
 }
 ```
+
 ####Operator overload member
 ```js
 //'constructor' '(' ArgumentDefinitionList ')' '{' StatementList '}'
