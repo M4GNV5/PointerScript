@@ -1,6 +1,7 @@
 #Content
 - [Usage](#usage)
 	- [Types](#types)
+	- [Constants](#constants)
 	- [Structs](#structs)
 	- [Variable Arguments](#variablearguments)
 - [Operators](#operators)
@@ -84,6 +85,20 @@ var ptr = as<native>malloc(1024);
 | `function` | `ptrs_function_t *` | A PointerScript function |
 | `struct` | `ptrs_struct_t *` | A PointerScript struct |
 
+##Constants
+| Name | Type | Value |
+|------|------|-------|
+| `true` | `int` | 1 |
+| `false` | `int` | 0 |
+| `NULL` | `native` | 0 |
+| `null` | `pointer` | 0 |
+| `VARSIZE` | `int` | Size of a variable |
+| `PTRSIZE` | `int` | Size of a pointer |
+| `undefined` | `undefined` | - |
+| `NaN` | `float` | NaN |
+| `PI` | `float` | pi |
+| `E` | `float` | e |
+
 ##Structs
 Structs are as powerful as classes in other languages (they support fields, functions, overlods, getters/setters, ...).
 Here is a example of basic/common struct usage.
@@ -166,7 +181,7 @@ function printfln(fmt, args...)
 | 1 | `= += -= *= /= %= <<= >>= &= ^= |=` | Assignment operators | Right-to-Left |
 | 2 | `?:` | Ternary | Left-to-Right |
 | 3 | `||` | Logical OR | Left-to-Right |
-| 4 | `^^` | logical XOR | Left-to-Right |
+| 4 | `^^` | Logical XOR | Left-to-Right |
 | 5 | `&&` | Logical AND | Left-to-Right |
 | 6 | `|` | Bitwise OR | Left-to-Right |
 | 7 | `^` | Bitwise XOR | Left-to-Right |
