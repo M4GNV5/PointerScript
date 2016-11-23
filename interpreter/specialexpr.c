@@ -580,7 +580,7 @@ ptrs_var_t *ptrs_handle_slice(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	if(expr.end != NULL)
 		end = ptrs_vartoi(expr.end->handler(expr.end, result, scope));
 	else
-		end = base->meta.array.size - 1;
+		end = base->meta.array.size;
 
 	result->type = base->type;
 	if(base->type == PTRS_TYPE_NATIVE)

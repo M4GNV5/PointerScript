@@ -1325,12 +1325,15 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 		consumec(code, '[');
 		ptrs_ast_t *expr = parseExpression(code);
 
-		if(lookahead(code, ".."))
+		if((expr == NULL && lookahead(code, "$")) || lookahead(code, ".."))
 		{
 			indexExpr->handler = PTRS_HANDLE_SLICE;
 			indexExpr->arg.slice.base = ast;
 			indexExpr->arg.slice.start = expr;
 			indexExpr->arg.slice.end = parseExpression(code);
+
+			if(indexExpr->arg.slice.end == NULL)
+				consumec(code, '$');
 		}
 		else
 		{

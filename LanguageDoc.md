@@ -718,14 +718,19 @@ items[7] //for arrays
 ```
 
 ##SliceExpression
-`a[b .. c]` returns an array starting at `&a[b]` and length `c - b`. If you leave
-out `b` it defaults to `0` if you leave out `c` it defaults to `sizeof(a) - 1`
-```js
+`a[b .. c]` returns an array starting at `&a[b]` and length `c - b`. You can write `$`
+instead of `b` meaning `b = 0`. Using `$` instead of `c` means `c = sizeof(a)`
+```D
 //Expression '[' Expression '..' Expression ']'
+//Expression '[' '$' '..' Expression ']'
+//Expression '[' Expression '..' '$' ']'
+//Expression '[' '$' '..' '$' ']'
 
 var foo[16];
 //this will set bar to an array starting at '&foo[4]' with length '8'
 var bar = foo[4 .. 12];
+//this will result in an array starting at '&foo[2]' with length 'sizeof(foo) - 2' aka '14'
+var tar = foo[2 .. $];
 ```
 
 ##ExpandExpression
