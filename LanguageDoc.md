@@ -36,6 +36,7 @@
 	- [MapStackExpression](#mapstackexpression)
 	- [MemberExpression](#memberexpression)
 	- [IndexExpression](#indexexpression)
+	- [SliceExpression](#sliceexpression)
 	- [ExpandExpression](#expandexpression)
 	- [AsExpression](#asexpression)
 	- [CastBuiltinExpression](#castbuiltinexpression)
@@ -714,6 +715,17 @@ foo.bar
 //Expression '[' Expression ']'
 foo["bar"] //for structs
 items[7] //for arrays
+```
+
+##SliceExpression
+`a[b .. c]` returns an array starting at `&a[b]` and length `c - b`. If you leave
+out `b` it defaults to `0` if you leave out `c` it defaults to `sizeof(a) - 1`
+```js
+//Expression '[' Expression '..' Expression ']'
+
+var foo[16];
+//this will set bar to an array starting at '&foo[4]' with length '8'
+var bar = foo[4 .. 12];
 ```
 
 ##ExpandExpression
