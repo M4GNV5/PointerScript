@@ -2150,6 +2150,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			isProperty = 0;
 
 		name = curr->name = readIdentifier(code);
+		curr->namelen = strlen(name);
 
 		struct symbollist *symbol = addSpecialSymbol(code, strdup(curr->name), PTRS_SYMBOL_THISMEMBER);
 		symbol->arg.data = curr;

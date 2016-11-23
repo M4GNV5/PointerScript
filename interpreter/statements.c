@@ -798,6 +798,7 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 
 			keyvar->type = PTRS_TYPE_NATIVE;
 			keyvar->value.strval = curr->name;
+			keyvar->meta.array.size = curr->namelen;
 			keyvar->meta.array.readOnly = true;
 
 			if(valvar != NULL)

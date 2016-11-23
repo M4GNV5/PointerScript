@@ -88,6 +88,7 @@ struct ptrs_structlist
 {
 	char *name;
 	unsigned int offset;
+	uint16_t namelen;
 	uint8_t protection : 2; //0 = public, 1 = internal, 2 = private
 	uint8_t isStatic : 1;
 	enum ptrs_structmembertype type;
