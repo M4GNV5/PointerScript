@@ -2112,12 +2112,6 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			continue;
 		}
 
-		uint8_t isProperty = 0;
-		if(lookahead(code, "get"))
-			isProperty = 1;
-		else if(lookahead(code, "set"))
-			isProperty = 2;
-
 		struct ptrs_structlist *old = curr;
 		curr = talloc(struct ptrs_structlist);
 
@@ -2146,6 +2140,14 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			currSize = struc->size;
 			curr->isStatic = false;
 		}
+
+		uint8_t isProperty;
+		if(lookahead(code, "get"))
+			isProperty = 1;
+		else if(lookahead(code, "set"))
+			isProperty = 2;
+		else
+			isProperty = 0;
 
 		name = curr->name = readIdentifier(code);
 
