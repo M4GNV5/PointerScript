@@ -991,20 +991,11 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			unexpectedm(code, NULL, "Syntax is as<TYPE>");
 
 		consumec(code, '>');
-		ptrs_ast_t *val = parseUnaryExpr(code, false, true);
 
-		if(val->handler == PTRS_HANDLE_CALL)
-		{
-			val->arg.call.retType = type;
-			ast = val;
-		}
-		else
-		{
-			ast = talloc(ptrs_ast_t);
-			ast->handler = PTRS_HANDLE_AS;
-			ast->arg.cast.builtinType = type;
-			ast->arg.cast.value = val;
-		}
+		ast = talloc(ptrs_ast_t);
+		ast->handler = PTRS_HANDLE_AS;
+		ast->arg.cast.builtinType = type;
+		ast->arg.cast.value = parseUnaryExpr(code, false, true);
 	}
 	else if(lookahead(code, "cast_stack")) //TODO find a better syntax for this
 	{
@@ -1297,8 +1288,26 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 
 		ast = member;
 	}
-	else if(!ignoreCalls && curr == '(')
+	else if(!ignoreCalls && (curr == '(' || curr == '!'))
 	{
+		ptrs_vartype_t retType = PTRS_TYPE_INT;
+		if(curr == '!')
+		{
+			int pos = code->pos;
+
+			next(code);
+			retType = readTypeName(code);
+
+			if(retType > PTRS_TYPE_STRUCT)
+			{
+				code->pos = pos;
+				code->curr = code->src[pos];
+				return parseUnaryExtension(code, ast, true, ignoreAlgo);
+			}
+		}
+
+		consumec(code, '(');
+
 		ptrs_ast_t *call = talloc(ptrs_ast_t);
 		call->handler = PTRS_HANDLE_CALL;
 		call->setHandler = NULL;
@@ -1306,10 +1315,8 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 		call->codepos = code->pos;
 		call->code = code->src;
 		call->file = code->filename;
-		consumec(code, '(');
-
-		call->arg.call.retType = PTRS_TYPE_INT;
 		call->arg.call.value = ast;
+		call->arg.call.retType = retType;
 		call->arg.call.arguments = parseExpressionList(code, ')');
 
 		ast = call;
