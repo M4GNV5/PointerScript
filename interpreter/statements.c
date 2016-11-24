@@ -169,7 +169,7 @@ ptrs_var_t *ptrs_handle_vararray(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 
 		ptrs_astlist_handle(stmt.initVal, array, scope);
 
-		for(int i = len; i < size; i++)
+		for(int i = len; i < size / sizeof(ptrs_var_t); i++)
 			memcpy(array + i, array + len - 1, sizeof(ptrs_var_t));
 
 		result->value.ptrval = array;
@@ -385,18 +385,34 @@ ptrs_var_t *ptrs_handle_delete(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	ptrs_var_t valv;
 	ptrs_var_t *val = ast->handler(ast, &valv, scope);
 
-	if(val->type != PTRS_TYPE_STRUCT)
-		ptrs_error(node, scope, "Cannot delete value of type %s", ptrs_typetoa(val->type));
-
-	ptrs_var_t overload;
-	if((overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_delete, true)) != NULL)
+	if(val->type == PTRS_TYPE_STRUCT)
 	{
-		overload.type = PTRS_TYPE_FUNCTION;
-		result = ptrs_callfunc(node, result, scope, val->value.structval, &overload, 0, NULL);
+		ptrs_var_t overload;
+		if((overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_delete, true)) != NULL)
+		{
+			overload.type = PTRS_TYPE_FUNCTION;
+			result = ptrs_callfunc(node, result, scope, val->value.structval, &overload, 0, NULL);
+		}
+
+		if(!val->value.structval->isOnStack)
+			free(val->value.structval);
+	}
+	else if(val->type == PTRS_TYPE_POINTER)
+	{
+		free(val->value.ptrval);
+	}
+	else if(val->type == PTRS_TYPE_NATIVE)
+	{
+		if(val->meta.array.readOnly)
+			ptrs_error(node, scope, "Cannot delete readonly native pointer\n");
+
+		free(val->value.nativeval);
+	}
+	else
+	{
+		ptrs_error(node, scope, "Cannot delete value of type %s", ptrs_typetoa(val->type));
 	}
 
-	if(!val->value.structval->isOnStack)
-		free(val->value.structval);
 	return result;
 }
 
