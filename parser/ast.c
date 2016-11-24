@@ -61,6 +61,7 @@ static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec);
 static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlgo);
 static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignoreCalls, bool ignoreAlgo);
 static struct ptrs_astlist *parseExpressionList(code_t *code, char end);
+static ptrs_ast_t *parseNew(code_t *code, bool onStack);
 static void parseAsm(code_t *code, ptrs_ast_t *stmt);
 static void parseMap(code_t *code, ptrs_ast_t *expr);
 static void parseStruct(code_t *code, ptrs_struct_t *struc);
@@ -452,11 +453,13 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	{
 		stmt->handler = PTRS_HANDLE_DEFINE;
 		stmt->arg.define.symbol = addSymbol(code, readIdentifier(code));
+		stmt->arg.define.onStack = true;
 
 		if(lookahead(code, "["))
 		{
 			stmt->handler = PTRS_HANDLE_VARARRAY;
 			stmt->arg.define.value = parseExpression(code);
+			stmt->arg.define.isInitExpr = false;
 			consumec(code, ']');
 
 			if(lookahead(code, "="))
@@ -471,7 +474,6 @@ static ptrs_ast_t *parseStatement(code_t *code)
 			}
 			else
 			{
-				stmt->arg.define.initExpr = NULL;
 				stmt->arg.define.initVal = NULL;
 			}
 		}
@@ -485,14 +487,14 @@ static ptrs_ast_t *parseStatement(code_t *code)
 			{
 				if(lookahead(code, "{"))
 				{
-					stmt->arg.define.initExpr = NULL;
 					stmt->arg.define.initVal = parseExpressionList(code, '}');
+					stmt->arg.define.isInitExpr = false;
 					consumec(code, '}');
 				}
 				else
 				{
-					stmt->arg.define.initVal = NULL;
 					stmt->arg.define.initExpr = parseExpression(code);
+					stmt->arg.define.isInitExpr = true;
 				}
 			}
 			else if(stmt->arg.define.value == NULL)
@@ -502,13 +504,15 @@ static ptrs_ast_t *parseStatement(code_t *code)
 			else
 			{
 				stmt->arg.define.initExpr = NULL;
-				stmt->arg.define.initVal = NULL;
+				stmt->arg.define.isInitExpr = true;
 			}
 		}
 		else if(lookahead(code, ":"))
 		{
 			stmt->handler = PTRS_HANDLE_STRUCTVAR;
 			stmt->arg.define.value = parseUnaryExpr(code, true, false);
+			stmt->arg.define.isInitExpr = false;
+			stmt->arg.define.onStack = true;
 
 			consumec(code, '(');
 			stmt->arg.define.initVal = parseExpressionList(code, ')');
@@ -948,25 +952,11 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 
 	if(lookahead(code, "new"))
 	{
-		ast = talloc(ptrs_ast_t);
-		ast->handler = PTRS_HANDLE_NEW;
-		ast->arg.newexpr.onStack = false;
-		ast->arg.newexpr.value = parseUnaryExpr(code, true, false);
-
-		consumec(code, '(');
-		ast->arg.newexpr.arguments = parseExpressionList(code, ')');
-		consumec(code, ')');
+		ast = parseNew(code, false);
 	}
 	else if(lookahead(code, "new_stack")) //TODO find a better syntax for this
 	{
-		ast = talloc(ptrs_ast_t);
-		ast->handler = PTRS_HANDLE_NEW;
-		ast->arg.newexpr.onStack = true;
-		ast->arg.newexpr.value = parseUnaryExpr(code, true, false);
-
-		consumec(code, '(');
-		ast->arg.newexpr.arguments = parseExpressionList(code, ')');
-		consumec(code, ')');
+		ast = parseNew(code, true);
 	}
 	else if(lookahead(code, "type"))
 	{
@@ -1747,6 +1737,48 @@ static void parseAsm(code_t *code, ptrs_ast_t *stmt)
 	}
 }
 #endif
+
+static ptrs_ast_t *parseNew(code_t *code, bool onStack)
+{
+	ptrs_ast_t *ast = talloc(ptrs_ast_t);
+
+	if(lookahead(code, "array"))
+	{
+		ast->arg.define.symbol.scope = -1;
+		ast->arg.define.initExpr = NULL;
+		ast->arg.define.isInitExpr = true;
+		ast->arg.define.onStack = false;
+
+		if(lookahead(code, "["))
+		{
+			ast->handler = PTRS_HANDLE_VARARRAY;
+			ast->arg.define.value = parseExpression(code);
+			consumec(code, ']');
+		}
+		else if(lookahead(code, "{"))
+		{
+			ast->handler = PTRS_HANDLE_ARRAY;
+			ast->arg.define.value = parseExpression(code);
+			consumec(code, '}');
+		}
+		else
+		{
+			unexpected(code, "[ or {");
+		}
+	}
+	else
+	{
+		ast->handler = PTRS_HANDLE_NEW;
+		ast->arg.newexpr.onStack = false;
+		ast->arg.newexpr.value = parseUnaryExpr(code, true, false);
+
+		consumec(code, '(');
+		ast->arg.newexpr.arguments = parseExpressionList(code, ')');
+		consumec(code, ')');
+	}
+
+	return ast;
+}
 
 static void parseMap(code_t *code, ptrs_ast_t *ast)
 {
