@@ -1072,22 +1072,6 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		ast->arg.newexpr.onStack = false;
 		parseMap(code, ast);
 	}
-	else if(curr == '[')
-	{
-		next(code);
-		ast = talloc(ptrs_ast_t);
-		ast->handler = PTRS_HANDLE_VARARRAYEXPR;
-		ast->arg.astlist = parseExpressionList(code, ']');
-		consumec(code, ']');
-	}
-	else if(curr == '{')
-	{
-		next(code);
-		ast = talloc(ptrs_ast_t);
-		ast->handler = PTRS_HANDLE_ARRAYEXPR;
-		ast->arg.astlist = parseExpressionList(code, '}');
-		consumec(code, '}');
-	}
 	else if(isalpha(curr) || curr == '_')
 	{
 		char *name = readIdentifier(code);
@@ -1754,12 +1738,34 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 			ast->handler = PTRS_HANDLE_VARARRAY;
 			ast->arg.define.value = parseExpression(code);
 			consumec(code, ']');
+
+			if(lookahead(code, "["))
+			{
+				ast->arg.define.isInitExpr = false;
+				ast->arg.define.initVal = parseExpressionList(code, ']');
+				consumec(code, ']');
+			}
+			else if(ast->arg.define.value == NULL)
+			{
+				unexpected(code, "Array initializer for implicitly sized var-array");
+			}
 		}
 		else if(lookahead(code, "{"))
 		{
 			ast->handler = PTRS_HANDLE_ARRAY;
 			ast->arg.define.value = parseExpression(code);
 			consumec(code, '}');
+
+			if(lookahead(code, "{"))
+			{
+				ast->arg.define.isInitExpr = false;
+				ast->arg.define.initVal = parseExpressionList(code, '}');
+				consumec(code, '}');
+			}
+			else if(ast->arg.define.value == NULL)
+			{
+				unexpected(code, "Array initializer for implicitly sized array");
+			}
 		}
 		else
 		{

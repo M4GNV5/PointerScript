@@ -28,36 +28,6 @@ ptrs_var_t *ptrs_handle_call(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 	}
 }
 
-ptrs_var_t *ptrs_handle_arrayexpr(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
-{
-	int len = ptrs_astlist_length(node->arg.astlist, node, scope);
-	uint8_t *array = ptrs_alloc(scope, len);
-
-	ptrs_var_t vals[len];
-	ptrs_astlist_handle(node->arg.astlist, vals, scope);
-	for(int i = 0; i < len; i++)
-	{
-		array[i] = ptrs_vartoi(&vals[i]);
-	}
-
-	result->type = PTRS_TYPE_NATIVE;
-	result->value.nativeval = array;
-	result->meta.array.readOnly = false;
-	result->meta.array.size = len;
-	return result;
-}
-
-ptrs_var_t *ptrs_handle_vararrayexpr(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
-{
-	int len = ptrs_astlist_length(node->arg.astlist, node, scope);
-
-	result->type = PTRS_TYPE_POINTER;
-	result->value.ptrval = ptrs_alloc(scope, len * sizeof(ptrs_var_t));
-	result->meta.array.size = len;
-	ptrs_astlist_handle(node->arg.astlist, result->value.ptrval, scope);
-	return result;
-}
-
 ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_strformat stmt = node->arg.strformat;
