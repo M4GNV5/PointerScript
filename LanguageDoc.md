@@ -29,6 +29,8 @@
 	- [CallExpression](#callexpression)
 	- [ArrayExpression](#arrayexpression)
 	- [VarArrayExpression](#vararrayexpression)
+	- [ArrayStackExpression](#arraystackexpression)
+	- [VarArrayStackExpression](#vararraystackexpression)
 	- [StringFormatExpression](#stringformatexpression)
 	- [NewExpression](#newexpression)
 	- [NewStackExpression](#newstackexpression)
@@ -640,20 +642,6 @@ Calls a function
 printf("x = %d\n", x)
 ```
 
-##ArrayExpression
-Creates an array. Memory will be allocated on the stack
-```js
-//'{' ExpressionList '}'
-{'h', 'g' + 1}
-```
-
-##VarArrayExpression
-Creates a variable array. Memory will be allocated on the stack
-```js
-//'[' ExpressionList ']'
-[3.14, "ahoi", 42]
-```
-
 ##StringFormatExpression
 Works like sprintf. Memory for the result string will be allocated on the stack
 ```js
@@ -674,6 +662,42 @@ Creates an instance of a struct allocating its memory on the stack
 ```js
 //'new_stack' Identifier '(' ExpressionList ')'
 new_stack MyStruct(32);
+```
+
+##ArrayExpression
+Creates an array. Memory will be allocated using `malloc`
+```js
+//'new' 'array' '{' Expression '}' [ '{' ExpressionList '}' ]
+new array{1024};
+new array{128} {'h', 'i', 0};
+new array{} {'h', 'e', 'l', 'l', 'o', 0};
+```
+
+##VarArrayExpression
+Creates a var-array. Memory will be allocated using `malloc`
+```js
+//'new' 'array' '[' Expression ']' [ '[' ExpressionList ']' ]
+new array[16];
+new array[8] [42, "hello", 31.12];
+new array[] ["hi", 1337, PI, 9.11];
+```
+
+##ArrayStackExpression
+Same as [ArrayExpression](#arrayexpression) but memory will be allocated on the stack
+```js
+//'new_stack' 'array' '{' Expression '}' [ '{' ExpressionList '}' ]
+new_stack array{1024};
+new_stack array{128} {'h', 'i', 0};
+new_stack array{} {'h', 'e', 'l', 'l', 'o', 0};
+```
+
+##VarArrayStackExpression
+Same as [VarArrayExpression](#vararrayexpression) but memory will be allocated on the stack
+```js
+//'new_stack' 'array' '[' Expression ']' [ '[' ExpressionList ']' ]
+new_stack array[16];
+new_stack array[8] [42, "hello", 31.12];
+new_stack array[] ["hi", 1337, PI, 9.11];
 ```
 
 ##MapExpression
