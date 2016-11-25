@@ -538,11 +538,17 @@ operator foreach in this //overloads the foreach statement
 ```
 
 ##DeleteStatement
-Calls the destructor of a given struct instance and free's its memory.
+Free's memory allocated with `new`. For structs it also calls the destructor
 ```js
 //'delete' Expression ';'
 var foo = new MyStruct(128);
 delete foo;
+
+var bar = new array[16];
+delete bar;
+
+var baz = new array{1024};
+delete baz;
 ```
 
 ##SwitchStatement
