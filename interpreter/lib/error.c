@@ -263,8 +263,6 @@ void ptrs_handle_sig(int sig)
 
 void ptrs_handle_signals()
 {
-	signal(SIGINT, ptrs_handle_sig);
-	signal(SIGQUIT, ptrs_handle_sig);
 	signal(SIGILL, ptrs_handle_sig);
 	signal(SIGABRT, ptrs_handle_sig);
 	signal(SIGFPE, ptrs_handle_sig);
