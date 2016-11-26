@@ -583,10 +583,10 @@ static ptrs_ast_t *parseStatement(code_t *code)
 
 		if(lookahead(code, "catch"))
 		{
-			symbolScope_increase(code, 0, true);
+			symbolScope_increase(code, 0, false);
 			stmt->arg.trycatch.argc = parseArgumentDefinitionList(code, &stmt->arg.trycatch.args, NULL, NULL);
 			stmt->arg.trycatch.catchBody = parseScopelessBody(code, true);
-			symbolScope_decrease(code);
+			stmt->arg.trycatch.catchStackOffset = symbolScope_decrease(code);
 		}
 		else
 		{

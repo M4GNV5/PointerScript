@@ -446,22 +446,30 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 	{
 		ptrs_var_t val;
 		char *msg;
+
 		scope->error = oldError;
+		scope = ptrs_scope_increase(scope, stmt.catchStackOffset);
 
 		val.type = PTRS_TYPE_NATIVE;
 		val.meta.array.readOnly = false;
 		if(stmt.argc > 0 && stmt.args[0].scope != (unsigned)-1)
 		{
-			msg = ptrs_alloc(scope, strlen(error.message) + 1);
+			val.meta.array.size = strlen(error.message) + 1;
+
+			msg = ptrs_alloc(scope, val.meta.array.size);
 			strcpy(msg, error.message);
 			val.value.strval = msg;
+
 			ptrs_scope_set(scope, stmt.args[0], &val);
 		}
 		if(stmt.argc > 1 && stmt.args[1].scope != (unsigned)-1)
 		{
-			msg = ptrs_alloc(scope, strlen(error.stack) + 1);
+			val.meta.array.size = strlen(error.stack) + 1;
+
+			msg = ptrs_alloc(scope, val.meta.array.size);
 			strcpy(msg, error.stack);
 			val.value.strval = msg;
+
 			ptrs_scope_set(scope, stmt.args[1], &val);
 		}
 		if(stmt.argc > 2 && stmt.args[2].scope != (unsigned)-1)
@@ -469,6 +477,7 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 			val.value.strval = error.file;
 			ptrs_scope_set(scope, stmt.args[2], &val);
 		}
+
 		free(error.message);
 		free(error.stack);
 
