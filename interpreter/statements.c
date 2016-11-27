@@ -72,6 +72,16 @@ ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 			ptrs_error(node, scope, "Trying to create array of size %d", size);
 	}
 
+	ptrs_error_t error;
+	uint8_t *array = NULL;
+
+	if(!stmt.onStack && ptrs_error_catch(scope, &error, false))
+	{
+		if(array != NULL)
+			free(array);
+		ptrs_error_reThrow(scope, &error);
+	}
+
 	if(!stmt.isInitExpr)
 	{
 		int len = ptrs_astlist_length(stmt.initVal, node, scope);
@@ -81,7 +91,6 @@ ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		else if(size < len)
 			ptrs_error(node, scope, "Array size (%d) is too small for initializer size (%d)", size, len);
 
-		uint8_t *array;
 		if(stmt.onStack)
 		 	array = ptrs_alloc(scope, size);
 		else
@@ -95,8 +104,6 @@ ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 			array[i] = ptrs_vartoi(&vals[i]);
 		for(; i < size; i++)
 			array[i] = array[len - 1];
-
-		result->value.nativeval = array;
 	}
 	else if(stmt.initExpr != NULL)
 	{
@@ -111,9 +118,9 @@ ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 			ptrs_error(node, scope, "Array size (%d) is too small for initializer size (%d)", size, len);
 
 		if(stmt.onStack)
-			result->value.nativeval = ptrs_alloc(scope, size);
+			array = ptrs_alloc(scope, size);
 		else
-			result->value.nativeval = malloc(size);
+			array = malloc(size);
 
 		strncpy(result->value.nativeval, initVal, size - 1);
 		((uint8_t *)result->value.nativeval)[size - 1] = 0;
@@ -124,12 +131,16 @@ ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 			ptrs_error(node, scope, "Trying to create array of size %d", size);
 
 		if(stmt.onStack)
-			result->value.nativeval = ptrs_alloc(scope, size);
+			array = ptrs_alloc(scope, size);
 		else
-			result->value.nativeval = malloc(size);
+			array = malloc(size);
 	}
 
+	if(!stmt.onStack)
+		ptrs_error_stopCatch(scope, &error);
+
 	result->type = PTRS_TYPE_NATIVE;
+	result->value.nativeval = array;
 	result->meta.array.readOnly = false;
 	result->meta.array.size = size;
 
@@ -166,6 +177,14 @@ ptrs_var_t *ptrs_handle_vararray(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 		 	array = ptrs_alloc(scope, size);
 		else
 			array = malloc(size);
+
+		ptrs_error_t error;
+		if(!stmt.onStack && ptrs_error_catch(scope, &error, false))
+		{
+			if(array != NULL)
+				free(array);
+			ptrs_error_reThrow(scope, &error);
+		}
 
 		ptrs_astlist_handle(stmt.initVal, array, scope);
 
