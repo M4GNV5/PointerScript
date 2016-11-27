@@ -218,8 +218,16 @@ ptrs_var_t *ptrs_struct_construct(ptrs_var_t *constructor, struct ptrs_astlist *
 	instance->data = instance + 1;
 	instance->isOnStack = allocateOnStack;
 
+	ptrs_error_t error;
+	if(!allocateOnStack && ptrs_error_catch(scope, &error, false))
+	{
+		free(instance);
+		ptrs_error_reThrow(scope, &error);
+	}
+
 	ptrs_scope_t *initScope = ptrs_scope_increase(scope, 0);
 	initScope->outer = instance->scope;
+
 	struct ptrs_structlist *member = instance->member;
 	while(member != NULL)
 	{
@@ -240,6 +248,9 @@ ptrs_var_t *ptrs_struct_construct(ptrs_var_t *constructor, struct ptrs_astlist *
 		overload.type = PTRS_TYPE_FUNCTION;
 		ptrs_call(node, PTRS_TYPE_UNDEFINED, instance, &overload, result, arguments, scope);
 	}
+
+	if(!allocateOnStack)
+		ptrs_error_stopCatch(scope, &error);
 
 	result->type = PTRS_TYPE_STRUCT;
 	result->value.structval = instance;
