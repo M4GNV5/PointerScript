@@ -432,22 +432,18 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 {
 	struct ptrs_ast_trycatch stmt = node->arg.trycatch;
 	ptrs_error_t error;
-	ptrs_error_t *oldError = scope->error;
 
-	scope->error = &error;
-	int k = sigsetjmp(error.catch, 1);
-
-	if(k == 0)
+	if(!ptrs_error_catch(scope, &error, true))
 	{
 		result = stmt.tryBody->handler(stmt.tryBody, result, scope);
-		scope->error = oldError;
+		ptrs_error_stopCatch(scope, &error);
 	}
 	else if(stmt.catchBody != NULL)
 	{
 		ptrs_var_t val;
 		char *msg;
 
-		scope->error = oldError;
+		ptrs_error_stopCatch(scope, &error);
 		scope = ptrs_scope_increase(scope, stmt.catchStackOffset);
 
 		val.type = PTRS_TYPE_NATIVE;
@@ -494,6 +490,10 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 		}
 
 		result = stmt.catchBody->handler(stmt.catchBody, result, scope);
+	}
+	else
+	{
+		ptrs_error_stopCatch(scope, &error);
 	}
 
 	return result;

@@ -247,6 +247,32 @@ void ptrs_throw(ptrs_ast_t *ast, ptrs_scope_t *scope, const char *msg, ...)
 	ptrs_vthrow(ast, scope, msg, ap);
 }
 
+ptrs_error_t *_ptrs_error_catch(ptrs_scope_t *scope, ptrs_error_t *error, bool noReThrow)
+{
+	error->oldError = scope->error;
+
+	if(scope->error != NULL || noReThrow)
+		scope->error = error;
+
+	return error;
+}
+void ptrs_error_stopCatch(ptrs_scope_t *scope, ptrs_error_t *error)
+{
+	scope->error = error->oldError;
+}
+void ptrs_error_reThrow(ptrs_scope_t *scope, ptrs_error_t *error)
+{
+	ptrs_error_t *oldError = error->oldError;
+	oldError->message = error->message;
+	oldError->stack = error->stack;
+	oldError->file = error->file;
+	oldError->line = error->line;
+	oldError->column = error->column;
+
+	scope->error = error->oldError;
+	siglongjmp(scope->error->catch, 1);
+}
+
 void ptrs_handle_sig(int sig)
 {
 	if(ptrs_lastscope != NULL && ptrs_lastscope->error != NULL)
