@@ -450,11 +450,13 @@ ptrs_var_t *ptrs_handle_throw(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_trycatch stmt = node->arg.trycatch;
+	ptrs_var_t *_result;
 	ptrs_error_t error;
+	bool needsRethrow = false;
 
-	if(!ptrs_error_catch(scope, &error, true))
+	if(!ptrs_error_catch(scope, &error, stmt.catchBody != NULL || stmt.finallyBody == NULL))
 	{
-		result = stmt.tryBody->handler(stmt.tryBody, result, scope);
+		_result = stmt.tryBody->handler(stmt.tryBody, result, scope);
 		ptrs_error_stopCatch(scope, &error);
 	}
 	else if(stmt.catchBody != NULL)
@@ -463,7 +465,7 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 		char *msg;
 
 		ptrs_error_stopCatch(scope, &error);
-		scope = ptrs_scope_increase(scope, stmt.catchStackOffset);
+		ptrs_scope_t *catchScope = ptrs_scope_increase(scope, stmt.catchStackOffset);
 
 		val.type = PTRS_TYPE_NATIVE;
 		val.meta.array.readOnly = false;
@@ -471,26 +473,26 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 		{
 			val.meta.array.size = strlen(error.message) + 1;
 
-			msg = ptrs_alloc(scope, val.meta.array.size);
+			msg = ptrs_alloc(catchScope, val.meta.array.size);
 			strcpy(msg, error.message);
 			val.value.strval = msg;
 
-			ptrs_scope_set(scope, stmt.args[0], &val);
+			ptrs_scope_set(catchScope, stmt.args[0], &val);
 		}
 		if(stmt.argc > 1 && stmt.args[1].scope != (unsigned)-1)
 		{
 			val.meta.array.size = strlen(error.stack) + 1;
 
-			msg = ptrs_alloc(scope, val.meta.array.size);
+			msg = ptrs_alloc(catchScope, val.meta.array.size);
 			strcpy(msg, error.stack);
 			val.value.strval = msg;
 
-			ptrs_scope_set(scope, stmt.args[1], &val);
+			ptrs_scope_set(catchScope, stmt.args[1], &val);
 		}
 		if(stmt.argc > 2 && stmt.args[2].scope != (unsigned)-1)
 		{
 			val.value.strval = error.file;
-			ptrs_scope_set(scope, stmt.args[2], &val);
+			ptrs_scope_set(catchScope, stmt.args[2], &val);
 		}
 
 		free(error.message);
@@ -500,22 +502,30 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 		if(stmt.argc > 3 && stmt.args[3].scope != (unsigned)-1)
 		{
 			val.value.intval = error.line;
-			ptrs_scope_set(scope, stmt.args[3], &val);
+			ptrs_scope_set(catchScope, stmt.args[3], &val);
 		}
 		if(stmt.argc > 4 && stmt.args[4].scope != (unsigned)-1)
 		{
 			val.value.intval = error.column;
-			ptrs_scope_set(scope, stmt.args[4], &val);
+			ptrs_scope_set(catchScope, stmt.args[4], &val);
 		}
 
-		result = stmt.catchBody->handler(stmt.catchBody, result, scope);
+		_result = stmt.catchBody->handler(stmt.catchBody, result, catchScope);
 	}
 	else
 	{
-		ptrs_error_stopCatch(scope, &error);
+		needsRethrow = true;
 	}
 
-	return result;
+	if(stmt.finallyBody != NULL)
+	{
+		_result = stmt.finallyBody->handler(stmt.finallyBody, result, scope);
+
+		if(needsRethrow)
+			ptrs_error_reThrow(scope, &error);
+	}
+
+	return _result;
 }
 
 #ifndef _PTRS_NOASM

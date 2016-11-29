@@ -47,7 +47,8 @@ struct ptrs_ast_trycatch
 {
 	struct ptrs_ast *tryBody;
 	struct ptrs_ast *catchBody;
-	int catchStackOffset;
+	struct ptrs_ast *finallyBody;
+	unsigned catchStackOffset;
 	int argc;
 	ptrs_symbol_t *args;
 };

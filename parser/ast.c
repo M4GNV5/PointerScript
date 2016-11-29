@@ -592,6 +592,11 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		{
 			stmt->arg.trycatch.catchBody = NULL;
 		}
+
+		if(lookahead(code, "finally"))
+			stmt->arg.trycatch.finallyBody = parseBody(code, NULL, true, false);
+		else
+			stmt->arg.trycatch.finallyBody = NULL;
 	}
 	else if(lookahead(code, "asm"))
 	{
