@@ -43,6 +43,20 @@ bool ptrs_struct_canAccess(ptrs_struct_t *struc, struct ptrs_structlist *member,
 	}
 }
 
+struct ptrs_structlist *ptrs_struct_find(ptrs_struct_t *struc, const char *key,
+	enum ptrs_structmembertype exclude, ptrs_ast_t *ast, ptrs_scope_t *scope)
+{
+	struct ptrs_structlist *curr = struc->member;
+	while(curr != NULL)
+	{
+		if(strcmp(curr->name, key) == 0 && curr->type != exclude && ptrs_struct_canAccess(struc, curr, ast, scope))
+			return curr;
+		curr = curr->next;
+	}
+
+	return NULL;
+}
+
 ptrs_var_t *ptrs_struct_getMember(ptrs_struct_t *struc, ptrs_var_t *result, struct ptrs_structlist *member,
 	ptrs_ast_t *ast, ptrs_scope_t *scope)
 {
@@ -88,20 +102,6 @@ ptrs_var_t *ptrs_struct_getMember(ptrs_struct_t *struc, ptrs_var_t *result, stru
 	return NULL;
 }
 
-ptrs_var_t *ptrs_struct_get(ptrs_struct_t *struc, ptrs_var_t *result, const char *key, ptrs_ast_t *ast, ptrs_scope_t *scope)
-{
-	struct ptrs_structlist *curr = struc->member;
-	while(curr != NULL)
-	{
-		if(strcmp(curr->name, key) == 0 && curr->type != PTRS_STRUCTMEMBER_SETTER
-			&& ptrs_struct_canAccess(struc, curr, ast, scope))
-			return ptrs_struct_getMember(struc, result, curr, ast, scope);
-		curr = curr->next;
-	}
-
-	return NULL;
-}
-
 void ptrs_struct_setMember(ptrs_struct_t *struc, ptrs_var_t *value, struct ptrs_structlist *member,
 	ptrs_ast_t *ast, ptrs_scope_t *scope)
 {
@@ -137,22 +137,6 @@ void ptrs_struct_setMember(ptrs_struct_t *struc, ptrs_var_t *value, struct ptrs_
 	}
 }
 
-bool ptrs_struct_set(ptrs_struct_t *struc, ptrs_var_t *value, const char *key, ptrs_ast_t *ast, ptrs_scope_t *scope)
-{
-	struct ptrs_structlist *curr = struc->member;
-	while(curr != NULL)
-	{
-		if(strcmp(curr->name, key) == 0 && curr->type != PTRS_STRUCTMEMBER_GETTER
-			&& ptrs_struct_canAccess(struc, curr, ast, scope))
-		{
-			ptrs_struct_setMember(struc, value, curr, ast, scope);
-			return true;
-		}
-		curr = curr->next;
-	}
-	return false;
-}
-
 void ptrs_struct_addressOfMember(ptrs_struct_t *struc, ptrs_var_t *result, struct ptrs_structlist *member,
 	ptrs_ast_t *ast, ptrs_scope_t *scope)
 {
@@ -183,21 +167,34 @@ void ptrs_struct_addressOfMember(ptrs_struct_t *struc, ptrs_var_t *result, struc
 	}
 }
 
+ptrs_var_t *ptrs_struct_get(ptrs_struct_t *struc, ptrs_var_t *result, const char *key, ptrs_ast_t *ast, ptrs_scope_t *scope)
+{
+	struct ptrs_structlist *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, ast, scope);
+	if(member == NULL)
+		return NULL;
+
+	return ptrs_struct_getMember(struc, result, member, ast, scope);
+}
+
+bool ptrs_struct_set(ptrs_struct_t *struc, ptrs_var_t *value, const char *key, ptrs_ast_t *ast, ptrs_scope_t *scope)
+{
+	struct ptrs_structlist *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_GETTER, ast, scope);
+	if(member == NULL)
+		return false;
+
+	ptrs_struct_setMember(struc, value, member, ast, scope);
+	return true;
+}
+
 bool ptrs_struct_addressOf(ptrs_struct_t *struc, ptrs_var_t *result, const char *key,
 	ptrs_ast_t *ast, ptrs_scope_t *scope)
 {
-	struct ptrs_structlist *curr = struc->member;
-	while(curr != NULL)
-	{
-		if(strcmp(curr->name, key) == 0 && ptrs_struct_canAccess(struc, curr, ast, scope))
-		{
-			ptrs_struct_addressOfMember(struc, result, curr, ast, scope);
-			return true;
-		}
-		curr = curr->next;
-	}
+	struct ptrs_structlist *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_GETTER, ast, scope);
+	if(member == NULL)
+		return false;
 
-	return false;
+	ptrs_struct_addressOfMember(struc, result, member, ast, scope);
+	return true;
 }
 
 ptrs_var_t *ptrs_struct_construct(ptrs_var_t *constructor, struct ptrs_astlist *arguments, bool allocateOnStack,
