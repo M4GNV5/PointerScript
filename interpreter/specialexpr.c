@@ -112,7 +112,7 @@ ptrs_var_t *ptrs_handle_assign_member(ptrs_ast_t *node, ptrs_var_t *value, ptrs_
 	}
 	else
 	{
-		ptrs_error(node, scope, "Struct %s has no member '%s'", base->value.structval->name, expr.name);
+		ptrs_error(node, scope, "Struct %s has no property '%s'", base->value.structval->name, expr.name);
 	}
 
 	return NULL;
@@ -142,7 +142,7 @@ ptrs_var_t *ptrs_handle_addressof_member(ptrs_ast_t *node, ptrs_var_t *result, p
 		}
 		else
 		{
-			ptrs_error(node, scope, "Struct %s has no member '%s'", base->value.structval->name, expr.name);
+			ptrs_error(node, scope, "Struct %s has no property '%s'", base->value.structval->name, expr.name);
 		}
 	}
 
@@ -179,7 +179,7 @@ ptrs_var_t *ptrs_handle_call_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_s
 	}
 	else
 	{
-		ptrs_error(node, scope, "Struct %s has no member '%s'", base->value.structval->name, expr.name);
+		ptrs_error(node, scope, "Struct %s has no property '%s'", base->value.structval->name, expr.name);
 		return NULL; //doh
 	}
 }
@@ -434,7 +434,7 @@ ptrs_var_t *ptrs_handle_assign_index(ptrs_ast_t *node, ptrs_var_t *value, ptrs_s
 			}
 			else
 			{
-				ptrs_error(node, scope, "Struct %s has no member '%s'", val->value.structval->name, key);
+				ptrs_error(node, scope, "Struct %s has no property '%s'", val->value.structval->name, key);
 			}
 		}
 	}
@@ -487,7 +487,7 @@ ptrs_var_t *ptrs_handle_addressof_index(ptrs_ast_t *node, ptrs_var_t *result, pt
 			}
 			else
 			{
-				ptrs_error(node, scope, "Struct %s has no member '%s'", value->value.structval->name, key);
+				ptrs_error(node, scope, "Struct %s has no property '%s'", value->value.structval->name, key);
 			}
 		}
 	}
@@ -542,7 +542,7 @@ ptrs_var_t *ptrs_handle_call_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 		}
 		else
 		{
-			ptrs_error(node, scope, "Struct %s has no member '%s'", value->value.structval->name, key);
+			ptrs_error(node, scope, "Struct %s has no property '%s'", value->value.structval->name, key);
 			return NULL; //doh
 		}
 	}
