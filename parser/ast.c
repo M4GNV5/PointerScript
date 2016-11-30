@@ -74,7 +74,7 @@ static ptrs_asthandler_t readPrefixOperator(code_t *code, const char **label);
 static ptrs_asthandler_t readSuffixOperator(code_t *code, const char **label);
 static ptrs_asthandler_t readBinaryOperator(code_t *code, const char **label);
 static char *readIdentifier(code_t *code);
-static char *readString(code_t *code, int *length);
+static char *readString(code_t *code, int *length, struct ptrs_astlist **insertions);
 static char readEscapeSequence(code_t *code);
 static int64_t readInt(code_t *code, int base);
 static double readDouble(code_t *code);
@@ -1130,15 +1130,15 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 	{
 		rawnext(code);
 		int len;
-		char *str = readString(code, &len);
+		struct ptrs_astlist *insertions = NULL;
+		char *str = readString(code, &len, &insertions);
 
 		ast = talloc(ptrs_ast_t);
-		if(code->curr == '%')
+		if(insertions != NULL)
 		{
-			next(code);
 			ast->handler = PTRS_HANDLE_STRINGFORMAT;
 			ast->arg.strformat.str = str;
-			ast->arg.strformat.args = parseExpressionList(code, 0);
+			ast->arg.strformat.args = insertions;
 		}
 		else
 		{
@@ -1831,7 +1831,7 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 		struc->size += sizeof(ptrs_var_t);
 
 		if(lookahead(code, "\""))
-			curr->name = readString(code, NULL);
+			curr->name = readString(code, NULL, NULL);
 		else
 			curr->name = readIdentifier(code);
 
@@ -2468,36 +2468,12 @@ static char *readIdentifier(code_t *code)
 	return _val;
 }
 
-static char *readString(code_t *code, int *length)
+static char *readString(code_t *code, int *length, struct ptrs_astlist **insertions)
 {
-	int start = code->pos;
-	int len = 0;
-	for(;;)
-	{
-		char *curr = &code->src[code->pos];
-		while(*curr != '"')
-		{
-			if(*curr == '\\')
-				curr++;
-			curr++;
-			len++;
-		}
-		code->pos += curr - &code->src[code->pos];
-
-		next(code);
-		if(code->curr == '"')
-			rawnext(code);
-		else
-			break;
-	}
-
-	if(length != NULL)
-		*length = len;
-
-	code->pos = start;
-	code->curr = code->src[code->pos];
-	char *val = malloc(len + 1);
-	char *currVal = val;
+	int buffSize = 1024;
+	int i = 0;
+	char *buff = malloc(buffSize);
+	struct ptrs_astlist *curr = NULL;
 	for(;;)
 	{
 		while(code->curr != '"')
@@ -2505,13 +2481,62 @@ static char *readString(code_t *code, int *length)
 			if(code->curr == '\\')
 			{
 				rawnext(code);
-				*currVal++ = readEscapeSequence(code);
+			 	buff[i++] = readEscapeSequence(code);
+				rawnext(code);
+			}
+			else if(insertions != NULL && code->curr == '$')
+			{
+				rawnext(code);
+
+				if(curr == NULL)
+				{
+					curr = talloc(struct ptrs_astlist);
+					*insertions = curr;
+				}
+				else
+				{
+					curr->next = talloc(struct ptrs_astlist);
+					curr = curr->next;
+				}
+				curr->expand = false;
+
+				if(code->curr == '{')
+				{
+					rawnext(code);
+					curr->entry = parseExpression(code);
+
+					if(code->curr != '}')
+						unexpected(code, "}");
+					rawnext(code);
+				}
+				else
+				{
+					int j;
+					char name[128];
+					for(j = 0; j < 128 && (isalnum(code->curr) || code->curr == '_'); j++)
+					{
+						name[j] = code->curr;
+						rawnext(code);
+					}
+					name[j] = 0;
+
+					curr->entry = getSymbol(code, name);
+				}
+
+				buff[i++] = '%';
+				buff[i++] = 's';
 			}
 			else
 			{
-				*currVal++ = code->curr;
+				buff[i++] = code->curr;
+				rawnext(code);
 			}
-			rawnext(code);
+
+			if(i > buffSize - 3)
+			{
+				buffSize *= 2;
+				buff = realloc(buff, buffSize);
+			}
 		}
 
 		next(code);
@@ -2521,8 +2546,14 @@ static char *readString(code_t *code, int *length)
 			break;
 	}
 
-	val[len] = 0;
-	return val;
+	if(curr != NULL)
+		curr->next = NULL;
+
+	buff[i++] = 0;
+	if(length != NULL)
+		*length = i;
+
+	return realloc(buff, i);
 }
 
 static char readEscapeSequence(code_t *code)

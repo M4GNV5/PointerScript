@@ -91,6 +91,7 @@ struct ptrs_ast_strformat
 {
 	char *str;
 	struct ptrs_astlist *args;
+	bool isInsertion;
 };
 
 struct ptrs_ast_binary

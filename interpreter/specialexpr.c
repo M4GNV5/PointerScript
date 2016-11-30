@@ -35,6 +35,18 @@ ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 	ptrs_var_t args[len];
 	ptrs_astlist_handle(stmt.args, &args[3], scope);
 
+	for(int i = 0; i < len; i++)
+	{
+		if(args[i].type != PTRS_TYPE_NATIVE)
+		{
+			char *str = alloca(32);
+			ptrs_vartoa(args + i, str, 32);
+
+			args[i].type = PTRS_TYPE_NATIVE;
+			args[i].value.nativeval = str;
+		}
+	}
+
 	args[0].type = PTRS_TYPE_NATIVE;
 	args[0].value.strval = NULL;
 	args[1].type = PTRS_TYPE_INT;
