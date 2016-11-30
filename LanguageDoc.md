@@ -17,7 +17,10 @@
 	- [ConstDefinition](#constdefinition)
 	- [ImportStatement](#importstatement)
 	- [ScopeStatement](#scopestatement)
+	- [TryStatement](#trystatement)
 	- [TryCatchStatement](#trycatchstatement)
+	- [TryFinallyStatement](#tryfinallystatement)
+	- [TryCatchFinallyStatement](#trycatchfinallystatement)
 	- [ThrowStatement](#throwstatement)
 	- [FunctionStatement](#functionstatement)
 	- [StructStatement](#structstatement)
@@ -303,8 +306,23 @@ scoped {
 //the 1024 bytes used by myData are available again here
 ```
 
+##TryStatement
+Executes the try block ignoring any error (including signals)
+```js
+//'try' Statement
+
+try
+{
+	throw "This is ignored";
+	printf("this is never executed\n");
+}
+
+//this will let us receive a SIGSEGV (that will be ignored)
+try printf("%s", 42);
+```
+
 ##TryCatchStatement
-Executes the try body and catches any error (including signals) passing an error message, a backtrace string and source position information to the catch block. The catch block does not have to define identifiers for all 5 arguments.
+Executes the try block and catches any error (including signals) passing an error message, a backtrace string and source position information to the catch block. The catch block does not have to define identifiers for all 5 arguments.
 ```js
 //'try' Statement 'catch' '(' IdentifierList ')' Statement
 try
@@ -315,6 +333,46 @@ try
 catch(error, backtrace, file, line, column)
 {
 	printf("%s\n%s\nAt %s:%d:%d", error, backtrace, file, line, column);
+}
+```
+
+##TryFinallyStatement
+Executes the try block, if no error occurs the finally body will be executed. When an error occurs
+in the try block, the finally block will be executed and the error will be re-thrown.
+This can be used to close ressources or free memory.
+```js
+//'try' Statement 'finally' Statement
+
+var color = new array[] [255, 0, 64];
+try
+{
+	riskyFunction(color);
+}
+finally
+{
+	delete color;
+}
+```
+
+##TryCatchFinallyStatement
+This combines the [TryCatchStatement](#trycatchstatement) and the [TryFinallyStatement](#tryfinallystatement)
+```js
+//'try' Statement 'catch' '(' IdentifierList ')' Statement 'finally' Statement
+
+var fd = fopen("data.txt", "w");
+try
+{
+	riskyStuff(fd);
+}
+catch(err, trace)
+{
+	printf("%s\n%s", err, trace);
+}
+finally
+{
+	//the finally block will *always* be executed, no matter if there was an exception or not
+	//this makes sure 'fd' is always closed
+	fclose(fd);
 }
 ```
 
