@@ -2582,6 +2582,8 @@ static char readEscapeSequence(code_t *code)
 			return '"';
 		case '?':
 			return '\?';
+		case '$':
+			return '$';
 		case 'x':
 			rawnext(code);
 			char val = readInt(code, 16);
