@@ -254,7 +254,7 @@ struct ptrs_algorithmlist
 {
 	struct ptrs_ast *entry;
 	struct ptrs_algorithmlist *next;
-	uint8_t flags : 2; //0 = filter, 1 = negated filter, 2 = value replacer
+	uint8_t flags : 2; //0 = filter, 1 = negated filter, 2 = value replacer, 3 = index filter
 	uint8_t orCombine : 1; //is || combined with next one
 };
 

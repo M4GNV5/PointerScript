@@ -42,7 +42,45 @@ bool ptrs_algorithm_step(struct ptrs_algoContext *ctx)
 	ptrs_var_t *handler = ctx->handler[ctx->index].val;
 	struct ptrs_algorithmlist *listEntry = ctx->handler[ctx->index].entry;
 	ptrs_var_t valv;
-	ptrs_var_t *val = listEntry->flags == 2 ? &ctx->currv : &valv;
+	ptrs_var_t *val = listEntry->flags >= 2 ? &ctx->currv : &valv;
+
+	if(listEntry->flags == 3)
+	{
+		val = ctx->curr;
+		if(ctx->index == 0)
+		{
+			ptrs_error(ctx->node, ctx->scope, "Array index part filter cannot be source to an algorithm expression");
+		}
+		else if(ctx->index == ctx->len - 1)
+		{
+			ptrs_error(ctx->node, ctx->scope, "Array index part filter cannot be destination of an algorithm expression");
+		}
+		else if(val->type == PTRS_TYPE_NATIVE || val->type == PTRS_TYPE_POINTER)
+		{
+			int64_t index = ptrs_vartoi(handler);
+
+			if(index < 0 || index > val->meta.array.size)
+				ptrs_error(ctx->node, ctx->scope, "Index %d is out of range of array of size %d", index, val->meta.array.size);
+
+			if(val->type == PTRS_TYPE_NATIVE)
+			{
+				ctx->currv.type = PTRS_TYPE_INT;
+				ctx->currv.value.intval = val->value.strval[index];
+				ctx->curr = &ctx->currv;
+			}
+			else
+			{
+				ctx->curr = val->value.ptrval + index;
+			}
+		}
+		else
+		{
+			ptrs_error(ctx->node, ctx->scope,
+				"Cannot use array index filter on a variable of type %s", ptrs_typetoa(val->type));
+		}
+
+		return true;
+	}
 
 	if(handler->type == PTRS_TYPE_STRUCT)
 	{

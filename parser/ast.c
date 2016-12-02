@@ -1453,28 +1453,46 @@ static void parseAlgorithmExpression(code_t *code, struct ptrs_algorithmlist *cu
 	curr->next = talloc(struct ptrs_algorithmlist);
 	curr = curr->next;
 
-	if(lookahead(code, "?"))
-		curr->flags = 2;
-	else if(lookahead(code, "!"))
-		curr->flags = 1;
-	else
-		curr->flags = 0;
+	switch(code->curr)
+	{
+		case '[':
+			curr->flags = 3;
+			break;
+		case '?':
+			curr->flags = 2;
+			break;
+		case '!':
+			curr->flags = 1;
+			break;
+		default:
+			curr->flags = 0;
+	}
+
+	if(curr->flags > 0)
+		next(code);
 
 	curr->entry = parseUnaryExpr(code, false, true);
 
-	if(lookahead(code, "=>"))
+	if(curr->flags == 3)
+	{
+		curr->orCombine = false;
+		consumec(code, ']');
+		consume(code, "=>");
+		parseAlgorithmExpression(code, curr, true);
+	}
+	else if(lookahead(code, "=>"))
 	{
 		curr->orCombine = false;
 		parseAlgorithmExpression(code, curr, true);
 	}
-	else if(curr->flags != 2 && lookahead(code, "||"))
+	else if(curr->flags < 2 && lookahead(code, "||"))
 	{
 		curr->orCombine = true;
 		parseAlgorithmExpression(code, curr, false);
 	}
 	else
 	{
-		if(canBeLast)
+		if(curr->flags == 0 && canBeLast)
 			curr->next = NULL;
 		else
 			unexpected(code, "=>");
