@@ -106,9 +106,11 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 	code_t code;
 	code.filename = filename;
 	code.src = src;
-	code.pos = -1;
+	code.curr = src[0];
+	code.pos = 0;
 	code.symbols = NULL;
-	next(&code);
+
+	while(skipSpaces(&code) || skipComments(&code));
 
 	if(src[0] == '#' && src[1] == '!')
 	{
@@ -2839,12 +2841,18 @@ static bool skipComments(code_t *code)
 }
 static void next(code_t *code)
 {
+	if(code->src[code->pos] == 0)
+		unexpectedm(code, NULL, "Unexpected end of input");
+
 	code->pos++;
 	while(skipSpaces(code) || skipComments(code));
 	code->curr = code->src[code->pos];
 }
 static void rawnext(code_t *code)
 {
+	if(code->src[code->pos] == 0)
+		unexpectedm(code, NULL, "Unexpected end of input");
+
 	code->pos++;
 	code->curr = code->src[code->pos];
 }
