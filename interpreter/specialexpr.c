@@ -368,7 +368,7 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	{
 		int64_t _index = ptrs_vartoi(index);
 		if(_index < 0 || _index >= value->meta.array.size)
-			ptrs_error(node, scope, "Index %d is out of range of var-array of size %d\n", _index, value->meta.array.size);
+			ptrs_error(node, scope, "Index %d is out of range of var-array of size %d", _index, value->meta.array.size);
 
 		return &(value->value.ptrval[_index]);
 	}
@@ -376,7 +376,7 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	{
 		int64_t _index = ptrs_vartoi(index);
 		if(_index < 0 || _index >= value->meta.array.size)
-			ptrs_error(node, scope, "Index %d is out of range of array of size %d\n", _index, value->meta.array.size);
+			ptrs_error(node, scope, "Index %d is out of range of array of size %d", _index, value->meta.array.size);
 
 		result->type = PTRS_TYPE_INT;
 		result->value.intval = value->value.strval[_index];
@@ -420,7 +420,7 @@ ptrs_var_t *ptrs_handle_assign_index(ptrs_ast_t *node, ptrs_var_t *value, ptrs_s
 	{
 		int64_t _index = ptrs_vartoi(index);
 		if(_index < 0 || _index >= val->meta.array.size)
-			ptrs_error(node, scope, "Index %d is out of range of var-array of size %d\n", _index, val->meta.array.size);
+			ptrs_error(node, scope, "Index %d is out of range of var-array of size %d", _index, val->meta.array.size);
 
 		memcpy(val->value.ptrval + _index, value, sizeof(ptrs_var_t));
 	}
@@ -431,7 +431,7 @@ ptrs_var_t *ptrs_handle_assign_index(ptrs_ast_t *node, ptrs_var_t *value, ptrs_s
 
 		int64_t _index = ptrs_vartoi(index);
 		if(_index < 0 || _index >= val->meta.array.size)
-			ptrs_error(node, scope, "Index %d is out of range of array of size %d\n", _index, val->meta.array.size);
+			ptrs_error(node, scope, "Index %d is out of range of array of size %d", _index, val->meta.array.size);
 
 		*(uint8_t *)(val->value.strval + _index) = (uint8_t)ptrs_vartoi(value);
 	}
@@ -478,7 +478,7 @@ ptrs_var_t *ptrs_handle_addressof_index(ptrs_ast_t *node, ptrs_var_t *result, pt
 	{
 		int64_t _index = ptrs_vartoi(index);
 		if(_index < 0 || _index >= value->meta.array.size)
-			ptrs_error(node, scope, "Index %d is out of range of var-array of size %d\n", _index, value->meta.array.size);
+			ptrs_error(node, scope, "Index %d is out of range of var-array of size %d", _index, value->meta.array.size);
 
 		result->type = PTRS_TYPE_POINTER;
 		result->value.ptrval = &(value->value.ptrval[_index]);
@@ -488,7 +488,7 @@ ptrs_var_t *ptrs_handle_addressof_index(ptrs_ast_t *node, ptrs_var_t *result, pt
 	{
 		int64_t _index = ptrs_vartoi(index);
 		if(_index < 0 || _index >= value->meta.array.size)
-			ptrs_error(node, scope, "Index %d is out of range of array of size %d\n", _index, value->meta.array.size);
+			ptrs_error(node, scope, "Index %d is out of range of array of size %d", _index, value->meta.array.size);
 
 		result->type = PTRS_TYPE_NATIVE;
 		result->value.intval = value->value.strval[_index];
@@ -534,7 +534,7 @@ ptrs_var_t *ptrs_handle_call_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 	{
 		int64_t _index = ptrs_vartoi(index);
 		if(_index < 0 || _index >= value->meta.array.size)
-			ptrs_error(node, scope, "Index %d is out of range of var-array of size %d\n", _index, value->meta.array.size);
+			ptrs_error(node, scope, "Index %d is out of range of var-array of size %d", _index, value->meta.array.size);
 
 		ptrs_var_t *func = &(value->value.ptrval[_index]);
 		return ptrs_call(node, retType, NULL, func, result, arguments, scope);
