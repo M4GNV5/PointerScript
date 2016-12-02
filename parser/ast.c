@@ -74,7 +74,7 @@ static ptrs_asthandler_t readPrefixOperator(code_t *code, const char **label);
 static ptrs_asthandler_t readSuffixOperator(code_t *code, const char **label);
 static ptrs_asthandler_t readBinaryOperator(code_t *code, const char **label);
 static char *readIdentifier(code_t *code);
-static char *readString(code_t *code, int *length, struct ptrs_astlist **insertions);
+static char *readString(code_t *code, int *length, struct ptrs_stringformat **insertions, int *insertionsCount);
 static char readEscapeSequence(code_t *code);
 static int64_t readInt(code_t *code, int base);
 static double readDouble(code_t *code);
@@ -1130,15 +1130,17 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 	{
 		rawnext(code);
 		int len;
-		struct ptrs_astlist *insertions = NULL;
-		char *str = readString(code, &len, &insertions);
+		int insertionCount;
+		struct ptrs_stringformat *insertions = NULL;
+		char *str = readString(code, &len, &insertions, &insertionCount);
 
 		ast = talloc(ptrs_ast_t);
 		if(insertions != NULL)
 		{
 			ast->handler = PTRS_HANDLE_STRINGFORMAT;
 			ast->arg.strformat.str = str;
-			ast->arg.strformat.args = insertions;
+			ast->arg.strformat.insertions = insertions;
+			ast->arg.strformat.insertionCount = insertionCount;
 		}
 		else
 		{
@@ -1831,7 +1833,7 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 		struc->size += sizeof(ptrs_var_t);
 
 		if(lookahead(code, "\""))
-			curr->name = readString(code, NULL, NULL);
+			curr->name = readString(code, NULL, NULL, NULL);
 		else
 			curr->name = readIdentifier(code);
 
@@ -2468,12 +2470,15 @@ static char *readIdentifier(code_t *code)
 	return _val;
 }
 
-static char *readString(code_t *code, int *length, struct ptrs_astlist **insertions)
+static char *readString(code_t *code, int *length, struct ptrs_stringformat **insertions, int *insertionsCount)
 {
 	int buffSize = 1024;
 	int i = 0;
+	*insertionsCount = 0;
+
 	char *buff = malloc(buffSize);
-	struct ptrs_astlist *curr = NULL;
+	struct ptrs_stringformat *curr = NULL;
+
 	for(;;)
 	{
 		while(code->curr != '"')
@@ -2487,18 +2492,34 @@ static char *readString(code_t *code, int *length, struct ptrs_astlist **inserti
 			else if(insertions != NULL && code->curr == '$')
 			{
 				rawnext(code);
+				(*insertionsCount)++;
 
 				if(curr == NULL)
 				{
-					curr = talloc(struct ptrs_astlist);
+					curr = talloc(struct ptrs_stringformat);
 					*insertions = curr;
 				}
 				else
 				{
-					curr->next = talloc(struct ptrs_astlist);
+					curr->next = talloc(struct ptrs_stringformat);
 					curr = curr->next;
 				}
-				curr->expand = false;
+
+				if(code->curr == '%')
+				{
+					while(code->curr != '{')
+					{
+						buff[i++] = code->curr;
+						rawnext(code);
+					}
+					curr->convert = false;
+				}
+				else
+				{
+					buff[i++] = '%';
+					buff[i++] = 's';
+					curr->convert = true;
+				}
 
 				if(code->curr == '{')
 				{
@@ -2522,9 +2543,6 @@ static char *readString(code_t *code, int *length, struct ptrs_astlist **inserti
 
 					curr->entry = getSymbol(code, name);
 				}
-
-				buff[i++] = '%';
-				buff[i++] = 's';
 			}
 			else
 			{

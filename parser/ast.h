@@ -90,8 +90,8 @@ struct ptrs_ast_scopestmt
 struct ptrs_ast_strformat
 {
 	char *str;
-	struct ptrs_astlist *args;
-	bool isInsertion;
+	struct ptrs_stringformat *insertions;
+	int insertionCount;
 };
 
 struct ptrs_ast_binary
@@ -256,6 +256,13 @@ struct ptrs_algorithmlist
 	struct ptrs_algorithmlist *next;
 	uint8_t flags : 2; //0 = filter, 1 = negated filter, 2 = value replacer
 	uint8_t orCombine : 1; //is || combined with next one
+};
+
+struct ptrs_stringformat
+{
+	struct ptrs_ast *entry;
+	struct ptrs_stringformat *next;
+	uint8_t convert : 1;
 };
 
 ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **symbols);

@@ -30,21 +30,28 @@ ptrs_var_t *ptrs_handle_call(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 
 ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_strformat stmt = node->arg.strformat;
-	int len = ptrs_astlist_length(stmt.args, node, scope) + 3;
+	int len = node->arg.strformat.insertionCount + 3;
+	struct ptrs_stringformat *curr = node->arg.strformat.insertions;
 	ptrs_var_t args[len];
-	ptrs_astlist_handle(stmt.args, &args[3], scope);
 
-	for(int i = 0; i < len; i++)
+	for(int i = 3; i < len; i++)
 	{
-		if(args[i].type != PTRS_TYPE_NATIVE)
+		ptrs_var_t *val = curr->entry->handler(curr->entry, args + i, scope);
+
+		if(curr->convert)
 		{
 			char *str = alloca(32);
-			ptrs_vartoa(args + i, str, 32);
+			ptrs_vartoa(val, str, 32);
 
 			args[i].type = PTRS_TYPE_NATIVE;
 			args[i].value.nativeval = str;
 		}
+		else if(val != args + i)
+		{
+			memcpy(args + i, val, sizeof(ptrs_var_t));
+		}
+
+		curr = curr->next;
 	}
 
 	args[0].type = PTRS_TYPE_NATIVE;
@@ -52,7 +59,7 @@ ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 	args[1].type = PTRS_TYPE_INT;
 	args[1].value.intval = 0;
 	args[2].type = PTRS_TYPE_NATIVE;
-	args[2].value.strval = stmt.str;
+	args[2].value.strval = node->arg.strformat.str;
 
 	args[1].value.intval = ptrs_callnative(PTRS_TYPE_INT, snprintf, len, args).intval + 1;
 	args[0].value.strval = ptrs_alloc(scope, args[1].value.intval);
