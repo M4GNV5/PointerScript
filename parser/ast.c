@@ -1537,6 +1537,9 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 				isDefault = 3;
 			}
 
+			if(body != NULL)
+				body->next = NULL;
+
 			while(cases->next != NULL)
 			{
 				cases = cases->next;
