@@ -7,4 +7,4 @@ printf("pid: %5d ppid: %5d result of fork: %5d\n", getpid(), getppid(), k);
 if(k == 0)
 	sleep(1);
 else
-	system("pstree -a -p %ld" % getppid());
+	system("pstree -a -p ${getpid()}");

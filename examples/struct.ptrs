@@ -62,7 +62,7 @@ struct Foo
 	}
 	operator this[key]
 	{
-		return "getting property %s" % key;
+		return "getting property $key";
 	}
 
 	operator this(a, b, c = 3)
