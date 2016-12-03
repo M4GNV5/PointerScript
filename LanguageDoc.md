@@ -707,11 +707,21 @@ printf("x = %d\n", x)
 ```
 
 ##StringFormatExpression
-Works like sprintf. Memory for the result string will be allocated on the stack
+Allocates a string of the required size on the stack, inserting variables and
+expressions using `snprintf`. Without a custom sprintf-like format the value is
+stringified and the format `%s` is used. If you provide a format the value is
+passed to `snprintf` directly and your format is used (allowing you to e.g. print
+the ASCII representation of integers).
 ```js
-//String '%' ExpressionList
-var name = "Hugo";
-"name = %s, age = %d" % name, 12;
+//inside a string:
+//'$' Identifier
+//'$' '{' Expression '}'
+//'$' '%' Format '{' Expression '}'
+
+var val = 3;
+puts("val = $val"); //prints "val = 3"
+puts("pid = ${getpid()}");
+puts("valc = $%c{val + 'a'}"); //prints "valc = c"
 ```
 
 ##NewExpression
