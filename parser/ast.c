@@ -2490,11 +2490,13 @@ static char *readIdentifier(code_t *code)
 	return _val;
 }
 
-static char *readString(code_t *code, int *length, struct ptrs_stringformat **insertions, int *insertionsCount)
+static char *readString(code_t *code, int *length, struct ptrs_stringformat **insertions, int *insertionCount)
 {
 	int buffSize = 1024;
 	int i = 0;
-	*insertionsCount = 0;
+
+	if(insertionCount != NULL)
+		*insertionCount = 0;
 
 	char *buff = malloc(buffSize);
 	struct ptrs_stringformat *curr = NULL;
@@ -2512,7 +2514,9 @@ static char *readString(code_t *code, int *length, struct ptrs_stringformat **in
 			else if(insertions != NULL && code->curr == '$')
 			{
 				rawnext(code);
-				(*insertionsCount)++;
+
+				if(insertionCount != NULL)
+					(*insertionCount)++;
 
 				if(curr == NULL)
 				{

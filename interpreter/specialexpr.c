@@ -38,13 +38,12 @@ ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 	{
 		ptrs_var_t *val = curr->entry->handler(curr->entry, args + i, scope);
 
-		if(curr->convert)
+		if(curr->convert && val->type != PTRS_TYPE_NATIVE)
 		{
 			char *str = alloca(32);
-			ptrs_vartoa(val, str, 32);
 
 			args[i].type = PTRS_TYPE_NATIVE;
-			args[i].value.nativeval = str;
+			args[i].value.nativeval = (char *)ptrs_vartoa(val, str, 32);
 		}
 		else if(val != args + i)
 		{
