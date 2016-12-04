@@ -42,8 +42,8 @@ ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 		{
 			char *str = alloca(32);
 
-			args[i].type = PTRS_TYPE_NATIVE;
 			args[i].value.nativeval = (char *)ptrs_vartoa(val, str, 32);
+			args[i].type = PTRS_TYPE_NATIVE;
 		}
 		else if(val != args + i)
 		{
