@@ -1,34 +1,36 @@
-import printf, rand from "libc.so.6";
+import printf, srand, rand, time from "libc.so.6";
 
-var len = 1000;
+const len = 500;
 var parts[len];
 
+srand(time(NULL));
 for(var i = 0; i < len; i++)
 {
 	parts[i] = rand() & 0xffff;
 }
 
 /*
-note if you want speed use qsort(3)
+note: if you want speed use 'qsort' (see `man 3 qsort`)
 import qsort;
 qsort(parts, len, VARSIZE, (a, b) -> *as<pointer>a - *as<pointer>b);
 */
+
 //simple bubble sort
-for(var i = 0; i < len - 1; i++)
+for(var i = 0; i < len; i++)
 {
-	for(var j = 0; j < len - i - 1; j++)
+	for(var j = 0; j < len - 1; j++)
 	{
-		if(parts[i] - parts[j] > 0)
+		if(parts[j] > parts[j + 1])
 		{
-			var tmp = parts[j];
-			parts[j] = parts[j + 1];
-			parts[j + 1] = tmp;
+			var tmp = parts[j + 1];
+			parts[j + 1] = parts[j];
+			parts[j] = tmp;
 		}
 	}
 }
 
 for(var i = 0; i < len; i++)
 {
-	printf("%d ", parts[i]);
+	printf("%5d ", parts[i]);
 }
 printf("\n");
