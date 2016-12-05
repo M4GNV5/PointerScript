@@ -2399,6 +2399,42 @@ static ptrs_vartype_t readTypeName(code_t *code)
 	return PTRS_TYPE_STRUCT + 1;
 }
 
+#if SIZE_MAX == UINT16_MAX
+#define ffi_type_size ffi_type_uint16
+#define ffi_type_ssize ffi_type_sint16
+#elif SIZE_MAX == UINT32_MAX
+#define ffi_type_size ffi_type_uint32
+#define ffi_type_ssize ffi_type_sint32
+#elif SIZE_MAX == UINT64_MAX
+#define ffi_type_size ffi_type_uint64
+#define ffi_type_ssize ffi_type_sint64
+#else
+#error "size_t size is not supported"
+#endif
+
+#if UINTPTR_MAX == UINT16_MAX
+#define ffi_type_uintptr ffi_type_uint16
+#define ffi_type_sintptr ffi_type_sint16
+#elif UINTPTR_MAX == UINT32_MAX
+#define ffi_type_uintptr ffi_type_uint32
+#define ffi_type_sintptr ffi_type_sint32
+#elif UINTPTR_MAX == UINT64_MAX
+#define ffi_type_uintptr ffi_type_uint64
+#define ffi_type_sintptr ffi_type_sint64
+#else
+#error "intptr_t size is not supported"
+#endif
+
+#if PTRDIFF_MAX == INT16_MAX
+#define ffi_type_ptrdiff ffi_type_sint16
+#elif PTRDIFF_MAX == INT32_MAX
+#define ffi_type_ptrdiff ffi_type_sint32
+#elif PTRDIFF_MAX == INT64_MAX
+#define ffi_type_ptrdiff ffi_type_sint64
+#else
+#error "ptrdiff_t size is not supported"
+#endif
+
 static ptrs_nativetype_info_t nativeTypes[] = {
 	{"char", sizeof(signed char), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_schar},
 	{"short", sizeof(short), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_sshort},
@@ -2428,11 +2464,11 @@ static ptrs_nativetype_info_t nativeTypes[] = {
 	{"native", sizeof(char *), PTRS_HANDLE_NATIVE_GETNATIVE, PTRS_HANDLE_NATIVE_SETNATIVE, &ffi_type_pointer},
 	{"pointer", sizeof(ptrs_var_t *), PTRS_HANDLE_NATIVE_GETPOINTER, PTRS_HANDLE_NATIVE_SETPOINTER, &ffi_type_pointer},
 
-	{"ssize", sizeof(ssize_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
-	{"size", sizeof(size_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
-	{"intptr", sizeof(uintptr_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
-	{"uintptr", sizeof(intptr_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
-	{"ptrdiff", sizeof(ptrdiff_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
+	{"ssize", sizeof(ssize_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_ssize},
+	{"size", sizeof(size_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT, &ffi_type_size},
+	{"intptr", sizeof(uintptr_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_sintptr},
+	{"uintptr", sizeof(intptr_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT, &ffi_type_uintptr},
+	{"ptrdiff", sizeof(ptrdiff_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_ptrdiff},
 };
 static int nativeTypeCount = sizeof(nativeTypes) / sizeof(ptrs_nativetype_info_t);
 
