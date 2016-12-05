@@ -161,7 +161,7 @@ bool ptrs_algorithm_step(struct ptrs_algoContext *ctx)
 				ctx->curr->type = PTRS_TYPE_INT;
 
 				if(handler->meta.array.readOnly)
-					ctx->curr->value = ptrs_callnative(PTRS_TYPE_INT, handler->value.nativeval, 0, NULL);
+					ctx->curr->value.intval = ptrs_callnative(NULL, NULL, handler->value.nativeval, 0, NULL);
 				else if(ctx->inputIndex < handler->meta.array.size)
 					ctx->curr->value.intval = ((uint8_t *)handler->value.nativeval)[ctx->inputIndex++];
 				else
@@ -197,7 +197,7 @@ bool ptrs_algorithm_step(struct ptrs_algoContext *ctx)
 				else
 				{
 					val->type = PTRS_TYPE_INT;
-					val->value = ptrs_callnative(PTRS_TYPE_INT, handler->value.nativeval, 1, ctx->curr);
+					val->value.intval = ptrs_callnative(NULL, NULL, handler->value.nativeval, 1, ctx->curr);
 				}
 				break;
 			case PTRS_TYPE_POINTER:

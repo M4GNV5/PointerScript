@@ -52,6 +52,7 @@ typedef struct ptrs_nativetype_info
 	size_t size;
 	ptrs_nativetype_handler_t getHandler;
 	ptrs_nativetype_handler_t setHandler;
+	void *ffiType;
 } ptrs_nativetype_info_t;
 
 typedef struct function

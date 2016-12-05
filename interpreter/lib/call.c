@@ -16,7 +16,7 @@
 #include "../interpreter.h"
 #include "../../parser/common.h"
 
-ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_vartype_t retType, ptrs_struct_t *thisArg, ptrs_var_t *func,
+ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_nativetype_info_t *retType, ptrs_struct_t *thisArg, ptrs_var_t *func,
 	ptrs_var_t *result, struct ptrs_astlist *arguments, ptrs_scope_t *scope)
 {
 	int len = ptrs_astlist_length(arguments, ast, scope);
@@ -31,9 +31,7 @@ ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_vartype_t retType, ptrs_struct_t *th
 	}
 	else if(func->type == PTRS_TYPE_NATIVE)
 	{
-		result->type = retType;
-		result->value = ptrs_callnative(retType, func->value.nativeval, len, args);
-		memset(&result->meta, 0, sizeof(ptrs_meta_t));
+		ptrs_callnative(retType, result, func->value.nativeval, len, args);
 	}
 	else if(func->type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(func, ptrs_handle_call, true)) != NULL)
 	{
@@ -153,9 +151,8 @@ void ptrs_callcallback(ffcb_return_t ret, ptrs_function_t *func, va_list ap)
 }
 #endif
 
-ptrs_val_t ptrs_callnative(ptrs_vartype_t retType, void *func, int argc, ptrs_var_t *argv)
+int64_t ptrs_callnative(ptrs_nativetype_info_t *retType, ptrs_var_t *result, void *func, int argc, ptrs_var_t *argv)
 {
-	ptrs_val_t retVal;
 	ptrs_function_t *callback;
 
 	ffi_cif cif;
@@ -215,19 +212,28 @@ ptrs_val_t ptrs_callnative(ptrs_vartype_t retType, void *func, int argc, ptrs_va
 		}
 	}
 
-	switch(retType)
+	int64_t retVal;
+	if(retType == NULL)
 	{
-		case PTRS_TYPE_INT:
-			ffi_prep_cif(&cif, FFI_DEFAULT_ABI, argc, &ffi_type_sint64, types);
-			break;
-		case PTRS_TYPE_FLOAT:
-			ffi_prep_cif(&cif, FFI_DEFAULT_ABI, argc, &ffi_type_double, types);
-			break;
-		default:
-			ffi_prep_cif(&cif, FFI_DEFAULT_ABI, argc, &ffi_type_pointer, types);
-			break;
+		ffi_prep_cif(&cif, FFI_DEFAULT_ABI, argc, &ffi_type_sint64, types);
+		ffi_call(&cif, func, &retVal, values);
+
+		if(result != NULL)
+		{
+			result->type = PTRS_TYPE_INT;
+			result->value.intval = retVal;
+			memset(&result->meta, 0, sizeof(ptrs_meta_t));
+		}
 	}
-	ffi_call(&cif, func, &retVal, values);
+	else
+	{
+		uint8_t retBuff[retType->size];
+		ffi_prep_cif(&cif, FFI_DEFAULT_ABI, argc, retType->ffiType, types);
+		ffi_call(&cif, func, retBuff, values);
+
+		retType->getHandler(retBuff, retType->size, result);
+		retVal = 0;
+	}
 
 #ifndef _PTRS_NOCALLBACK
 	if(hasCallbackArgs)

@@ -5,6 +5,8 @@
 #include <string.h>
 #include <math.h>
 
+#include <ffi.h>
+
 #ifndef _PTRS_NOASM
 #include <jitas.h>
 #include <sys/mman.h>
@@ -1273,15 +1275,15 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 	}
 	else if(!ignoreCalls && (curr == '(' || curr == '!'))
 	{
-		ptrs_vartype_t retType = PTRS_TYPE_INT;
+		ptrs_nativetype_info_t *retType = NULL;
 		if(curr == '!')
 		{
 			int pos = code->pos;
 
 			next(code);
-			retType = readTypeName(code);
+			retType = readNativeType(code);
 
-			if(retType > PTRS_TYPE_STRUCT)
+			if(retType == NULL)
 			{
 				code->pos = pos;
 				code->curr = code->src[pos];
@@ -2398,33 +2400,33 @@ static ptrs_vartype_t readTypeName(code_t *code)
 }
 
 static ptrs_nativetype_info_t nativeTypes[] = {
-	{"char", sizeof(signed char), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
-	{"short", sizeof(short), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
-	{"int", sizeof(int), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
-	{"long", sizeof(long), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
-	{"longlong", sizeof(long long), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
+	{"char", sizeof(signed char), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_schar},
+	{"short", sizeof(short), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_sshort},
+	{"int", sizeof(int), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_sint},
+	{"long", sizeof(long), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_slong},
+	{"longlong", sizeof(long long), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_sint64},
 
-	{"uchar", sizeof(unsigned char), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
-	{"ushort", sizeof(unsigned short), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
-	{"uint", sizeof(unsigned int), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
-	{"ulong", sizeof(unsigned long), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
-	{"ulonglong", sizeof(unsigned long long), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
+	{"uchar", sizeof(unsigned char), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT, &ffi_type_uchar},
+	{"ushort", sizeof(unsigned short), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT, &ffi_type_ushort},
+	{"uint", sizeof(unsigned int), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT, &ffi_type_uint},
+	{"ulong", sizeof(unsigned long), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT, &ffi_type_ulong},
+	{"ulonglong", sizeof(unsigned long long), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT, &ffi_type_uint64},
 
-	{"i8", sizeof(int8_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
-	{"i16", sizeof(int16_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
-	{"i32", sizeof(int32_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
-	{"i64", sizeof(int64_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
+	{"i8", sizeof(int8_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_sint8},
+	{"i16", sizeof(int16_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_sint16},
+	{"i32", sizeof(int32_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_sint32},
+	{"i64", sizeof(int64_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_sint64},
 
-	{"u8", sizeof(uint8_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
-	{"u16", sizeof(uint16_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
-	{"u32", sizeof(uint32_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
-	{"u64", sizeof(uint64_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},
+	{"u8", sizeof(uint8_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT, &ffi_type_uint8},
+	{"u16", sizeof(uint16_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT, &ffi_type_uint16},
+	{"u32", sizeof(uint32_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT, &ffi_type_uint32},
+	{"u64", sizeof(uint64_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT, &ffi_type_uint64},
 
-	{"single", sizeof(float), PTRS_HANDLE_NATIVE_GETFLOAT, PTRS_HANDLE_NATIVE_SETFLOAT},
-	{"double", sizeof(double), PTRS_HANDLE_NATIVE_GETFLOAT, PTRS_HANDLE_NATIVE_SETFLOAT},
+	{"single", sizeof(float), PTRS_HANDLE_NATIVE_GETFLOAT, PTRS_HANDLE_NATIVE_SETFLOAT, &ffi_type_float},
+	{"double", sizeof(double), PTRS_HANDLE_NATIVE_GETFLOAT, PTRS_HANDLE_NATIVE_SETFLOAT, &ffi_type_double},
 
-	{"native", sizeof(char *), PTRS_HANDLE_NATIVE_GETNATIVE, PTRS_HANDLE_NATIVE_SETNATIVE},
-	{"pointer", sizeof(ptrs_var_t *), PTRS_HANDLE_NATIVE_GETPOINTER, PTRS_HANDLE_NATIVE_SETPOINTER},
+	{"native", sizeof(char *), PTRS_HANDLE_NATIVE_GETNATIVE, PTRS_HANDLE_NATIVE_SETNATIVE, &ffi_type_pointer},
+	{"pointer", sizeof(ptrs_var_t *), PTRS_HANDLE_NATIVE_GETPOINTER, PTRS_HANDLE_NATIVE_SETPOINTER, &ffi_type_pointer},
 
 	{"ssize", sizeof(ssize_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT},
 	{"size", sizeof(size_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT},

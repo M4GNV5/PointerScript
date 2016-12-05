@@ -127,7 +127,7 @@ struct ptrs_ast_cast
 
 struct ptrs_ast_call
 {
-	ptrs_vartype_t retType;
+	ptrs_nativetype_info_t *retType;
 	struct ptrs_ast *value;
 	struct ptrs_astlist *arguments;
 };
@@ -228,7 +228,7 @@ union ptrs_ast_arg
 
 typedef ptrs_var_t *(*ptrs_asthandler_t)(struct ptrs_ast *, ptrs_var_t *, ptrs_scope_t *);
 typedef ptrs_var_t *(*ptrs_callhandler_t)(struct ptrs_ast *, ptrs_var_t *, ptrs_scope_t *,
-	ptrs_vartype_t, struct ptrs_ast *, struct ptrs_astlist *);
+	ptrs_nativetype_info_t *, struct ptrs_ast *, struct ptrs_astlist *);
 
 struct ptrs_ast
 {

@@ -60,9 +60,9 @@ ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 	args[2].type = PTRS_TYPE_NATIVE;
 	args[2].value.strval = node->arg.strformat.str;
 
-	args[1].value.intval = ptrs_callnative(PTRS_TYPE_INT, snprintf, len, args).intval + 1;
+	args[1].value.intval = ptrs_callnative(NULL, NULL, snprintf, len, args) + 1;
 	args[0].value.strval = ptrs_alloc(scope, args[1].value.intval);
-	ptrs_callnative(PTRS_TYPE_INT, snprintf, len, args);
+	ptrs_callnative(NULL, NULL, snprintf, len, args);
 
 	result->type = PTRS_TYPE_NATIVE;
 	result->value.strval = args[0].value.strval;
@@ -167,7 +167,7 @@ ptrs_var_t *ptrs_handle_addressof_member(ptrs_ast_t *node, ptrs_var_t *result, p
 	return result;
 }
 ptrs_var_t *ptrs_handle_call_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
-	ptrs_vartype_t retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments)
+	ptrs_nativetype_info_t *retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments)
 {
 	ptrs_var_t funcv;
 	struct ptrs_ast_member expr = node->arg.member;
@@ -242,7 +242,7 @@ ptrs_var_t *ptrs_handle_addressof_thismember(ptrs_ast_t *node, ptrs_var_t *resul
 	return result;
 }
 ptrs_var_t *ptrs_handle_call_thismember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
-	ptrs_vartype_t retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments)
+	ptrs_nativetype_info_t *retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments)
 {
 	ptrs_var_t funcv;
 	struct ptrs_ast_thismember expr = node->arg.thismember;
@@ -517,7 +517,7 @@ ptrs_var_t *ptrs_handle_addressof_index(ptrs_ast_t *node, ptrs_var_t *result, pt
 	return result;
 }
 ptrs_var_t *ptrs_handle_call_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
-	ptrs_vartype_t retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments)
+	ptrs_nativetype_info_t *retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments)
 {
 	char buff[32];
 	ptrs_var_t valuev;
@@ -545,7 +545,7 @@ ptrs_var_t *ptrs_handle_call_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 
 		if(func != NULL)
 		{
-			return ptrs_call(node, PTRS_TYPE_UNDEFINED, value->value.structval, func, result, arguments, scope);
+			return ptrs_call(node, retType, value->value.structval, func, result, arguments, scope);
 		}
 		else if((indexv.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_call_index, true)) != NULL)
 		{
