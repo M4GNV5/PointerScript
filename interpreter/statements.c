@@ -524,6 +524,10 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 		if(needsRethrow)
 			ptrs_error_reThrow(scope, &error);
 	}
+	else if(needsRethrow)
+	{
+		ptrs_error_stopCatch(scope, &error);
+	}
 
 	return _result;
 }
