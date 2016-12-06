@@ -1,0 +1,18 @@
+import assertEq from "../common.ptrs";
+import atoi;
+
+var i = 42;
+var f = 31.12;
+var s = "hi";
+assertEq("42", "$i");
+assertEq("31.12", "$f");
+assertEq("hi", "$s");
+
+assertEq("3", "${3}");
+assertEq("3.14", "${3.14}");
+assertEq("21", "${i / 2}");
+assertEq("33", "${11 * atoi("3")}");
+
+assertEq("x42", "x$i");
+assertEq("x42y", "x${i}y");
+assertEq("a", "$%c{97}");

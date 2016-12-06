@@ -1,0 +1,41 @@
+import assert, assertEq from "../common.ptrs";
+var worked;
+
+try
+	throw "err";
+
+try
+{
+	throw "err";
+}
+catch(err, trace, _, line)
+{
+	assertEq("err", err, trace);
+	assertEq(9, line);
+}
+
+worked = false;
+try
+{
+	try
+		throw "err";
+	finally
+		worked = true;
+}
+assert(worked);
+
+worked = false;
+try
+	throw "foobar";
+catch(err)
+	assertEq("foobar", err);
+finally
+	worked = true;
+assert(worked);
+
+worked = false;
+try
+	*as<native>0;
+catch()
+	worked = true;
+assert(worked);
