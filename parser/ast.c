@@ -1315,17 +1315,30 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 		indexExpr->file = code->filename;
 
 		consumec(code, '[');
-		ptrs_ast_t *expr = parseExpression(code);
 
-		if((expr == NULL && lookahead(code, "$")) || lookahead(code, ".."))
+		ptrs_ast_t *expr;
+		if(lookahead(code, "$"))
+		{
+			expr = NULL;
+			consume(code, "..");
+		}
+		else
+		{
+			expr = parseExpression(code);
+			if(expr == NULL)
+				unexpected(code, "Index");
+		}
+
+		if(expr == NULL || lookahead(code, ".."))
 		{
 			indexExpr->handler = PTRS_HANDLE_SLICE;
 			indexExpr->arg.slice.base = ast;
 			indexExpr->arg.slice.start = expr;
-			indexExpr->arg.slice.end = parseExpression(code);
 
-			if(indexExpr->arg.slice.end == NULL)
-				consumec(code, '$');
+			if(lookahead(code, "$"))
+				indexExpr->arg.slice.end = NULL;
+			else
+				indexExpr->arg.slice.end = parseExpression(code);
 		}
 		else
 		{
