@@ -18,6 +18,7 @@ function runTest
 	fi
 }
 
+runTest runtime/pointer
 runTest runtime/types
 runTest runtime/trycatch
 runTest runtime/strformat

@@ -1,0 +1,58 @@
+import assert, assertEq from "../common.ptrs";
+
+var val = 3;
+var ptr = &val;
+assertEq(type<pointer>, typeof ptr);
+assertEq(3, *ptr);
+
+*ptr = 42;
+assertEq(42, val);
+assertEq(42, *ptr);
+
+ptr = new array[16];
+assertEq(16, sizeof ptr);
+assertEq(VARSIZE, as<native>(ptr + 1) - as<native>ptr);
+try
+{
+	ptr[5];
+	assert(false);
+}
+
+assertEq(6, sizeof(ptr[2 .. 8]));
+assertEq(8, sizeof(ptr[$ .. 8]));
+assertEq(14, sizeof(ptr[2 .. $]));
+assertEq(16, sizeof(ptr[$ .. $]));
+delete ptr;
+
+ptr = new array[] [42, "hello", 31.12];
+assertEq(3, sizeof ptr);
+assertEq(42, ptr[0]);
+assertEq("hello", ptr[1]);
+assertEq(31.12, ptr[2]);
+delete ptr;
+
+ptr = new array{} {'h', 'i', 0};
+assertEq(3, sizeof ptr);
+assertEq("hi", ptr);
+delete ptr;
+
+scoped
+{
+	var buff{128} = {'k'};
+}
+var buff{128};
+assertEq('k', buff[120]); //should we test this? kinda undefined behaviour
+
+buff[7] = 257;
+buff[8] = -4;
+assertEq(1, buff[7]);
+assertEq(252, buff[8]);
+
+var str = "hi";
+assertEq(3, sizeof(str));
+assertEq(104 /* 'h' */, str[0]);
+try
+{
+	str[1] = 'o';
+	assert(false);
+}
