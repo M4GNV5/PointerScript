@@ -322,7 +322,7 @@ ptrs_var_t *ptrs_handle_prefix_dereference(ptrs_ast_t *node, ptrs_var_t *result,
 	if(valuet == PTRS_TYPE_NATIVE)
 	{
 		result->type = PTRS_TYPE_INT;
-		result->value.intval = *val->value.strval;
+		result->value.intval = *(uint8_t *)val->value.strval;
 	}
 	else if(valuet == PTRS_TYPE_POINTER)
 	{
@@ -378,7 +378,7 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 			ptrs_error(node, scope, "Index %d is out of range of array of size %d", _index, value->meta.array.size);
 
 		result->type = PTRS_TYPE_INT;
-		result->value.intval = value->value.strval[_index];
+		result->value.intval = (uint8_t)value->value.strval[_index];
 	}
 	else if(valuet == PTRS_TYPE_STRUCT)
 	{
