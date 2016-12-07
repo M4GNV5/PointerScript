@@ -122,8 +122,8 @@ ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		else
 			array = malloc(size);
 
-		strncpy(result->value.nativeval, initVal, size - 1);
-		((uint8_t *)result->value.nativeval)[size - 1] = 0;
+		strncpy((char *)array, initVal, size - 1);
+		array[size - 1] = 0;
 	}
 	else
 	{
