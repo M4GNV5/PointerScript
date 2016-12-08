@@ -26,6 +26,15 @@ assert(worked);
 
 worked = false;
 try
+{}
+finally
+{
+	worked = true;
+}
+assert(worked);
+
+worked = false;
+try
 	throw "foobar";
 catch(err)
 	assertEq("foobar", err);

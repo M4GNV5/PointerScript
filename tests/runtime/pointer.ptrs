@@ -1,5 +1,6 @@
 import assert, assertEq from "../common.ptrs";
 
+var allFine = true;
 var val = 3;
 var ptr = &val;
 assertEq(type<pointer>, typeof ptr);
@@ -12,11 +13,20 @@ assertEq(42, *ptr);
 ptr = new array[16];
 assertEq(16, sizeof ptr);
 assertEq(VARSIZE, as<native>(ptr + 1) - as<native>ptr);
+
 try
 {
-	ptr[5];
-	assert(false);
+	ptr[16];
+	allFine = false;
 }
+assert(allFine);
+
+try
+{
+	ptr[-3];
+	allFine = false;
+}
+assert(allFine);
 
 assertEq(6, sizeof(ptr[2 .. 8]));
 assertEq(8, sizeof(ptr[$ .. 8]));
