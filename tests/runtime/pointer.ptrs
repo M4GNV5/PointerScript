@@ -64,5 +64,6 @@ assertEq(104 /* 'h' */, str[0]);
 try
 {
 	str[1] = 'o';
-	assert(false);
+	allFine = false;
 }
+assert(allFine);
