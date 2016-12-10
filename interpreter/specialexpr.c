@@ -261,6 +261,87 @@ ptrs_var_t *ptrs_handle_call_thismember(ptrs_ast_t *node, ptrs_var_t *result, pt
 	return ptrs_call(node, retType, base->value.structval, func, result, arguments, scope);
 }
 
+struct withVal
+{
+	ptrs_struct_t *this;
+	struct ptrs_structlist **member;
+};
+ptrs_var_t *ptrs_handle_withmember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_withmember expr = node->arg.withmember;
+	struct withVal *withVal = (struct withVal *)ptrs_scope_get(scope, expr.base);
+
+	if(withVal->member[expr.index] == NULL)
+	{
+		withVal->member[expr.index] = ptrs_struct_find(withVal->this, expr.name,
+			PTRS_STRUCTMEMBER_SETTER, node, scope);
+
+		if(withVal->member[expr.index] == NULL)
+			ptrs_error(node, scope, "Struct %s has no property '%s'", withVal->this->name, expr.name);
+	}
+
+	return ptrs_struct_getMember(withVal->this, result, withVal->member[expr.index], node, scope);
+}
+ptrs_var_t *ptrs_handle_assign_withmember(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_withmember expr = node->arg.withmember;
+	struct withVal *withVal = (struct withVal *)ptrs_scope_get(scope, expr.base);
+
+	if(withVal->member[expr.index] == NULL)
+	{
+		withVal->member[expr.index] = ptrs_struct_find(withVal->this, expr.name,
+			PTRS_STRUCTMEMBER_GETTER, node, scope);
+
+		if(withVal->member[expr.index] == NULL)
+			ptrs_error(node, scope, "Struct %s has no property '%s'", withVal->this->name, expr.name);
+	}
+
+	ptrs_struct_setMember(withVal->this, value, withVal->member[expr.index], node, scope);
+	return NULL;
+}
+ptrs_var_t *ptrs_handle_addressof_withmember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_withmember expr = node->arg.withmember;
+	struct withVal *withVal = (struct withVal *)ptrs_scope_get(scope, expr.base);
+
+	if(withVal->member[expr.index] == NULL)
+	{
+		withVal->member[expr.index] = ptrs_struct_find(withVal->this, expr.name,
+			-1, node, scope);
+
+		if(withVal->member[expr.index] == NULL)
+			ptrs_error(node, scope, "Struct %s has no property '%s'", withVal->this->name, expr.name);
+	}
+
+	ptrs_struct_addressOfMember(withVal->this, result, withVal->member[expr.index], node, scope);
+	return result;
+}
+ptrs_var_t *ptrs_handle_call_withmember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
+	ptrs_nativetype_info_t *retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments)
+{
+	ptrs_var_t funcv;
+	struct ptrs_ast_withmember expr = node->arg.withmember;
+	struct withVal *withVal = (struct withVal *)ptrs_scope_get(scope, expr.base);
+
+	if(withVal->member[expr.index] == NULL)
+	{
+		withVal->member[expr.index] = ptrs_struct_find(withVal->this, expr.name,
+			-1, node, scope);
+
+		if(withVal->member[expr.index] == NULL)
+			ptrs_error(node, scope, "Struct %s has no property '%s'", withVal->this->name, expr.name);
+	}
+
+	ptrs_var_t *func = ptrs_struct_getMember(withVal->this, result, withVal->member[expr.index], node, scope);
+	if(func == NULL)
+	{
+		func = &funcv;
+		funcv.type = PTRS_TYPE_UNDEFINED;
+	}
+
+	return ptrs_call(node, retType, withVal->this, func, result, arguments, scope);
+}
+
 ptrs_var_t *ptrs_handle_prefix_length(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	ptrs_var_t valuev;

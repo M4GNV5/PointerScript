@@ -25,6 +25,7 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 ptrs_var_t *ptrs_handle_asm(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_function(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_struct(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_with(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_if(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_switch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_while(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
@@ -42,6 +43,7 @@ ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 ptrs_var_t *ptrs_handle_new(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_thismember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_withmember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_slice(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_as(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
@@ -55,16 +57,20 @@ ptrs_var_t *ptrs_handle_assign_dereference(ptrs_ast_t *node, ptrs_var_t *value, 
 ptrs_var_t *ptrs_handle_assign_index(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_assign_member(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_assign_thismember(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_assign_withmember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 
 ptrs_var_t *ptrs_handle_addressof_index(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_addressof_member(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_addressof_thismember(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_addressof_withmember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 
 ptrs_var_t *ptrs_handle_call_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
 	ptrs_nativetype_info_t *retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments);
 ptrs_var_t *ptrs_handle_call_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
 	ptrs_nativetype_info_t *retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments);
 ptrs_var_t *ptrs_handle_call_thismember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
+	ptrs_nativetype_info_t *retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments);
+ptrs_var_t *ptrs_handle_call_withmember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
 	ptrs_nativetype_info_t *retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments);
 
 ptrs_var_t *ptrs_handle_op_ternary(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
@@ -145,6 +151,7 @@ ptrs_var_t *ptrs_handle_native_setFloat(void *target, size_t size, ptrs_var_t *v
 #define PTRS_HANDLE_ASM ptrs_handle_asm
 #define PTRS_HANDLE_FUNCTION ptrs_handle_function
 #define PTRS_HANDLE_STRUCT ptrs_handle_struct
+#define PTRS_HANDLE_WITH ptrs_handle_with
 #define PTRS_HANDLE_IF ptrs_handle_if
 #define PTRS_HANDLE_SWITCH ptrs_handle_switch
 #define PTRS_HANDLE_WHILE ptrs_handle_while
@@ -162,6 +169,7 @@ ptrs_var_t *ptrs_handle_native_setFloat(void *target, size_t size, ptrs_var_t *v
 #define PTRS_HANDLE_NEW ptrs_handle_new
 #define PTRS_HANDLE_MEMBER ptrs_handle_member
 #define PTRS_HANDLE_THISMEMBER ptrs_handle_thismember
+#define PTRS_HANDLE_WITHMEMBER ptrs_handle_withmember
 #define PTRS_HANDLE_INDEX ptrs_handle_index
 #define PTRS_HANDLE_SLICE ptrs_handle_slice
 #define PTRS_HANDLE_AS ptrs_handle_as
@@ -175,14 +183,17 @@ ptrs_var_t *ptrs_handle_native_setFloat(void *target, size_t size, ptrs_var_t *v
 #define PTRS_HANDLE_ASSIGN_INDEX ptrs_handle_assign_index
 #define PTRS_HANDLE_ASSIGN_MEMBER ptrs_handle_assign_member
 #define PTRS_HANDLE_ASSIGN_THISMEMBER ptrs_handle_assign_thismember
+#define PTRS_HANDLE_ASSIGN_WITHMEMBER ptrs_handle_assign_withmember
 
 #define PTRS_HANDLE_ADDRESSOF_INDEX ptrs_handle_addressof_index
 #define PTRS_HANDLE_ADDRESSOF_MEMBER ptrs_handle_addressof_member
 #define PTRS_HANDLE_ADDRESSOF_THISMEMBER ptrs_handle_addressof_thismember
+#define PTRS_HANDLE_ADDRESSOF_WITHMEMBER ptrs_handle_addressof_withmember
 
 #define PTRS_HANDLE_CALL_INDEX ptrs_handle_call_index
 #define PTRS_HANDLE_CALL_MEMBER ptrs_handle_call_member
 #define PTRS_HANDLE_CALL_THISMEMBER ptrs_handle_call_thismember
+#define PTRS_HANDLE_CALL_WITHMEMBER ptrs_handle_call_withmember
 
 #define PTRS_HANDLE_OP_TERNARY ptrs_handle_op_ternary
 #define PTRS_HANDLE_OP_INSTANCEOF ptrs_handle_op_instanceof

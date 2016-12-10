@@ -54,6 +54,7 @@ struct code
 	char curr;
 	int pos;
 	ptrs_symboltable_t *symbols;
+	int withCount;
 };
 
 static ptrs_ast_t *parseStmtList(code_t *code, char end);
@@ -111,6 +112,7 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 	code.curr = src[0];
 	code.pos = 0;
 	code.symbols = NULL;
+	code.withCount = 0;
 
 	while(skipSpaces(&code) || skipComments(&code));
 
@@ -645,6 +647,25 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		stmt->handler = PTRS_HANDLE_STRUCT;
 		parseStruct(code, &stmt->arg.structval);
 	}
+	else if(lookahead(code, "with"))
+	{
+		int oldCount = code->withCount;
+		code->withCount = 0;
+
+		stmt->handler = PTRS_HANDLE_WITH;
+
+		consumec(code, '(');
+		stmt->arg.with.base = parseExpression(code);
+		consumec(code, ')');
+
+		stmt->arg.with.symbol = addSymbol(code, strdup(".with"));
+		stmt->arg.with.body = parseBody(code, NULL, true, false);
+		stmt->arg.with.count = code->withCount;
+		stmt->arg.with.memberBuff = code->symbols->offset;
+
+		code->symbols->offset += sizeof(void *) * code->withCount;
+		code->withCount = oldCount;
+	}
 	else if(lookahead(code, "if"))
 	{
 		stmt->handler = PTRS_HANDLE_IF;
@@ -655,7 +676,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		stmt->arg.ifelse.ifBody = parseBody(code, NULL, true, false);
 
 		if(lookahead(code, "else"))
-			stmt->arg.ifelse.elseBody = parseBody(code, NULL,true, false);
+			stmt->arg.ifelse.elseBody = parseBody(code, NULL, true, false);
 		else
 			stmt->arg.ifelse.elseBody = NULL;
 	}
@@ -1087,6 +1108,27 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		ast = getSymbol(code, name);
 		noSetHandler = false;
 		free(name);
+	}
+	else if(curr == '.' && (code->src[pos + 1] == '_' || isalpha(code->src[pos + 1])))
+	{
+		if(ptrs_ast_getSymbol(code->symbols, ".with", &ast) == 0)
+		{
+			rawnext(code);
+			noSetHandler = false;
+
+			ast->handler = PTRS_HANDLE_WITHMEMBER;
+			ast->setHandler = PTRS_HANDLE_ASSIGN_WITHMEMBER;
+			ast->addressHandler = PTRS_HANDLE_ADDRESSOF_WITHMEMBER;
+			ast->callHandler = PTRS_HANDLE_CALL_WITHMEMBER;
+
+			ast->arg.withmember.base = ast->arg.varval;
+			ast->arg.withmember.name = readIdentifier(code);
+			ast->arg.withmember.index = code->withCount++;
+		}
+		else
+		{
+			unexpectedm(code, NULL, ".Identifier expressions are only valid inside with statements");
+		}
 	}
 	else if(isdigit(curr) || curr == '.')
 	{

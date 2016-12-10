@@ -152,6 +152,22 @@ struct ptrs_ast_switch
 	struct ptrs_ast *defaultCase;
 };
 
+struct ptrs_ast_with
+{
+	struct ptrs_ast *base;
+	struct ptrs_ast *body;
+	ptrs_symbol_t symbol;
+	int count;
+	unsigned memberBuff;
+};
+
+struct ptrs_ast_withmember
+{
+	const char *name;
+	ptrs_symbol_t base;
+	int index;
+};
+
 struct ptrs_ast_ifelse
 {
 	struct ptrs_ast *condition;
@@ -218,6 +234,8 @@ union ptrs_ast_arg
 	struct ptrs_ast_slice slice;
 	struct ptrs_ast_call call;
 	struct ptrs_ast_new newexpr;
+	struct ptrs_ast_with with;
+	struct ptrs_ast_withmember withmember;
 	struct ptrs_ast_ifelse ifelse;
 	struct ptrs_ast_switch switchcase;
 	struct ptrs_ast_control control;
