@@ -1,0 +1,99 @@
+import assert, assertEq from "../common.ptrs";
+
+var lastAction = "none";
+struct Test
+{
+	normal;
+	varArray[16];
+	byteArray{1024};
+
+	static staticVal = 1337;
+
+	get getter
+	{
+		lastAction = "getter";
+		return 42;
+	}
+	set setter
+	{
+		lastAction = "setter";
+	}
+
+	private privVal;
+	get property
+	{
+		lastAction = "get property";
+		return privVal;
+	}
+	set property
+	{
+		lastAction = "set property";
+		privVal = value;
+	}
+
+	constructor(a, b)
+	{
+		lastAction = "constructor";
+		normal = a + b;
+		assertEq(a + b, normal);
+		assertEq(normal, this.normal);
+	}
+	destructor()
+	{
+		lastAction = "destructor";
+	}
+
+	private privFunc()
+	{
+		lastAction = "privFunc";
+	}
+	func()
+	{
+		lastAction = "none";
+		privFunc();
+		assertEq("privFunc", lastAction);
+
+		lastAction = "func";
+	}
+};
+
+var val = new Test(3, 5);
+assertEq("constructor", lastAction);
+assertEq(8, val.normal);
+
+assertEq(type<pointer>, typeof val.varArray);
+assertEq(type<native>, typeof val.byteArray);
+assertEq(16, sizeof val.varArray);
+assertEq(1024, sizeof val.byteArray);
+
+val.func();
+assertEq("func", lastAction);
+
+assertEq(42, val.getter);
+assertEq("getter", lastAction);
+
+val.setter = 0;
+assertEq("setter", lastAction);
+
+var allFine = true;
+try
+{
+	val.privVal = 0;
+	allFine = false;
+}
+assert(allFine);
+
+val.property = 666;
+assertEq("set property", lastAction);
+assertEq(666, val.property);
+assertEq("get property", lastAction);
+
+var val2 = new Test(17, 32);
+assertEq(1337, val.staticVal);
+assertEq(1337, val2.staticVal);
+val2.staticVal = 24.12;
+assertEq(24.12, val.staticVal);
+assertEq(24.12, val2.staticVal);
+
+delete val;
+assertEq("destructor", lastAction);

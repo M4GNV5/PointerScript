@@ -23,3 +23,4 @@ runTest runtime/pointer
 runTest runtime/types
 runTest runtime/trycatch
 runTest runtime/strformat
+runTest runtime/struct
