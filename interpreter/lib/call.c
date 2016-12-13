@@ -21,7 +21,7 @@ ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_nativetype_info_t *retType, ptrs_str
 {
 	int len = ptrs_astlist_length(arguments, ast, scope);
 	ptrs_var_t args[len];
-	ptrs_astlist_handle(arguments, args, scope);
+	ptrs_astlist_handle(arguments, len, args, scope);
 
 	ptrs_var_t overload;
 

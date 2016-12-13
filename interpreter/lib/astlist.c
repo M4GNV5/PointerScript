@@ -26,9 +26,11 @@ int ptrs_astlist_length(struct ptrs_astlist *list, ptrs_ast_t *node, ptrs_scope_
 	}
 	return len;
 }
-void ptrs_astlist_handle(struct ptrs_astlist *list, ptrs_var_t *out, ptrs_scope_t *scope)
+
+void ptrs_astlist_handle(struct ptrs_astlist *list, int len, ptrs_var_t *out, ptrs_scope_t *scope)
 {
-	for(int i = 0; list != NULL; i++)
+	int i;
+	for(i = 0; list != NULL; i++)
 	{
 		if(list->entry == NULL)
 		{
@@ -46,6 +48,7 @@ void ptrs_astlist_handle(struct ptrs_astlist *list, ptrs_var_t *out, ptrs_scope_
 				memcpy(&out[i], &curr->value.ptrval[j], sizeof(ptrs_var_t));
 				i++;
 			}
+			i--;
 		}
 		else if(curr != &out[i])
 		{
@@ -53,5 +56,50 @@ void ptrs_astlist_handle(struct ptrs_astlist *list, ptrs_var_t *out, ptrs_scope_
 		}
 
 		list = list->next;
+	}
+
+	ptrs_var_t *last = &out[i - 1];
+	for(; i < len; i++)
+	{
+		memcpy(&out[i], last, sizeof(ptrs_var_t));
+	}
+}
+
+void ptrs_astlist_handleByte(struct ptrs_astlist *list, int len, uint8_t *out, ptrs_scope_t *scope)
+{
+	int i;
+	for(i = 0; list != NULL; i++)
+	{
+		if(list->entry == NULL)
+		{
+			out[i] = 0;
+			list = list->next;
+			continue;
+		}
+
+		ptrs_var_t currv;
+		ptrs_var_t *curr = list->entry->handler(list->entry, &currv, scope);
+
+		if(list->expand)
+		{
+			for(int j = 0; j < curr->meta.array.size; j++)
+			{
+				out[i] = ptrs_vartoi(&curr->value.ptrval[j]);
+				i++;
+			}
+			i--;
+		}
+		else
+		{
+			out[i] = ptrs_vartoi(curr);
+		}
+
+		list = list->next;
+	}
+
+	uint8_t last = out[i - 1];
+	for(; i < len; i++)
+	{
+		out[i] = last;
 	}
 }

@@ -188,7 +188,7 @@ ptrs_var_t *ptrs_handle_call_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_s
 
 		int len = ptrs_astlist_length(arguments, node, scope) + 1;
 		ptrs_var_t args[len];
-		ptrs_astlist_handle(arguments, args + 1, scope);
+		ptrs_astlist_handle(arguments, len, args + 1, scope);
 		args[0].type = PTRS_TYPE_NATIVE;
 		args[0].value.strval = expr.name;
 		args[0].meta.array.readOnly = true;
@@ -631,7 +631,7 @@ ptrs_var_t *ptrs_handle_call_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 
 			int len = ptrs_astlist_length(arguments, node, scope) + 1;
 			ptrs_var_t args[len];
-			ptrs_astlist_handle(arguments, args + 1, scope);
+			ptrs_astlist_handle(arguments, len, args + 1, scope);
 			memcpy(args, index, sizeof(ptrs_var_t));
 
 			return ptrs_callfunc(node, result, scope, value->value.structval, &indexv, len, args);
@@ -859,7 +859,7 @@ ptrs_var_t *ptrs_handle_yield(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	struct ptrs_ast_yield expr = node->arg.yield;
 	int len = ptrs_astlist_length(node->arg.yield.values, node, scope);
 	ptrs_var_t vals[len];
-	ptrs_astlist_handle(node->arg.yield.values, vals, scope);
+	ptrs_astlist_handle(node->arg.yield.values, len, vals, scope);
 
 	void **yieldVal = ptrs_scope_get(scope, expr.yieldVal)->value.nativeval;
 	struct ptrs_ast_forin *forStmt = yieldVal[0];

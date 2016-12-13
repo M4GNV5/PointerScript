@@ -17,6 +17,7 @@
 #include "include/conversion.h"
 #include "include/scope.h"
 #include "include/run.h"
+#include "include/astlist.h"
 #include "include/call.h"
 #include "include/struct.h"
 
@@ -96,14 +97,7 @@ ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		else
 			array = malloc(size);
 
-		ptrs_var_t vals[len];
-		ptrs_astlist_handle(stmt.initVal, vals, scope);
-
-		int i;
-		for(i = 0; i < len; i++)
-			array[i] = ptrs_vartoi(&vals[i]);
-		for(; i < size; i++)
-			array[i] = array[len - 1];
+		ptrs_astlist_handleByte(stmt.initVal, size, array, scope);
 	}
 	else if(stmt.initExpr != NULL)
 	{
@@ -186,11 +180,7 @@ ptrs_var_t *ptrs_handle_vararray(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 			ptrs_error_reThrow(scope, &error);
 		}
 
-		ptrs_astlist_handle(stmt.initVal, array, scope);
-
-		for(int i = len; i < size / sizeof(ptrs_var_t); i++)
-			memcpy(array + i, array + len - 1, sizeof(ptrs_var_t));
-
+		ptrs_astlist_handle(stmt.initVal, size / sizeof(ptrs_var_t), array, scope);
 		result->value.ptrval = array;
 	}
 	else
