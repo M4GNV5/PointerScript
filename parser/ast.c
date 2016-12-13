@@ -2334,6 +2334,14 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			consumec(code, '[');
 			ptrs_ast_t *ast = parseExpression(code);
 			consumec(code, ']');
+
+			if(lookahead(code, "="))
+			{
+				consumec(code, '[');
+				curr->value.arrayInit = parseExpressionList(code, ']');
+				consumec(code, ']');
+			}
+
 			consumec(code, ';');
 
 			if(ast->handler != PTRS_HANDLE_CONSTANT)
@@ -2350,6 +2358,14 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			consumec(code, '{');
 			ptrs_ast_t *ast = parseExpression(code);
 			consumec(code, '}');
+
+			if(lookahead(code, "="))
+			{
+				consumec(code, '{');
+				curr->value.arrayInit = parseExpressionList(code, '}');
+				consumec(code, '}');
+			}
+
 			consumec(code, ';');
 
 			if(ast->handler != PTRS_HANDLE_CONSTANT)

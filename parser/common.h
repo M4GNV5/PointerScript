@@ -81,14 +81,18 @@ enum ptrs_structmembertype
 union ptrs_structmember
 {
 	struct ptrs_ast *startval;
+	struct
+	{
+		struct ptrs_astlist *arrayInit;
+		uint64_t size;
+	};
 	ptrs_function_t *function;
-	uint64_t size;
 	ptrs_nativetype_info_t *type;
 };
 struct ptrs_structlist
 {
 	char *name;
-	unsigned int offset;
+	unsigned offset;
 	uint16_t namelen;
 	uint8_t protection : 2; //0 = public, 1 = internal, 2 = private
 	uint8_t isStatic : 1;
