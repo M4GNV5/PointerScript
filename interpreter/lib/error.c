@@ -282,8 +282,14 @@ void ptrs_handle_sig(int sig)
 	}
 
 	fprintf(stderr, "Received signal: %s", strsignal(sig));
-	ptrs_showpos(stderr, ptrs_lastast);
-	fprintf(stderr, "%s", ptrs_backtrace(ptrs_lastast, ptrs_lastscope, 3, true));
+
+	if(ptrs_lastast != NULL)
+		ptrs_showpos(stderr, ptrs_lastast);
+	else
+		fprintf(stderr, "\n");
+
+	if(ptrs_lastscope != NULL)
+		fprintf(stderr, "%s", ptrs_backtrace(ptrs_lastast, ptrs_lastscope, 3, true));
 	exit(3);
 }
 
