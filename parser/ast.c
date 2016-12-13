@@ -910,6 +910,7 @@ struct constinfo
 	char *text;
 	ptrs_vartype_t type;
 	ptrs_val_t value;
+	ptrs_meta_t meta;
 };
 struct constinfo constants[] = {
 	{"true", PTRS_TYPE_INT, {.intval = true}},
@@ -972,6 +973,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			ast = talloc(ptrs_ast_t);
 			ast->arg.constval.type = constants[i].type;
 			ast->arg.constval.value = constants[i].value;
+			memset(&ast->arg.constval.meta, 0, sizeof(ptrs_meta_t));
 			ast->handler = PTRS_HANDLE_CONSTANT;
 			ast->setHandler = NULL;
 			ast->addressHandler = NULL;
