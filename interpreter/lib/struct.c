@@ -238,6 +238,10 @@ ptrs_var_t *ptrs_struct_construct(ptrs_var_t *constructor, struct ptrs_astlist *
 		}
 		else if(member->type == PTRS_STRUCTMEMBER_ARRAY && member->value.arrayInit != NULL && !member->isStatic)
 		{
+			int len = ptrs_astlist_length(member->value.arrayInit, node, scope);
+			if(len > member->value.size)
+				ptrs_error(node, scope, "Cannot initialize array of size %d with %d elements", member->value.size, len);
+
 			ptrs_astlist_handleByte(member->value.arrayInit, member->value.size, instance->data + member->offset, scope);
 		}
 		else if(member->type == PTRS_STRUCTMEMBER_VARARRAY && member->value.arrayInit != NULL && !member->isStatic)
@@ -245,7 +249,7 @@ ptrs_var_t *ptrs_struct_construct(ptrs_var_t *constructor, struct ptrs_astlist *
 			int len = ptrs_astlist_length(member->value.arrayInit, node, scope);
 			int size = member->value.size / sizeof(ptrs_var_t);
 			if(len > size)
-				ptrs_error(node, scope, "Cannot initialize array of size %d with initializer with %d elements", size, len);
+				ptrs_error(node, scope, "Cannot initialize var-array of size %d with %d elements", size, len);
 
 			ptrs_astlist_handle(member->value.arrayInit, size, instance->data + member->offset, scope);
 		}
