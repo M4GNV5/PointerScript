@@ -91,6 +91,8 @@ ptrs_var_t *ptrs_handle_native_getNative(void *target, size_t size, ptrs_var_t *
 {
 	value->type = PTRS_TYPE_NATIVE;
 	value->value.ptrval = *(ptrs_var_t **)target;
+	value->meta.array.size = 0;
+	value->meta.array.readOnly = false;
 	return value;
 }
 
@@ -98,6 +100,7 @@ ptrs_var_t *ptrs_handle_native_getPointer(void *target, size_t size, ptrs_var_t 
 {
 	value->type = PTRS_TYPE_POINTER;
 	value->value.ptrval = *(ptrs_var_t **)target;
+	value->meta.array.size = 0;
 	return value;
 }
 
