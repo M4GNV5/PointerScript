@@ -684,7 +684,9 @@ ptrs_var_t *ptrs_handle_struct(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 
 	result->type = PTRS_TYPE_STRUCT;
 	result->value.structval = struc;
-	ptrs_scope_set(scope, struc->symbol, result);
+
+	if(struc->symbol.scope != (unsigned)-1)
+		ptrs_scope_set(scope, struc->symbol, result);
 	return result;
 }
 

@@ -1877,17 +1877,16 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 
 static void parseMap(code_t *code, ptrs_ast_t *ast)
 {
-	ptrs_struct_t *struc = talloc(ptrs_struct_t);
-	ptrs_ast_t *constExpr = talloc(ptrs_ast_t);
+	ptrs_ast_t *structExpr = talloc(ptrs_ast_t);
+	ptrs_struct_t *struc = &structExpr->arg.structval;
 
 	ast->handler = PTRS_HANDLE_NEW;
-	ast->arg.newexpr.value = constExpr;
+	ast->arg.newexpr.value = structExpr;
 	ast->arg.newexpr.arguments = NULL;
 
-	constExpr->handler = PTRS_HANDLE_CONSTANT;
-	constExpr->arg.constval.type = PTRS_TYPE_STRUCT;
-	constExpr->arg.constval.value.structval = struc;
+	structExpr->handler = PTRS_HANDLE_STRUCT;
 
+	struc->symbol.scope = (unsigned)-1;
 	struc->size = 0;
 	struc->name = "(map)";
 	struc->overloads = NULL;
@@ -1895,6 +1894,7 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 	struc->staticData = NULL;
 
 	consumec(code, '{');
+	symbolScope_increase(code, 0, false);
 
 	struct ptrs_structlist *curr = NULL;
 	for(;;)
@@ -1926,6 +1926,8 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 			break;
 		consumec(code, ',');
 	}
+
+	symbolScope_decrease(code);
 
 	consumec(code, '}');
 }
