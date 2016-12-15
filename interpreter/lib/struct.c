@@ -31,9 +31,11 @@ bool ptrs_struct_canAccess(ptrs_struct_t *struc, struct ptrs_structlist *member,
 		case 0:
 			return true;
 		case 1:
-			while(scope->outer != NULL)
-				scope = scope->outer;
-			if(struc->scope->stackstart == scope->stackstart)
+			;
+			ptrs_scope_t *_scope = scope;
+			while(_scope->outer != NULL)
+				_scope = _scope->outer;
+			if(struc->scope->stackstart == _scope->stackstart)
 				return true;
 			//fallthrough
 		default:
