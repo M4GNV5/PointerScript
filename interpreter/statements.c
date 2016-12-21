@@ -446,11 +446,14 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 	ptrs_var_t *_result;
 	ptrs_error_t error;
 	bool needsRethrow = false;
+	bool returnedValue = false;
 
 	if(!ptrs_error_catch(scope, &error, stmt.catchBody != NULL || stmt.finallyBody == NULL))
 	{
 		_result = stmt.tryBody->handler(stmt.tryBody, result, scope);
 		ptrs_error_stopCatch(scope, &error);
+
+		returnedValue = scope->exit == 3;
 	}
 	else if(stmt.catchBody != NULL)
 	{
@@ -504,6 +507,7 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 		}
 
 		_result = stmt.catchBody->handler(stmt.catchBody, result, catchScope);
+		returnedValue = catchScope->exit == 3;
 	}
 	else
 	{
@@ -512,6 +516,14 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 
 	if(stmt.finallyBody != NULL)
 	{
+		if(stmt.retVal.scope != (unsigned)-1)
+		{
+			if(!returnedValue)
+				_result->type = PTRS_TYPE_UNDEFINED;
+
+			ptrs_scope_set(scope, stmt.retVal, _result);
+		}
+
 		_result = stmt.finallyBody->handler(stmt.finallyBody, result, scope);
 
 		if(needsRethrow)

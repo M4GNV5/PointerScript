@@ -600,9 +600,23 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		}
 
 		if(lookahead(code, "finally"))
+		{
+			symbolScope_increase(code, 0, true);
+			if(code->curr == '(')
+			{
+				consumec(code, '(');
+				stmt->arg.trycatch.retVal = addSymbol(code, readIdentifier(code));
+				consumec(code, ')');
+			}
+
 			stmt->arg.trycatch.finallyBody = parseBody(code, NULL, true, false);
+			symbolScope_decrease(code);
+		}
 		else
+		{
+			stmt->arg.trycatch.retVal.scope = (unsigned)-1;
 			stmt->arg.trycatch.finallyBody = NULL;
+		}
 	}
 	else if(lookahead(code, "asm"))
 	{

@@ -51,6 +51,7 @@ struct ptrs_ast_trycatch
 	unsigned catchStackOffset;
 	int argc;
 	ptrs_symbol_t *args;
+	ptrs_symbol_t retVal;
 };
 
 struct ptrs_ast_asm
