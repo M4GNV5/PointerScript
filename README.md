@@ -16,7 +16,7 @@ sudo apt-get install libffi-dev build-essential
 git clone --recursive https://github.com/M4GNV5/PointerScript
 cd PointerScript
 
-make release #OR debug if you want less speed but debug symbols for gdb
+make release
 sudo make install #optional (copies bin/ptrs to /usr/local/bin/ptrs)
 ```
 
@@ -24,7 +24,7 @@ sudo make install #optional (copies bin/ptrs to /usr/local/bin/ptrs)
 
 ###Standard Library
 PointerScript has no standard-library. You can use all C libraries using the built-in ffi ([Import statement](LanguageDoc.md#importstatement)),
-however there are a couple of useful libraries and bindings (networking, regexp, http, lists, maps etc.)
+however there are a couple of useful libraries and bindings (networking, regexp, http, json, lists, maps etc.)
 in [this repo](https://github.com/M4GNV5/PtrsStuff)
 
 ###Performance
