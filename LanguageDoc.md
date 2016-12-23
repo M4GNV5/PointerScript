@@ -16,6 +16,7 @@
 	- [StructVariableDefinition](#structvariabledefinition)
 	- [ConstDefinition](#constdefinition)
 	- [ImportStatement](#importstatement)
+	- [AsmStatement](#asmstatement)
 	- [ScopeStatement](#scopestatement)
 	- [TryStatement](#trystatement)
 	- [TryCatchStatement](#trycatchstatement)
@@ -290,6 +291,51 @@ function fibo(val)
 {
 	return fibo(val - 1) + fibo(val - 2);
 }
+```
+
+##AsmStatement
+(only available on linux-x86_64) The assembly code will be assembled at parse time and linked at runtime. This is powered by [libjitas](https://github.com/M4GNV5/libjitas) using GAS syntax for instructions and Intel syntax for data (`db`, `resq` etc.)
+```js
+//'asm' [ IdentifierList ] '{' AsmInstructionList '}' ';'
+
+import printf;
+var fmt = "myVar = %d\n";
+var myVar = 42;
+
+//asm followed directly by a body will be executed when reached
+asm
+{
+	//when using local variables there are three modes:
+	//$myVar is the address of myVar
+	//myVar is the value of myVar
+	//*myVar is the value where myVar points to (only valid for pointer/native types)
+	mov fmt, %rdi
+	mov myVar, %rsi
+	mov $0, %eax
+	call *printf
+	//a ret at the end is necesarry or bad things will happen
+	ret
+};
+
+//asm followed by a list of export symbols will not execute when reached but export
+//symbols from the assembly code
+asm myFunc, myData
+{
+	//char myFunc(int index); returns myData[index]
+	myFunc:
+		mov $myData, %rcx
+		mov $0, %rax
+		mov (%rcx, %rdi, 1), %al
+		ret
+
+	myPrivateData:
+		resq 16
+
+	myData:
+		db 42, 31, 12
+};
+
+myFunc(2) == myData[2];
 ```
 
 ##ScopeStatement

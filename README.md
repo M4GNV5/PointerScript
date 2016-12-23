@@ -3,7 +3,8 @@ Dynamically typed scripting language with pointers and native library access. Po
 feels like C but has awesome features like operator overloading, dynamic typing and
 even though you have direct low level access your code is more safe thanks to boundary
 checks. Additionally finding errors is less painful as you get a full backtrace when a
-runtime error occurs or you receive e.g. a segmentation fault.
+runtime error occurs or you receive e.g. a segmentation fault. If you love low level
+programming [you can even write inline assembly](LanguageDoc.md#asmstatement) (on linux-x86_64 only)
 
 ##Installing
 Requirements are [libffi](https://github.com/libffi/libffi) and build tools.
@@ -16,7 +17,7 @@ sudo apt-get install libffi-dev build-essential
 git clone --recursive https://github.com/M4GNV5/PointerScript
 cd PointerScript
 
-make release
+make release #if you are not on linux-x86_64 try 'make portable'
 sudo make install #optional (copies bin/ptrs to /usr/local/bin/ptrs)
 ```
 
