@@ -818,7 +818,6 @@ static int binaryOpCount = sizeof(binaryOps) / sizeof(struct opinfo);
 
 struct opinfo prefixOps[] = {
 	{"typeof", 0, true, PTRS_HANDLE_OP_TYPEOF},
-	{"sizeof", 0, true, PTRS_HANDLE_PREFIX_LENGTH}, //length aka sizeof
 	{"++", 0, true, PTRS_HANDLE_PREFIX_INC}, //prefixed ++
 	{"--", 0, true, PTRS_HANDLE_PREFIX_DEC}, //prefixed --
 	{"!", 0, true, PTRS_HANDLE_PREFIX_LOGICNOT}, //logical NOT
@@ -1017,6 +1016,23 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		ast->arg.constval.type = PTRS_TYPE_INT;
 		ast->arg.constval.value.intval = type;
 		consumec(code, '>');
+	}
+	else if(lookahead(code, "sizeof"))
+	{
+		ptrs_nativetype_info_t *nativeType = readNativeType(code);
+
+		ast = talloc(ptrs_ast_t);
+		if(nativeType != NULL)
+		{
+			ast->handler = PTRS_HANDLE_CONSTANT;
+			ast->arg.constval.type = PTRS_TYPE_INT;
+			ast->arg.constval.value.intval = nativeType->size;
+		}
+		else
+		{
+			ast->handler = PTRS_HANDLE_PREFIX_LENGTH;
+			ast->arg.astval = parseUnaryExpr(code, ignoreCalls, ignoreAlgo);
+		}
 	}
 	else if(lookahead(code, "as"))
 	{
