@@ -1,30 +1,9 @@
 # PointerScript
-Scripting language with pointers and native library access.
-
-##Example code
-```javascript
-//this program prints the fibonacci sequence from 0 to n
-//n will be read from stdin
-
-//import printf for output and scanf for input
-import printf, scanf from "libc.so.6";
-
-//read fibonacci count from stdin
-var count = 0;
-printf("Fibonacci count: ");
-scanf("%d", &count);
-
-var curr = 1;
-var old = 0;
-for(var i = 0; i <= count; i++)
-{
-	printf("Fibonacci %d = %d\n", i, curr);
-
-	var tmp = old + curr;
-	old = curr;
-	curr = tmp;
-}
-```
+Dynamically typed scripting language with pointers and native library access. PointerScript
+feels like C but has awesome features like operator overloading, dynamic typing and
+even though you have direct low level access your code is more safe thanks to boundary
+checks. Additionally finding errors is less painful as you get a full backtrace when a
+runtime error occurs or you receive e.g. a segmentation fault.
 
 ##Installing
 Requirements are [libffi](https://github.com/libffi/libffi) and build tools.
@@ -45,7 +24,93 @@ sudo make install #optional (copies bin/ptrs to /usr/local/bin/ptrs)
 
 ###Standard Library
 PointerScript has no standard-library. You can use all C libraries using the built-in ffi ([Import statement](LanguageDoc.md#importstatement)),
-however there are a couple of useful libraries (networking, regexp, lists, maps etc.) in [this repo](https://github.com/M4GNV5/PtrsStuff)
+however there are a couple of useful libraries and bindings (networking, regexp, http, lists, maps etc.)
+in [this repo](https://github.com/M4GNV5/PtrsStuff)
+
+###Performance
+Generally PointerScript runs faster than many other scripting languages due to the absence of a Garbage Collector and the usage of native libraries.
+You can create call graphs for the code examples in this repository using:
+```bash
+sudo apt-get install valgrind graphviz python3
+curl -O ../gprof2dot.py https://raw.githubusercontent.com/jrfonseca/gprof2dot/master/gprof2dot.py
+./measureExamples.sh
+```
+Currently the main time eaters are lookahead (parser) for small scripts without expensive loops and ptrs_scope_get for scripts with long loops
+
+###Testing
+You can run tests for the interpreter by executing the `runTests.sh` script in the repository
+
+###Documentation
+Most of PointerScript is similar to Javascript and/or C. For a full Documentation see [LanguageDoc.md](LanguageDoc.md)
+
+##Example code
+```javascript
+//first we import some native functions from libc
+import printf, puts, qsort from "libc.so.6";
+
+
+
+//create a new array with 4 elements
+//as we have an initializer the size is optional
+//we could also write var nums[] = ...
+var nums[4] = [1337, 42, 666, 31.12];
+
+
+
+//PointerScript is dynamically typed, you can get the type of a variable using typeof
+//the result will be the type id. You can obtain type ids of types using type<...>
+
+//'pointer' is a pointer to a variable
+typeof nums == type<pointer>;
+
+//note there is no 'number' type like in Javascript. We have both 'int' and 'float'
+//int is a 64 bit singed integer
+typeof nums[0] == type<int>;
+//'float' is a IEEE 64 bit double precision floating pointer number
+//when referencing C types in PointerScript use 'single' and 'double'
+typeof nums[3] == type<float>;
+
+//you can convert types using cast<...>
+nums[3] = cast<int>nums[3]; //sets nums[3] to 31
+//for a reinterpret cast use as<...> (e.g. as<native>nums)
+
+
+
+//sort the array using the libc function 'qsort'
+//	'nums' is the array created above
+//	'sizeof nums' is the length of the array (aka 4)
+//	'VARSIZE' is a constant that holds the size of a variable (should be 16 bytes)
+//	'compar' is a pointerscript function that will be passed like a normal C function pointer
+function compar(a, b)
+{
+	return *as<pointer>a - *as<pointer>b;
+}
+qsort(nums, sizeof nums, VARSIZE, compar);
+
+//instead of defining a function we could also use a lambda
+qsort(nums, sizeof nums, VARSIZE, (a, b) -> *as<pointer>a - *as<pointer>b);
+
+
+
+//iterate over each entry in 'vals'
+foreach(i, val in nums)
+{
+	//you can insert variables and expression into strings
+	//for variables use $name
+	//for expressions use ${} (e.g. ${typeof val})
+	puts("nums[$i] = $val");
+}
+
+
+
+//the above foreach statement can also be written as
+for(var i = 0; i < sizeof nums; i++)
+{
+	//when using printf manually make sure to use the correct format for the
+	//type of the variable passed, in this case %d for integers
+	printf("nums[%d] = %d\n", i, nums[i]);
+}
+```
 
 ###More example code
 There are examples including the usage of Types, Structs, Arrays, Threading and many more in the [examples](examples/) directory of this repository. The most interresting ones are listed here:
@@ -59,102 +124,3 @@ There are examples including the usage of Types, Structs, Arrays, Threading and 
 - [threads](examples/threads.ptrs) Using libpthread (or generally native functions that take function pointer arguments) with Pointerscript
 - [gtk](examples/gtk.ptrs) Using GTK for creating a window with a clickable button.
 - [window](examples/window.ptrs) Using libSDL for creating X windows. (Example orginally by [@Webfreak001](https://github.com/WebFreak001))
-
-###Performance
-Generally PointerScript runs faster than many other scripting languages due to the absence of a Garbage Collector and the usage of native libraries.
-You can create call graphs for the code examples in this repository using:
-```bash
-sudo apt-get install valgrind graphviz python3
-curl -O ../gprof2dot.py https://raw.githubusercontent.com/jrfonseca/gprof2dot/master/gprof2dot.py
-./measureExamples.sh
-```
-Currently the main time eaters are lookahead (parser) for small scripts without expensive loops and ptrs_scope_get for scripts with long loops
-
-###Grammar
-Most of PointerScript is similar to Javascript and/or C so only specialities will be listed here for a full Documentation see [LanguageDoc.md](LanguageDoc.md)
-```javascript
-//import native functions or variables from other PointerScript files
-//leaving out the from part searches for the function in standard library
-//e.g. 	import printf, scanf;
-//		import pthread_create, pthread_join from "libpthread.so.0";
-//		import pthread_create as ptcreate, pthread_join as ptjoin from "libpthread.so.0";
-//		import myfunc, myvar from "./myotherfile.ptrs";
-importstatement 		: 'import' argumentlist [ 'from' expression ] ';'
-						;
-
-//e.g.	var x = 42;		//noting unusual here
-//		var y[x];		//creates an array of x variables on the stack
-//		var z{x};		//creates an array of x bytes on the stack
-variabledefinition		: 'var' identifier [ '=' expression ] ';'
-						| 'var' identifier '[' expression ']' ';'
-						| 'var' identifier '{' expression '}' ';'
-						;
-
-//e.g. cast<int>3.14 == 3
-castexpression			: 'cast' '<' typename '>' expression
-						;
-
-//for use with typeof
-//e.g. typeof foo == type<int>
-typeexpression			: 'type' '<' typename '>' expression
-						;
-
-typename				: 'undefined'
-						| 'int'
-						| 'float'
-						| 'native'
-						| 'pointer'
-						| 'function'
-						| 'struct'
-						;
-
-constantexpression		: 'true' 		//type int, value 1
-						| 'false'		//type int, value 0
-						| 'null'		//type pointer, value 0
-						| 'NULL'		//type native, value 0
-						| 'VARSIZE'		//type int, value size of a variable (currently 16)
-						| 'PTRSIZE'		//type int, value size of a pointer (8 for 64bit and 4 for 32bit)
-						| 'undefined'	//type undefined
-						;
-
-//see examples/struct.ptrs
-structstatement			: 'struct' '{' memberdefinitionlist '}' ';'
-						;
-memberdefinitionlist	: memberdefinition [ memberdefinitionlist ]
-						|
-						;
-memberdefinition		: identifier [ '=' expression ] ';'
-						| identifier '[' expression ']' ';'
-						| identifier '{' expression '}' ';'
-						| 'operator' op '(' argumentdefinitonlist ')' body
-						| identifier '(' argumentdefinitonlist ')' body
-						;
-
-//in function definitions you can define argument default values
-//e.g. function foo(bar = 42 * 3112) {}
-//the last argument can be followed by '...'
-//	it will be an array of variables containing additional arguments (varargs)
-//e.g. function baz(foo, bar...)
-argumentdefinitonlist	: argumentdefiniton [ ',' argumentdefinitonlist ]
-						|
-						;
-argumentdefiniton		: identifier [ '=' expression ]
-						| identifier '...'
-						;
-
-//You can also expand arrays into expression lists
-/*e.g.
-var vals = ['m', 3.14, "hi"];
-printf("%c %g %s\n", ...vals);
-
-function printfln(fmt, args...)
-{
-	printf(fmt, ...args); //expand 'args'
-	printf("\n");
-}
-*/
-expressionlist			: expression [ ',' expressionlist ]
-						| '...' expression [ ',' expressionlist ]
-						|
-						;
-```
