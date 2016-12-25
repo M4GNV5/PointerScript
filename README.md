@@ -45,55 +45,71 @@ You can run tests for the interpreter by executing the `runTests.sh` script in t
 Most of PointerScript is similar to Javascript and/or C. For a full Documentation see [LanguageDoc.md](LanguageDoc.md)
 
 ##Example code
+You can import any C function e.g. `printf`, `qsort` etc.
 ```javascript
 //first we import some native functions from libc
 import printf, puts, qsort from "libc.so.6";
+```
 
+The `from` part of the import statement is optional, without it for the symbol will be searched in the default library search order (aka for libc and posix functions leaving out the from should work however when you want to use a library such as curl you need it)
+```javascript
+import printf, puts, qsort;
+```
 
-
-//create a new array with 4 elements
-//as we have an initializer the size is optional
-//we could also write var nums[] = ...
+Defining arrays of variables is similar to C. Note that either length or initializer must be given, defining both will fill up remaining entries with the last initialized one or throw an error if the initializer is too long for the given length.
+```javascript
 var nums[4] = [1337, 42, 666, 31.12];
+```
 
+When defining byte arrays use `{}` instead of `[]`. Additionally byte arrays can be initialized by string expressions
+```javascript
+var msg{} = {'h', 'i', 0};
+//or
+var msg2{128} = "hello world!";
+```
 
+When you want to create arrays on the heap you can use `new array` with either square brackets for arrays of variables or curly brackets for byte arrays. Note: PointerScript has no garbage collector thus you have to free the memory of the array later using `delete`
+```javascript
+var nums2 = new array[8] ["hi", msg, nums, 3.14];
+delete nums2;
+```
 
-//PointerScript is dynamically typed, you can get the type of a variable using typeof
-//the result will be the type id. You can obtain type ids of types using type<...>
+PointerScript is dynamically typed, you can get the type of a variable using typeof the result will be the type id. You can obtain type ids of types using `type<...>`. e.g. `typeof nums` (from above) is `type<pointer>`, `typeof msg` is `type<native>`. The former one points to one or more variables the latter one to one or more ubytes.
 
-//'pointer' is a pointer to a variable
-typeof nums == type<pointer>;
-
-//note there is no 'number' type like in Javascript. We have both 'int' and 'float'
-//int is a 64 bit singed integer
+There is no 'number' type like in Javascript. We have both 'int' and 'float'.
+'int' is a 64 bit singed integer while 'float' is a IEEE 64 bit double precision floating point number. Note that this is different to most other languages. When you want the 32bit single precision float (e.g. when defining statically typed struct member) use 'single'.
+```javascript
 typeof nums[0] == type<int>;
-//'float' is a IEEE 64 bit double precision floating pointer number
-//when referencing C types in PointerScript use 'single' and 'double'
 typeof nums[3] == type<float>;
+```
 
-//you can convert types using cast<...>
+you can convert types using cast<...>
+```javascript
 nums[3] = cast<int>nums[3]; //sets nums[3] to 31
-//for a reinterpret cast use as<...> (e.g. as<native>nums)
+```
+for a reinterpret cast use as<...> (e.g. `as<native>nums`)
 
+Now lets use actually use a C function, in thise case `qsort` for sorting the array `nums` (see `man 3 qsort` for more information about `qsort`). We pass 4 arguments:
+- 'nums' is the array created above
+- 'sizeof nums' is the length of the array (aka 4)
+- 'VARSIZE' is a constant that holds the size of a variable (should be 16 bytes)
+- 'compar' is a pointerscript function that will be passed like a normal C function pointer
 
-
-//sort the array using the libc function 'qsort'
-//	'nums' is the array created above
-//	'sizeof nums' is the length of the array (aka 4)
-//	'VARSIZE' is a constant that holds the size of a variable (should be 16 bytes)
-//	'compar' is a pointerscript function that will be passed like a normal C function pointer
+```javascript
 function compar(a, b)
 {
 	return *as<pointer>a - *as<pointer>b;
 }
 qsort(nums, sizeof nums, VARSIZE, compar);
+```
 
-//instead of defining a function we could also use a lambda
+Instead of defining a function we could also use a lambda
+```javascript
 qsort(nums, sizeof nums, VARSIZE, (a, b) -> *as<pointer>a - *as<pointer>b);
+```
 
-
-
-//iterate over each entry in 'vals'
+Now we want to output the contents of `nums`. First we use fancy features like foreach and string insertions.
+```javascript
 foreach(i, val in nums)
 {
 	//you can insert variables and expression into strings
@@ -101,17 +117,19 @@ foreach(i, val in nums)
 	//for expressions use ${} (e.g. ${typeof val})
 	puts("nums[$i] = $val");
 }
+```
 
-
-
-//the above foreach statement can also be written as
+But of course we can also use printf directly
+```javascript
 for(var i = 0; i < sizeof nums; i++)
 {
-	//when using printf manually make sure to use the correct format for the
+	//when using printf directly make sure to use the correct format for the
 	//type of the variable passed, in this case %d for integers
 	printf("nums[%d] = %d\n", i, nums[i]);
 }
 ```
+
+
 
 ###More example code
 There are examples including the usage of Types, Structs, Arrays, Threading and many more in the [examples](examples/) directory of this repository. The most interresting ones are listed here:
