@@ -74,7 +74,11 @@ var nums2 = new array[8] ["hi", msg, nums, 3.14];
 delete nums2;
 ```
 
-PointerScript is dynamically typed, you can get the type of a variable using typeof the result will be the type id. You can obtain type ids of types using `type<...>`. e.g. `typeof nums` (from above) is `type<pointer>`, `typeof msg` is `type<native>`. The former one points to one or more variables the latter one to one or more ubytes.
+PointerScript is dynamically typed, you can get the type of a variable using typeof. The result is a type id. You can obtain type ids using `type<...>`. e.g. `typeof nums` (from above) is `type<pointer>` and `typeof msg` is `type<native>`. The former one points to one or more variables the latter one to one or more ubytes.
+```javascript
+typeof nums == type<pointer>;
+typeof msg == type<native>;
+```
 
 There is no 'number' type like in Javascript. We have both 'int' and 'float'.
 'int' is a 64 bit singed integer while 'float' is a IEEE 64 bit double precision floating point number. Note that this is different to most other languages. When you want the 32bit single precision float (e.g. when defining statically typed struct member) use 'single'.
