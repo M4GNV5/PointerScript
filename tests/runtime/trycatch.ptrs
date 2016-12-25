@@ -48,3 +48,36 @@ try
 catch()
 	worked = true;
 assert(worked);
+
+function tryFinallyRet()
+{
+	try
+	{
+		try
+			return 111;
+		finally(ret)
+			return ret * 6;
+	}
+}
+assertEq(666, tryFinallyRet());
+
+function tryCatchFinallyRet1()
+{
+	try
+		throw "err";
+	catch()
+		return 42;
+	finally(ret)
+		return ret;
+}
+function tryCatchFinallyRet2()
+{
+	try
+		return 1337;
+	catch()
+		;
+	finally(ret)
+		return ret;
+}
+assertEq(42, tryCatchFinallyRet1());
+assertEq(1337, tryCatchFinallyRet2());

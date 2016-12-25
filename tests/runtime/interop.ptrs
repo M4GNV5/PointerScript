@@ -5,6 +5,7 @@ import assert, assertEq from "../common.ptrs";
 var str = "hello!";
 var str2{} = str;
 assert(strcmp(str, str2) == 0);
+assert(str != str2);
 
 assertEq(42, atoi("42")); //should we check using strtoll instead?
 assertEq(42, atoi!int("42"));
