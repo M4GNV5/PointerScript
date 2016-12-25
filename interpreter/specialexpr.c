@@ -38,16 +38,35 @@ ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 	{
 		ptrs_var_t *val = curr->entry->handler(curr->entry, args + i, scope);
 
-		if(curr->convert && val->type != PTRS_TYPE_NATIVE)
+		if(!curr->convert)
+		{
+			if(val != args + i)
+				memcpy(args + i, val, sizeof(ptrs_var_t));
+		}
+		else if(val->type == PTRS_TYPE_NATIVE)
+		{
+			args[i].type = PTRS_TYPE_NATIVE;
+			int len = strnlen(val->value.strval, val->meta.array.size);
+
+			if(len < val->meta.array.size)
+			{
+				args[i].value.strval = val->value.strval;
+			}
+			else
+			{
+				char *dup = ptrs_alloc(scope, len + 1);
+				memcpy(dup, val->value.strval, len);
+				dup[len] = 0;
+
+				args[i].value.nativeval = dup;
+			}
+		}
+		else
 		{
 			char *str = alloca(32);
 
 			args[i].value.nativeval = (char *)ptrs_vartoa(val, str, 32);
 			args[i].type = PTRS_TYPE_NATIVE;
-		}
-		else if(val != args + i)
-		{
-			memcpy(args + i, val, sizeof(ptrs_var_t));
 		}
 
 		curr = curr->next;
