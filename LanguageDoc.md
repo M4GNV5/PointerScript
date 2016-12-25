@@ -386,8 +386,9 @@ catch(error, backtrace, file, line, column)
 Executes the try block, if no error occurs the finally body will be executed. When an error occurs
 in the try block, the finally block will be executed and the error will be re-thrown.
 This can be used to close ressources or free memory.
+Optionally the finally statement can take one argument that will be set to the return value of the try block or `undefined` if the try block does not have a return statement.
 ```js
-//'try' Statement 'finally' Statement
+//'try' Statement 'finally' [ '(' Identifier ')' ] Statement
 
 var color = new array[] [255, 0, 64];
 try
@@ -398,12 +399,24 @@ finally
 {
 	delete color;
 }
+
+try
+{
+	return 42;
+}
+finally(ret)
+{
+	freeRessources();
+
+	//you can either return 'ret' or something completly different
+	return ret;
+}
 ```
 
 ##TryCatchFinallyStatement
 This combines the [TryCatchStatement](#trycatchstatement) and the [TryFinallyStatement](#tryfinallystatement)
 ```js
-//'try' Statement 'catch' '(' IdentifierList ')' Statement 'finally' Statement
+//'try' Statement 'catch' '(' IdentifierList ')' Statement 'finally' [ '(' Identifier ')' ] Statement
 
 var fd = fopen("data.txt", "w");
 try
