@@ -1390,18 +1390,9 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 
 		consumec(code, '[');
 
-		ptrs_ast_t *expr;
-		if(lookahead(code, "$"))
-		{
-			expr = NULL;
-			consume(code, "..");
-		}
-		else
-		{
-			expr = parseExpression(code);
-			if(expr == NULL)
-				unexpected(code, "Index");
-		}
+		ptrs_ast_t *expr = parseExpression(code);
+		if(expr == NULL)
+			unexpected(code, "Index");
 
 		if(expr == NULL || lookahead(code, ".."))
 		{

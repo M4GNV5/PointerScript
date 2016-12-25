@@ -29,9 +29,9 @@ try
 assert(allFine);
 
 assertEq(6, sizeof(ptr[2 .. 8]));
-assertEq(8, sizeof(ptr[$ .. 8]));
+assertEq(8, sizeof(ptr[0 .. 8]));
 assertEq(14, sizeof(ptr[2 .. $]));
-assertEq(16, sizeof(ptr[$ .. $]));
+assertEq(16, sizeof(ptr[0 .. $]));
 delete ptr;
 
 ptr = new array[] [42, "hello", 31.12];
