@@ -746,11 +746,12 @@ ptrs_var_t *ptrs_handle_cast_builtin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 			;
 			char *buff = ptrs_alloc(scope, 32);
 			result->value.strval = ptrs_vartoa(value, buff, 32);
+			result->meta.array.size = strlen(result->value.strval) + 1;
+			result->meta.array.readOnly = result->value.strval != buff && value->meta.array.readOnly;
 			break;
 		default:
 			ptrs_error(node, scope, "Cannot cast to %s", ptrs_typetoa(expr.builtinType));
 	}
-	memset(&result->meta, 0, sizeof(ptrs_meta_t));
 
 	result->type = expr.builtinType;
 	return result;
