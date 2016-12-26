@@ -2154,10 +2154,21 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 						}
 					}
 				}
+				else if(lookahead(code, "sizeof"))
+				{
+					consume(code, "this");
+
+					nameFormat = "%1$s.op sizeof this";
+					overload->op = PTRS_HANDLE_PREFIX_LENGTH;
+
+					func->argc = 0;
+					func->args = NULL;
+				}
 				else if(lookahead(code, "foreach"))
 				{
 					consume(code, "in");
 					consume(code, "this");
+
 					nameFormat = "%1$s.op foreach in this";
 					overload->op = PTRS_HANDLE_FORIN;
 
