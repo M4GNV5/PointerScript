@@ -27,6 +27,7 @@ struct ptrs_ast_member
 {
 	struct ptrs_ast *base;
 	char *name;
+	int namelen;
 };
 
 struct ptrs_ast_thismember

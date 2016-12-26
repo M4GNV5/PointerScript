@@ -109,8 +109,13 @@ ptrs_var_t *ptrs_handle_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	ptrs_var_t overload;
 	if(_result == NULL && (overload.value.funcval = ptrs_struct_getOverload(base, ptrs_handle_member, true)) != NULL)
 	{
+		ptrs_var_t arg;
+		arg.type = PTRS_TYPE_NATIVE;
+		arg.value.strval = expr.name;
+		arg.meta.array.size = expr.namelen;
+		arg.meta.array.readOnly = true;
+
 		overload.type = PTRS_TYPE_FUNCTION;
-		ptrs_var_t arg = {{.strval = expr.name}, {.array = {.readOnly = true}}, PTRS_TYPE_NATIVE};
 		return ptrs_callfunc(node, result, scope, base->value.structval, &overload, 1, &arg);
 	}
 	else if(_result == NULL)
@@ -140,7 +145,7 @@ ptrs_var_t *ptrs_handle_assign_member(ptrs_ast_t *node, ptrs_var_t *value, ptrs_
 		ptrs_var_t args[2];
 		args[0].type = PTRS_TYPE_NATIVE;
 		args[0].value.strval = expr.name;
-		args[0].meta.array.size = 0;
+		args[0].meta.array.size = expr.namelen;
 		args[0].meta.array.readOnly = true;
 		memcpy(args + 1, value, sizeof(ptrs_var_t));
 
@@ -172,7 +177,7 @@ ptrs_var_t *ptrs_handle_addressof_member(ptrs_ast_t *node, ptrs_var_t *result, p
 			ptrs_var_t arg;
 			arg.type = PTRS_TYPE_NATIVE;
 			arg.value.strval = expr.name;
-			arg.meta.array.size = 0;
+			arg.meta.array.size = expr.namelen;
 			arg.meta.array.readOnly = true;
 
 			return ptrs_callfunc(node, result, scope, base->value.structval, &overload, 1, &arg);
@@ -210,6 +215,7 @@ ptrs_var_t *ptrs_handle_call_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_s
 		ptrs_astlist_handle(arguments, len, args + 1, scope);
 		args[0].type = PTRS_TYPE_NATIVE;
 		args[0].value.strval = expr.name;
+		args[0].meta.array.size = expr.namelen;
 		args[0].meta.array.readOnly = true;
 
 		return ptrs_callfunc(node, result, scope, base->value.structval, &funcv, len, args);

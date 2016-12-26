@@ -1342,8 +1342,11 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 		member->file = code->filename;
 
 		consumec(code, '.');
+		char *name = readIdentifier(code);
+
 		member->arg.member.base = ast;
-		member->arg.member.name = readIdentifier(code);
+		member->arg.member.name = name;
+		member->arg.member.namelen = strlen(name);
 
 		ast = member;
 	}
