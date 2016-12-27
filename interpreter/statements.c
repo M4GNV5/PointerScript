@@ -443,21 +443,28 @@ ptrs_var_t *ptrs_handle_throw(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_trycatch stmt = node->arg.trycatch;
-	ptrs_var_t *_result;
+	ptrs_var_t val;
+	ptrs_var_t *valp;
 	ptrs_error_t error;
 	bool needsRethrow = false;
 	bool returnedValue = false;
 
+	result->type = PTRS_TYPE_UNDEFINED;
+
 	if(!ptrs_error_catch(scope, &error, stmt.catchBody != NULL || stmt.finallyBody == NULL))
 	{
-		_result = stmt.tryBody->handler(stmt.tryBody, result, scope);
+		valp = stmt.tryBody->handler(stmt.tryBody, &val, scope);
 		ptrs_error_stopCatch(scope, &error);
 
-		returnedValue = scope->exit == 3;
+		if(scope->exit == 3)
+		{
+			returnedValue = true;
+			scope->exit = 0;
+			memcpy(result, valp, sizeof(ptrs_var_t));
+		}
 	}
 	else if(stmt.catchBody != NULL)
 	{
-		ptrs_var_t val;
 		char *msg;
 
 		ptrs_error_stopCatch(scope, &error);
@@ -506,8 +513,13 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 			ptrs_scope_set(catchScope, stmt.args[4], &val);
 		}
 
-		_result = stmt.catchBody->handler(stmt.catchBody, result, catchScope);
-		returnedValue = catchScope->exit == 3;
+		valp = stmt.catchBody->handler(stmt.catchBody, &val, catchScope);
+
+		if(catchScope->exit == 3)
+		{
+			returnedValue = true;
+			memcpy(result, valp, sizeof(ptrs_var_t));
+		}
 	}
 	else
 	{
@@ -517,14 +529,16 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 	if(stmt.finallyBody != NULL)
 	{
 		if(stmt.retVal.scope != (unsigned)-1)
+			ptrs_scope_set(scope, stmt.retVal, result);
+
+		valp = stmt.finallyBody->handler(stmt.finallyBody, &val, scope);
+
+		if(scope->exit == 3)
 		{
-			if(!returnedValue)
-				_result->type = PTRS_TYPE_UNDEFINED;
-
-			ptrs_scope_set(scope, stmt.retVal, _result);
+			returnedValue = true;
+			scope->exit = 0;
+			memcpy(result, valp, sizeof(ptrs_var_t));
 		}
-
-		_result = stmt.finallyBody->handler(stmt.finallyBody, result, scope);
 
 		if(needsRethrow)
 			ptrs_error_reThrow(scope, &error);
@@ -534,7 +548,9 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 		ptrs_error_stopCatch(scope, &error);
 	}
 
-	return _result;
+	if(returnedValue)
+		scope->exit = 3;
+	return result;
 }
 
 #ifndef _PTRS_NOASM

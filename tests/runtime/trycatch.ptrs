@@ -81,3 +81,24 @@ function tryCatchFinallyRet2()
 }
 assertEq(42, tryCatchFinallyRet1());
 assertEq(1337, tryCatchFinallyRet2());
+
+function tryCatchFinallyNoRet1()
+{
+	try
+		throw "err";
+	catch()
+		return 666;
+	finally
+		;
+}
+function tryCatchFinallyNoRet2()
+{
+	try
+		return 3112;
+	catch()
+		;
+	finally
+		;
+}
+assertEq(666, tryCatchFinallyNoRet1());
+assertEq(3112, tryCatchFinallyNoRet2());
