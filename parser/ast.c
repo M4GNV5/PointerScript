@@ -1935,6 +1935,7 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 		}
 		curr->type = PTRS_STRUCTMEMBER_VAR;
 		curr->protection = 0;
+		curr->isStatic = 0;
 		curr->offset = struc->size;
 		struc->size += sizeof(ptrs_var_t);
 
@@ -1943,6 +1944,8 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 		else
 			curr->name = readIdentifier(code);
 
+		curr->namelen = strlen(curr->name);
+
 		consumec(code, ':');
 		curr->value.startval = parseExpression(code);
 
@@ -1950,6 +1953,7 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 			break;
 		consumec(code, ',');
 	}
+	curr->next = NULL;
 
 	symbolScope_decrease(code);
 
@@ -2263,6 +2267,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			overload->isLeftSide = true;
 			overload->op = PTRS_HANDLE_NEW;
 			overload->handler = parseFunction(code, name);
+			overload->isStatic = isStatic;
 
 			overload->next = struc->overloads;
 			struc->overloads = overload;
@@ -2277,6 +2282,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			overload->isLeftSide = true;
 			overload->op = PTRS_HANDLE_DELETE;
 			overload->handler = parseFunction(code, name);
+			overload->isStatic = isStatic;
 
 			overload->next = struc->overloads;
 			struc->overloads = overload;
