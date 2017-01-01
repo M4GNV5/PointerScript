@@ -632,6 +632,10 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		stmt->handler = PTRS_HANDLE_FUNCTION;
 		stmt->arg.function.isAnonymous = false;
 
+		ptrs_function_t *func = &stmt->arg.function.func;
+		func->scope = NULL;
+		func->nativeCb = NULL;
+
 		char *name = readIdentifier(code);
 		ptrs_ast_t *oldAst;
 		if(ptrs_ast_getSymbol(code->symbols, name, &oldAst) == 0)
@@ -646,15 +650,13 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		{
 			stmt->arg.function.symbol = addSymbol(code, strdup(name));
 		}
-		stmt->arg.function.name = name;
+		func->name = name;
 
 		symbolScope_increase(code, 1, false);
 		setSymbol(code, strdup("this"), 0);
 
-		stmt->arg.function.argc = parseArgumentDefinitionList(code,
-			&stmt->arg.function.args, &stmt->arg.function.argv, &stmt->arg.function.vararg);
-
-		stmt->arg.function.body = parseBody(code, &stmt->arg.function.stackOffset, false, true);
+		func->argc = parseArgumentDefinitionList(code, &func->args, &func->argv, &func->vararg);
+		func->body = parseBody(code, &func->stackOffset, false, true);
 	}
 	else if(lookahead(code, "struct"))
 	{
@@ -1120,15 +1122,17 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		ast = talloc(ptrs_ast_t);
 		ast->handler = PTRS_HANDLE_FUNCTION;
 		ast->arg.function.isAnonymous = true;
-		ast->arg.function.name = "(anonymous function)";
+
+		ptrs_function_t *func = &ast->arg.function.func;
+		func->name = "(anonymous function)";
+		func->scope = NULL;
+		func->nativeCb = NULL;
 
 		symbolScope_increase(code, 1, false);
 		setSymbol(code, strdup("this"), 0);
 
-		ast->arg.function.argc = parseArgumentDefinitionList(code,
-			&ast->arg.function.args, &ast->arg.function.argv, &ast->arg.function.vararg);
-
-		ast->arg.function.body = parseBody(code, &ast->arg.function.stackOffset, false, true);
+		func->argc = parseArgumentDefinitionList(code, &func->args, &func->argv, &func->vararg);
+		func->body = parseBody(code, &func->stackOffset, false, true);
 	}
 	else if(lookahead(code, "map_stack"))
 	{
@@ -1277,15 +1281,20 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 
 				ast = talloc(ptrs_ast_t);
 				ast->handler = PTRS_HANDLE_FUNCTION;
-				ast->arg.function.name = "(lambda expression)";
-				ast->arg.function.argv = NULL;
-				ast->arg.function.argc = parseArgumentDefinitionList(code, &ast->arg.function.args, NULL, &ast->arg.function.vararg);
+				ast->arg.function.isAnonymous = true;
+
+				ptrs_function_t *func = &ast->arg.function.func;
+				func->name = "(lambda expression)";
+				func->scope = NULL;
+				func->nativeCb = NULL;
+				func->argv = NULL;
+				func->argc = parseArgumentDefinitionList(code, &func->args, NULL, &func->vararg);
 
 				consume(code, "->");
 				code->symbols->offset += 2 * sizeof(ptrs_var_t);
 				if(lookahead(code, "{"))
 				{
-					ast->arg.function.body = parseStmtList(code, '}');
+					func->body = parseStmtList(code, '}');
 					consumec(code, '}');
 				}
 				else
@@ -1293,10 +1302,10 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 					ptrs_ast_t *retStmt = talloc(ptrs_ast_t);
 					retStmt->handler = PTRS_HANDLE_RETURN;
 					retStmt->arg.astval = parseExpression(code);
-					ast->arg.function.body = retStmt;
+					func->body = retStmt;
 				}
-				ast->arg.function.isAnonymous = true;
-				ast->arg.function.stackOffset = symbolScope_decrease(code);
+
+				func->stackOffset = symbolScope_decrease(code);
 			}
 			else
 			{

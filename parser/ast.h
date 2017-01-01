@@ -74,13 +74,7 @@ struct ptrs_ast_function
 {
 	ptrs_symbol_t symbol;
 	bool isAnonymous;
-	int argc;
-	char *name;
-	ptrs_symbol_t vararg;
-	ptrs_symbol_t *args;
-	struct ptrs_ast **argv;
-	struct ptrs_ast *body;
-	unsigned stackOffset;
+	ptrs_function_t func;
 };
 
 struct ptrs_ast_scopestmt

@@ -653,24 +653,25 @@ ptrs_var_t *ptrs_handle_asm(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 
 ptrs_var_t *ptrs_handle_function(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_function astfunc = node->arg.function;
-
-	ptrs_function_t *func = ptrs_alloc(scope, sizeof(ptrs_function_t));
-	func->stackOffset = astfunc.stackOffset;
-	func->name = astfunc.name;
-	func->vararg = astfunc.vararg;
-	func->argc = astfunc.argc;
-	func->args = astfunc.args;
-	func->argv = astfunc.argv;
-	func->body = astfunc.body;
-	func->scope = scope;
-	func->nativeCb = NULL;
-
+	struct ptrs_ast_function *astfunc = &node->arg.function;
 	result->type = PTRS_TYPE_FUNCTION;
-	result->value.funcval = func;
 
-	if(!astfunc.isAnonymous) //lambda
-		ptrs_scope_set(scope, astfunc.symbol, result);
+	if(scope->outer == NULL)
+	{
+		astfunc->func.scope = scope;
+		result->value.funcval = &astfunc->func;
+	}
+	else
+	{
+		ptrs_function_t *func = ptrs_alloc(scope, sizeof(ptrs_function_t));
+		memcpy(func, &astfunc->func, sizeof(ptrs_function_t));
+		func->scope = scope;
+
+		result->value.funcval = func;
+	}
+
+	if(!astfunc->isAnonymous) //lambda
+		ptrs_scope_set(scope, astfunc->symbol, result);
 	return result;
 }
 
