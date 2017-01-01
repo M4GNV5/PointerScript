@@ -189,11 +189,13 @@ int64_t ptrs_callnative(ptrs_nativetype_info_t *retType, ptrs_var_t *result, voi
 				callback = argv[i].value.funcval;
 				types[i] = &ffi_type_pointer;
 
-				if(callback->scope->outer == NULL)
+				if(callback->nativeCb != NULL)
 				{
-					if(callback->nativeCb == NULL)
-						callback->nativeCb = ffcb_create(&ptrs_callcallback, callback);
-
+					values[i] = &callback->nativeCb;
+				}
+				else if(callback->scope->outer == NULL)
+				{
+					callback->nativeCb = ffcb_create(&ptrs_callcallback, callback);
 					values[i] = &callback->nativeCb;
 				}
 				else

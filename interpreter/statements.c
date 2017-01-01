@@ -397,32 +397,40 @@ ptrs_var_t *ptrs_handle_delete(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	ptrs_var_t valv;
 	ptrs_var_t *val = ast->handler(ast, &valv, scope);
 
-	if(val->type == PTRS_TYPE_STRUCT)
+	switch(val->type)
 	{
-		ptrs_var_t overload;
-		if((overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_delete, true)) != NULL)
-		{
-			overload.type = PTRS_TYPE_FUNCTION;
-			result = ptrs_callfunc(node, result, scope, val->value.structval, &overload, 0, NULL);
-		}
+		case PTRS_TYPE_STRUCT:
+			;
+			ptrs_var_t overload;
+			if((overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_delete, true)) != NULL)
+			{
+				overload.type = PTRS_TYPE_FUNCTION;
+				result = ptrs_callfunc(node, result, scope, val->value.structval, &overload, 0, NULL);
+			}
 
-		if(!val->value.structval->isOnStack)
-			free(val->value.structval);
-	}
-	else if(val->type == PTRS_TYPE_POINTER)
-	{
-		free(val->value.ptrval);
-	}
-	else if(val->type == PTRS_TYPE_NATIVE)
-	{
-		if(val->meta.array.readOnly)
-			ptrs_error(node, scope, "Cannot delete readonly native pointer\n");
+			if(!val->value.structval->isOnStack)
+				free(val->value.structval);
+			break;
 
-		free(val->value.nativeval);
-	}
-	else
-	{
-		ptrs_error(node, scope, "Cannot delete value of type %s", ptrs_typetoa(val->type));
+		case PTRS_TYPE_NATIVE:
+			if(val->meta.array.readOnly)
+				ptrs_error(node, scope, "Cannot delete readonly native pointer\n");
+			//fallthrough
+		case PTRS_TYPE_POINTER:
+			free(val->value.nativeval);
+
+			result->type = PTRS_TYPE_UNDEFINED;
+			break;
+
+#ifndef _PTRS_NOCALLBACK
+		case PTRS_TYPE_FUNCTION:
+			if(val->value.funcval->nativeCb != NULL)
+				ffcb_delete(val->value.funcval->nativeCb);
+			break;
+#endif
+
+		default:
+			ptrs_error(node, scope, "Cannot delete value of type %s", ptrs_typetoa(val->type));
 	}
 
 	return result;
