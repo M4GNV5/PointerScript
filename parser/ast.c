@@ -2401,6 +2401,10 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				curr->value.arrayInit = parseExpressionList(code, ']');
 				consumec(code, ']');
 			}
+			else
+			{
+				curr->value.arrayInit = NULL;
+			}
 
 			consumec(code, ';');
 
@@ -2424,6 +2428,10 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				consumec(code, '{');
 				curr->value.arrayInit = parseExpressionList(code, '}');
 				consumec(code, '}');
+			}
+			else
+			{
+				curr->value.arrayInit = NULL;
 			}
 
 			consumec(code, ';');
