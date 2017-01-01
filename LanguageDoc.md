@@ -46,6 +46,7 @@
 	- [ExpandExpression](#expandexpression)
 	- [AsExpression](#asexpression)
 	- [CastBuiltinExpression](#castbuiltinexpression)
+	- [CastToStringExpression](#casttostringexpression)
 	- [CastExpression](#castexpression)
 	- [CastStackExpression](#caststackexpression)
 	- [IdentifierExpression](#identifierexpression)
@@ -907,10 +908,17 @@ as<float>0x7fc00000
 ```
 
 ##CastBuiltinExpression
-Converts a expression to a specific type. Currently only casting to int, float and native is supported.
+Converts a expression to a specific type. Casting to int/float converts the value. Casting to native returns a native function bundle for functions and a pointer to the struct data for structs.
 ```js
 //'cast' '<' TypeName '>' Expression
-cast<int>3.14
+cast<int>3.14 //returns 3
+```
+
+##CastToStringExpression
+Converts a expression to a string (0-terminated byte sequence). If the argument is already of type `native` and its `strlen` is within its array size the orginal value is returned, otherwise memory is allocated on the stack and the value is stringyfied.
+```js
+//'cast' '<' 'string' '>' Expression
+cast<string>3.14 //returns "3.14"
 ```
 
 ##CastExpression
