@@ -1070,9 +1070,17 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 
 		if(type <= PTRS_TYPE_STRUCT)
 		{
+			if(type != PTRS_TYPE_INT && type != PTRS_TYPE_FLOAT && type != PTRS_TYPE_NATIVE)
+				unexpectedm(code, NULL, "Invalid cast, can only cast to int, float, native and string");
+
 			ast = talloc(ptrs_ast_t);
 			ast->handler = PTRS_HANDLE_CAST_BUILTIN;
 			ast->arg.cast.builtinType = type;
+		}
+		else if(lookahead(code, "string"))
+		{
+			ast = talloc(ptrs_ast_t);
+			ast->handler = PTRS_HANDLE_TOSTRING;
 		}
 		else
 		{

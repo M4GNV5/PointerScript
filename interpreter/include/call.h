@@ -7,4 +7,9 @@ ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t 
 	ptrs_struct_t *thisArg, ptrs_var_t *funcvar, int argc, ptrs_var_t *argv);
 int64_t ptrs_callnative(ptrs_nativetype_info_t *retType, ptrs_var_t *result, void *func, int argc, ptrs_var_t *argv);
 
+#ifndef _PTRS_NOCALLBACK
+#include <ffcb.h>
+void ptrs_callcallback(ffcb_return_t ret, ptrs_function_t *func, va_list ap);
+#endif
+
 #endif

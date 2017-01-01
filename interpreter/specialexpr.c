@@ -3,6 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef _PTRS_NOCALLBACK
+#include <ffcb.h>
+#endif
+
 #include "../parser/ast.h"
 #include "../parser/common.h"
 #include "include/error.h"
@@ -743,17 +747,65 @@ ptrs_var_t *ptrs_handle_cast_builtin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 			result->value.floatval = ptrs_vartof(value);
 			break;
 		case PTRS_TYPE_NATIVE:
-			;
-			char *buff = ptrs_alloc(scope, 32);
-			result->value.strval = ptrs_vartoa(value, buff, 32);
-			result->meta.array.size = strlen(result->value.strval) + 1;
-			result->meta.array.readOnly = result->value.strval != buff && value->meta.array.readOnly;
+			switch(value->type)
+			{
+#ifndef _PTRS_NOCALLBACK
+				case PTRS_TYPE_FUNCTION:
+					;
+					ptrs_function_t *func = value->value.funcval;
+					if(func->nativeCb == NULL)
+						func->nativeCb = ffcb_create(&ptrs_callcallback, func);
+
+					result->value.nativeval = func->nativeCb;
+					result->meta.array.size = 0;
+					result->meta.array.readOnly = true;
+					break;
+#endif
+				case PTRS_TYPE_STRUCT:
+					result->value.nativeval = value->value.structval->data;
+					result->meta.array.size = value->value.structval->size;
+					result->meta.array.readOnly = false;
+					break;
+				default:
+					ptrs_error(node, scope, "Cannot cast from %s to native", ptrs_typetoa(value->type));
+			}
 			break;
 		default:
 			ptrs_error(node, scope, "Cannot cast to %s", ptrs_typetoa(expr.builtinType));
 	}
 
 	result->type = expr.builtinType;
+	return result;
+}
+
+ptrs_var_t *ptrs_handle_tostring(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_cast expr = node->arg.cast;
+	ptrs_var_t *val = expr.value->handler(expr.value, result, scope);
+
+	int len;
+	if(val->type == PTRS_TYPE_NATIVE)
+		len = strnlen(val->value.strval, val->meta.array.size);
+
+	if(val->type != PTRS_TYPE_NATIVE || len < val->meta.array.size)
+	{
+		char *buff = ptrs_alloc(scope, 32);
+		result->value.strval = ptrs_vartoa(val, buff, 32);
+		result->meta.array.size = strlen(result->value.strval) + 1;
+		result->meta.array.readOnly = result->value.strval != buff && val->meta.array.readOnly;
+	}
+	else
+	{
+		char *buff = ptrs_alloc(scope, len + 1);
+		memcpy(buff, val->value.strval, len);
+		buff[len] = 0;
+
+		result->value.strval = buff;
+		result->meta.array.size = len + 1;
+		result->meta.array.readOnly = false;
+	}
+
+	result->type = PTRS_TYPE_NATIVE;
 	return result;
 }
 
