@@ -7,6 +7,7 @@
 #include <stdbool.h>
 
 #ifndef _GNU_SOURCE
+#include <alloca.h>
 #define strdup(str) (strcpy(malloc(strlen(str) + 1), str))
 #endif
 
