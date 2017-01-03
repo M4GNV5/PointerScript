@@ -2576,7 +2576,7 @@ static ptrs_vartype_t readTypeName(code_t *code)
 #error "ptrdiff_t size is not supported"
 #endif
 
-static ptrs_nativetype_info_t nativeTypes[] = {
+ptrs_nativetype_info_t ptrs_nativeTypes[] = {
 	{"char", sizeof(signed char), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_schar},
 	{"short", sizeof(short), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_sshort},
 	{"int", sizeof(int), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_sint},
@@ -2611,14 +2611,14 @@ static ptrs_nativetype_info_t nativeTypes[] = {
 	{"uintptr", sizeof(intptr_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT, &ffi_type_uintptr},
 	{"ptrdiff", sizeof(ptrdiff_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_ptrdiff},
 };
-static int nativeTypeCount = sizeof(nativeTypes) / sizeof(ptrs_nativetype_info_t);
+int ptrs_nativeTypeCount = sizeof(ptrs_nativeTypes) / sizeof(ptrs_nativetype_info_t);
 
 static ptrs_nativetype_info_t *readNativeType(code_t *code)
 {
-	for(int i = 0; i < nativeTypeCount; i++)
+	for(int i = 0; i < ptrs_nativeTypeCount; i++)
 	{
-		if(lookahead(code, nativeTypes[i].name))
-			return &nativeTypes[i];
+		if(lookahead(code, ptrs_nativeTypes[i].name))
+			return &ptrs_nativeTypes[i];
 	}
 	return NULL;
 }
