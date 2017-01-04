@@ -39,12 +39,19 @@ struct symbollist
 	char *text;
 	struct symbollist *next;
 };
+struct wildcardsymbol
+{
+	ptrs_ast_t *importStmt;
+	char *start;
+	struct wildcardsymbol *next;
+};
 struct ptrs_symboltable
 {
 	unsigned offset;
 	unsigned maxOffset;
 	bool isInline;
 	struct symbollist *current;
+	struct wildcardsymbol *wildcards;
 	ptrs_symboltable_t *outer;
 };
 struct code
@@ -68,6 +75,7 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack);
 static void parseAsm(code_t *code, ptrs_ast_t *stmt);
 static void parseMap(code_t *code, ptrs_ast_t *expr);
 static void parseStruct(code_t *code, ptrs_struct_t *struc);
+static void parseImport(code_t *code, ptrs_ast_t *stmt);
 static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt);
 static void parseAlgorithmExpression(code_t *code, struct ptrs_algorithmlist *curr, bool canBeLast);
 
@@ -537,16 +545,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "import"))
 	{
-		stmt->handler = PTRS_HANDLE_IMPORT;
-		stmt->arg.import.count = parseIdentifierList(code, "from", &stmt->arg.import.symbols,
-			&stmt->arg.import.fields);
-
-		if(lookahead(code, "from"))
-			stmt->arg.import.from = parseExpression(code);
-		else
-			stmt->arg.import.from = NULL;
-
-		consumec(code, ';');
+		parseImport(code, stmt);
 	}
 	else if(lookahead(code, "return"))
 	{
@@ -1596,6 +1595,41 @@ static void parseAlgorithmExpression(code_t *code, struct ptrs_algorithmlist *cu
 			curr->next = NULL;
 		else
 			unexpected(code, "=>");
+	}
+}
+
+static void parseImport(code_t *code, ptrs_ast_t *stmt)
+{
+	stmt->handler = PTRS_HANDLE_IMPORT;
+	stmt->arg.import.imports = NULL;
+
+	for(;;)
+	{
+		struct ptrs_importlist *curr = talloc(struct ptrs_importlist);
+		curr->next = stmt->arg.import.imports;
+		stmt->arg.import.imports = curr;
+
+		curr->name = readIdentifier(code);
+		if(lookahead(code, "as"))
+			curr->symbol = addSymbol(code, readIdentifier(code));
+		else
+			curr->symbol = addSymbol(code, strdup(curr->name));
+
+		if(code->curr == ';')
+		{
+			stmt->arg.import.from = NULL;
+			break;
+		}
+		else if(lookahead(code, "from"))
+		{
+			stmt->arg.import.from = parseExpression(code);
+			consumec(code, ';');
+			break;
+		}
+		else
+		{
+			consumec(code, ',');
+		}
 	}
 }
 
@@ -2911,6 +2945,7 @@ static void symbolScope_increase(code_t *code, int buildInCount, bool isInline)
 	new->isInline = isInline;
 	new->outer = code->symbols;
 	new->current = NULL;
+	new->wildcards = NULL;
 
 	code->symbols = new;
 	if(isInline)
@@ -2928,6 +2963,15 @@ static unsigned symbolScope_decrease(code_t *code)
 		struct symbollist *old = curr;
 		curr = curr->next;
 		free(old->text);
+		free(old);
+	}
+
+	struct wildcardsymbol *currw = scope->wildcards;
+	while(curr != NULL)
+	{
+		struct wildcardsymbol *old = currw;
+		currw = currw->next;
+		free(old->start);
 		free(old);
 	}
 

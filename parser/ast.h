@@ -38,9 +38,7 @@ struct ptrs_ast_thismember
 
 struct ptrs_ast_import
 {
-	int count;
-	char **fields;
-	ptrs_symbol_t *symbols;
+	struct ptrs_importlist *imports;
 	struct ptrs_ast *from;
 };
 
@@ -277,6 +275,13 @@ struct ptrs_stringformat
 	struct ptrs_ast *entry;
 	struct ptrs_stringformat *next;
 	uint8_t convert : 1;
+};
+
+struct ptrs_importlist
+{
+	ptrs_symbol_t symbol;
+	char *name;
+	struct ptrs_importlist *next;
 };
 
 ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **symbols);
