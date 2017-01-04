@@ -45,9 +45,8 @@ You can run tests for the interpreter by executing the `runTests.sh` script in t
 Most of PointerScript is similar to Javascript and/or C. For a full Documentation see [LanguageDoc.md](LanguageDoc.md)
 
 ##Example code
-You can import any C function e.g. `printf`, `qsort` etc.
+You can import any C function like `printf`, `qsort` etc.
 ```javascript
-//first we import some native functions from libc
 import printf, puts, qsort from "libc.so.6";
 ```
 
