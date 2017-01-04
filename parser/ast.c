@@ -26,6 +26,7 @@ typedef enum
 	PTRS_SYMBOL_DEFAULT,
 	PTRS_SYMBOL_CONST,
 	PTRS_SYMBOL_THISMEMBER,
+	PTRS_SYMBOL_WILDCARD,
 } ptrs_symboltype_t;
 
 struct symbollist
@@ -34,6 +35,11 @@ struct symbollist
 	{
 		unsigned offset;
 		void *data;
+		struct
+		{
+			unsigned index;
+			unsigned offset;
+		} wildcard;
 	} arg;
 	ptrs_symboltype_t type;
 	char *text;
@@ -200,6 +206,18 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 						ast->arg.thismember.base.scope = level - 1;
 						ast->arg.thismember.base.offset = 0;
 						ast->arg.thismember.member = curr->arg.data;
+						break;
+
+					case PTRS_SYMBOL_WILDCARD:
+						*node = ast = talloc(ptrs_ast_t);
+						ast->handler = PTRS_HANDLE_WILDCARDSYMBOL;
+						ast->setHandler = NULL;
+						ast->addressHandler = NULL;
+						ast->callHandler = NULL;
+
+						ast->arg.wildcard.index = curr->arg.wildcard.index;
+						ast->arg.wildcard.symbol.scope = level;
+						ast->arg.wildcard.symbol.offset = curr->arg.wildcard.offset;
 						break;
 				}
 				return 0;
@@ -2977,6 +2995,15 @@ static ptrs_ast_t *getSymbolFromWildcard(code_t *code, char *text)
 				ast->arg.wildcard.symbol.scope = stmt->wildcards.scope + level;
 				ast->arg.wildcard.symbol.offset = stmt->wildcards.offset;
 				ast->arg.wildcard.index = import->wildcardIndex;
+
+				struct symbollist *entry = talloc(struct symbollist);
+				entry->text = strdup(text);
+				entry->type = PTRS_SYMBOL_WILDCARD;
+				entry->arg.wildcard.index = import->wildcardIndex;
+				entry->arg.wildcard.offset = stmt->wildcards.offset;
+				entry->next = symbols->current;
+				symbols->current = entry;
+
 				return ast;
 			}
 
