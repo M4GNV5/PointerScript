@@ -294,6 +294,15 @@ function fibo(val)
 }
 ```
 
+Wildcard imports can be used when you need many functions from a library that all start with the same prefix so you dont have to write them all down manually.
+```js
+import curl_* from "libcurl.so";
+var ctx = curl_easy_init();
+curl_easy_setopt(ctx, 10002/*CURLOPT_URL*/, "https://pointerscript.org");
+curl_easy_perform(ctx);
+curl_easy_cleanup(ctx);
+```
+
 ##AsmStatement
 (only available on linux-x86_64) The assembly code will be assembled at parse time and linked at runtime. This is powered by [libjitas](https://github.com/M4GNV5/libjitas) using GAS syntax for instructions and Intel syntax for data (`db`, `resq` etc.)
 ```js
