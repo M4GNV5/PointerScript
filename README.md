@@ -146,3 +146,23 @@ There are examples including the usage of Types, Structs, Arrays, Threading and 
 - [threads](examples/threads.ptrs) Using libpthread (or generally native functions that take function pointer arguments) with Pointerscript
 - [gtk](examples/gtk.ptrs) Using GTK for creating a window with a clickable button.
 - [window](examples/window.ptrs) Using libSDL for creating X windows. (Example orginally by [@Webfreak001](https://github.com/WebFreak001))
+
+
+
+###License
+PointerScript - Scripting language with pointers and native library access
+
+Copyright (C) 2017 Jakob Löw (jakob@löw.com)
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+[You should have received a copy of the GNU General Public License
+along with this program.](LICENSE.md)
