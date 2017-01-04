@@ -277,6 +277,9 @@ void importScript(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 	char *file = resolveRelPath(node, scope, from);
 	ptrs_cache_t *cache = importCachedScript(file, node, scope);
 
+	if(node->arg.import.wildcardCount > 0)
+		ptrs_error(node, scope, "Cannot import from other script using wildcards");
+
 	struct ptrs_importlist *curr = node->arg.import.imports;
 	while(curr != NULL)
 	{
@@ -297,7 +300,12 @@ void importScript(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 
 void importNative(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 {
+	struct ptrs_ast_import *stmt = &node->arg.import;
 	const char *error;
+	ptrs_var_t func;
+	func.type = PTRS_TYPE_NATIVE;
+	func.meta.array.size = 0;
+	func.meta.array.readOnly = true;
 
 	dlerror();
 
@@ -317,22 +325,32 @@ void importNative(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 
 		error = dlerror();
 		if(error != NULL)
-			ptrs_error(node->arg.import.from, scope, "%s", error);
+			ptrs_error(stmt->from, scope, "%s", error);
+	}
+
+	int wildcardCount = stmt->wildcardCount;
+	void **wildcards;
+	if(wildcardCount > 0)
+	{
+		wildcards = ptrs_alloc(scope, wildcardCount * sizeof(void *));
+
+		func.value.nativeval = wildcards;
+		ptrs_scope_set(scope, stmt->wildcards, &func);
 	}
 
 	struct ptrs_importlist *curr = node->arg.import.imports;
 	while(curr != NULL)
 	{
-		ptrs_var_t func;
-		func.type = PTRS_TYPE_NATIVE;
 		func.value.nativeval = dlsym(handle, curr->name);
-		func.meta.array.readOnly = true;
 
 		error = dlerror();
 		if(error != NULL)
 			ptrs_error(node, scope, "%s", error);
 
-		ptrs_scope_set(scope, curr->symbol, &func);
+		if(wildcardCount-- > 0)
+			wildcards[curr->wildcardIndex] = func.value.nativeval;
+		else
+			ptrs_scope_set(scope, curr->symbol, &func);
 		curr = curr->next;
 	}
 }

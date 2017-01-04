@@ -38,8 +38,16 @@ struct ptrs_ast_thismember
 
 struct ptrs_ast_import
 {
+	ptrs_symbol_t wildcards;
+	int wildcardCount;
 	struct ptrs_importlist *imports;
 	struct ptrs_ast *from;
+};
+
+struct ptrs_ast_wildcard
+{
+	ptrs_symbol_t symbol;
+	int index;
 };
 
 struct ptrs_ast_trycatch
@@ -217,6 +225,7 @@ union ptrs_ast_arg
 	struct ptrs_ast_member member;
 	struct ptrs_ast_thismember thismember;
 	struct ptrs_ast_import import;
+	struct ptrs_ast_wildcard wildcard;
 	struct ptrs_ast_trycatch trycatch;
 	struct ptrs_ast_asm asmstmt;
 	struct ptrs_ast_function function;
@@ -279,7 +288,11 @@ struct ptrs_stringformat
 
 struct ptrs_importlist
 {
-	ptrs_symbol_t symbol;
+	union
+	{
+		int wildcardIndex;
+		ptrs_symbol_t symbol;
+	};
 	char *name;
 	struct ptrs_importlist *next;
 };

@@ -50,6 +50,7 @@ ptrs_var_t *ptrs_handle_as(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *s
 ptrs_var_t *ptrs_handle_cast_builtin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_tostring(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_wildcardsymbol(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_identifier(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_constant(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 
@@ -177,6 +178,7 @@ ptrs_var_t *ptrs_handle_native_setFloat(void *target, size_t size, ptrs_var_t *v
 #define PTRS_HANDLE_CAST_BUILTIN ptrs_handle_cast_builtin
 #define PTRS_HANDLE_TOSTRING ptrs_handle_tostring
 #define PTRS_HANDLE_CAST ptrs_handle_cast
+#define PTRS_HANDLE_WILDCARDSYMBOL ptrs_handle_wildcardsymbol
 #define PTRS_HANDLE_IDENTIFIER ptrs_handle_identifier
 #define PTRS_HANDLE_CONSTANT ptrs_handle_constant
 

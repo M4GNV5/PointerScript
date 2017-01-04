@@ -43,6 +43,7 @@ struct wildcardsymbol
 {
 	ptrs_ast_t *importStmt;
 	char *start;
+	int startLen;
 	struct wildcardsymbol *next;
 };
 struct ptrs_symboltable
@@ -92,6 +93,7 @@ static double readDouble(code_t *code);
 
 static void setSymbol(code_t *code, char *text, unsigned offset);
 static ptrs_symbol_t addSymbol(code_t *code, char *text);
+static ptrs_symbol_t addHiddenSymbol(code_t *code, size_t size);
 static struct symbollist *addSpecialSymbol(code_t *code, char *symbol, ptrs_symboltype_t type);
 static ptrs_ast_t *getSymbol(code_t *code, char *text);
 static void symbolScope_increase(code_t *code, int buildInCount, bool isInline);
@@ -1602,18 +1604,36 @@ static void parseImport(code_t *code, ptrs_ast_t *stmt)
 {
 	stmt->handler = PTRS_HANDLE_IMPORT;
 	stmt->arg.import.imports = NULL;
+	stmt->arg.import.wildcards = addHiddenSymbol(code, sizeof(ptrs_var_t));
+	stmt->arg.import.wildcardCount = 0;
 
 	for(;;)
 	{
-		struct ptrs_importlist *curr = talloc(struct ptrs_importlist);
-		curr->next = stmt->arg.import.imports;
-		stmt->arg.import.imports = curr;
+		char *name = readIdentifier(code);
+		if(code->curr == '*')
+		{
+			next(code);
 
-		curr->name = readIdentifier(code);
-		if(lookahead(code, "as"))
-			curr->symbol = addSymbol(code, readIdentifier(code));
+			struct wildcardsymbol *curr = talloc(struct wildcardsymbol);
+			curr->next = code->symbols->wildcards;
+			code->symbols->wildcards = curr;
+
+			curr->importStmt = stmt;
+			curr->start = name;
+			curr->startLen = strlen(name);
+		}
 		else
-			curr->symbol = addSymbol(code, strdup(curr->name));
+		{
+			struct ptrs_importlist *curr = talloc(struct ptrs_importlist);
+			curr->next = stmt->arg.import.imports;
+			stmt->arg.import.imports = curr;
+
+			curr->name = name;
+			if(lookahead(code, "as"))
+				curr->symbol = addSymbol(code, readIdentifier(code));
+			else
+				curr->symbol = addSymbol(code, strdup(curr->name));
+		}
 
 		if(code->curr == ';')
 		{
@@ -2912,7 +2932,15 @@ static ptrs_symbol_t addSymbol(code_t *code, char *symbol)
 	return result;
 }
 
-static struct symbollist *addSpecialSymbol(code_t *code, char *symbol, ptrs_symboltype_t type)
+static ptrs_symbol_t addHiddenSymbol(code_t *code, size_t size)
+{
+	ptrs_symbol_t result = {0, code->symbols->offset};
+	code->symbols->offset += size;
+
+	return result;
+}
+
+static struct symbollist *addSpecialSymbol(code_t *code, char *symbol, ptrs_symboltype_t type) //0x656590
 {
 	ptrs_symboltable_t *curr = code->symbols;
 	struct symbollist *entry = talloc(struct symbollist);
@@ -2925,10 +2953,52 @@ static struct symbollist *addSpecialSymbol(code_t *code, char *symbol, ptrs_symb
 	return entry;
 }
 
+static ptrs_ast_t *getSymbolFromWildcard(code_t *code, char *text)
+{
+	unsigned level = 0;
+	ptrs_symboltable_t *symbols = code->symbols;
+	while(symbols != NULL)
+	{
+		struct wildcardsymbol *curr = symbols->wildcards;
+		while(curr != NULL)
+		{
+			if(strncmp(curr->start, text, curr->startLen) == 0)
+			{
+				struct ptrs_ast_import *stmt = &curr->importStmt->arg.import;
+				struct ptrs_importlist *import = talloc(struct ptrs_importlist);
+				import->next = stmt->imports;
+				stmt->imports = import;
+
+				import->wildcardIndex = stmt->wildcardCount++;
+				import->name = strdup(text);
+
+				ptrs_ast_t *ast = talloc(ptrs_ast_t);
+				ast->handler = PTRS_HANDLE_WILDCARDSYMBOL;
+				ast->arg.wildcard.symbol.scope = stmt->wildcards.scope + level;
+				ast->arg.wildcard.symbol.offset = stmt->wildcards.offset;
+				ast->arg.wildcard.index = import->wildcardIndex;
+				return ast;
+			}
+
+			curr = curr->next;
+		}
+
+		if(!symbols->isInline)
+			level++;
+		symbols = symbols->outer;
+	}
+
+	return NULL;
+}
+
 static ptrs_ast_t *getSymbol(code_t *code, char *text)
 {
 	ptrs_ast_t *ast = NULL;
 	if(ptrs_ast_getSymbol(code->symbols, text, &ast) == 0)
+		return ast;
+
+	ast = getSymbolFromWildcard(code, text);
+	if(ast != NULL)
 		return ast;
 
 	char buff[128];
