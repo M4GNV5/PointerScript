@@ -1,6 +1,7 @@
 import atoi, atof, strcmp, qsort, puts;
 import pow, sin from "libm.so.6";
 import assert, assertEq from "../common.ptrs";
+import str*;
 
 var str = "hello!";
 var str2{} = str;
@@ -18,3 +19,10 @@ var vals = new array[] [4, 0, 1, 3, 2];
 qsort(vals, sizeof vals, VARSIZE, (a, b) -> *as<pointer>a - *as<pointer>b);
 for(var i = 0; i < sizeof vals; i++)
 	assertEq(i, vals[i]);
+
+//wildcard tests
+var buff{256};
+strcpy(buff, "hello world!");
+assertEq("hello world!", buff);
+assertEq(0, strncmp(buff, "hello", 5));
+assertEq(buff + 6, strstr!native(buff, "world"));
