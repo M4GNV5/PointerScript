@@ -275,7 +275,8 @@ void ptrs_error_reThrow(ptrs_scope_t *scope, ptrs_error_t *error)
 
 void ptrs_handle_sig(int sig)
 {
-	if(ptrs_lastscope != NULL && ptrs_lastscope->error != NULL)
+	if(sig != SIGINT && sig != SIGTERM &&
+		ptrs_lastscope != NULL && ptrs_lastscope->error != NULL)
 	{
 		signal(sig, ptrs_handle_sig);
 		ptrs_throw(ptrs_lastast, ptrs_lastscope, "Received signal: %s", strsignal(sig));
@@ -295,6 +296,11 @@ void ptrs_handle_sig(int sig)
 
 void ptrs_handle_signals()
 {
+	signal(SIGINT, ptrs_handle_sig);
+	signal(SIGQUIT, ptrs_handle_sig);
+	signal(SIGTERM, ptrs_handle_sig);
+	//SIGHUP?
+
 	signal(SIGILL, ptrs_handle_sig);
 	signal(SIGABRT, ptrs_handle_sig);
 	signal(SIGFPE, ptrs_handle_sig);
