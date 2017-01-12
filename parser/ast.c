@@ -69,6 +69,8 @@ struct code
 	int pos;
 	ptrs_symboltable_t *symbols;
 	int withCount;
+	bool yieldIsAlgo;
+	ptrs_symbol_t yield;
 };
 
 static ptrs_ast_t *parseStmtList(code_t *code, char end);
@@ -129,6 +131,7 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 	code.pos = 0;
 	code.symbols = NULL;
 	code.withCount = 0;
+	code.yield.scope = (unsigned)-1;
 
 	while(skipSpaces(&code) || skipComments(&code));
 
@@ -1119,17 +1122,20 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 	}
 	else if(lookahead(code, "yield"))
 	{
-		if(ptrs_ast_getSymbol(code->symbols, ".yield", &ast) == 0)
+		if(code->yield.scope != (unsigned)-1)
 		{
-			ast->handler = PTRS_HANDLE_YIELD;
-			ast->arg.yield.yieldVal = ast->arg.varval;
-			ast->arg.yield.values = parseExpressionList(code, ';');
-		}
-		else if(ptrs_ast_getSymbol(code->symbols, ".yield_algorithm", &ast) == 0)
-		{
-			ast->handler = PTRS_HANDLE_YIELD_ALGORITHM;
-			ast->arg.yield.yieldVal = ast->arg.varval;
-			ast->arg.yield.value = parseExpression(code);
+			ast = talloc(ptrs_ast_t);
+			ast->arg.yield.yieldVal = code->yield;
+			if(code->yieldIsAlgo)
+			{
+				ast->handler = PTRS_HANDLE_YIELD_ALGORITHM;
+				ast->arg.yield.value = parseExpression(code);
+			}
+			else
+			{
+				ast->handler = PTRS_HANDLE_YIELD;
+				ast->arg.yield.values = parseExpressionList(code, ';');
+			}
 		}
 		else
 		{
@@ -2091,6 +2097,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			symbolScope_increase(code, 1, false);
 			setSymbol(code, strdup("this"), 0);
 
+			uint8_t oldYieldType = 2;
+			ptrs_symbol_t oldYield = {(unsigned)-1, (unsigned)-1};
 			const char *nameFormat;
 			const char *opLabel;
 			char *otherName = NULL;
@@ -2150,9 +2158,14 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 							otherName = "any";
 							consume(code, "any");
 
+							oldYieldType = code->yieldIsAlgo ? 1 : 0;
+							oldYield = code->yield;
+							code->yieldIsAlgo = true;
+							code->yield = addHiddenSymbol(code, 16);
+
 							func->argc = 1;
 							func->args = talloc(ptrs_symbol_t);
-							func->args[0] = addSymbol(code, strdup(".yield_algorithm"));
+							func->args[0] = code->yield;
 
 							nameFormat = "%1$s.op this => any";
 							opLabel = "=>";
@@ -2268,9 +2281,14 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					nameFormat = "%1$s.op foreach in this";
 					overload->op = PTRS_HANDLE_FORIN;
 
+					oldYieldType = code->yieldIsAlgo ? 1 : 0;
+					oldYield = code->yield;
+					code->yieldIsAlgo = false;
+					code->yield = addHiddenSymbol(code, 16);
+
 					func->argc = 1;
 					func->args = talloc(ptrs_symbol_t);
-					func->args[0] = addSymbol(code, strdup(".yield"));
+					func->args[0] = code->yield;
 				}
 				else if(lookahead(code, "cast"))
 				{
@@ -2299,9 +2317,14 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 							nameFormat = "%1$s.op %3$s => this => any";
 							consume(code, "any");
 
+							oldYieldType = code->yieldIsAlgo ? 1 : 0;
+							oldYield = code->yield;
+							code->yieldIsAlgo = true;
+							code->yield = addHiddenSymbol(code, 16);
+
 							func->argc = 2;
 							func->args = malloc(sizeof(ptrs_symbol_t) * 2);
-							func->args[0] = addSymbol(code, strdup(".yield_algorithm"));
+							func->args[0] = code->yield;
 							func->args[1] = addSymbol(code, otherName);
 
 							overload->isLeftSide = false;
@@ -2341,6 +2364,12 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			sprintf(func->name, nameFormat, structName, opLabel, otherName);
 
 			func->body = parseBody(code, &func->stackOffset, false, true);
+
+			if(oldYieldType != 2)
+			{
+				code->yield = oldYield;
+				code->yieldIsAlgo = oldYieldType == 1 ? true : false;
+			}
 
 			overload->handler = func;
 			overload->next = struc->overloads;
