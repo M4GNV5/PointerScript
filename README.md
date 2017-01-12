@@ -21,6 +21,14 @@ make release #if you are not on linux-x86_64 try 'make portable'
 sudo make install #optional (copies bin/ptrs to /usr/local/bin/ptrs)
 ```
 
+There is also syntax highlighting for atom in the [language-atom](https://github.com/M4GNV5/language-pointerscript) repository.
+Use the following commands to install:
+```bash
+git clone https://github.com/M4GNV5/language-pointerscript
+cd language-pointerscript
+apm link
+```
+
 ##Language
 
 ###Standard Library
