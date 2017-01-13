@@ -5,7 +5,8 @@ FFCB_BIN = libffcb/bin/libffcb.a
 JITAS_DIR = libjitas/src
 JITAS_BIN = libjitas/bin/libjitas.a
 INTERPRETER_INCLUDE = "../interpreter/interpreter.h"
-CFLAGS = -Wall '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -D_GNU_SOURCE --std=c99 -g -I$(FFI_DIR) -I$(FFCB_DIR) -I$(JITAS_DIR)
+
+CFLAGS_COMMON = '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -D_GNU_SOURCE --std=c99 -I$(FFI_DIR) -I$(FFCB_DIR) -I$(JITAS_DIR)
 
 BIN = bin
 RUN = $(BIN)/ptrs
@@ -28,11 +29,13 @@ RUN_OBJECTS += $(BIN)/algorithm.o
 RUN_OBJECTS += $(BIN)/ops.o
 RUN_OBJECTS += $(BIN)/main.o
 
-all: debug
+all: CFLAGS = -Wall -O2 -g $(CFLAGS_COMMON)
+all: $(RUN)
 
+debug: CFLAGS = -Wall -g $(CFLAGS_COMMON)
 debug: $(RUN)
 
-release: CFLAGS = '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -D_GNU_SOURCE --std=c99 -O2 -I$(FFI_DIR) -I$(FFCB_DIR) -I$(JITAS_DIR)
+release: CFLAGS = -O2 $(CFLAGS_COMMON)
 release: $(RUN)
 
 portable: CFLAGS = '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -D_PTRS_NOASM -D_PTRS_NOCALLBACK -D_XOPEN_SOURCE=700 -std=c99 -O2 -I$(FFI_DIR)
@@ -47,6 +50,8 @@ remove:
 
 clean:
 	if [ -d $(BIN) ]; then rm -r $(BIN); fi
+
+cleandeps:
 	$(MAKE) -C libffcb clean
 	$(MAKE) -C libjitas clean
 
@@ -67,9 +72,6 @@ $(BIN)/%.o: parser/%.c
 
 $(BIN)/%.o: interpreter/lib/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
-
-$(BIN)/%.o: interpreter/lib/%.asm
-	nasm $(NASMFLAGS) $< -o $@
 
 $(BIN)/%.o: interpreter/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
