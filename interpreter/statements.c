@@ -274,11 +274,23 @@ char *resolveRelPath(ptrs_ast_t *node, ptrs_scope_t *scope, const char *path)
 
 void importScript(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 {
+	struct ptrs_ast_import *stmt = &node->arg.import;
 	char *file = resolveRelPath(node, scope, from);
+	ptrs_var_t valv;
 	ptrs_cache_t *cache = importCachedScript(file, node, scope);
 
-	if(node->arg.import.wildcardCount > 0)
-		ptrs_error(node, scope, "Cannot import from other script using wildcards");
+	int wildcardCount = stmt->wildcardCount;
+	ptrs_var_t *wildcards = NULL;
+	if(wildcardCount > 0)
+	{
+		wildcards = ptrs_alloc(scope, wildcardCount * sizeof(ptrs_var_t));
+
+		valv.type = PTRS_TYPE_POINTER;
+		valv.meta.array.size = 0;
+		valv.value.ptrval = wildcards;
+
+		ptrs_scope_set(scope, stmt->wildcards, &valv);
+	}
 
 	struct ptrs_importlist *curr = node->arg.import.imports;
 	while(curr != NULL)
@@ -287,9 +299,11 @@ void importScript(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 		if(ptrs_ast_getSymbol(cache->symbols, curr->name, &ast) != 0)
 			ptrs_error(node, scope, "Script '%s' has no property '%s'", file, curr->name);
 
-		ptrs_var_t valv;
 		ptrs_var_t *val = ast->handler(ast, &valv, cache->scope);
-		ptrs_scope_set(scope, curr->symbol, val);
+		if(wildcardCount-- > 0)
+			memcpy(&wildcards[curr->wildcardIndex], val, sizeof(ptrs_var_t));
+		else
+			ptrs_scope_set(scope, curr->symbol, val);
 
 		if(ast->handler != PTRS_HANDLE_CONSTANT)
 			free(ast);
@@ -329,7 +343,7 @@ void importNative(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 	}
 
 	int wildcardCount = stmt->wildcardCount;
-	void **wildcards;
+	void **wildcards = NULL;
 	if(wildcardCount > 0)
 	{
 		wildcards = ptrs_alloc(scope, wildcardCount * sizeof(void *));

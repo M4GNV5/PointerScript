@@ -838,14 +838,22 @@ ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 ptrs_var_t *ptrs_handle_wildcardsymbol(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_wildcard expr = node->arg.wildcard;
-	void **imports = ptrs_scope_get(scope, expr.symbol)->value.nativeval;
+	ptrs_var_t *imports = ptrs_scope_get(scope, expr.symbol);
 
-	result->type = PTRS_TYPE_NATIVE;
-	result->value.nativeval = imports[expr.index];
-	result->meta.array.size = 0;
-	result->meta.array.readOnly = true;
-
-	return result;
+	if(imports->type == PTRS_TYPE_NATIVE)
+	{
+		void **nativeImports = imports->value.nativeval;
+		result->type = PTRS_TYPE_NATIVE;
+		result->value.nativeval = nativeImports[expr.index];
+		result->meta.array.size = 0;
+		result->meta.array.readOnly = true;
+		return result;
+	}
+	else
+	{
+		ptrs_var_t *scriptImports = imports->value.ptrval;
+		return &scriptImports[expr.index];
+	}
 }
 
 ptrs_var_t *ptrs_handle_identifier(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
