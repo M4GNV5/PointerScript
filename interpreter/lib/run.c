@@ -7,7 +7,7 @@
 #include "../../parser/common.h"
 #include "../include/scope.h"
 
-void ptrs_eval(char *src, const char *filename, ptrs_var_t *result, ptrs_scope_t *scope, ptrs_symboltable_t **symbols)
+ptrs_ast_t *ptrs_eval(char *src, const char *filename, ptrs_var_t *result, ptrs_scope_t *scope, ptrs_symboltable_t **symbols)
 {
 	ptrs_scope_t _scope;
 	if(scope == NULL)
@@ -22,9 +22,11 @@ void ptrs_eval(char *src, const char *filename, ptrs_var_t *result, ptrs_scope_t
 
 	if(_result != result)
 		memcpy(result, _result, sizeof(ptrs_var_t));
+
+	return ast;
 }
 
-void ptrs_dofile(const char *file, ptrs_var_t *result, ptrs_scope_t *scope, ptrs_symboltable_t **symbols)
+ptrs_ast_t *ptrs_dofile(const char *file, ptrs_var_t *result, ptrs_scope_t *scope, ptrs_symboltable_t **symbols)
 {
 	FILE *fd = fopen(file, "r");
 
@@ -52,5 +54,5 @@ void ptrs_dofile(const char *file, ptrs_var_t *result, ptrs_scope_t *scope, ptrs
 			file += len + 1;
 	}
 
-	ptrs_eval(src, strdup(file), result, scope, symbols);
+	return ptrs_eval(src, strdup(file), result, scope, symbols);
 }

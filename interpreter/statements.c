@@ -215,6 +215,7 @@ ptrs_var_t *ptrs_handle_structvar(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sco
 typedef struct ptrs_cache
 {
 	const char *path;
+	ptrs_ast_t *ast;
 	ptrs_scope_t *scope;
 	ptrs_symboltable_t *symbols;
 	struct ptrs_cache *next;
@@ -236,10 +237,11 @@ ptrs_cache_t *importCachedScript(char *path, ptrs_ast_t *node, ptrs_scope_t *sco
 	ptrs_scope_t *_scope = calloc(1, sizeof(ptrs_scope_t));
 	ptrs_symboltable_t *symbols;
 	ptrs_var_t valuev;
-	ptrs_dofile(path, &valuev, _scope, &symbols);
+	ptrs_ast_t *ast = ptrs_dofile(path, &valuev, _scope, &symbols);
 
 	cache = malloc(sizeof(ptrs_cache_t));
 	cache->path = path;
+	cache->ast = ast;
 	cache->scope = _scope;
 	cache->symbols = symbols;
 	cache->next = ptrs_cache;
