@@ -1939,7 +1939,7 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 		ast->arg.define.symbol.scope = -1;
 		ast->arg.define.initExpr = NULL;
 		ast->arg.define.isInitExpr = true;
-		ast->arg.define.onStack = false;
+		ast->arg.define.onStack = onStack;
 
 		if(lookahead(code, "["))
 		{
@@ -1983,7 +1983,7 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 	else
 	{
 		ast->handler = PTRS_HANDLE_NEW;
-		ast->arg.newexpr.onStack = false;
+		ast->arg.newexpr.onStack = onStack;
 		ast->arg.newexpr.value = parseUnaryExpr(code, true, false);
 
 		consumec(code, '(');
