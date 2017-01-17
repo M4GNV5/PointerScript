@@ -1,0 +1,32 @@
+import assertEq from "../common.ptrs";
+
+var a = new_stack array{3};
+var b = new_stack array{16};
+assertEq(16, b - a);
+
+
+struct AlignmentTest
+{
+	a : u16;
+	b : u32;
+	c : u8;
+
+	reset1;
+
+	x : u16;
+	y{17};
+	z : u32;
+
+	reset2;
+
+	u : u8;
+	static w : u8;
+	v : u8;
+};
+var align : AlignmentTest();
+
+assertEq(4, &align.b - &align.a);
+assertEq(4, &align.c - &align.b);
+assertEq(2, align.y - &align.x);
+assertEq(15, &align.z - align.y);
+assertEq(8, &align.v - &align.u); //TODO this should be 1 but is not yet implemented

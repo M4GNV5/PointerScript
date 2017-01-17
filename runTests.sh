@@ -24,3 +24,4 @@ runTest runtime/types
 runTest runtime/trycatch
 runTest runtime/strformat
 runTest runtime/struct
+runTest runtime/alignment
