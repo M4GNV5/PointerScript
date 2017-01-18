@@ -104,6 +104,7 @@ var ptr = as<native>malloc(1024);
 | `PTRSIZE` | `int` | Size of a pointer |
 | `undefined` | `undefined` | - |
 | `NaN` | `float` | NaN |
+| `Infinity` | `float` | Infinity |
 | `PI` | `float` | pi |
 | `E` | `float` | e |
 
