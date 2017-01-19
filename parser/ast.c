@@ -899,12 +899,18 @@ static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 #ifndef PTRS_DISABLE_CONSTRESOLVE
 		if(left->handler == PTRS_HANDLE_CONSTANT && right->handler == PTRS_HANDLE_CONSTANT)
 		{
-			ptrs_lastast = left;
 			ptrs_var_t result;
 			ptrs_ast_t node;
+
 			node.handler = op->handler;
 			node.arg.binary.left = left;
 			node.arg.binary.right = right;
+			node.file = code->filename;
+			node.code = code->src;
+			node.codepos = pos;
+
+			ptrs_lastast = &node;
+			ptrs_lastscope = NULL;
 
 			node.handler(&node, &result, NULL);
 			free(right);
@@ -992,6 +998,9 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 #ifndef PTRS_DISABLE_CONSTRESOLVE
 			if(ast->arg.astval->handler == PTRS_HANDLE_CONSTANT)
 			{
+				ptrs_lastast = ast;
+				ptrs_lastscope = NULL;
+
 				ptrs_var_t result;
 				ast->handler(ast, &result, NULL);
 				ast->handler = PTRS_HANDLE_CONSTANT;
