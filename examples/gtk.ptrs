@@ -1,8 +1,4 @@
-import gtk_application_new, g_signal_connect_data, g_application_run, g_object_unref,
-	gtk_application_window_new, gtk_window_set_title, gtk_window_set_default_size, gtk_widget_show_all,
-	gtk_button_box_new, gtk_container_add, g_print, gtk_widget_destroy,
-	gtk_button_new_with_label, gtk_container_add
-	from "libgtk-3.so.0";
+import g_*, gtk_* from "libgtk-3.so.0";
 
 const G_CONNECT_SWAPPED = 2;
 

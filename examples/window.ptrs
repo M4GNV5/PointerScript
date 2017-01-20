@@ -1,5 +1,5 @@
 import printf from "libc.so.6";
-import SDL_Init, SDL_GetError, SDL_CreateWindow, SDL_GetWindowSurface, SDL_MapRGB, SDL_FillRect, SDL_UpdateWindowSurface, SDL_Delay, SDL_DestroyWindow, SDL_Quit from "libSDL2.so";
+import SDL_* from "libSDL2.so";
 printf("Starting\n");
 if (SDL_Init(32) < 0)
 {
