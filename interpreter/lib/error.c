@@ -291,7 +291,7 @@ void ptrs_handle_sig(int sig)
 
 	if(ptrs_lastscope != NULL)
 		fprintf(stderr, "%s", ptrs_backtrace(ptrs_lastast, ptrs_lastscope, 3, true));
-	exit(3);
+	exit(EXIT_FAILURE);
 }
 
 void ptrs_handle_signals()
@@ -330,5 +330,5 @@ void ptrs_error(ptrs_ast_t *ast, ptrs_scope_t *scope, const char *msg, ...)
 		if(scope != NULL)
 			fprintf(stderr, "%s\n", ptrs_backtrace(ast, scope, 2, false));
 	}
-	exit(3);
+	exit(EXIT_FAILURE);
 }

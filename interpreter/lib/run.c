@@ -33,7 +33,7 @@ ptrs_ast_t *ptrs_dofile(const char *file, ptrs_var_t *result, ptrs_scope_t *scop
 	if(fd == NULL)
 	{
 		fprintf(stderr, "Failed to open file %s\n", file);
-		exit(2);
+		exit(EXIT_FAILURE);
 	}
 
 	fseek(fd, 0, SEEK_END);
