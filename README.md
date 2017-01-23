@@ -87,24 +87,24 @@ typeof nums == type<pointer>;
 typeof msg == type<native>;
 ```
 
-There is no 'number' type like in Javascript. We have both 'int' and 'float'.
-'int' is a 64 bit singed integer while 'float' is a IEEE 64 bit double precision floating point number. Note that this is different to most other languages. When you want the 32bit single precision float (e.g. when defining statically typed struct member) use 'single'.
+There is no 'number' type like in Javascript. We have both `int` and `float`.
+`int` is a 64 bit singed integer while `float` is a IEEE 64 bit double precision floating point number. Note that this is different to most other languages. When you need 32bit single precision floats use `single`.
 ```javascript
 typeof nums[0] == type<int>;
 typeof nums[3] == type<float>;
 ```
 
-you can convert types using cast<...>
+you can convert types using `cast<...>``
 ```javascript
 nums[3] = cast<int>nums[3]; //sets nums[3] to 31
 ```
-for a reinterpret cast use as<...> (e.g. `as<native>nums`)
+for a reinterpret cast use `as<...>` (e.g. `as<native>nums`)
 
 Now lets actually use a C function, in thise case `qsort` for sorting the array `nums` (see `man 3 qsort` for more information about `qsort`). We pass 4 arguments:
-- 'nums' is the array created above
-- 'sizeof nums' is the length of the array (aka 4)
-- 'VARSIZE' is a constant that holds the size of a variable (should be 16 bytes)
-- 'compar' is a pointerscript function that will be passed like a normal C function pointer
+- `nums` is the array created above
+- `sizeof nums` is the length of the array (aka 4)
+- `VARSIZE` is a constant that holds the size of a variable (should be 16 bytes)
+- `compar` is a pointerscript function that will be passed like a normal C function pointer
 
 ```javascript
 function compar(a, b)
