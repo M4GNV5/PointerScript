@@ -100,7 +100,7 @@ nums[3] = cast<int>nums[3]; //sets nums[3] to 31
 ```
 for a reinterpret cast use as<...> (e.g. `as<native>nums`)
 
-Now lets use actually use a C function, in thise case `qsort` for sorting the array `nums` (see `man 3 qsort` for more information about `qsort`). We pass 4 arguments:
+Now lets actually use a C function, in thise case `qsort` for sorting the array `nums` (see `man 3 qsort` for more information about `qsort`). We pass 4 arguments:
 - 'nums' is the array created above
 - 'sizeof nums' is the length of the array (aka 4)
 - 'VARSIZE' is a constant that holds the size of a variable (should be 16 bytes)
