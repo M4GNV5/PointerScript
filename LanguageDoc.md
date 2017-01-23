@@ -31,6 +31,7 @@
 	- [ControlStatements](#controlstatements)
 - [Expressions](#expressions)
 	- [CallExpression](#callexpression)
+	- [TypedCallExpression](#typedcallexpression)
 	- [ArrayExpression](#arrayexpression)
 	- [VarArrayExpression](#vararrayexpression)
 	- [ArrayStackExpression](#arraystackexpression)
@@ -774,6 +775,20 @@ Calls a function
 ```js
 //Identifier '(' ExpressionList ')'
 printf("x = %d\n", x)
+```
+
+##TypedCallExpression
+When calling a native function you can also specify the return type. This is necesarry for functions that return floats and handy for functions that return pointers or signed integers that arent `int64_t`'s.
+```js
+//Identifier '!' TypeName '(' ExpressionList ')'
+
+pow!double(3.14, 7.2); //same as pow!float
+powf!single(31.12, 5.0);
+
+dlerror!native();
+
+if(sprintf!int("%d", 3) < 0)
+	throw "sprintf error";
 ```
 
 ##StringFormatExpression
