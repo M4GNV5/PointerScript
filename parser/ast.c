@@ -1053,17 +1053,38 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 	}
 	else if(lookahead(code, "sizeof"))
 	{
+		int pos = code->pos;
+		bool hasBrace = lookahead(code, "(");
+
 		ptrs_nativetype_info_t *nativeType = readNativeType(code);
 
 		ast = talloc(ptrs_ast_t);
 		if(nativeType != NULL)
 		{
+			if(hasBrace)
+				consumec(code, ')');
+
 			ast->handler = PTRS_HANDLE_CONSTANT;
 			ast->arg.constval.type = PTRS_TYPE_INT;
 			ast->arg.constval.value.intval = nativeType->size;
 		}
+		else if(lookahead(code, "var"))
+		{
+			if(hasBrace)
+				consumec(code, ')');
+
+			ast->handler = PTRS_HANDLE_CONSTANT;
+			ast->arg.constval.type = PTRS_TYPE_INT;
+			ast->arg.constval.value.intval = sizeof(ptrs_var_t);
+		}
 		else
 		{
+			if(hasBrace)
+			{
+				code->pos = pos;
+				code->curr = code->src[pos];
+			}
+
 			ast->handler = PTRS_HANDLE_PREFIX_LENGTH;
 			ast->arg.astval = parseUnaryExpr(code, ignoreCalls, ignoreAlgo);
 		}
