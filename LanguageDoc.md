@@ -782,13 +782,11 @@ When calling a native function you can also specify the return type. This is nec
 ```js
 //Identifier '!' TypeName '(' ExpressionList ')'
 
-pow!double(3.14, 7.2); //same as pow!float
+pow!double(3.14, 7.2);
 powf!single(31.12, 5.0);
 
 dlerror!native();
-
-if(sprintf!int("%d", 3) < 0)
-	throw "sprintf error";
+atol!long("-42");
 ```
 
 ##StringFormatExpression

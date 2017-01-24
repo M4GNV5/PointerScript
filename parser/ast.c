@@ -1404,25 +1404,35 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 	}
 	else if(!ignoreCalls && (curr == '(' || curr == '!'))
 	{
-		ptrs_nativetype_info_t *retType = NULL;
+		ptrs_ast_t *call;
 		if(curr == '!')
 		{
 			int pos = code->pos;
 
 			next(code);
-			retType = readNativeType(code);
+			if(isalpha(code->curr))
+			{
+				call = talloc(ptrs_ast_t);
+				call->arg.call.retType = readNativeType(code);
 
-			if(retType == NULL)
+				if(call->arg.call.retType == NULL)
+					unexpected(code, "return type");
+			}
+			else
 			{
 				code->pos = pos;
 				code->curr = code->src[pos];
 				return parseUnaryExtension(code, ast, true, ignoreAlgo);
 			}
 		}
+		else
+		{
+			call = talloc(ptrs_ast_t);
+			call->arg.call.retType = NULL;
+		}
 
 		consumec(code, '(');
 
-		ptrs_ast_t *call = talloc(ptrs_ast_t);
 		call->handler = PTRS_HANDLE_CALL;
 		call->setHandler = NULL;
 		call->addressHandler = NULL;
@@ -1430,7 +1440,6 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 		call->code = code->src;
 		call->file = code->filename;
 		call->arg.call.value = ast;
-		call->arg.call.retType = retType;
 		call->arg.call.arguments = parseExpressionList(code, ')');
 
 		ast = call;
