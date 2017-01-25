@@ -69,6 +69,7 @@ struct code
 	int pos;
 	ptrs_symboltable_t *symbols;
 	int withCount;
+	bool insideIndex;
 	bool yieldIsAlgo;
 	ptrs_symbol_t yield;
 };
@@ -1255,6 +1256,9 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 	}
 	else if(curr == '$')
 	{
+		if(!code->insideIndex)
+			unexpectedm(code, NULL, "$ can only be used inside the [] of index expressions");
+
 		next(code);
 		ast = talloc(ptrs_ast_t);
 		ast->handler = PTRS_HANDLE_INDEXLENGTH;
@@ -1474,6 +1478,9 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 	}
 	else if(curr == '[')
 	{
+		bool insideIndex = code->insideIndex;
+		code->insideIndex = true;
+
 		ptrs_ast_t *indexExpr = talloc(ptrs_ast_t);
 		indexExpr->codepos = code->pos;
 		indexExpr->code = code->src;
@@ -1507,6 +1514,7 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 		}
 
 		ast = indexExpr;
+		code->insideIndex = insideIndex;
 		consumec(code, ']');
 	}
 	else if(lookahead(code, "->"))
