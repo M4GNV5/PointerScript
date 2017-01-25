@@ -458,6 +458,14 @@ ptrs_var_t *ptrs_handle_assign_dereference(ptrs_ast_t *node, ptrs_var_t *value, 
 	return NULL;
 }
 
+__thread int64_t indexLen = 0;
+ptrs_var_t *ptrs_handle_indexlength(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	result->type = PTRS_TYPE_INT;
+	result->value.intval = indexLen;
+	return result;
+}
+
 ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	char buff[32];
@@ -466,7 +474,15 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	struct ptrs_ast_binary expr = node->arg.binary;
 
 	ptrs_var_t *value = expr.left->handler(expr.left, &valuev, scope);
+
+	int64_t oldLen = indexLen;
+	if(value->type == PTRS_TYPE_STRUCT)
+		indexLen = -1;
+	else
+		indexLen = value->meta.array.size;
+
 	ptrs_var_t *index = expr.right->handler(expr.right, &indexv, scope);
+	indexLen = oldLen;
 
 	ptrs_vartype_t valuet = value->type;
 
@@ -520,7 +536,15 @@ ptrs_var_t *ptrs_handle_assign_index(ptrs_ast_t *node, ptrs_var_t *value, ptrs_s
 	struct ptrs_ast_binary expr = node->arg.binary;
 
 	ptrs_var_t *val = expr.left->handler(expr.left, &valuev, scope);
+
+	int64_t oldLen = indexLen;
+	if(val->type == PTRS_TYPE_STRUCT)
+		indexLen = -1;
+	else
+		indexLen = val->meta.array.size;
+
 	ptrs_var_t *index = expr.right->handler(expr.right, &indexv, scope);
+	indexLen = oldLen;
 
 	if(val->type == PTRS_TYPE_POINTER)
 	{
@@ -578,7 +602,15 @@ ptrs_var_t *ptrs_handle_addressof_index(ptrs_ast_t *node, ptrs_var_t *result, pt
 	struct ptrs_ast_binary expr = node->arg.binary;
 
 	ptrs_var_t *value = expr.left->handler(expr.left, &valuev, scope);
+
+	int64_t oldLen = indexLen;
+	if(value->type == PTRS_TYPE_STRUCT)
+		indexLen = -1;
+	else
+		indexLen = value->meta.array.size;
+
 	ptrs_var_t *index = expr.right->handler(expr.right, &indexv, scope);
+	indexLen = oldLen;
 
 	if(value->type == PTRS_TYPE_POINTER)
 	{
@@ -632,7 +664,15 @@ ptrs_var_t *ptrs_handle_call_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 	struct ptrs_ast_binary expr = node->arg.binary;
 
 	ptrs_var_t *value = expr.left->handler(expr.left, &valuev, scope);
+
+	int64_t oldLen = indexLen;
+	if(value->type == PTRS_TYPE_STRUCT)
+		indexLen = -1;
+	else
+		indexLen = value->meta.array.size;
+
 	ptrs_var_t *index = expr.right->handler(expr.right, &indexv, scope);
+	indexLen = oldLen;
 
 	ptrs_vartype_t valuet = value->type;
 
@@ -688,6 +728,12 @@ ptrs_var_t *ptrs_handle_slice(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 
 	ptrs_var_t *base = expr.base->handler(expr.base, &basev, scope);
 
+	int64_t oldLen = indexLen;
+	if(base->type == PTRS_TYPE_STRUCT)
+		indexLen = -1;
+	else
+		indexLen = base->meta.array.size;
+
 	if(expr.start != NULL)
 		start = ptrs_vartoi(expr.start->handler(expr.start, result, scope));
 	else
@@ -697,6 +743,8 @@ ptrs_var_t *ptrs_handle_slice(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		end = ptrs_vartoi(expr.end->handler(expr.end, result, scope));
 	else
 		end = base->meta.array.size;
+
+	indexLen = oldLen;
 
 	result->type = base->type;
 	if(base->type == PTRS_TYPE_NATIVE)

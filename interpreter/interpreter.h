@@ -44,6 +44,7 @@ ptrs_var_t *ptrs_handle_new(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 ptrs_var_t *ptrs_handle_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_thismember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_withmember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_indexlength(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_slice(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_as(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
@@ -172,6 +173,7 @@ ptrs_var_t *ptrs_handle_native_setFloat(void *target, size_t size, ptrs_var_t *v
 #define PTRS_HANDLE_MEMBER ptrs_handle_member
 #define PTRS_HANDLE_THISMEMBER ptrs_handle_thismember
 #define PTRS_HANDLE_WITHMEMBER ptrs_handle_withmember
+#define PTRS_HANDLE_INDEXLENGTH ptrs_handle_indexlength
 #define PTRS_HANDLE_INDEX ptrs_handle_index
 #define PTRS_HANDLE_SLICE ptrs_handle_slice
 #define PTRS_HANDLE_AS ptrs_handle_as

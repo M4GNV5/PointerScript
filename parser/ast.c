@@ -1253,6 +1253,12 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			ast->arg.constval.value.floatval = ast->arg.constval.value.intval;
 		}
 	}
+	else if(curr == '$')
+	{
+		next(code);
+		ast = talloc(ptrs_ast_t);
+		ast->handler = PTRS_HANDLE_INDEXLENGTH;
+	}
 	else if(curr == '\'')
 	{
 		rawnext(code);
