@@ -44,6 +44,7 @@
 	- [MemberExpression](#memberexpression)
 	- [IndexExpression](#indexexpression)
 	- [SliceExpression](#sliceexpression)
+	- [IndexLengthExpression](#indexlengthexpression)
 	- [ExpandExpression](#expandexpression)
 	- [AsExpression](#asexpression)
 	- [CastBuiltinExpression](#castbuiltinexpression)
@@ -903,15 +904,27 @@ items[7] //for arrays
 instead of `b` meaning `b = 0`. Using `$` instead of `c` means `c = sizeof(a)`
 ```D
 //Expression '[' Expression '..' Expression ']'
-//Expression '[' '$' '..' Expression ']'
-//Expression '[' Expression '..' '$' ']'
-//Expression '[' '$' '..' '$' ']'
 
 var foo[16];
 //this will set bar to an array starting at '&foo[4]' with length '8'
 var bar = foo[4 .. 12];
-//this will result in an array starting at '&foo[2]' with length 'sizeof(foo) - 2' aka '14'
-var tar = foo[2 .. $];
+```
+
+##IndexLengthExpression
+Only valid inside [IndexExpression](#indexexpression)s and [SliceExpression](#sliceexpression)s.
+Returns the length of the array currently indexing.
+```js
+//'$'
+
+var foo[4] = ["hello", 31.12, "ptrs", 42];
+
+printf("%d\n", foo[$ - 1]); //prints 42
+printf("%s\n", foo[$ - 2]); //prints ptrs
+
+//sets bar to an array starting at `&foo[2]` with length '2'
+var bar = foo[$ - 2 .. $]
+//sets tar to an array starting at 'foo' with length '2'
+var tar = foo[0 .. $ - 2];
 ```
 
 ##ExpandExpression
