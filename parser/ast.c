@@ -24,6 +24,7 @@ struct symbollist;
 typedef enum
 {
 	PTRS_SYMBOL_DEFAULT,
+	PTRS_SYMBOL_TLS,
 	PTRS_SYMBOL_CONST,
 	PTRS_SYMBOL_THISMEMBER,
 	PTRS_SYMBOL_WILDCARD,
@@ -193,6 +194,19 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 
 						ast->arg.varval.scope = level;
 						ast->arg.varval.offset = curr->arg.offset;
+						break;
+
+					case PTRS_SYMBOL_TLS:
+						*node = ast = talloc(ptrs_ast_t);
+						ast->handler = PTRS_HANDLE_PREFIX_DEREFERENCE;
+						ast->setHandler = PTRS_HANDLE_ASSIGN_DEREFERENCE;
+						ast->addressHandler = NULL;
+						ast->callHandler = NULL;
+						ast->arg.astval = talloc(ptrs_ast_t);
+
+						ast = ast->arg.astval;
+						ast->handler = PTRS_HANDLE_TLS;
+						ast->arg.astval = curr->arg.data;
 						break;
 
 					case PTRS_SYMBOL_CONST:
@@ -566,6 +580,29 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		}
 
 		consumec(code, ';');
+	}
+	else if(lookahead(code, "tls"))
+	{
+		if(code->symbols->outer != NULL)
+			PTRS_HANDLE_ASTERROR(stmt, "Thread local variables can only be defined in the outer most scope");
+
+		stmt->handler = PTRS_HANDLE_TLSDEFINE;
+		struct symbollist *symbol = addSpecialSymbol(code, readIdentifier(code), PTRS_SYMBOL_TLS);
+		symbol->arg.data = stmt;
+
+		if(lookahead(code, "="))
+		{
+			ptrs_ast_t *startVal = parseExpression(code);
+			if(startVal->handler != PTRS_HANDLE_CONSTANT)
+				PTRS_HANDLE_ASTERROR(startVal, "Thread local variable initialize value must be a constant");
+
+			memcpy(&stmt->arg.tls.startVal, &startVal->arg.varval, sizeof(ptrs_var_t));
+			free(startVal);
+		}
+		else
+		{
+			stmt->arg.tls.startVal.type = PTRS_TYPE_UNDEFINED;
+		}
 	}
 	else if(lookahead(code, "import"))
 	{

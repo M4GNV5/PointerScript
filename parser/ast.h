@@ -2,6 +2,7 @@
 #define _PTRS_AST
 
 #include <stdbool.h>
+#include <pthread.h>
 
 struct ptrs_ast;
 struct ptrs_astlist;
@@ -21,6 +22,12 @@ struct ptrs_ast_define
 	};
 	uint8_t isInitExpr : 1;
 	uint8_t onStack : 1;
+};
+
+struct ptrs_ast_tls
+{
+	ptrs_var_t startVal;
+	pthread_key_t key;
 };
 
 struct ptrs_ast_member
@@ -222,6 +229,7 @@ union ptrs_ast_arg
 	struct ptrs_algorithmlist *algolist;
 
 	struct ptrs_ast_define define;
+	struct ptrs_ast_tls tls;
 	struct ptrs_ast_member member;
 	struct ptrs_ast_thismember thismember;
 	struct ptrs_ast_import import;

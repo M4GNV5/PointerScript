@@ -11,6 +11,7 @@
 
 ptrs_var_t *ptrs_handle_body(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_define(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_tlsdefine(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_vararray(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_structvar(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
@@ -53,6 +54,7 @@ ptrs_var_t *ptrs_handle_tostring(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_wildcardsymbol(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_identifier(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_tls(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_constant(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 
 ptrs_var_t *ptrs_handle_assign_identifier(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
@@ -140,6 +142,7 @@ ptrs_var_t *ptrs_handle_native_setFloat(void *target, size_t size, ptrs_var_t *v
 
 #define PTRS_HANDLE_BODY ptrs_handle_body
 #define PTRS_HANDLE_DEFINE ptrs_handle_define
+#define PTRS_HANDLE_TLSDEFINE ptrs_handle_tlsdefine
 #define PTRS_HANDLE_ARRAY ptrs_handle_array
 #define PTRS_HANDLE_VARARRAY ptrs_handle_vararray
 #define PTRS_HANDLE_STRUCTVAR ptrs_handle_structvar
@@ -182,6 +185,7 @@ ptrs_var_t *ptrs_handle_native_setFloat(void *target, size_t size, ptrs_var_t *v
 #define PTRS_HANDLE_CAST ptrs_handle_cast
 #define PTRS_HANDLE_WILDCARDSYMBOL ptrs_handle_wildcardsymbol
 #define PTRS_HANDLE_IDENTIFIER ptrs_handle_identifier
+#define PTRS_HANDLE_TLS ptrs_handle_tls
 #define PTRS_HANDLE_CONSTANT ptrs_handle_constant
 
 #define PTRS_HANDLE_ASSIGN_IDENTIFIER ptrs_handle_assign_identifier

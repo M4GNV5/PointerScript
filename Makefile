@@ -40,7 +40,7 @@ release: $(RUN)
 
 portable: CFLAGS = '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -D_PTRS_NOASM -D_PTRS_NOCALLBACK -D_XOPEN_SOURCE=700 -std=c99 -O2 -I$(FFI_DIR)
 portable: $(BIN) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS)
-	$(CC) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) -o $(BIN)/ptrs -rdynamic -ldl -lffi
+	$(CC) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) -o $(BIN)/ptrs -rdynamic -ldl -lffi -lpthread
 
 install: release
 	cp $(RUN) /usr/local/bin/
@@ -56,7 +56,7 @@ cleandeps:
 	$(MAKE) -C libjitas clean
 
 $(RUN): $(FFCB_BIN) $(JITAS_BIN) $(BIN) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS)
-	$(CC) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) $(FFCB_BIN) $(JITAS_BIN) -o $(BIN)/ptrs -rdynamic -ldl -lffi
+	$(CC) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) $(FFCB_BIN) $(JITAS_BIN) -o $(BIN)/ptrs -rdynamic -ldl -lffi -lpthread
 
 $(BIN):
 	mkdir $(BIN)

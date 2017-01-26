@@ -212,6 +212,31 @@ ptrs_var_t *ptrs_handle_structvar(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sco
 	return result;
 }
 
+ptrs_var_t *ptrs_handle_tlsdefine(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	pthread_key_create(&node->arg.tls.key, free);
+	result->type = PTRS_TYPE_UNDEFINED;
+	return result;
+}
+ptrs_var_t *ptrs_handle_tls(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	node = node->arg.astval;
+
+	result->type = PTRS_TYPE_POINTER;
+	result->meta.array.size = 1;
+
+	result->value.ptrval = pthread_getspecific(node->arg.tls.key);
+	if(result->value.ptrval == NULL)
+	{
+		result->value.ptrval = malloc(sizeof(ptrs_var_t));
+		memcpy(result->value.ptrval, &node->arg.tls.startVal, sizeof(ptrs_var_t));
+
+		pthread_setspecific(node->arg.tls.key, result->value.ptrval);
+	}
+
+	return result;
+}
+
 typedef struct ptrs_cache
 {
 	const char *path;
