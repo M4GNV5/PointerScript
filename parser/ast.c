@@ -1492,16 +1492,15 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 		if(expr == NULL)
 			unexpected(code, "Index");
 
-		if(expr == NULL || lookahead(code, ".."))
+		if(lookahead(code, ".."))
 		{
 			indexExpr->handler = PTRS_HANDLE_SLICE;
 			indexExpr->arg.slice.base = ast;
 			indexExpr->arg.slice.start = expr;
+			indexExpr->arg.slice.end = parseExpression(code);
 
-			if(lookahead(code, "$"))
-				indexExpr->arg.slice.end = NULL;
-			else
-				indexExpr->arg.slice.end = parseExpression(code);
+			if(indexExpr->arg.slice.end == NULL)
+				unexpected(code, "Index");
 		}
 		else
 		{

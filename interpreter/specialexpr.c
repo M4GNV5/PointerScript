@@ -734,16 +734,8 @@ ptrs_var_t *ptrs_handle_slice(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	else
 		indexLen = base->meta.array.size;
 
-	if(expr.start != NULL)
-		start = ptrs_vartoi(expr.start->handler(expr.start, result, scope));
-	else
-		start = 0;
-
-	if(expr.end != NULL)
-		end = ptrs_vartoi(expr.end->handler(expr.end, result, scope));
-	else
-		end = base->meta.array.size;
-
+	start = ptrs_vartoi(expr.start->handler(expr.start, result, scope));
+	end = ptrs_vartoi(expr.end->handler(expr.end, result, scope));
 	indexLen = oldLen;
 
 	result->type = base->type;
