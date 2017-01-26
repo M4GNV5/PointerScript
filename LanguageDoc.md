@@ -229,7 +229,7 @@ printf("%d", 42);
 ```
 
 ##DefinitionStatement
-Creates a variable on the stack with an optional start value
+Defines a variable, optionally initializing it with a start value.
 ```js
 //'var' Identifier [ '=' Expression ] ';'
 var foo;
@@ -917,10 +917,10 @@ var tar = foo[2 .. $];
 ##ExpandExpression
 ```js
 //'...' Expression
-var args = [18, 666, "devil"];
+var args = new array[] [18, 666, "devil"];
 printf("age: %d, evil: %d, sentence: %s", ...args);
 
-var foo = [42, ...args, "hihi"];
+var foo = new array[] [42, ...args, "hihi"];
 ```
 
 ##AsExpression
