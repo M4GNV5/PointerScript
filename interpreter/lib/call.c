@@ -93,7 +93,7 @@ ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t 
 		memcpy(result, _result, sizeof(ptrs_var_t));
 
 	if((result->type == PTRS_TYPE_NATIVE || result->type == PTRS_TYPE_STRUCT)
-		&& result->value.nativeval > scope->stackstart && result->value.nativeval < scope->sp)
+		&& result->value.nativeval > scope->bp && result->value.nativeval < scope->sp)
 	{
 		size_t len;
 		if(result->type == PTRS_TYPE_NATIVE)
