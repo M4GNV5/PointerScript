@@ -102,6 +102,12 @@ const char *ptrs_vartoa(ptrs_var_t *val, char *buff, size_t maxlen)
 			break;
 		case PTRS_TYPE_NATIVE:
 			;
+			if(val->meta.array.size == 0)
+			{
+				snprintf(buff, maxlen, "native:%p", val->value.strval);
+				break;
+			}
+
 			int len = strnlen(val->value.strval, val->meta.array.size);
 			if(len < val->meta.array.size)
 				return val->value.strval;
@@ -109,7 +115,7 @@ const char *ptrs_vartoa(ptrs_var_t *val, char *buff, size_t maxlen)
 				snprintf(buff, maxlen, "%.*s", len, val->value.strval); //wat do when maxlen < len? :(
 			break;
 		case PTRS_TYPE_POINTER:
-			snprintf(buff, maxlen, "%p", val->value.strval);
+			snprintf(buff, maxlen, "pointer:%p", val->value.ptrval);
 			break;
 		case PTRS_TYPE_FUNCTION:
 			snprintf(buff, maxlen, "function:%p", val->value.funcval);

@@ -47,7 +47,7 @@ ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 			if(val != args + i)
 				memcpy(args + i, val, sizeof(ptrs_var_t));
 		}
-		else if(val->type == PTRS_TYPE_NATIVE)
+		else if(val->type == PTRS_TYPE_NATIVE && val->meta.array.size > 0)
 		{
 			args[i].type = PTRS_TYPE_NATIVE;
 			int len = strnlen(val->value.strval, val->meta.array.size);
@@ -827,7 +827,7 @@ ptrs_var_t *ptrs_handle_tostring(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 	if(val->type == PTRS_TYPE_NATIVE)
 		len = strnlen(val->value.strval, val->meta.array.size);
 
-	if(val->type != PTRS_TYPE_NATIVE || len < val->meta.array.size)
+	if(val->type != PTRS_TYPE_NATIVE || val->meta.array.size == 0 || len < val->meta.array.size)
 	{
 		char *buff = ptrs_alloc(scope, 32);
 		result->value.strval = ptrs_vartoa(val, buff, 32);
@@ -959,8 +959,11 @@ ptrs_var_t *ptrs_handle_op_instanceof(ptrs_ast_t *node, ptrs_var_t *result, ptrs
 ptrs_var_t *ptrs_handle_op_in(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_binary stmt = node->arg.binary;
+
+	ptrs_var_t leftv;
+	ptrs_var_t *left = stmt.left->handler(stmt.left, &leftv, scope);
+
 	char buff[16];
-	ptrs_var_t *left = stmt.left->handler(stmt.left, result, scope);
 	const char *key = ptrs_vartoa(left, buff, 16);
 
 	ptrs_var_t *right = stmt.right->handler(stmt.right, result, scope);
@@ -974,14 +977,8 @@ ptrs_var_t *ptrs_handle_op_in(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	}
 	else if((overload.value.funcval = ptrs_struct_getOverload(right, ptrs_handle_op_in, false)) != NULL)
 	{
-		ptrs_var_t arg;
-		arg.type = PTRS_TYPE_NATIVE;
-		arg.value.strval = key;
-		arg.meta.array.size = 0;
-		arg.meta.array.readOnly = false;
-
 		overload.type = PTRS_TYPE_FUNCTION;
-		return ptrs_callfunc(node, result, scope, right->value.structval, &overload, 1, &arg);
+		return ptrs_callfunc(node, result, scope, right->value.structval, &overload, 1, left);
 	}
 	else
 	{
