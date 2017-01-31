@@ -832,7 +832,7 @@ ptrs_var_t *ptrs_handle_tostring(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 		char *buff = ptrs_alloc(scope, 32);
 		result->value.strval = ptrs_vartoa(val, buff, 32);
 		result->meta.array.size = strlen(result->value.strval) + 1;
-		result->meta.array.readOnly = result->value.strval != buff && val->meta.array.readOnly;
+		result->meta.array.readOnly = result->value.strval != buff;
 	}
 	else
 	{

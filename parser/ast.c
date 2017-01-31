@@ -132,6 +132,8 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 	code.pos = 0;
 	code.symbols = NULL;
 	code.withCount = 0;
+	code.insideIndex = false;
+	code.yieldIsAlgo = false;
 	code.yield.scope = (unsigned)-1;
 
 	while(skipSpaces(&code) || skipComments(&code));
@@ -630,6 +632,10 @@ static ptrs_ast_t *parseStatement(code_t *code)
 				consumec(code, '(');
 				stmt->arg.trycatch.retVal = addSymbol(code, readIdentifier(code));
 				consumec(code, ')');
+			}
+			else
+			{
+				stmt->arg.trycatch.retVal.scope = (unsigned)-1;
 			}
 
 			stmt->arg.trycatch.finallyBody = parseBody(code, NULL, true, false);
@@ -1758,9 +1764,17 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 
 		if(isDefault == 1 || isEnd || lookahead(code, "case"))
 		{
-			ptrs_ast_t *expr = talloc(ptrs_ast_t);
-			expr->handler = PTRS_HANDLE_BODY;
-			expr->arg.astlist = bodyStart;
+			ptrs_ast_t *expr;
+			if(bodyStart != NULL)
+			{
+				expr = talloc(ptrs_ast_t);
+				expr->handler = PTRS_HANDLE_BODY;
+				expr->arg.astlist = bodyStart;
+			}
+			else
+			{
+				expr = NULL;
+			}
 
 			if(isDefault == 2)
 			{
@@ -3074,6 +3088,9 @@ static ptrs_ast_t *getSymbolFromWildcard(code_t *code, char *text)
 
 				ptrs_ast_t *ast = talloc(ptrs_ast_t);
 				ast->handler = PTRS_HANDLE_WILDCARDSYMBOL;
+				ast->setHandler = NULL;
+				ast->callHandler = NULL;
+				ast->addressHandler = NULL;
 				ast->arg.wildcard.symbol.scope = stmt->wildcards.scope + level;
 				ast->arg.wildcard.symbol.offset = stmt->wildcards.offset;
 				ast->arg.wildcard.index = import->wildcardIndex;

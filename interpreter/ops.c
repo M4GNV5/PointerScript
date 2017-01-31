@@ -55,22 +55,36 @@ static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *
 	} \
 
 #define binary_pointer_add(operator, isAssign) \
-	else if((tleft == PTRS_TYPE_NATIVE) ^ (tright == PTRS_TYPE_NATIVE) \
-	 	&& (tleft == PTRS_TYPE_INT || tright == PTRS_TYPE_INT)) \
+	else if(tleft == PTRS_TYPE_NATIVE && tright == PTRS_TYPE_INT) \
 	{ \
 		result->type = PTRS_TYPE_NATIVE; \
-		result->value.intval = left->value.intval operator right->value.intval; \
-		result->meta.array.readOnly = tleft == PTRS_TYPE_NATIVE ? left->meta.array.readOnly : right->meta.array.readOnly; \
+		result->value.nativeval = left->value.nativeval operator right->value.intval; \
+		result->meta.array.size = left->meta.array.size - right->value.intval; \
+		result->meta.array.readOnly = left->meta.array.readOnly; \
+	} \
+	else if(tleft == PTRS_TYPE_INT && tright == PTRS_TYPE_NATIVE) \
+	{ \
+		result->type = PTRS_TYPE_NATIVE; \
+		result->value.nativeval = left->value.intval + right->value.nativeval; \
+		result->meta.array.size = right->meta.array.size - left->value.intval; \
+		result->meta.array.readOnly = right->meta.array.readOnly; \
+		if(isAssign) \
+		{ \
+			left->type = PTRS_TYPE_NATIVE; \
+			left->value.nativeval = result->value.nativeval; \
+		} \
 	} \
 	else if(tleft == PTRS_TYPE_POINTER && tright == PTRS_TYPE_INT) \
 	{ \
 		result->type = PTRS_TYPE_POINTER; \
 		result->value.ptrval = left->value.ptrval operator right->value.intval; \
+		result->meta.array.size = left->meta.array.size - right->value.intval; \
 	} \
 	else if(tleft == PTRS_TYPE_INT && tright == PTRS_TYPE_POINTER) \
 	{ \
 		result->type = PTRS_TYPE_POINTER; \
 		result->value.ptrval = left->value.intval + right->value.ptrval; \
+		result->meta.array.size = right->meta.array.size - left->value.intval; \
 		if(isAssign) \
 		{ \
 			left->type = PTRS_TYPE_POINTER; \
