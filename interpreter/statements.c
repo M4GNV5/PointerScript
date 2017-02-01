@@ -58,6 +58,13 @@ ptrs_var_t *ptrs_handle_define(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	return result;
 }
 
+ptrs_var_t *ptrs_handle_lazyinit(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	result->type = (uint8_t)-1;
+	ptrs_scope_set(scope, node->arg.varval, result);
+	return result;
+}
+
 size_t ptrs_arraymax = PTRS_STACK_SIZE;
 ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {

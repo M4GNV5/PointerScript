@@ -25,6 +25,7 @@ typedef enum
 {
 	PTRS_SYMBOL_DEFAULT,
 	PTRS_SYMBOL_CONST,
+	PTRS_SYMBOL_LAZY,
 	PTRS_SYMBOL_THISMEMBER,
 	PTRS_SYMBOL_WILDCARD,
 } ptrs_symboltype_t;
@@ -40,6 +41,11 @@ struct symbollist
 			unsigned index;
 			unsigned offset;
 		} wildcard;
+		struct
+		{
+			ptrs_ast_t *value;
+			unsigned offset;
+		} lazy;
 	} arg;
 	ptrs_symboltype_t type;
 	char *text;
@@ -200,6 +206,17 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 					case PTRS_SYMBOL_CONST:
 						*node = ast = talloc(ptrs_ast_t);
 						memcpy(ast, curr->arg.data, sizeof(ptrs_ast_t));
+						break;
+
+					case PTRS_SYMBOL_LAZY:
+						*node = ast = talloc(ptrs_ast_t);
+						ast->handler = PTRS_HANDLE_LAZY;
+						ast->setHandler = NULL;
+						ast->addressHandler = NULL;
+						ast->callHandler = NULL;
+						ast->arg.lazy.symbol.scope = level;
+						ast->arg.lazy.symbol.offset = curr->arg.lazy.offset;
+						ast->arg.lazy.value = curr->arg.lazy.value;
 						break;
 
 					case PTRS_SYMBOL_THISMEMBER:
@@ -567,6 +584,17 @@ static ptrs_ast_t *parseStatement(code_t *code)
 			stmt->arg.define.value = NULL;
 		}
 
+		consumec(code, ';');
+	}
+	else if(lookahead(code, "lazy"))
+	{
+		stmt->handler = PTRS_HANDLE_LAZYINIT;
+		stmt->arg.varval = addHiddenSymbol(code, sizeof(ptrs_var_t));
+
+		struct symbollist *entry = addSpecialSymbol(code, readIdentifier(code), PTRS_SYMBOL_LAZY);
+		consumec(code, '=');
+		entry->arg.lazy.offset = stmt->arg.varval.offset;
+		entry->arg.lazy.value = parseExpression(code);
 		consumec(code, ';');
 	}
 	else if(lookahead(code, "import"))

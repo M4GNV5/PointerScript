@@ -915,6 +915,20 @@ ptrs_var_t *ptrs_handle_constant(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 	return result;
 }
 
+ptrs_var_t *ptrs_handle_lazy(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	ptrs_var_t *val = ptrs_scope_get(scope, node->arg.lazy.symbol);
+
+	if(val->type == (uint8_t)-1)
+	{
+		result = node->arg.lazy.value->handler(node->arg.lazy.value, val, scope);
+		if(result != val)
+			memcpy(val, result, sizeof(ptrs_var_t));
+	}
+
+	return val;
+}
+
 ptrs_var_t *ptrs_handle_prefix_typeof(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	ptrs_var_t *val = node->arg.astval->handler(node->arg.astval, result, scope);

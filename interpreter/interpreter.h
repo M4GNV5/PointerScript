@@ -11,6 +11,7 @@
 
 ptrs_var_t *ptrs_handle_body(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_define(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_lazyinit(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_vararray(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_structvar(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
@@ -54,6 +55,7 @@ ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 ptrs_var_t *ptrs_handle_wildcardsymbol(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_identifier(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_constant(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
+ptrs_var_t *ptrs_handle_lazy(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 
 ptrs_var_t *ptrs_handle_assign_identifier(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_assign_dereference(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
@@ -140,6 +142,7 @@ ptrs_var_t *ptrs_handle_native_setFloat(void *target, size_t size, ptrs_var_t *v
 
 #define PTRS_HANDLE_BODY ptrs_handle_body
 #define PTRS_HANDLE_DEFINE ptrs_handle_define
+#define PTRS_HANDLE_LAZYINIT ptrs_handle_lazyinit
 #define PTRS_HANDLE_ARRAY ptrs_handle_array
 #define PTRS_HANDLE_VARARRAY ptrs_handle_vararray
 #define PTRS_HANDLE_STRUCTVAR ptrs_handle_structvar
@@ -183,6 +186,7 @@ ptrs_var_t *ptrs_handle_native_setFloat(void *target, size_t size, ptrs_var_t *v
 #define PTRS_HANDLE_WILDCARDSYMBOL ptrs_handle_wildcardsymbol
 #define PTRS_HANDLE_IDENTIFIER ptrs_handle_identifier
 #define PTRS_HANDLE_CONSTANT ptrs_handle_constant
+#define PTRS_HANDLE_LAZY ptrs_handle_lazy
 
 #define PTRS_HANDLE_ASSIGN_IDENTIFIER ptrs_handle_assign_identifier
 #define PTRS_HANDLE_ASSIGN_DEREFERENCE ptrs_handle_assign_dereference

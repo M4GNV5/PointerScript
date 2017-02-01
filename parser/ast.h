@@ -23,6 +23,12 @@ struct ptrs_ast_define
 	uint8_t onStack : 1;
 };
 
+struct ptrs_ast_lazy
+{
+	ptrs_symbol_t symbol;
+	struct ptrs_ast *value;
+};
+
 struct ptrs_ast_member
 {
 	struct ptrs_ast *base;
@@ -222,6 +228,7 @@ union ptrs_ast_arg
 	struct ptrs_algorithmlist *algolist;
 
 	struct ptrs_ast_define define;
+	struct ptrs_ast_lazy lazy;
 	struct ptrs_ast_member member;
 	struct ptrs_ast_thismember thismember;
 	struct ptrs_ast_import import;
