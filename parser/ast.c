@@ -158,7 +158,7 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 	setSymbol(&code, strdup("arguments"), 0);
 
 	ptrs_ast_t *ast = talloc(ptrs_ast_t);
-	ast->handler = PTRS_HANDLE_FILE;
+	ast->handler = ptrs_handle_file;
 	ast->arg.scopestatement.body = parseStmtList(&code, 0);
 	if(code.symbols->offset > code.symbols->maxOffset)
 		ast->arg.scopestatement.stackOffset = code.symbols->offset;
@@ -194,8 +194,8 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 				{
 					case PTRS_SYMBOL_DEFAULT:
 						*node = ast = talloc(ptrs_ast_t);
-						ast->handler = PTRS_HANDLE_IDENTIFIER;
-						ast->setHandler = PTRS_HANDLE_ASSIGN_IDENTIFIER;
+						ast->handler = ptrs_handle_identifier;
+						ast->setHandler = ptrs_handle_assign_identifier;
 						ast->addressHandler = NULL;
 						ast->callHandler = NULL;
 
@@ -210,7 +210,7 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 
 					case PTRS_SYMBOL_LAZY:
 						*node = ast = talloc(ptrs_ast_t);
-						ast->handler = PTRS_HANDLE_LAZY;
+						ast->handler = ptrs_handle_lazy;
 						ast->setHandler = NULL;
 						ast->addressHandler = NULL;
 						ast->callHandler = NULL;
@@ -221,10 +221,10 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 
 					case PTRS_SYMBOL_THISMEMBER:
 						*node = ast = talloc(ptrs_ast_t);
-						ast->handler = PTRS_HANDLE_THISMEMBER;
-						ast->setHandler = PTRS_HANDLE_ASSIGN_THISMEMBER;
-						ast->addressHandler = PTRS_HANDLE_ADDRESSOF_THISMEMBER;
-						ast->callHandler = PTRS_HANDLE_CALL_THISMEMBER;
+						ast->handler = ptrs_handle_thismember;
+						ast->setHandler = ptrs_handle_assign_thismember;
+						ast->addressHandler = ptrs_handle_addressof_thismember;
+						ast->callHandler = ptrs_handle_call_thismember;
 
 						ast->arg.thismember.base.scope = level - 1;
 						ast->arg.thismember.base.offset = 0;
@@ -233,7 +233,7 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 
 					case PTRS_SYMBOL_WILDCARD:
 						*node = ast = talloc(ptrs_ast_t);
-						ast->handler = PTRS_HANDLE_WILDCARDSYMBOL;
+						ast->handler = ptrs_handle_wildcardsymbol;
 						ast->setHandler = NULL;
 						ast->addressHandler = NULL;
 						ast->callHandler = NULL;
@@ -258,7 +258,7 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 static ptrs_ast_t *parseStmtList(code_t *code, char end)
 {
 	ptrs_ast_t *elem = talloc(ptrs_ast_t);
-	elem->handler = PTRS_HANDLE_BODY;
+	elem->handler = ptrs_handle_body;
 	if(code->curr == end || code->curr == 0)
 	{
 		elem->arg.astlist = NULL;
@@ -489,7 +489,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		char *name = readIdentifier(code);
 		consumec(code, '=');
 		ptrs_ast_t *ast = parseExpression(code);
-		if(ast->handler != PTRS_HANDLE_CONSTANT)
+		if(ast->handler != ptrs_handle_constant)
 			unexpectedm(code, NULL, "Initializer for 'const' variable is not a constant");
 
 		struct symbollist *entry = addSpecialSymbol(code, name, PTRS_SYMBOL_CONST);
@@ -508,13 +508,13 @@ static ptrs_ast_t *parseStatement(code_t *code)
 
 	if(lookahead(code, "var"))
 	{
-		stmt->handler = PTRS_HANDLE_DEFINE;
+		stmt->handler = ptrs_handle_define;
 		stmt->arg.define.symbol = addSymbol(code, readIdentifier(code));
 		stmt->arg.define.onStack = true;
 
 		if(lookahead(code, "["))
 		{
-			stmt->handler = PTRS_HANDLE_VARARRAY;
+			stmt->handler = ptrs_handle_vararray;
 			stmt->arg.define.value = parseExpression(code);
 			stmt->arg.define.isInitExpr = false;
 			consumec(code, ']');
@@ -536,7 +536,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		}
 		else if(lookahead(code, "{"))
 		{
-			stmt->handler = PTRS_HANDLE_ARRAY;
+			stmt->handler = ptrs_handle_array;
 			stmt->arg.define.value = parseExpression(code);
 			consumec(code, '}');
 
@@ -566,7 +566,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		}
 		else if(lookahead(code, ":"))
 		{
-			stmt->handler = PTRS_HANDLE_STRUCTVAR;
+			stmt->handler = ptrs_handle_structvar;
 			stmt->arg.define.value = parseUnaryExpr(code, true, false);
 			stmt->arg.define.isInitExpr = false;
 			stmt->arg.define.onStack = true;
@@ -588,7 +588,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "lazy"))
 	{
-		stmt->handler = PTRS_HANDLE_LAZYINIT;
+		stmt->handler = ptrs_handle_lazyinit;
 		stmt->arg.varval = addHiddenSymbol(code, sizeof(ptrs_var_t));
 
 		struct symbollist *entry = addSpecialSymbol(code, readIdentifier(code), PTRS_SYMBOL_LAZY);
@@ -603,41 +603,41 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "return"))
 	{
-		stmt->handler = PTRS_HANDLE_RETURN;
+		stmt->handler = ptrs_handle_return;
 		stmt->arg.astval = parseExpression(code);
 		consumec(code, ';');
 	}
 	else if(lookahead(code, "break"))
 	{
-		stmt->handler = PTRS_HANDLE_BREAK;
+		stmt->handler = ptrs_handle_break;
 		consumec(code, ';');
 	}
 	else if(lookahead(code, "continue"))
 	{
-		stmt->handler = PTRS_HANDLE_CONTINUE;
+		stmt->handler = ptrs_handle_continue;
 		consumec(code, ';');
 	}
 	else if(lookahead(code, "delete"))
 	{
-		stmt->handler = PTRS_HANDLE_DELETE;
+		stmt->handler = ptrs_handle_delete;
 		stmt->arg.astval = parseExpression(code);
 		consumec(code, ';');
 	}
 	else if(lookahead(code, "throw"))
 	{
-		stmt->handler = PTRS_HANDLE_THROW;
+		stmt->handler = ptrs_handle_throw;
 		stmt->arg.astval = parseExpression(code);
 		consumec(code, ';');
 	}
 	else if(lookahead(code, "scoped"))
 	{
-		stmt->handler = PTRS_HANDLE_SCOPESTATEMENT;
+		stmt->handler = ptrs_handle_scopestatement;
 		symbolScope_increase(code, 0, false);
 		stmt->arg.scopestatement.body = parseBody(code, &stmt->arg.scopestatement.stackOffset, true, true);
 	}
 	else if(lookahead(code, "try"))
 	{
-		stmt->handler = PTRS_HANDLE_TRYCATCH;
+		stmt->handler = ptrs_handle_trycatch;
 		stmt->arg.trycatch.tryBody = parseBody(code, NULL, true, false);
 
 		if(lookahead(code, "catch"))
@@ -678,7 +678,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	else if(lookahead(code, "asm"))
 	{
 #ifndef _PTRS_NOASM
-		stmt->handler = PTRS_HANDLE_ASM;
+		stmt->handler = ptrs_handle_asm;
 		parseAsm(code, stmt);
 #else
 		PTRS_HANDLE_ASTERROR(stmt, "Inline assembly is not available");
@@ -686,7 +686,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "function"))
 	{
-		stmt->handler = PTRS_HANDLE_FUNCTION;
+		stmt->handler = ptrs_handle_function;
 		stmt->arg.function.isAnonymous = false;
 
 		ptrs_function_t *func = &stmt->arg.function.func;
@@ -697,7 +697,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		ptrs_ast_t *oldAst;
 		if(ptrs_ast_getSymbol(code->symbols, name, &oldAst) == 0)
 		{
-			if(oldAst->handler != PTRS_HANDLE_IDENTIFIER)
+			if(oldAst->handler != ptrs_handle_identifier)
 				PTRS_HANDLE_ASTERROR(stmt, "Cannot redefine special symbol %s as a function", name);
 
 			stmt->arg.function.symbol = oldAst->arg.varval;
@@ -717,7 +717,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "struct"))
 	{
-		stmt->handler = PTRS_HANDLE_STRUCT;
+		stmt->handler = ptrs_handle_struct;
 		parseStruct(code, &stmt->arg.structval);
 	}
 	else if(lookahead(code, "with"))
@@ -725,7 +725,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		int oldCount = code->withCount;
 		code->withCount = 0;
 
-		stmt->handler = PTRS_HANDLE_WITH;
+		stmt->handler = ptrs_handle_with;
 
 		consumec(code, '(');
 		stmt->arg.with.base = parseExpression(code);
@@ -741,7 +741,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "if"))
 	{
-		stmt->handler = PTRS_HANDLE_IF;
+		stmt->handler = ptrs_handle_if;
 
 		consumec(code, '(');
 		stmt->arg.ifelse.condition = parseExpression(code);
@@ -759,7 +759,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "while"))
 	{
-		stmt->handler = PTRS_HANDLE_WHILE;
+		stmt->handler = ptrs_handle_while;
 
 		consumec(code, '(');
 		stmt->arg.control.condition = parseExpression(code);
@@ -769,7 +769,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	else if(lookahead(code, "do"))
 	{
 		symbolScope_increase(code, 0, true);
-		stmt->handler = PTRS_HANDLE_DOWHILE;
+		stmt->handler = ptrs_handle_dowhile;
 		stmt->arg.control.body = parseScopelessBody(code, true);
 		consume(code, "while");
 
@@ -787,7 +787,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 
 		consume(code, "in");
 		stmt->arg.forin.value = parseExpression(code);
-		stmt->handler = PTRS_HANDLE_FORIN;
+		stmt->handler = ptrs_handle_forin;
 		consumec(code, ')');
 
 		stmt->arg.forin.body = parseScopelessBody(code, true);
@@ -795,7 +795,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "for"))
 	{
-		stmt->handler = PTRS_HANDLE_FOR;
+		stmt->handler = ptrs_handle_for;
 		symbolScope_increase(code, 0, true);
 
 		consumec(code, '(');
@@ -810,7 +810,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else
 	{
-		stmt->handler = PTRS_HANDLE_EXPRSTATEMENT;
+		stmt->handler = ptrs_handle_exprstatement;
 		stmt->arg.astval = parseExpression(code);
 		consumec(code, ';');
 	}
@@ -827,70 +827,70 @@ struct opinfo
 
 struct opinfo binaryOps[] = {
 	// >> and << need to be before > and < or we will always lookahead greater / less
-	{">>", 12, false, PTRS_HANDLE_OP_SHR}, //shift right
-	{"<<", 12, false, PTRS_HANDLE_OP_SHL}, //shift left
+	{">>", 12, false, ptrs_handle_op_shr}, //shift right
+	{"<<", 12, false, ptrs_handle_op_shl}, //shift left
 
-	{"===", 9, false, PTRS_HANDLE_OP_TYPEEQUAL},
-	{"!==", 9, false, PTRS_HANDLE_OP_TYPEINEQUAL},
+	{"===", 9, false, ptrs_handle_op_typeequal},
+	{"!==", 9, false, ptrs_handle_op_typeinequal},
 
-	{"==", 9, false, PTRS_HANDLE_OP_EQUAL},
-	{"!=", 9, false, PTRS_HANDLE_OP_INEQUAL},
-	{"<=", 10, false, PTRS_HANDLE_OP_LESSEQUAL},
-	{">=", 10, false, PTRS_HANDLE_OP_GREATEREQUAL},
-	{"<", 10, false, PTRS_HANDLE_OP_LESS},
-	{">", 10, false, PTRS_HANDLE_OP_GREATER},
+	{"==", 9, false, ptrs_handle_op_equal},
+	{"!=", 9, false, ptrs_handle_op_inequal},
+	{"<=", 10, false, ptrs_handle_op_lessequal},
+	{">=", 10, false, ptrs_handle_op_greaterequal},
+	{"<", 10, false, ptrs_handle_op_less},
+	{">", 10, false, ptrs_handle_op_greater},
 
-	{"=", 1, true, PTRS_HANDLE_OP_ASSIGN},
-	{"+=", 1, true, PTRS_HANDLE_OP_ADDASSIGN},
-	{"-=", 1, true, PTRS_HANDLE_OP_SUBASSIGN},
-	{"*=", 1, true, PTRS_HANDLE_OP_MULASSIGN},
-	{"/=", 1, true, PTRS_HANDLE_OP_DIVASSIGN},
-	{"%=", 1, true, PTRS_HANDLE_OP_MODASSIGN},
-	{">>=", 1, true, PTRS_HANDLE_OP_SHRASSIGN},
-	{"<<=", 1, true, PTRS_HANDLE_OP_SHLASSIGN},
-	{"&=", 1, true, PTRS_HANDLE_OP_ANDASSIGN},
-	{"^=", 1, true, PTRS_HANDLE_OP_XORASSIGN},
-	{"|=", 1, true, PTRS_HANDLE_OP_ORASSIGN},
+	{"=", 1, true, ptrs_handle_op_assign},
+	{"+=", 1, true, ptrs_handle_op_addassign},
+	{"-=", 1, true, ptrs_handle_op_subassign},
+	{"*=", 1, true, ptrs_handle_op_mulassign},
+	{"/=", 1, true, ptrs_handle_op_divassign},
+	{"%=", 1, true, ptrs_handle_op_modassign},
+	{">>=", 1, true, ptrs_handle_op_shrassign},
+	{"<<=", 1, true, ptrs_handle_op_shlassign},
+	{"&=", 1, true, ptrs_handle_op_andassign},
+	{"^=", 1, true, ptrs_handle_op_xorassign},
+	{"|=", 1, true, ptrs_handle_op_orassign},
 
-	{"?", 2, true, PTRS_HANDLE_OP_TERNARY},
-	{":", -1, true, PTRS_HANDLE_OP_TERNARY},
+	{"?", 2, true, ptrs_handle_op_ternary},
+	{":", -1, true, ptrs_handle_op_ternary},
 
-	{"instanceof", 11, false, PTRS_HANDLE_OP_INSTANCEOF},
-	{"in", 11, false, PTRS_HANDLE_OP_IN},
+	{"instanceof", 11, false, ptrs_handle_op_instanceof},
+	{"in", 11, false, ptrs_handle_op_in},
 
-	{"||", 3, false, PTRS_HANDLE_OP_LOGICOR},
-	{"^^", 4, false, PTRS_HANDLE_OP_LOGICXOR},
-	{"&&", 5, false, PTRS_HANDLE_OP_LOGICAND},
+	{"||", 3, false, ptrs_handle_op_logicor},
+	{"^^", 4, false, ptrs_handle_op_logicxor},
+	{"&&", 5, false, ptrs_handle_op_logicand},
 
-	{"|", 6, false, PTRS_HANDLE_OP_OR},
-	{"^", 7, false, PTRS_HANDLE_OP_XOR},
-	{"&", 8, false, PTRS_HANDLE_OP_AND},
+	{"|", 6, false, ptrs_handle_op_or},
+	{"^", 7, false, ptrs_handle_op_xor},
+	{"&", 8, false, ptrs_handle_op_and},
 
-	{"+", 13, false, PTRS_HANDLE_OP_ADD},
-	{"-", 13, false, PTRS_HANDLE_OP_SUB},
+	{"+", 13, false, ptrs_handle_op_add},
+	{"-", 13, false, ptrs_handle_op_sub},
 
-	{"*", 14, false, PTRS_HANDLE_OP_MUL},
-	{"/", 14, false, PTRS_HANDLE_OP_DIV},
-	{"%", 14, false, PTRS_HANDLE_OP_MOD}
+	{"*", 14, false, ptrs_handle_op_mul},
+	{"/", 14, false, ptrs_handle_op_div},
+	{"%", 14, false, ptrs_handle_op_mod}
 };
 static int binaryOpCount = sizeof(binaryOps) / sizeof(struct opinfo);
 
 struct opinfo prefixOps[] = {
-	{"typeof", 0, true, PTRS_HANDLE_OP_TYPEOF},
-	{"++", 0, true, PTRS_HANDLE_PREFIX_INC}, //prefixed ++
-	{"--", 0, true, PTRS_HANDLE_PREFIX_DEC}, //prefixed --
-	{"!", 0, true, PTRS_HANDLE_PREFIX_LOGICNOT}, //logical NOT
-	{"~", 0, true, PTRS_HANDLE_PREFIX_NOT}, //bitwise NOT
-	{"&", 0, true, PTRS_HANDLE_PREFIX_ADDRESS}, //adress of
-	{"*", 0, true, PTRS_HANDLE_PREFIX_DEREFERENCE}, //dereference
-	{"+", 0, true, PTRS_HANDLE_PREFIX_PLUS}, //unary +
-	{"-", 0, true, PTRS_HANDLE_PREFIX_MINUS} //unary -
+	{"typeof", 0, true, ptrs_handle_prefix_typeof},
+	{"++", 0, true, ptrs_handle_prefix_inc}, //prefixed ++
+	{"--", 0, true, ptrs_handle_prefix_dec}, //prefixed --
+	{"!", 0, true, ptrs_handle_prefix_logicnot}, //logical NOT
+	{"~", 0, true, ptrs_handle_prefix_not}, //bitwise NOT
+	{"&", 0, true, ptrs_handle_prefix_address}, //adress of
+	{"*", 0, true, ptrs_handle_prefix_dereference}, //dereference
+	{"+", 0, true, ptrs_handle_prefix_plus}, //unary +
+	{"-", 0, true, ptrs_handle_prefix_minus} //unary -
 };
 static int prefixOpCount = sizeof(prefixOps) / sizeof(struct opinfo);
 
 struct opinfo suffixedOps[] = {
-	{"++", 0, false, PTRS_HANDLE_SUFFIX_INC}, //suffixed ++
-	{"--", 0, false, PTRS_HANDLE_SUFFIX_DEC} //suffixed --
+	{"++", 0, false, ptrs_handle_suffix_inc}, //suffixed ++
+	{"--", 0, false, ptrs_handle_suffix_dec} //suffixed --
 };
 static int suffixedOpCount = sizeof(suffixedOps) / sizeof(struct opinfo);
 
@@ -932,7 +932,7 @@ static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 		}
 
 #ifndef PTRS_DISABLE_CONSTRESOLVE
-		if(left->handler == PTRS_HANDLE_CONSTANT && right->handler == PTRS_HANDLE_CONSTANT)
+		if(left->handler == ptrs_handle_constant && right->handler == ptrs_handle_constant)
 		{
 			ptrs_var_t result;
 			ptrs_ast_t node;
@@ -953,10 +953,10 @@ static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 			continue;
 		}
 #endif
-		if(op->handler == PTRS_HANDLE_OP_TERNARY)
+		if(op->handler == ptrs_handle_op_ternary)
 		{
 			ptrs_ast_t *ast = talloc(ptrs_ast_t);
-			ast->handler = PTRS_HANDLE_OP_TERNARY;
+			ast->handler = ptrs_handle_op_ternary;
 			ast->arg.ternary.condition = left;
 			ast->arg.ternary.trueVal = right;
 			consumec(code, ':');
@@ -1021,8 +1021,8 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			ast->handler = prefixOps[i].handler;
 			ast->addressHandler = NULL;
 			ast->callHandler = NULL;
-			if(ast->handler == PTRS_HANDLE_PREFIX_DEREFERENCE)
-				ast->setHandler = PTRS_HANDLE_ASSIGN_DEREFERENCE;
+			if(ast->handler == ptrs_handle_prefix_dereference)
+				ast->setHandler = ptrs_handle_assign_dereference;
 			else
 				ast->setHandler = NULL;
 
@@ -1031,14 +1031,14 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			ast->file = code->filename;
 
 #ifndef PTRS_DISABLE_CONSTRESOLVE
-			if(ast->arg.astval->handler == PTRS_HANDLE_CONSTANT)
+			if(ast->arg.astval->handler == ptrs_handle_constant)
 			{
 				ptrs_lastast = ast;
 				ptrs_lastscope = NULL;
 
 				ptrs_var_t result;
 				ast->handler(ast, &result, NULL);
-				ast->handler = PTRS_HANDLE_CONSTANT;
+				ast->handler = ptrs_handle_constant;
 
 				free(ast->arg.astval);
 				memcpy(&ast->arg.constval, &result, sizeof(ptrs_var_t));
@@ -1056,7 +1056,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			ast->arg.constval.type = constants[i].type;
 			ast->arg.constval.value = constants[i].value;
 			memset(&ast->arg.constval.meta, 0, sizeof(ptrs_meta_t));
-			ast->handler = PTRS_HANDLE_CONSTANT;
+			ast->handler = ptrs_handle_constant;
 			ast->setHandler = NULL;
 			ast->addressHandler = NULL;
 			ast->callHandler = NULL;
@@ -1081,7 +1081,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			unexpectedm(code, NULL, "Syntax is type<TYPENAME>");
 
 		ast = talloc(ptrs_ast_t);
-		ast->handler = PTRS_HANDLE_CONSTANT;
+		ast->handler = ptrs_handle_constant;
 		ast->arg.constval.type = PTRS_TYPE_INT;
 		ast->arg.constval.value.intval = type;
 		consumec(code, '>');
@@ -1099,7 +1099,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			if(hasBrace)
 				consumec(code, ')');
 
-			ast->handler = PTRS_HANDLE_CONSTANT;
+			ast->handler = ptrs_handle_constant;
 			ast->arg.constval.type = PTRS_TYPE_INT;
 			ast->arg.constval.value.intval = nativeType->size;
 		}
@@ -1108,7 +1108,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			if(hasBrace)
 				consumec(code, ')');
 
-			ast->handler = PTRS_HANDLE_CONSTANT;
+			ast->handler = ptrs_handle_constant;
 			ast->arg.constval.type = PTRS_TYPE_INT;
 			ast->arg.constval.value.intval = sizeof(ptrs_var_t);
 		}
@@ -1120,7 +1120,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 				code->curr = code->src[pos];
 			}
 
-			ast->handler = PTRS_HANDLE_PREFIX_LENGTH;
+			ast->handler = ptrs_handle_prefix_length;
 			ast->arg.astval = parseUnaryExpr(code, ignoreCalls, ignoreAlgo);
 		}
 	}
@@ -1135,7 +1135,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		consumec(code, '>');
 
 		ast = talloc(ptrs_ast_t);
-		ast->handler = PTRS_HANDLE_AS;
+		ast->handler = ptrs_handle_as;
 		ast->arg.cast.builtinType = type;
 		ast->arg.cast.value = parseUnaryExpr(code, false, true);
 	}
@@ -1143,7 +1143,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 	{
 		consumec(code, '<');
 		ast = talloc(ptrs_ast_t);
-		ast->handler = PTRS_HANDLE_CAST;
+		ast->handler = ptrs_handle_cast;
 		ast->arg.cast.type = parseUnaryExpr(code, false, false);
 		ast->arg.cast.onStack = true;
 
@@ -1164,18 +1164,18 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 				unexpectedm(code, NULL, "Invalid cast, can only cast to int, float, native and string");
 
 			ast = talloc(ptrs_ast_t);
-			ast->handler = PTRS_HANDLE_CAST_BUILTIN;
+			ast->handler = ptrs_handle_cast_builtin;
 			ast->arg.cast.builtinType = type;
 		}
 		else if(lookahead(code, "string"))
 		{
 			ast = talloc(ptrs_ast_t);
-			ast->handler = PTRS_HANDLE_TOSTRING;
+			ast->handler = ptrs_handle_tostring;
 		}
 		else
 		{
 			ast = talloc(ptrs_ast_t);
-			ast->handler = PTRS_HANDLE_CAST;
+			ast->handler = ptrs_handle_cast;
 			ast->arg.cast.type = parseUnaryExpr(code, false, false);
 			ast->arg.cast.onStack = false;
 
@@ -1194,12 +1194,12 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			ast->arg.yield.yieldVal = code->yield;
 			if(code->yieldIsAlgo)
 			{
-				ast->handler = PTRS_HANDLE_YIELD_ALGORITHM;
+				ast->handler = ptrs_handle_yield_algorithm;
 				ast->arg.yield.value = parseExpression(code);
 			}
 			else
 			{
-				ast->handler = PTRS_HANDLE_YIELD;
+				ast->handler = ptrs_handle_yield;
 				ast->arg.yield.values = parseExpressionList(code, ';');
 			}
 		}
@@ -1211,7 +1211,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 	else if(lookahead(code, "function"))
 	{
 		ast = talloc(ptrs_ast_t);
-		ast->handler = PTRS_HANDLE_FUNCTION;
+		ast->handler = ptrs_handle_function;
 		ast->arg.function.isAnonymous = true;
 
 		ptrs_function_t *func = &ast->arg.function.func;
@@ -1251,10 +1251,10 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			rawnext(code);
 			noSetHandler = false;
 
-			ast->handler = PTRS_HANDLE_WITHMEMBER;
-			ast->setHandler = PTRS_HANDLE_ASSIGN_WITHMEMBER;
-			ast->addressHandler = PTRS_HANDLE_ADDRESSOF_WITHMEMBER;
-			ast->callHandler = PTRS_HANDLE_CALL_WITHMEMBER;
+			ast->handler = ptrs_handle_withmember;
+			ast->setHandler = ptrs_handle_assign_withmember;
+			ast->addressHandler = ptrs_handle_addressof_withmember;
+			ast->callHandler = ptrs_handle_call_withmember;
 
 			ast->arg.withmember.base = ast->arg.varval;
 			ast->arg.withmember.name = readIdentifier(code);
@@ -1269,7 +1269,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 	{
 		int startPos = code->pos;
 		ast = talloc(ptrs_ast_t);
-		ast->handler = PTRS_HANDLE_CONSTANT;
+		ast->handler = ptrs_handle_constant;
 
 		ast->arg.constval.type = PTRS_TYPE_INT;
 		ast->arg.constval.value.intval = readInt(code, 0);
@@ -1295,13 +1295,13 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 
 		next(code);
 		ast = talloc(ptrs_ast_t);
-		ast->handler = PTRS_HANDLE_INDEXLENGTH;
+		ast->handler = ptrs_handle_indexlength;
 	}
 	else if(curr == '\'')
 	{
 		rawnext(code);
 		ast = talloc(ptrs_ast_t);
-		ast->handler = PTRS_HANDLE_CONSTANT;
+		ast->handler = ptrs_handle_constant;
 		ast->arg.constval.type = PTRS_TYPE_INT;
 
 		if(code->curr == '\\')
@@ -1327,14 +1327,14 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		ast = talloc(ptrs_ast_t);
 		if(insertions != NULL)
 		{
-			ast->handler = PTRS_HANDLE_STRINGFORMAT;
+			ast->handler = ptrs_handle_stringformat;
 			ast->arg.strformat.str = str;
 			ast->arg.strformat.insertions = insertions;
 			ast->arg.strformat.insertionCount = insertionCount;
 		}
 		else
 		{
-			ast->handler = PTRS_HANDLE_CONSTANT;
+			ast->handler = ptrs_handle_constant;
 			ast->arg.constval.type = PTRS_TYPE_NATIVE;
 			ast->arg.constval.value.strval = str;
 			ast->arg.constval.meta.array.readOnly = true;
@@ -1356,7 +1356,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		code->pos += len + 1;
 
 		ast = talloc(ptrs_ast_t);
-		ast->handler = PTRS_HANDLE_CONSTANT;
+		ast->handler = ptrs_handle_constant;
 		ast->arg.constval.type = PTRS_TYPE_NATIVE;
 		ast->arg.constval.value.strval = str;
 		ast->arg.constval.meta.array.readOnly = true;
@@ -1380,7 +1380,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 				setSymbol(code, strdup("this"), 0);
 
 				ast = talloc(ptrs_ast_t);
-				ast->handler = PTRS_HANDLE_FUNCTION;
+				ast->handler = ptrs_handle_function;
 				ast->arg.function.isAnonymous = true;
 
 				ptrs_function_t *func = &ast->arg.function.func;
@@ -1400,7 +1400,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 				else
 				{
 					ptrs_ast_t *retStmt = talloc(ptrs_ast_t);
-					retStmt->handler = PTRS_HANDLE_RETURN;
+					retStmt->handler = ptrs_handle_return;
 					retStmt->arg.astval = parseExpression(code);
 					func->body = retStmt;
 				}
@@ -1450,10 +1450,10 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 	if(curr == '.' && code->src[code->pos + 1] != '.')
 	{
 		ptrs_ast_t *member = talloc(ptrs_ast_t);
-		member->handler = PTRS_HANDLE_MEMBER;
-		member->setHandler = PTRS_HANDLE_ASSIGN_MEMBER;
-		member->addressHandler = PTRS_HANDLE_ADDRESSOF_MEMBER;
-		member->callHandler = PTRS_HANDLE_CALL_MEMBER;
+		member->handler = ptrs_handle_member;
+		member->setHandler = ptrs_handle_assign_member;
+		member->addressHandler = ptrs_handle_addressof_member;
+		member->callHandler = ptrs_handle_call_member;
 		member->codepos = code->pos;
 		member->code = code->src;
 		member->file = code->filename;
@@ -1498,7 +1498,7 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 
 		consumec(code, '(');
 
-		call->handler = PTRS_HANDLE_CALL;
+		call->handler = ptrs_handle_call;
 		call->setHandler = NULL;
 		call->addressHandler = NULL;
 		call->codepos = code->pos;
@@ -1528,7 +1528,7 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 
 		if(lookahead(code, ".."))
 		{
-			indexExpr->handler = PTRS_HANDLE_SLICE;
+			indexExpr->handler = ptrs_handle_slice;
 			indexExpr->arg.slice.base = ast;
 			indexExpr->arg.slice.start = expr;
 			indexExpr->arg.slice.end = parseExpression(code);
@@ -1538,10 +1538,10 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 		}
 		else
 		{
-			indexExpr->handler = PTRS_HANDLE_INDEX;
-			indexExpr->setHandler = PTRS_HANDLE_ASSIGN_INDEX;
-			indexExpr->addressHandler = PTRS_HANDLE_ADDRESSOF_INDEX;
-			indexExpr->callHandler = PTRS_HANDLE_CALL_INDEX;
+			indexExpr->handler = ptrs_handle_index;
+			indexExpr->setHandler = ptrs_handle_assign_index;
+			indexExpr->addressHandler = ptrs_handle_addressof_index;
+			indexExpr->callHandler = ptrs_handle_call_index;
 			indexExpr->arg.binary.left = ast;
 			indexExpr->arg.binary.right = expr;
 		}
@@ -1553,8 +1553,8 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 	else if(lookahead(code, "->"))
 	{
 		ptrs_ast_t *dereference = talloc(ptrs_ast_t);
-		dereference->handler = PTRS_HANDLE_PREFIX_DEREFERENCE;
-		dereference->setHandler = PTRS_HANDLE_ASSIGN_DEREFERENCE;
+		dereference->handler = ptrs_handle_prefix_dereference;
+		dereference->setHandler = ptrs_handle_assign_dereference;
 		dereference->callHandler = NULL;
 		dereference->codepos = code->pos - 2;
 		dereference->code = code->src;
@@ -1562,10 +1562,10 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 		dereference->arg.astval = ast;
 
 		ptrs_ast_t *member = talloc(ptrs_ast_t);
-		member->handler = PTRS_HANDLE_MEMBER;
-		member->setHandler = PTRS_HANDLE_ASSIGN_MEMBER;
-		member->addressHandler = PTRS_HANDLE_ADDRESSOF_MEMBER;
-		member->callHandler = PTRS_HANDLE_CALL_MEMBER;
+		member->handler = ptrs_handle_member;
+		member->setHandler = ptrs_handle_assign_member;
+		member->addressHandler = ptrs_handle_addressof_member;
+		member->callHandler = ptrs_handle_call_member;
 		member->codepos = code->pos;
 		member->code = code->src;
 		member->file = code->filename;
@@ -1585,7 +1585,7 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 		parseAlgorithmExpression(code, curr, true);
 
 		ast = talloc(ptrs_ast_t);
-		ast->handler = PTRS_HANDLE_ALGORITHM;
+		ast->handler = ptrs_handle_algorithm;
 		ast->arg.algolist = curr;
 		ast->code = code->src;
 		ast->codepos = curr->entry->codepos;
@@ -1633,7 +1633,7 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end)
 		{
 			curr->expand = true;
 			curr->entry = parseExpression(code);
-			if(curr->entry->handler != PTRS_HANDLE_IDENTIFIER)
+			if(curr->entry->handler != ptrs_handle_identifier)
 				unexpectedm(code, NULL, "Array spreading can only be used on identifiers");
 
 			if(curr->entry == NULL)
@@ -1713,7 +1713,7 @@ static void parseAlgorithmExpression(code_t *code, struct ptrs_algorithmlist *cu
 
 static void parseImport(code_t *code, ptrs_ast_t *stmt)
 {
-	stmt->handler = PTRS_HANDLE_IMPORT;
+	stmt->handler = ptrs_handle_import;
 	stmt->arg.import.imports = NULL;
 	stmt->arg.import.wildcards = addHiddenSymbol(code, sizeof(ptrs_var_t));
 	stmt->arg.import.wildcardCount = 0;
@@ -1774,7 +1774,7 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 	bool isEnd = false;
 	char isDefault = 0; //0 = nothing, 1 = default's head, 2 = default's body, 3 = done
 
-	stmt->handler = PTRS_HANDLE_SWITCH;
+	stmt->handler = ptrs_handle_switch;
 	stmt->arg.switchcase.defaultCase = NULL;
 
 	struct ptrs_ast_case first;
@@ -1796,7 +1796,7 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 			if(bodyStart != NULL)
 			{
 				expr = talloc(ptrs_ast_t);
-				expr->handler = PTRS_HANDLE_BODY;
+				expr->handler = ptrs_handle_body;
 				expr->arg.astlist = bodyStart;
 			}
 			else
@@ -1836,7 +1836,7 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 				for(;;)
 				{
 					ptrs_ast_t *expr = parseExpression(code);
-					if(expr->handler != PTRS_HANDLE_CONSTANT || expr->arg.constval.type != PTRS_TYPE_INT)
+					if(expr->handler != ptrs_handle_constant || expr->arg.constval.type != PTRS_TYPE_INT)
 						unexpected(code, "integer constant");
 
 					currCase->next = talloc(struct ptrs_ast_case);
@@ -2038,7 +2038,7 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 
 		if(lookahead(code, "["))
 		{
-			ast->handler = PTRS_HANDLE_VARARRAY;
+			ast->handler = ptrs_handle_vararray;
 			ast->arg.define.value = parseExpression(code);
 			consumec(code, ']');
 
@@ -2055,7 +2055,7 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 		}
 		else if(lookahead(code, "{"))
 		{
-			ast->handler = PTRS_HANDLE_ARRAY;
+			ast->handler = ptrs_handle_array;
 			ast->arg.define.value = parseExpression(code);
 			consumec(code, '}');
 
@@ -2077,7 +2077,7 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 	}
 	else
 	{
-		ast->handler = PTRS_HANDLE_NEW;
+		ast->handler = ptrs_handle_new;
 		ast->arg.newexpr.onStack = onStack;
 		ast->arg.newexpr.value = parseUnaryExpr(code, true, false);
 
@@ -2094,11 +2094,11 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 	ptrs_ast_t *structExpr = talloc(ptrs_ast_t);
 	ptrs_struct_t *struc = &structExpr->arg.structval;
 
-	ast->handler = PTRS_HANDLE_NEW;
+	ast->handler = ptrs_handle_new;
 	ast->arg.newexpr.value = structExpr;
 	ast->arg.newexpr.arguments = NULL;
 
-	structExpr->handler = PTRS_HANDLE_STRUCT;
+	structExpr->handler = ptrs_handle_struct;
 
 	struc->symbol.scope = (unsigned)-1;
 	struc->size = 0;
@@ -2160,7 +2160,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 	ptrs_ast_t *oldAst;
 	if(ptrs_ast_getSymbol(code->symbols, structName, &oldAst) == 0)
 	{
-		if(oldAst->handler != PTRS_HANDLE_IDENTIFIER)
+		if(oldAst->handler != ptrs_handle_identifier)
 			PTRS_HANDLE_ASTERROR(NULL, "Cannot redefine special symbol %s as a function", structName);
 
 		struc->symbol = oldAst->arg.varval;
@@ -2212,7 +2212,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			{
 				consume(code, "this");
 
-				if(overload->op == PTRS_HANDLE_PREFIX_ADDRESS && (code->curr == '.' || code->curr == '['))
+				if(overload->op == ptrs_handle_prefix_address && (code->curr == '.' || code->curr == '['))
 				{
 					char curr = code->curr;
 					next(code);
@@ -2221,13 +2221,13 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					if(curr == '.')
 					{
 						nameFormat = "%1$s.op &this.%3$s";
-						overload->op = PTRS_HANDLE_ADDRESSOF_MEMBER;
+						overload->op = ptrs_handle_addressof_member;
 					}
 					else
 					{
 						consumec(code, ']');
 						nameFormat = "%1$s.op &this[%3$s]";
-						overload->op = PTRS_HANDLE_ADDRESSOF_INDEX;
+						overload->op = ptrs_handle_addressof_index;
 					}
 
 					func->argc = 1;
@@ -2264,7 +2264,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 							nameFormat = "%1$s.op this => any";
 							opLabel = "=>";
-							overload->op = PTRS_HANDLE_ALGORITHM;
+							overload->op = ptrs_handle_algorithm;
 						}
 						else
 						{
@@ -2306,7 +2306,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 										func->args[1] = addSymbol(code, readIdentifier(code));
 
 										opLabel = " = value";
-										overload->op = curr == '.' ? PTRS_HANDLE_ASSIGN_MEMBER : PTRS_HANDLE_ASSIGN_INDEX;
+										overload->op = curr == '.' ? ptrs_handle_assign_member : ptrs_handle_assign_index;
 									}
 									else if(code->curr == '(')
 									{
@@ -2315,7 +2315,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 										func->argc++;
 
 										opLabel = "()";
-										overload->op = curr == '.' ? PTRS_HANDLE_CALL_MEMBER : PTRS_HANDLE_CALL_INDEX;
+										overload->op = curr == '.' ? ptrs_handle_call_member : ptrs_handle_call_index;
 
 
 										ptrs_symbol_t *newArgs = malloc(sizeof(ptrs_symbol_t) * func->argc);
@@ -2342,14 +2342,14 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 										func->args[0] = addSymbol(code, otherName);
 
 										opLabel = "";
-										overload->op = curr == '.' ? PTRS_HANDLE_MEMBER : PTRS_HANDLE_INDEX;
+										overload->op = curr == '.' ? ptrs_handle_member : ptrs_handle_index;
 									}
 								}
 								else if(curr == '(')
 								{
 									func->argc = parseArgumentDefinitionList(code,
 										&func->args, &func->argv, &func->vararg);
-									overload->op = PTRS_HANDLE_CALL;
+									overload->op = ptrs_handle_call;
 
 									opLabel = "()";
 									nameFormat = "%1$s.op this()";
@@ -2363,7 +2363,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					consume(code, "this");
 
 					nameFormat = "%1$s.op sizeof this";
-					overload->op = PTRS_HANDLE_PREFIX_LENGTH;
+					overload->op = ptrs_handle_prefix_length;
 
 					func->argc = 0;
 					func->args = NULL;
@@ -2374,7 +2374,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					consume(code, "this");
 
 					nameFormat = "%1$s.op foreach in this";
-					overload->op = PTRS_HANDLE_FORIN;
+					overload->op = ptrs_handle_forin;
 
 					oldYieldType = code->yieldIsAlgo ? 1 : 0;
 					oldYield = code->yield;
@@ -2393,7 +2393,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					consume(code, "this");
 
 					nameFormat = "%1$s.op cast<%3$s>this";
-					overload->op = PTRS_HANDLE_CAST_BUILTIN;
+					overload->op = ptrs_handle_cast_builtin;
 
 					func->argc = 1;
 					func->args = talloc(ptrs_symbol_t);
@@ -2423,7 +2423,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 							func->args[1] = addSymbol(code, otherName);
 
 							overload->isLeftSide = false;
-							overload->op = PTRS_HANDLE_YIELD_ALGORITHM;
+							overload->op = ptrs_handle_yield_algorithm;
 						}
 						else
 						{
@@ -2434,7 +2434,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 							func->args[0] = addSymbol(code, otherName);
 
 							overload->isLeftSide = false;
-							overload->op = PTRS_HANDLE_ALGORITHM;
+							overload->op = ptrs_handle_algorithm;
 						}
 					}
 					else
@@ -2478,7 +2478,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 			struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
 			overload->isLeftSide = true;
-			overload->op = PTRS_HANDLE_NEW;
+			overload->op = ptrs_handle_new;
 			overload->handler = parseFunction(code, name);
 			overload->isStatic = isStatic;
 
@@ -2493,7 +2493,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 			struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
 			overload->isLeftSide = true;
-			overload->op = PTRS_HANDLE_DELETE;
+			overload->op = ptrs_handle_delete;
 			overload->handler = parseFunction(code, name);
 			overload->isStatic = isStatic;
 
@@ -2604,7 +2604,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 			consumec(code, ';');
 
-			if(ast->handler != PTRS_HANDLE_CONSTANT)
+			if(ast->handler != ptrs_handle_constant)
 				PTRS_HANDLE_ASTERROR(ast, "Struct array member size must be a constant");
 
 			curr->value.size = ast->arg.constval.value.intval * sizeof(ptrs_var_t);
@@ -2632,7 +2632,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 			consumec(code, ';');
 
-			if(ast->handler != PTRS_HANDLE_CONSTANT)
+			if(ast->handler != ptrs_handle_constant)
 				PTRS_HANDLE_ASTERROR(ast, "Struct array member size must be a constant");
 
 			curr->value.size = ast->arg.constval.value.intval;
@@ -2773,39 +2773,39 @@ static ptrs_vartype_t readTypeName(code_t *code)
 #endif
 
 ptrs_nativetype_info_t ptrs_nativeTypes[] = {
-	{"char", sizeof(signed char), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_schar},
-	{"short", sizeof(short), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_sshort},
-	{"int", sizeof(int), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_sint},
-	{"long", sizeof(long), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_slong},
-	{"longlong", sizeof(long long), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_sint64},
+	{"char", sizeof(signed char), ptrs_handle_native_getInt, ptrs_handle_native_setInt, &ffi_type_schar},
+	{"short", sizeof(short), ptrs_handle_native_getInt, ptrs_handle_native_setInt, &ffi_type_sshort},
+	{"int", sizeof(int), ptrs_handle_native_getInt, ptrs_handle_native_setInt, &ffi_type_sint},
+	{"long", sizeof(long), ptrs_handle_native_getInt, ptrs_handle_native_setInt, &ffi_type_slong},
+	{"longlong", sizeof(long long), ptrs_handle_native_getInt, ptrs_handle_native_setInt, &ffi_type_sint64},
 
-	{"uchar", sizeof(unsigned char), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT, &ffi_type_uchar},
-	{"ushort", sizeof(unsigned short), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT, &ffi_type_ushort},
-	{"uint", sizeof(unsigned int), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT, &ffi_type_uint},
-	{"ulong", sizeof(unsigned long), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT, &ffi_type_ulong},
-	{"ulonglong", sizeof(unsigned long long), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT, &ffi_type_uint64},
+	{"uchar", sizeof(unsigned char), ptrs_handle_native_getUInt, ptrs_handle_native_setUInt, &ffi_type_uchar},
+	{"ushort", sizeof(unsigned short), ptrs_handle_native_getUInt, ptrs_handle_native_setUInt, &ffi_type_ushort},
+	{"uint", sizeof(unsigned int), ptrs_handle_native_getUInt, ptrs_handle_native_setUInt, &ffi_type_uint},
+	{"ulong", sizeof(unsigned long), ptrs_handle_native_getUInt, ptrs_handle_native_setUInt, &ffi_type_ulong},
+	{"ulonglong", sizeof(unsigned long long), ptrs_handle_native_getUInt, ptrs_handle_native_setUInt, &ffi_type_uint64},
 
-	{"i8", sizeof(int8_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_sint8},
-	{"i16", sizeof(int16_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_sint16},
-	{"i32", sizeof(int32_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_sint32},
-	{"i64", sizeof(int64_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_sint64},
+	{"i8", sizeof(int8_t), ptrs_handle_native_getInt, ptrs_handle_native_setInt, &ffi_type_sint8},
+	{"i16", sizeof(int16_t), ptrs_handle_native_getInt, ptrs_handle_native_setInt, &ffi_type_sint16},
+	{"i32", sizeof(int32_t), ptrs_handle_native_getInt, ptrs_handle_native_setInt, &ffi_type_sint32},
+	{"i64", sizeof(int64_t), ptrs_handle_native_getInt, ptrs_handle_native_setInt, &ffi_type_sint64},
 
-	{"u8", sizeof(uint8_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT, &ffi_type_uint8},
-	{"u16", sizeof(uint16_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT, &ffi_type_uint16},
-	{"u32", sizeof(uint32_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT, &ffi_type_uint32},
-	{"u64", sizeof(uint64_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT, &ffi_type_uint64},
+	{"u8", sizeof(uint8_t), ptrs_handle_native_getUInt, ptrs_handle_native_setUInt, &ffi_type_uint8},
+	{"u16", sizeof(uint16_t), ptrs_handle_native_getUInt, ptrs_handle_native_setUInt, &ffi_type_uint16},
+	{"u32", sizeof(uint32_t), ptrs_handle_native_getUInt, ptrs_handle_native_setUInt, &ffi_type_uint32},
+	{"u64", sizeof(uint64_t), ptrs_handle_native_getUInt, ptrs_handle_native_setUInt, &ffi_type_uint64},
 
-	{"single", sizeof(float), PTRS_HANDLE_NATIVE_GETFLOAT, PTRS_HANDLE_NATIVE_SETFLOAT, &ffi_type_float},
-	{"double", sizeof(double), PTRS_HANDLE_NATIVE_GETFLOAT, PTRS_HANDLE_NATIVE_SETFLOAT, &ffi_type_double},
+	{"single", sizeof(float), ptrs_handle_native_getFloat, ptrs_handle_native_setFloat, &ffi_type_float},
+	{"double", sizeof(double), ptrs_handle_native_getFloat, ptrs_handle_native_setFloat, &ffi_type_double},
 
-	{"native", sizeof(char *), PTRS_HANDLE_NATIVE_GETNATIVE, PTRS_HANDLE_NATIVE_SETNATIVE, &ffi_type_pointer},
-	{"pointer", sizeof(ptrs_var_t *), PTRS_HANDLE_NATIVE_GETPOINTER, PTRS_HANDLE_NATIVE_SETPOINTER, &ffi_type_pointer},
+	{"native", sizeof(char *), ptrs_handle_native_getNative, ptrs_handle_native_setPointer, &ffi_type_pointer},
+	{"pointer", sizeof(ptrs_var_t *), ptrs_handle_native_getPointer, ptrs_handle_native_setPointer, &ffi_type_pointer},
 
-	{"ssize", sizeof(ssize_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_ssize},
-	{"size", sizeof(size_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT, &ffi_type_size},
-	{"intptr", sizeof(uintptr_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_sintptr},
-	{"uintptr", sizeof(intptr_t), PTRS_HANDLE_NATIVE_GETUINT, PTRS_HANDLE_NATIVE_SETUINT, &ffi_type_uintptr},
-	{"ptrdiff", sizeof(ptrdiff_t), PTRS_HANDLE_NATIVE_GETINT, PTRS_HANDLE_NATIVE_SETINT, &ffi_type_ptrdiff},
+	{"ssize", sizeof(ssize_t), ptrs_handle_native_getInt, ptrs_handle_native_setInt, &ffi_type_ssize},
+	{"size", sizeof(size_t), ptrs_handle_native_getUInt, ptrs_handle_native_setUInt, &ffi_type_size},
+	{"intptr", sizeof(uintptr_t), ptrs_handle_native_getInt, ptrs_handle_native_setInt, &ffi_type_sintptr},
+	{"uintptr", sizeof(intptr_t), ptrs_handle_native_getUInt, ptrs_handle_native_setUInt, &ffi_type_uintptr},
+	{"ptrdiff", sizeof(ptrdiff_t), ptrs_handle_native_getInt, ptrs_handle_native_setInt, &ffi_type_ptrdiff},
 };
 int ptrs_nativeTypeCount = sizeof(ptrs_nativeTypes) / sizeof(ptrs_nativetype_info_t);
 
@@ -3115,7 +3115,7 @@ static ptrs_ast_t *getSymbolFromWildcard(code_t *code, char *text)
 				import->name = strdup(text);
 
 				ptrs_ast_t *ast = talloc(ptrs_ast_t);
-				ast->handler = PTRS_HANDLE_WILDCARDSYMBOL;
+				ast->handler = ptrs_handle_wildcardsymbol;
 				ast->setHandler = NULL;
 				ast->callHandler = NULL;
 				ast->addressHandler = NULL;

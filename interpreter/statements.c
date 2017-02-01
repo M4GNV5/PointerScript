@@ -314,7 +314,7 @@ void importScript(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 		else
 			ptrs_scope_set(scope, curr->symbol, val);
 
-		if(ast->handler != PTRS_HANDLE_CONSTANT)
+		if(ast->handler != ptrs_handle_constant)
 			free(ast);
 
 		curr = curr->next;
