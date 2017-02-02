@@ -2801,6 +2801,7 @@ ptrs_nativetype_info_t ptrs_nativeTypes[] = {
 	{"native", sizeof(char *), ptrs_handle_native_getNative, ptrs_handle_native_setPointer, &ffi_type_pointer},
 	{"pointer", sizeof(ptrs_var_t *), ptrs_handle_native_getPointer, ptrs_handle_native_setPointer, &ffi_type_pointer},
 
+	{"bool", sizeof(bool), ptrs_handle_native_getUInt, ptrs_handle_native_setUInt, &ffi_type_uchar},
 	{"ssize", sizeof(ssize_t), ptrs_handle_native_getInt, ptrs_handle_native_setInt, &ffi_type_ssize},
 	{"size", sizeof(size_t), ptrs_handle_native_getUInt, ptrs_handle_native_setUInt, &ffi_type_size},
 	{"intptr", sizeof(uintptr_t), ptrs_handle_native_getInt, ptrs_handle_native_setInt, &ffi_type_sintptr},
