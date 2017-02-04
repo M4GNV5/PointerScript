@@ -571,6 +571,10 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 			returnedValue = true;
 			memcpy(result, valp, sizeof(ptrs_var_t));
 		}
+		else if(catchScope > 0)
+		{
+			scope->exit = catchScope->exit;
+		}
 	}
 	else
 	{
