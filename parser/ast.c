@@ -373,6 +373,13 @@ static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_
 			{
 				curr.scope = (unsigned)-1;
 			}
+			else if(lookahead(code, "lazy"))
+			{
+				struct symbollist *symbol = addSpecialSymbol(code, readIdentifier(code), PTRS_SYMBOL_LAZY);
+				curr = addHiddenSymbol(code, sizeof(ptrs_var_t));
+				symbol->arg.lazy.offset = curr.offset;
+				symbol->arg.lazy.value = NULL;
+			}
 			else
 			{
 				curr = addSymbol(code, readIdentifier(code));
@@ -596,6 +603,9 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		entry->arg.lazy.offset = stmt->arg.varval.offset;
 		entry->arg.lazy.value = parseExpression(code);
 		consumec(code, ';');
+
+		if(entry->arg.lazy.value == NULL)
+			unexpected(code, "Expression");
 	}
 	else if(lookahead(code, "import"))
 	{
@@ -1624,9 +1634,11 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end)
 
 	for(;;)
 	{
+		curr->expand = false;
+		curr->lazy = false;
+
 		if(lookahead(code, "_"))
 		{
-			curr->expand = false;
 			curr->entry = NULL;
 		}
 		else if(lookahead(code, "..."))
@@ -1639,9 +1651,16 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end)
 			if(curr->entry == NULL)
 				unexpected(code, "Expression");
 		}
+		else if(lookahead(code, "lazy"))
+		{
+			curr->lazy = true;
+			curr->entry = parseExpression(code);
+
+			if(curr->entry == NULL)
+				unexpected(code, "Expression");
+		}
 		else
 		{
-			curr->expand = false;
 			curr->entry = parseExpression(code);
 
 			if(curr->entry == NULL)

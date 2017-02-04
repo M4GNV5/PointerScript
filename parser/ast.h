@@ -275,7 +275,8 @@ struct ptrs_astlist
 {
 	struct ptrs_ast *entry;
 	struct ptrs_astlist *next;
-	bool expand;
+	uint8_t expand : 1;
+	uint8_t lazy : 1;
 };
 
 struct ptrs_algorithmlist

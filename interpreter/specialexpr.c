@@ -921,7 +921,22 @@ ptrs_var_t *ptrs_handle_lazy(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 
 	if(val->type == (uint8_t)-1)
 	{
-		result = node->arg.lazy.value->handler(node->arg.lazy.value, val, scope);
+		if(node->arg.lazy.value == NULL) //lazy function argument
+		{
+			ptrs_ast_t *ast = val->value.nativeval;
+			ptrs_scope_t *callScope = scope->callScope;
+
+			void *oldSp = callScope->sp;
+			callScope->sp = scope->sp;
+
+			result = ast->handler(ast, val, callScope);
+			callScope->sp = oldSp;
+		}
+		else
+		{
+			result = node->arg.lazy.value->handler(node->arg.lazy.value, val, scope);
+		}
+
 		if(result != val)
 			memcpy(val, result, sizeof(ptrs_var_t));
 	}
