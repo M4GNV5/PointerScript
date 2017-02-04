@@ -26,6 +26,7 @@ typedef enum
 	PTRS_SYMBOL_DEFAULT,
 	PTRS_SYMBOL_CONST,
 	PTRS_SYMBOL_LAZY,
+	PTRS_SYMBOL_REF,
 	PTRS_SYMBOL_THISMEMBER,
 	PTRS_SYMBOL_WILDCARD,
 } ptrs_symboltype_t;
@@ -219,6 +220,24 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 						ast->arg.lazy.value = curr->arg.lazy.value;
 						break;
 
+					case PTRS_SYMBOL_REF:
+						*node = ast = talloc(ptrs_ast_t);
+						ast->handler = ptrs_handle_prefix_dereference;
+						ast->setHandler = ptrs_handle_assign_dereference;
+						ast->addressHandler = NULL;
+						ast->callHandler = NULL;
+
+						ast->arg.astval = talloc(ptrs_ast_t);
+						ast = ast->arg.astval;
+						ast->handler = ptrs_handle_identifier;
+						ast->setHandler = ptrs_handle_assign_identifier;
+						ast->addressHandler = NULL;
+						ast->callHandler = NULL;
+
+						ast->arg.varval.scope = level;
+						ast->arg.varval.offset = curr->arg.offset;
+						break;
+
 					case PTRS_SYMBOL_THISMEMBER:
 						*node = ast = talloc(ptrs_ast_t);
 						ast->handler = ptrs_handle_thismember;
@@ -379,6 +398,12 @@ static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_
 				curr = addHiddenSymbol(code, sizeof(ptrs_var_t));
 				symbol->arg.lazy.offset = curr.offset;
 				symbol->arg.lazy.value = NULL;
+			}
+			else if(lookahead(code, "ref"))
+			{
+				struct symbollist *symbol = addSpecialSymbol(code, readIdentifier(code), PTRS_SYMBOL_REF);
+				curr = addHiddenSymbol(code, sizeof(ptrs_var_t));
+				symbol->arg.offset = curr.offset;
 			}
 			else
 			{
@@ -1657,6 +1682,23 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end)
 			curr->entry = parseExpression(code);
 
 			if(curr->entry == NULL)
+				unexpected(code, "Expression");
+		}
+		else if(lookahead(code, "ref"))
+		{
+			ptrs_ast_t *ast = curr->entry = talloc(ptrs_ast_t);
+			ast->handler = ptrs_handle_prefix_address;
+			ast->setHandler = NULL;
+			ast->addressHandler = NULL;
+			ast->callHandler = NULL;
+
+			ast->file = code->filename;
+			ast->code = code->src;
+			ast->codepos = code->pos;
+
+			ast->arg.astval = parseExpression(code);
+
+			if(ast->arg.astval == NULL)
 				unexpected(code, "Expression");
 		}
 		else
