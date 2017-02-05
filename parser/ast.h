@@ -177,6 +177,16 @@ struct ptrs_ast_withmember
 	int index;
 };
 
+struct ptrs_ast_lock
+{
+	union
+	{
+		pthread_mutex_t mutex;
+		struct ptrs_ast *value;
+	};
+	struct ptrs_ast *body;
+};
+
 struct ptrs_ast_ifelse
 {
 	struct ptrs_ast *condition;
@@ -247,6 +257,7 @@ union ptrs_ast_arg
 	struct ptrs_ast_new newexpr;
 	struct ptrs_ast_with with;
 	struct ptrs_ast_withmember withmember;
+	struct ptrs_ast_lock lock;
 	struct ptrs_ast_ifelse ifelse;
 	struct ptrs_ast_switch switchcase;
 	struct ptrs_ast_control control;

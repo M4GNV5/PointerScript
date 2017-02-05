@@ -742,6 +742,26 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		code->symbols->offset += sizeof(void *) * code->withCount;
 		code->withCount = oldCount;
 	}
+	else if(lookahead(code, "lock"))
+	{
+		if(lookahead(code, "("))
+		{
+			stmt->handler = ptrs_handle_lockon;
+			stmt->arg.lock.value = parseExpression(code);
+
+			if(stmt->arg.astval == NULL)
+				unexpected(code, "Expression");
+
+			consumec(code, ')');
+		}
+		else
+		{
+			stmt->handler = ptrs_handle_lock;
+			pthread_mutex_init(&stmt->arg.lock.mutex, NULL);
+		}
+
+		stmt->arg.lock.body = parseBody(code, NULL, true, false);
+	}
 	else if(lookahead(code, "if"))
 	{
 		stmt->handler = PTRS_HANDLE_IF;

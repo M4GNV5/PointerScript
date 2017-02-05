@@ -816,6 +816,104 @@ ptrs_var_t *ptrs_handle_with(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 	return stmt.body->handler(stmt.body, result, scope);
 }
 
+ptrs_var_t *ptrs_handle_lock(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_lock *stmt = &node->arg.lock;
+
+	pthread_mutex_lock(&stmt->mutex);
+
+	ptrs_error_t error;
+	if(ptrs_error_catch(scope, &error, false))
+	{
+		pthread_mutex_unlock(&stmt->mutex);
+		ptrs_error_reThrow(scope, &error);
+	}
+
+	result = stmt->body->handler(stmt->body, result, scope);
+	pthread_mutex_unlock(&stmt->mutex);
+
+	return result;
+}
+
+struct ptrs_lock
+{
+	pthread_mutex_t mutex;
+	int count;
+	void *ptr;
+	struct ptrs_lock *next;
+};
+static pthread_mutex_t lockonMutex = PTHREAD_MUTEX_INITIALIZER;
+static struct ptrs_lock *locks = NULL;
+ptrs_var_t *ptrs_handle_lockon(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_lock stmt = node->arg.lock;
+
+	ptrs_var_t *val = stmt.value->handler(stmt.value, result, scope);
+	if(val->type != PTRS_TYPE_NATIVE && val->type != PTRS_TYPE_POINTER
+		&& val->type != PTRS_TYPE_FUNCTION && val->type != PTRS_TYPE_STRUCT)
+		ptrs_error(node, scope, "Cannot lock on value of type %s", ptrs_typetoa(val->type));
+
+	if(val->value.nativeval == NULL)
+		ptrs_error(node, scope, "Cannot lock on null");
+
+	pthread_mutex_lock(&lockonMutex);
+
+	struct ptrs_lock *prev = NULL;
+	struct ptrs_lock *curr = locks;
+	while(curr != NULL)
+	{
+		if(curr->ptr == val->value.nativeval)
+			break;
+
+		prev = curr;
+		curr = curr->next;
+	}
+
+	if(curr == NULL)
+	{
+		curr = malloc(sizeof(struct ptrs_lock));
+		pthread_mutex_init(&curr->mutex, NULL);
+		curr->count = 1;
+		curr->ptr = val->value.nativeval;
+		curr->next = locks;
+		locks = curr;
+	}
+	else
+	{
+		curr->count++;
+	}
+
+	pthread_mutex_unlock(&lockonMutex);
+	pthread_mutex_lock(&curr->mutex);
+
+	ptrs_error_t error;
+	bool hadError = ptrs_error_catch(scope, &error, false);
+
+	if(!hadError)
+		result = stmt.body->handler(stmt.body, result, scope);
+
+	pthread_mutex_lock(&lockonMutex);
+	curr->count--;
+
+	if(curr->count <= 0)
+	{
+
+		if(prev == NULL)
+			locks = curr->next;
+		else
+			prev->next = curr->next;
+
+		free(curr);
+	}
+
+	pthread_mutex_unlock(&lockonMutex);
+	pthread_mutex_unlock(&curr->mutex);
+
+	if(hadError)
+		ptrs_error_reThrow(scope, &error);
+	return result;
+}
+
 ptrs_var_t *ptrs_handle_if(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_ifelse stmt = node->arg.ifelse;
