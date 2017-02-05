@@ -23,7 +23,8 @@ static struct option options[] = {
 	{"zero-mem", no_argument, 0, 4},
 	{"debug", no_argument, 0, 5},
 	{"asm-size", required_argument, 0, 6},
-	{"help", no_argument, 0, 7},
+	{"error", required_argument, 0, 7},
+	{"help", no_argument, 0, 8},
 	{0, 0, 0, 0}
 };
 
@@ -56,12 +57,21 @@ static int parseOptions(int argc, char **argv)
 				ptrs_asmSize = strtoul(optarg, NULL, 0);
 				break;
 			case 7:
+				ptrs_errorfile = fopen(optarg, "w");
+				if(ptrs_errorfile == NULL)
+				{
+					fprintf(stderr, "Could not open %s\n", optarg);
+					exit(EXIT_FAILURE);
+				}
+				break;
+			case 8:
 				printf("Usage: ptrs [options ...] <file> [script options ...]\n"
 					"Valid Options:\n"
 						"\t--help               Show this information\n"
 						"\t--stack-size <size>  Set stack size to 'size' bytes. Default: 0x%X\n"
 						"\t--array-max <size>   Set maximal allowed array size to 'size' bytes. Default: 0x%X\n"
 						"\t--asm-size <size>    Set size of memory region containing inline assembly. Default: 0x1000\n"
+						"\t--error <file>       Set where error messages are written to. Default: /dev/stderr\n"
 						"\t--no-sig             Do not listen to signals.\n"
 						"\t--zero-mem           Zero memory of arrays when created on the stack\n"
 					"Source code can be found at https://github.com/M4GNV5/PointerScript\n", PTRS_STACK_SIZE, PTRS_STACK_SIZE);
@@ -75,6 +85,7 @@ static int parseOptions(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
+	ptrs_errorfile = stderr;
 	int i = parseOptions(argc, argv);
 
 	if(i == argc)
