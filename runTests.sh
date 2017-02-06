@@ -27,6 +27,7 @@ runTest runtime/types
 runTest runtime/trycatch
 runTest runtime/strformat
 runTest runtime/struct
+runTest runtime/functions
 runTest runtime/alignment
 
 if [ $hadError -ne 0 ]; then
