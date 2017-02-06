@@ -83,7 +83,7 @@ struct code
 
 static ptrs_ast_t *parseStmtList(code_t *code, char end);
 static ptrs_ast_t *parseStatement(code_t *code);
-static ptrs_ast_t *parseExpression(code_t *code);
+static ptrs_ast_t *parseExpression(code_t *code, bool required);
 static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec);
 static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlgo);
 static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignoreCalls, bool ignoreAlgo);
@@ -425,7 +425,7 @@ static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_
 			{
 				if(curr.scope != (unsigned)-1 && lookahead(code, "="))
 				{
-					list->value = parseExpression(code);
+					list->value = parseExpression(code, true);
 					hasArgv = true;
 				}
 				else
@@ -520,7 +520,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	{
 		char *name = readIdentifier(code);
 		consumec(code, '=');
-		ptrs_ast_t *ast = parseExpression(code);
+		ptrs_ast_t *ast = parseExpression(code, true);
 		if(ast->handler != ptrs_handle_constant)
 			unexpectedm(code, NULL, "Initializer for 'const' variable is not a constant");
 
@@ -547,7 +547,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		if(lookahead(code, "["))
 		{
 			stmt->handler = ptrs_handle_vararray;
-			stmt->arg.define.value = parseExpression(code);
+			stmt->arg.define.value = parseExpression(code, false);
 			stmt->arg.define.isInitExpr = false;
 			consumec(code, ']');
 
@@ -569,7 +569,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		else if(lookahead(code, "{"))
 		{
 			stmt->handler = ptrs_handle_array;
-			stmt->arg.define.value = parseExpression(code);
+			stmt->arg.define.value = parseExpression(code, false);
 			consumec(code, '}');
 
 			if(lookahead(code, "="))
@@ -582,7 +582,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 				}
 				else
 				{
-					stmt->arg.define.initExpr = parseExpression(code);
+					stmt->arg.define.initExpr = parseExpression(code, true);
 					stmt->arg.define.isInitExpr = true;
 				}
 			}
@@ -609,7 +609,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		}
 		else if(lookahead(code, "="))
 		{
-			stmt->arg.define.value = parseExpression(code);
+			stmt->arg.define.value = parseExpression(code, true);
 		}
 		else
 		{
@@ -626,11 +626,8 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		struct symbollist *entry = addSpecialSymbol(code, readIdentifier(code), PTRS_SYMBOL_LAZY);
 		consumec(code, '=');
 		entry->arg.lazy.offset = stmt->arg.varval.offset;
-		entry->arg.lazy.value = parseExpression(code);
+		entry->arg.lazy.value = parseExpression(code, true);
 		consumec(code, ';');
-
-		if(entry->arg.lazy.value == NULL)
-			unexpected(code, "Expression");
 	}
 	else if(lookahead(code, "import"))
 	{
@@ -639,7 +636,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	else if(lookahead(code, "return"))
 	{
 		stmt->handler = ptrs_handle_return;
-		stmt->arg.astval = parseExpression(code);
+		stmt->arg.astval = parseExpression(code, false);
 		consumec(code, ';');
 	}
 	else if(lookahead(code, "break"))
@@ -655,13 +652,13 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	else if(lookahead(code, "delete"))
 	{
 		stmt->handler = ptrs_handle_delete;
-		stmt->arg.astval = parseExpression(code);
+		stmt->arg.astval = parseExpression(code, true);
 		consumec(code, ';');
 	}
 	else if(lookahead(code, "throw"))
 	{
 		stmt->handler = ptrs_handle_throw;
-		stmt->arg.astval = parseExpression(code);
+		stmt->arg.astval = parseExpression(code, true);
 		consumec(code, ';');
 	}
 	else if(lookahead(code, "scoped"))
@@ -763,7 +760,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		stmt->handler = ptrs_handle_with;
 
 		consumec(code, '(');
-		stmt->arg.with.base = parseExpression(code);
+		stmt->arg.with.base = parseExpression(code, true);
 		consumec(code, ')');
 
 		stmt->arg.with.symbol = addSymbol(code, strdup(".with"));
@@ -779,7 +776,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		stmt->handler = ptrs_handle_if;
 
 		consumec(code, '(');
-		stmt->arg.ifelse.condition = parseExpression(code);
+		stmt->arg.ifelse.condition = parseExpression(code, true);
 		consumec(code, ')');
 		stmt->arg.ifelse.ifBody = parseBody(code, NULL, true, false);
 
@@ -797,7 +794,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		stmt->handler = ptrs_handle_while;
 
 		consumec(code, '(');
-		stmt->arg.control.condition = parseExpression(code);
+		stmt->arg.control.condition = parseExpression(code, true);
 		consumec(code, ')');
 		stmt->arg.control.body = parseBody(code, NULL, true, false);
 	}
@@ -809,7 +806,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		consume(code, "while");
 
 		consumec(code, '(');
-		stmt->arg.control.condition = parseExpression(code);
+		stmt->arg.control.condition = parseExpression(code, true);
 		consumec(code, ')');
 		consumec(code, ';');
 		symbolScope_decrease(code);
@@ -821,7 +818,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		stmt->arg.forin.varcount = parseIdentifierList(code, "in", &stmt->arg.forin.varsymbols, NULL);
 
 		consume(code, "in");
-		stmt->arg.forin.value = parseExpression(code);
+		stmt->arg.forin.value = parseExpression(code, true);
 		stmt->handler = ptrs_handle_forin;
 		consumec(code, ')');
 
@@ -835,9 +832,9 @@ static ptrs_ast_t *parseStatement(code_t *code)
 
 		consumec(code, '(');
 		stmt->arg.forstatement.init = parseStatement(code);
-		stmt->arg.forstatement.condition = parseExpression(code);
+		stmt->arg.forstatement.condition = parseExpression(code, false);
 		consumec(code, ';');
-		stmt->arg.forstatement.step = parseExpression(code);
+		stmt->arg.forstatement.step = parseExpression(code, false);
 		consumec(code, ')');
 
 		stmt->arg.forstatement.body = parseScopelessBody(code, true);
@@ -846,7 +843,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	else
 	{
 		stmt->handler = ptrs_handle_exprstatement;
-		stmt->arg.astval = parseExpression(code);
+		stmt->arg.astval = parseExpression(code, false);
 		consumec(code, ';');
 	}
 	return stmt;
@@ -929,9 +926,14 @@ struct opinfo suffixedOps[] = {
 };
 static int suffixedOpCount = sizeof(suffixedOps) / sizeof(struct opinfo);
 
-static ptrs_ast_t *parseExpression(code_t *code)
+static ptrs_ast_t *parseExpression(code_t *code, bool required)
 {
-	return parseBinaryExpr(code, parseUnaryExpr(code, false, false), 0);
+	ptrs_ast_t *ast = parseBinaryExpr(code, parseUnaryExpr(code, false, false), 0);
+
+	if(required && ast == NULL)
+		unexpected(code, "Expression");
+
+	return ast;
 }
 
 static struct opinfo *peekBinaryOp(code_t *code)
@@ -995,7 +997,7 @@ static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 			ast->arg.ternary.condition = left;
 			ast->arg.ternary.trueVal = right;
 			consumec(code, ':');
-			ast->arg.ternary.falseVal = parseExpression(code);
+			ast->arg.ternary.falseVal = parseExpression(code, true);
 			left = ast;
 			continue;
 		}
@@ -1230,7 +1232,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			if(code->yieldIsAlgo)
 			{
 				ast->handler = ptrs_handle_yield_algorithm;
-				ast->arg.yield.value = parseExpression(code);
+				ast->arg.yield.value = parseExpression(code, true);
 			}
 			else
 			{
@@ -1436,7 +1438,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 				{
 					ptrs_ast_t *retStmt = talloc(ptrs_ast_t);
 					retStmt->handler = ptrs_handle_return;
-					retStmt->arg.astval = parseExpression(code);
+					retStmt->arg.astval = parseExpression(code, true);
 					func->body = retStmt;
 				}
 
@@ -1451,7 +1453,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 
 		if(ast == NULL)
 		{
-			ast = parseExpression(code);
+			ast = parseExpression(code, true);
 			consumec(code, ')');
 		}
 	}
@@ -1557,19 +1559,14 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 
 		consumec(code, '[');
 
-		ptrs_ast_t *expr = parseExpression(code);
-		if(expr == NULL)
-			unexpected(code, "Index");
+		ptrs_ast_t *expr = parseExpression(code, true);
 
 		if(lookahead(code, ".."))
 		{
 			indexExpr->handler = ptrs_handle_slice;
 			indexExpr->arg.slice.base = ast;
 			indexExpr->arg.slice.start = expr;
-			indexExpr->arg.slice.end = parseExpression(code);
-
-			if(indexExpr->arg.slice.end == NULL)
-				unexpected(code, "Index");
+			indexExpr->arg.slice.end = parseExpression(code, true);
 		}
 		else
 		{
@@ -1669,7 +1666,7 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end)
 		else if(lookahead(code, "..."))
 		{
 			curr->expand = true;
-			curr->entry = parseExpression(code);
+			curr->entry = parseExpression(code, true);
 			if(curr->entry->handler != ptrs_handle_identifier)
 				unexpectedm(code, NULL, "Array spreading can only be used on identifiers");
 
@@ -1679,7 +1676,7 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end)
 		else if(lookahead(code, "lazy"))
 		{
 			curr->lazy = true;
-			curr->entry = parseExpression(code);
+			curr->entry = parseExpression(code, true);
 
 			if(curr->entry == NULL)
 				unexpected(code, "Expression");
@@ -1696,14 +1693,14 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end)
 			ast->code = code->src;
 			ast->codepos = code->pos;
 
-			ast->arg.astval = parseExpression(code);
+			ast->arg.astval = parseExpression(code, true);
 
 			if(ast->arg.astval == NULL)
 				unexpected(code, "Expression");
 		}
 		else
 		{
-			curr->entry = parseExpression(code);
+			curr->entry = parseExpression(code, true);
 
 			if(curr->entry == NULL)
 				unexpected(code, "Expression");
@@ -1814,7 +1811,7 @@ static void parseImport(code_t *code, ptrs_ast_t *stmt)
 		}
 		else if(lookahead(code, "from"))
 		{
-			stmt->arg.import.from = parseExpression(code);
+			stmt->arg.import.from = parseExpression(code, true);
 			consumec(code, ';');
 			break;
 		}
@@ -1828,7 +1825,7 @@ static void parseImport(code_t *code, ptrs_ast_t *stmt)
 static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 {
 	consumec(code, '(');
-	stmt->arg.switchcase.condition = parseExpression(code);
+	stmt->arg.switchcase.condition = parseExpression(code, true);
 	consumec(code, ')');
 	consumec(code, '{');
 
@@ -1896,7 +1893,7 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 				struct ptrs_ast_case *currCase = cases;
 				for(;;)
 				{
-					ptrs_ast_t *expr = parseExpression(code);
+					ptrs_ast_t *expr = parseExpression(code, true);
 					if(expr->handler != ptrs_handle_constant || expr->arg.constval.type != PTRS_TYPE_INT)
 						unexpected(code, "integer constant");
 
@@ -2100,7 +2097,7 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 		if(lookahead(code, "["))
 		{
 			ast->handler = ptrs_handle_vararray;
-			ast->arg.define.value = parseExpression(code);
+			ast->arg.define.value = parseExpression(code, false);
 			consumec(code, ']');
 
 			if(lookahead(code, "["))
@@ -2117,7 +2114,7 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 		else if(lookahead(code, "{"))
 		{
 			ast->handler = ptrs_handle_array;
-			ast->arg.define.value = parseExpression(code);
+			ast->arg.define.value = parseExpression(code, false);
 			consumec(code, '}');
 
 			if(lookahead(code, "{"))
@@ -2198,7 +2195,7 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 		curr->namelen = strlen(curr->name);
 
 		consumec(code, ':');
-		curr->value.startval = parseExpression(code);
+		curr->value.startval = parseExpression(code, true);
 
 		if(code->curr == '}')
 			break;
@@ -2649,7 +2646,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 		{
 			curr->type = PTRS_STRUCTMEMBER_VARARRAY;
 			consumec(code, '[');
-			ptrs_ast_t *ast = parseExpression(code);
+			ptrs_ast_t *ast = parseExpression(code, true);
 			consumec(code, ']');
 
 			if(lookahead(code, "="))
@@ -2677,7 +2674,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 		{
 			curr->type = PTRS_STRUCTMEMBER_ARRAY;
 			consumec(code, '{');
-			ptrs_ast_t *ast = parseExpression(code);
+			ptrs_ast_t *ast = parseExpression(code, true);
 			consumec(code, '}');
 
 			if(lookahead(code, "="))
@@ -2741,7 +2738,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			currSize += sizeof(ptrs_var_t);
 
 			if(lookahead(code, "="))
-				curr->value.startval = parseExpression(code);
+				curr->value.startval = parseExpression(code, true);
 			else
 				curr->value.startval = NULL;
 
@@ -2988,7 +2985,7 @@ static char *readString(code_t *code, int *length, struct ptrs_stringformat **in
 				if(code->curr == '{')
 				{
 					rawnext(code);
-					curr->entry = parseExpression(code);
+					curr->entry = parseExpression(code, true);
 
 					if(code->curr != '}')
 						unexpected(code, "}");
