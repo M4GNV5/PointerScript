@@ -341,7 +341,7 @@ void importNative(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
 		else
 			actualPath = (char *)from;
 
-		handle = dlopen(actualPath, RTLD_LAZY);
+		handle = dlopen(actualPath, RTLD_NOW);
 
 		if(actualPath != from)
 			free(actualPath);
