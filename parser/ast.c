@@ -2446,16 +2446,29 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				else if(lookahead(code, "cast"))
 				{
 					consumec(code, '<');
-					otherName = readIdentifier(code);
+
+					if(lookahead(code, "string"))
+					{
+						otherName = NULL;
+						nameFormat = "%1$s.op cast<string>this";
+						overload->op = ptrs_handle_tostring;
+
+						func->argc = 0;
+						func->args = NULL;
+					}
+					else
+					{
+						otherName = readIdentifier(code);
+						nameFormat = "%1$s.op cast<%3$s>this";
+						overload->op = ptrs_handle_cast_builtin;
+
+						func->argc = 1;
+						func->args = talloc(ptrs_symbol_t);
+						func->args[0] = addSymbol(code, otherName);
+					}
+
 					consumec(code, '>');
 					consume(code, "this");
-
-					nameFormat = "%1$s.op cast<%3$s>this";
-					overload->op = ptrs_handle_cast_builtin;
-
-					func->argc = 1;
-					func->args = talloc(ptrs_symbol_t);
-					func->args[0] = addSymbol(code, otherName);
 				}
 				else
 				{

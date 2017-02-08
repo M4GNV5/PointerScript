@@ -9,6 +9,7 @@
 
 #include "../parser/ast.h"
 #include "../parser/common.h"
+#include "interpreter.h"
 #include "include/error.h"
 #include "include/conversion.h"
 #include "include/scope.h"
@@ -37,6 +38,7 @@ ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 	int len = node->arg.strformat.insertionCount + 3;
 	struct ptrs_stringformat *curr = node->arg.strformat.insertions;
 	ptrs_var_t args[len];
+	ptrs_var_t overload;
 
 	for(int i = 3; i < len; i++)
 	{
@@ -64,6 +66,15 @@ ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 
 				args[i].value.nativeval = dup;
 			}
+		}
+		else if(val->type == PTRS_TYPE_STRUCT &&
+			(overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_tostring, true)) != NULL)
+		{
+			overload.type = PTRS_TYPE_FUNCTION;
+			val = ptrs_callfunc(node, args + i, scope, val->value.structval, &overload, 0, NULL);
+
+			if(val != args + i)
+				memcpy(args + i, val, sizeof(ptrs_var_t));
 		}
 		else
 		{
@@ -822,12 +833,19 @@ ptrs_var_t *ptrs_handle_tostring(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 {
 	struct ptrs_ast_cast expr = node->arg.cast;
 	ptrs_var_t *val = expr.value->handler(expr.value, result, scope);
+	ptrs_var_t overload;
 
 	int len;
 	if(val->type == PTRS_TYPE_NATIVE)
 		len = strnlen(val->value.strval, val->meta.array.size);
 
-	if(val->type != PTRS_TYPE_NATIVE || val->meta.array.size == 0 || len < val->meta.array.size)
+	if(val->type == PTRS_TYPE_STRUCT &&
+		(overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_tostring, true)) != NULL)
+	{
+		overload.type = PTRS_TYPE_FUNCTION;
+		return ptrs_callfunc(node, result, scope, val->value.structval, &overload, 0, NULL);
+	}
+	else if(val->type != PTRS_TYPE_NATIVE || val->meta.array.size == 0 || len < val->meta.array.size)
 	{
 		char *buff = ptrs_alloc(scope, 32);
 		result->value.strval = ptrs_vartoa(val, buff, 32);
