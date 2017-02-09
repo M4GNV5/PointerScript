@@ -73,7 +73,7 @@ static int parseOptions(int argc, char **argv)
 						"\t--asm-size <size>    Set size of memory region containing inline assembly. Default: 0x1000\n"
 						"\t--error <file>       Set where error messages are written to. Default: /dev/stderr\n"
 						"\t--no-sig             Do not listen to signals.\n"
-						"\t--zero-mem           Zero memory of arrays when created on the stack\n"
+						"\t--zero-mem           Zero memory allocated on the stack\n"
 					"Source code can be found at https://github.com/M4GNV5/PointerScript\n", PTRS_STACK_SIZE, PTRS_STACK_SIZE);
 				exit(EXIT_SUCCESS);
 			default:
