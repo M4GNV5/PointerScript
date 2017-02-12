@@ -12,6 +12,7 @@
 #include "include/error.h"
 
 static bool handleSignals = true;
+static bool interactive = false;
 extern size_t ptrs_arraymax;
 extern bool ptrs_zeroMemory;
 extern int ptrs_asmSize;
@@ -24,7 +25,8 @@ static struct option options[] = {
 	{"debug", no_argument, 0, 5},
 	{"asm-size", required_argument, 0, 6},
 	{"error", required_argument, 0, 7},
-	{"help", no_argument, 0, 8},
+	{"interactive", no_argument, 0, 8},
+	{"help", no_argument, 0, 9},
 	{0, 0, 0, 0}
 };
 
@@ -65,6 +67,9 @@ static int parseOptions(int argc, char **argv)
 				}
 				break;
 			case 8:
+				interactive = true;
+				break;
+			case 9:
 				printf("Usage: ptrs [options ...] <file> [script options ...]\n"
 					"Valid Options:\n"
 						"\t--help               Show this information\n"
@@ -74,6 +79,7 @@ static int parseOptions(int argc, char **argv)
 						"\t--error <file>       Set where error messages are written to. Default: /dev/stderr\n"
 						"\t--no-sig             Do not listen to signals.\n"
 						"\t--zero-mem           Zero memory allocated on the stack\n"
+						"\t--interactive        Enter interactive PointerScript shell\n"
 					"Source code can be found at https://github.com/M4GNV5/PointerScript\n", PTRS_STACK_SIZE, PTRS_STACK_SIZE);
 				exit(EXIT_SUCCESS);
 			default:
@@ -88,13 +94,21 @@ int main(int argc, char **argv)
 	ptrs_errorfile = stderr;
 	int i = parseOptions(argc, argv);
 
-	if(i == argc)
+	char *file;
+	if(!interactive && i == argc)
 	{
 		fprintf(stderr, "No input file specified\n");
 		return EXIT_FAILURE;
 	}
+	else if(interactive)
+	{
+		file = "interactive";
+	}
+	else
+	{
+		file = argv[i++];
+	}
 
-	char *file = argv[i++];
 
 	if(handleSignals)
 		ptrs_handle_signals();
@@ -122,7 +136,46 @@ int main(int argc, char **argv)
 
 	if(ptrs_debugEnabled)
 		ptrs_debug_mainLoop(NULL, scope, true);
-	ptrs_dofile(file, &result, scope, NULL);
+
+	if(interactive)
+	{
+		ptrs_var_t result;
+		ptrs_error_t error;
+		ptrs_symboltable_t *symbols = NULL;
+		char *buff = malloc(4096);
+
+		if(ptrs_error_catch(scope, &error, true))
+		{
+			for(int i = 0; i <= error.column; i++)
+				fputc(' ', stdout);
+			fputc('^', stdout);
+
+			printf("\n%s\n%s", error.message, error.stack);
+			free(error.message);
+			free(error.stack);
+		}
+
+		while(true)
+		{
+			printf("> ");
+			fflush(stdout);
+			fgets(buff, 4096, stdin);
+
+			if(feof(stdin))
+				break;
+
+			*strchr(buff, '\n') = ';';
+			ptrs_lastscope = scope;
+			ptrs_eval(strdup(buff), file, &result, scope, &symbols);
+			ptrs_lastast = NULL;
+
+			printf("< %s\n", ptrs_vartoa(&result, buff, 4096));
+		}
+	}
+	else
+	{
+		ptrs_dofile(file, &result, scope, NULL);
+	}
 
 	return EXIT_SUCCESS;
 }

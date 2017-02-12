@@ -137,11 +137,21 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 	code.src = src;
 	code.curr = src[0];
 	code.pos = 0;
-	code.symbols = NULL;
 	code.withCount = 0;
 	code.insideIndex = false;
 	code.yieldIsAlgo = false;
 	code.yield.scope = (unsigned)-1;
+
+	if(symbols == NULL || *symbols == NULL)
+	{
+		code.symbols = NULL;
+		symbolScope_increase(&code, 1, false);
+		setSymbol(&code, strdup("arguments"), 0);
+	}
+	else
+	{
+		code.symbols = *symbols;
+	}
 
 	while(skipSpaces(&code) || skipComments(&code));
 
@@ -155,8 +165,6 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 		next(&code);
 	}
 
-	symbolScope_increase(&code, 1, false);
-	setSymbol(&code, strdup("arguments"), 0);
 
 	ptrs_ast_t *ast = talloc(ptrs_ast_t);
 	ast->handler = ptrs_handle_file;
@@ -982,7 +990,6 @@ static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 			node.codepos = pos;
 
 			ptrs_lastast = &node;
-			ptrs_lastscope = NULL;
 
 			node.handler(&node, &result, NULL);
 			free(right);
@@ -1071,7 +1078,6 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			if(ast->arg.astval->handler == ptrs_handle_constant)
 			{
 				ptrs_lastast = ast;
-				ptrs_lastscope = NULL;
 
 				ptrs_var_t result;
 				ast->handler(ast, &result, NULL);

@@ -242,9 +242,14 @@ ptrs_cache_t *importCachedScript(char *path, ptrs_ast_t *node, ptrs_scope_t *sco
 	}
 
 	ptrs_scope_t *_scope = calloc(1, sizeof(ptrs_scope_t));
-	ptrs_symboltable_t *symbols;
+	ptrs_symboltable_t *symbols = NULL;
 	ptrs_var_t valuev;
+
+	ptrs_lastast = NULL;
+	ptrs_lastscope = NULL;
 	ptrs_ast_t *ast = ptrs_dofile(path, &valuev, _scope, &symbols);
+	ptrs_lastast = node;
+	ptrs_lastscope = scope;
 
 	cache = malloc(sizeof(ptrs_cache_t));
 	cache->path = path;
