@@ -1,5 +1,6 @@
 #Content
 - [Usage](#usage)
+	- [Commandline Arguments](#commandlinearguments)
 	- [Types](#types)
 	- [Constants](#constants)
 	- [Structs](#structs)
@@ -60,6 +61,21 @@
 	- [SuffixedExpression](#suffixedexpression)
 
 #Usage
+
+##Commandline Arguments
+The syntax is `ptrs [options ...] <file> [script options ...]`.
+Valid options are:
+
+| Option | Argument | Description | Default |
+|--------|----------|-------------|---------|
+| `--help` | - | Print usage and argument information | - |
+| `--stack-size` | `size` | Set stack size to 'size' bytes | 0x1000 |
+| `--array-max` | `size` | Set maximal allowed array size to 'size' bytes | `0x1000` |
+| `--asm-size` | `size` | Set size of memory region containing inline assembly | `0x1000` |
+| `--error` | `file` | Set where error messages are written to | `/dev/stderr` |
+| `--no-sig` | - | Do not listen to signals | `false` |
+| `--zero-mem` | - | Zero memory allocated on the stack | `false` |
+| `--interactive` | - | Enter interactive PointerScript shell | - |
 
 ##Types
 
