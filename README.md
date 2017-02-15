@@ -6,6 +6,8 @@ checks. Additionally finding errors is less painful as you get a full backtrace 
 runtime error occurs or you receive e.g. a segmentation fault. If you love low level
 programming [you can even write inline assembly](LanguageDoc.md#asmstatement) (on linux-x86_64 only)
 
+###You can try the language online on the [playground](https://pointerscript.org/play/)
+
 ##Installing
 Requirements are [libffi](https://github.com/libffi/libffi) and build tools.
 The following instructions are for debian based distros however apart from dependency
@@ -53,6 +55,19 @@ You can run tests for the interpreter by executing the `runTests.sh` script in t
 Most of PointerScript is similar to Javascript and/or C. For a full Documentation see [LanguageDoc.md](LanguageDoc.md)
 
 ##Example code
+The following is quite a bit of unknown code, we'll go through it down below, remember you can run and modify this code in your browser in the [playground](https://pointerscript.org/play/)
+```javascript
+import puts, qsort;
+
+var nums[4] = [1337, 666, 3112, 42];
+qsort(nums, sizeof nums, sizeof var, (a, b) -> *as<pointer>a - *as<pointer>b);
+
+foreach(i, val in nums)
+{
+	puts("nums[$i] = $val");
+}
+```
+
 You can import any C function like `printf`, `qsort` etc.
 ```javascript
 import printf, puts, qsort from "libc.so.6";
