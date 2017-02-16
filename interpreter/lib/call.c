@@ -110,7 +110,13 @@ ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t 
 }
 
 #ifndef _PTRS_NOCALLBACK
-void ptrs_callcallback(ffcb_return_t ret, ptrs_function_t *func, va_list ap)
+
+#ifndef FFI_CLOSURES
+#error "Your plattform is neither supported by libffcb nor by libffi closures"
+#endif
+
+//using libffcb
+void callClosure(ffcb_return_t ret, ptrs_function_t *func, va_list ap)
 {
 	ptrs_var_t argv[func->argc];
 
@@ -149,27 +155,73 @@ void ptrs_callcallback(ffcb_return_t ret, ptrs_function_t *func, va_list ap)
 			break;
 	}
 }
+void ptrs_createClosure(ptrs_function_t *func)
+{
+	func->nativeCb = ffcb_create(callClosure, func);
+}
+void ptrs_deleteClosure(ptrs_function_t *func)
+{
+	ffcb_delete(func->nativeCb);
+}
+
+#else
+
+//using libffi closures
+void callClosure(ffi_cif *cif, int64_t *ret, void **args, ptrs_function_t *func)
+{
+	ptrs_var_t argv[func->argc];
+
+	ptrs_var_t result;
+	ptrs_var_t funcvar;
+	funcvar.type = PTRS_TYPE_FUNCTION;
+	funcvar.value.funcval = func;
+
+	ptrs_scope_t scope;
+	memset(&scope, 0, sizeof(ptrs_scope_t));
+	scope.calleeName = "(native callback)";
+
+	for(int i = 0; i < func->argc; i++)
+	{
+		argv[i].type = PTRS_TYPE_INT;
+		argv[i].value.intval = *(int64_t *)args[i];
+	}
+
+	*ret = ptrs_vartoi(ptrs_callfunc(NULL, &result, &scope, NULL, &funcvar, func->argc, argv));
+
+	if(scope.stackstart != NULL)
+		free(scope.stackstart);
+}
+void ptrs_createClosure(ptrs_function_t *func)
+{
+	func->nativeCbWrite = ffi_closure_alloc(sizeof(ffi_closure), &func->nativeCb);
+	func->ffiCif = malloc(sizeof(ffi_cif) + sizeof(ffi_type *) * func->argc);
+	ffi_type **types = (void *)((uint8_t *)func->ffiCif + sizeof(ffi_cif));
+
+	for(int i = 0; i < func->argc; i++)
+		types[i] = &ffi_type_sint64;
+
+	ffi_prep_cif(func->ffiCif, FFI_DEFAULT_ABI, func->argc, &ffi_type_sint64, types);
+	ffi_prep_closure_loc(func->nativeCbWrite, func->ffiCif, (void *)callClosure, func, func->nativeCb);
+}
+void ptrs_deleteClosure(ptrs_function_t *func)
+{
+	ffi_closure_free(func->nativeCbWrite);
+	free(func->ffiCif);
+}
+
 #endif
 
 int64_t ptrs_callnative(ptrs_nativetype_info_t *retType, ptrs_var_t *result, void *func, int argc, ptrs_var_t *argv)
 {
 	ptrs_function_t *callback;
+	bool hasCallbackArgs = false;
 
 	ffi_cif cif;
 	ffi_type *types[argc];
 	void *values[argc];
 
-#ifndef _PTRS_NOCALLBACK
-	bool hasCallbackArgs = false;
-	void *callbackArgs[argc];
-#endif
-
 	for(int i = 0; i < argc; i++)
 	{
-#ifndef _PTRS_NOCALLBACK
-		callbackArgs[i] = NULL;
-#endif
-
 		switch(argv[i].type)
 		{
 			case PTRS_TYPE_FLOAT:
@@ -184,29 +236,18 @@ int64_t ptrs_callnative(ptrs_nativetype_info_t *retType, ptrs_var_t *result, voi
 				types[i] = &ffi_type_pointer;
 				values[i] = &argv[i].value.structval->data;
 				break;
-#ifndef _PTRS_NOCALLBACK
 			case PTRS_TYPE_FUNCTION:
 				callback = argv[i].value.funcval;
+				if(callback->nativeCb == NULL)
+				{
+					ptrs_createClosure(callback);
+					if(callback->scope->outer != NULL)
+						hasCallbackArgs = true;
+				}
+
 				types[i] = &ffi_type_pointer;
-
-				if(callback->nativeCb != NULL)
-				{
-					values[i] = &callback->nativeCb;
-				}
-				else if(callback->scope->outer == NULL)
-				{
-					callback->nativeCb = ffcb_create(&ptrs_callcallback, callback);
-					values[i] = &callback->nativeCb;
-				}
-				else
-				{
-					hasCallbackArgs = true;
-					callbackArgs[i] = ffcb_create(&ptrs_callcallback, callback);
-					values[i] = &callbackArgs[i];
-				}
-
+				values[i] = &callback->nativeCb;
 				break;
-#endif
 			default:
 				types[i] = &ffi_type_pointer;
 				values[i] = &argv[i].value.nativeval;
@@ -242,8 +283,8 @@ int64_t ptrs_callnative(ptrs_nativetype_info_t *retType, ptrs_var_t *result, voi
 	{
 		for(int i = 0; i < argc; i++)
 		{
-			if(callbackArgs[i] != NULL)
-				ffcb_delete(callbackArgs[i]);
+			if(argv[i].type == PTRS_TYPE_FUNCTION && argv[i].value.funcval->scope->outer != NULL)
+				ptrs_deleteClosure(argv[i].value.funcval);
 		}
 	}
 #endif

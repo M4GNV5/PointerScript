@@ -67,6 +67,10 @@ typedef struct function
 	struct ptrs_ast *body;
 	ptrs_scope_t *scope;
 	void *nativeCb;
+#ifdef _PTRS_NOCALLBACK
+	void *ffiCif;
+	void *nativeCbWrite;
+#endif
 } ptrs_function_t;
 
 enum ptrs_structmembertype

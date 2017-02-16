@@ -3,10 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef _PTRS_NOCALLBACK
-#include <ffcb.h>
-#endif
-
 #include "../parser/ast.h"
 #include "../parser/common.h"
 #include "interpreter.h"
@@ -800,18 +796,16 @@ ptrs_var_t *ptrs_handle_cast_builtin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 		case PTRS_TYPE_NATIVE:
 			switch(value->type)
 			{
-#ifndef _PTRS_NOCALLBACK
 				case PTRS_TYPE_FUNCTION:
 					;
 					ptrs_function_t *func = value->value.funcval;
 					if(func->nativeCb == NULL)
-						func->nativeCb = ffcb_create(&ptrs_callcallback, func);
+						ptrs_createClosure(func);
 
 					result->value.nativeval = func->nativeCb;
 					result->meta.array.size = 0;
 					result->meta.array.readOnly = true;
 					break;
-#endif
 				case PTRS_TYPE_STRUCT:
 					result->value.nativeval = value->value.structval->data;
 					result->meta.array.size = value->value.structval->size;

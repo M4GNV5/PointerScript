@@ -473,7 +473,7 @@ ptrs_var_t *ptrs_handle_delete(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 #ifndef _PTRS_NOCALLBACK
 		case PTRS_TYPE_FUNCTION:
 			if(val->value.funcval->nativeCb != NULL)
-				ffcb_delete(val->value.funcval->nativeCb);
+				ptrs_deleteClosure(val->value.funcval);
 			break;
 #endif
 
