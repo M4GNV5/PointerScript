@@ -7,7 +7,7 @@
 
 #include <ffi.h>
 
-#ifndef _PTRS_NOASM
+#ifndef _PTRS_PORTABLE
 #include <jitas.h>
 #include <sys/mman.h>
 #endif
@@ -717,7 +717,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "asm"))
 	{
-#ifndef _PTRS_NOASM
+#ifndef _PTRS_PORTABLE
 		stmt->handler = ptrs_handle_asm;
 		parseAsm(code, stmt);
 #else
@@ -1942,7 +1942,7 @@ void *ptrs_asmBuffStart = NULL;
 void *ptrs_asmBuff = NULL;
 size_t ptrs_asmSize = 4096;
 
-#ifndef _PTRS_NOASM
+#ifndef _PTRS_PORTABLE
 
 struct ptrs_asmStatement
 {

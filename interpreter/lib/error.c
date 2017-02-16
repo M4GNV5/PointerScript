@@ -17,7 +17,7 @@ __thread ptrs_ast_t *ptrs_lastast = NULL;
 __thread ptrs_scope_t *ptrs_lastscope = NULL;
 FILE *ptrs_errorfile = NULL;
 
-#ifndef _PTRS_NOASM
+#ifndef _PTRS_PORTABLE
 #include <jitas.h>
 
 struct ptrs_asmStatement
@@ -100,7 +100,7 @@ char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative, bool 
 
 		for(int i = skipNative; i < count; i++)
 		{
-#ifndef _PTRS_NOASM
+#ifndef _PTRS_PORTABLE
 			if(trace[i] >= ptrs_asmBuffStart && trace[i] < ptrs_asmBuffStart + ptrs_asmSize)
 			{
 				struct ptrs_asmStatement *curr = ptrs_asmStatements;

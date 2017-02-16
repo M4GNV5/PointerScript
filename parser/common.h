@@ -67,7 +67,7 @@ typedef struct function
 	struct ptrs_ast *body;
 	ptrs_scope_t *scope;
 	void *nativeCb;
-#ifdef _PTRS_NOCALLBACK
+#ifdef _PTRS_PORTABLE
 	void *ffiCif;
 	void *nativeCbWrite;
 #endif

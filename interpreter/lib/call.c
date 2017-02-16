@@ -4,7 +4,7 @@
 #include <string.h>
 #include <ffi.h>
 
-#ifndef _PTRS_NOCALLBACK
+#ifndef _PTRS_PORTABLE
 #include <ffcb.h>
 #endif
 
@@ -109,7 +109,7 @@ ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t 
 	return result;
 }
 
-#ifndef _PTRS_NOCALLBACK
+#ifndef _PTRS_PORTABLE
 
 #ifndef FFI_CLOSURES
 #error "Your plattform is neither supported by libffcb nor by libffi closures"
@@ -278,7 +278,7 @@ int64_t ptrs_callnative(ptrs_nativetype_info_t *retType, ptrs_var_t *result, voi
 		retVal = 0;
 	}
 
-#ifndef _PTRS_NOCALLBACK
+#ifndef _PTRS_PORTABLE
 	if(hasCallbackArgs)
 	{
 		for(int i = 0; i < argc; i++)

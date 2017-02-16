@@ -5,7 +5,7 @@
 #include <setjmp.h>
 #include <dlfcn.h>
 
-#ifndef _PTRS_NOASM
+#ifndef _PTRS_PORTABLE
 #include <jitas.h>
 #endif
 
@@ -470,7 +470,7 @@ ptrs_var_t *ptrs_handle_delete(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 			result->type = PTRS_TYPE_UNDEFINED;
 			break;
 
-#ifndef _PTRS_NOCALLBACK
+#ifndef _PTRS_PORTABLE
 		case PTRS_TYPE_FUNCTION:
 			if(val->value.funcval->nativeCb != NULL)
 				ptrs_deleteClosure(val->value.funcval);
@@ -613,7 +613,7 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 	return result;
 }
 
-#ifndef _PTRS_NOASM
+#ifndef _PTRS_PORTABLE
 struct ptrs_asmContext
 {
 	struct ptrs_ast_asm *stmt;
