@@ -89,12 +89,15 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignoreCalls, bool ignoreAlgo);
 static struct ptrs_astlist *parseExpressionList(code_t *code, char end);
 static ptrs_ast_t *parseNew(code_t *code, bool onStack);
-static void parseAsm(code_t *code, ptrs_ast_t *stmt);
 static void parseMap(code_t *code, ptrs_ast_t *expr);
 static void parseStruct(code_t *code, ptrs_struct_t *struc);
 static void parseImport(code_t *code, ptrs_ast_t *stmt);
 static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt);
 static void parseAlgorithmExpression(code_t *code, struct ptrs_algorithmlist *curr, bool canBeLast);
+
+#ifndef _PTRS_PORTABLE
+static void parseAsm(code_t *code, ptrs_ast_t *stmt);
+#endif
 
 static ptrs_vartype_t readTypeName(code_t *code);
 static ptrs_nativetype_info_t *readNativeType(code_t *code);

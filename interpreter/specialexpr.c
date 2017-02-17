@@ -829,7 +829,7 @@ ptrs_var_t *ptrs_handle_tostring(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 	ptrs_var_t *val = expr.value->handler(expr.value, result, scope);
 	ptrs_var_t overload;
 
-	int len;
+	int len = 0;
 	if(val->type == PTRS_TYPE_NATIVE)
 		len = strnlen(val->value.strval, val->meta.array.size);
 
