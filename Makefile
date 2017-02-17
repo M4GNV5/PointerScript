@@ -1,12 +1,9 @@
 CC = gcc
-FFI_DIR = /usr/include/x86_64-linux-gnu/
 FFCB_DIR = libffcb/src
 FFCB_BIN = libffcb/bin/libffcb.a
 JITAS_DIR = libjitas/src
 JITAS_BIN = libjitas/bin/libjitas.a
 INTERPRETER_INCLUDE = "../interpreter/interpreter.h"
-
-CFLAGS_COMMON = '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -D_GNU_SOURCE --std=c99 -I$(FFI_DIR) -I$(FFCB_DIR) -I$(JITAS_DIR)
 
 BIN = bin
 RUN = $(BIN)/ptrs
@@ -29,18 +26,39 @@ RUN_OBJECTS += $(BIN)/algorithm.o
 RUN_OBJECTS += $(BIN)/ops.o
 RUN_OBJECTS += $(BIN)/main.o
 
-all: CFLAGS = -Wall -O2 -g $(CFLAGS_COMMON)
+EXTERN_LIBS += -ldl
+EXTERN_LIBS += -lffi
+
+CFLAGS = '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -std=c99
+
+ifdef PORTABLE
+	ARCH = PORTABLE
+else
+	ARCH = $(shell uname -m)
+endif
+
+ifeq ($(ARCH),x86_64)
+	CFLAGS += -I$(FFCB_DIR) -I$(JITAS_DIR)
+	EXTERN_LIBS += $(FFCB_BIN)
+	EXTERN_LIBS += $(JITAS_BIN)
+else
+	CFLAGS += -D_PTRS_PORTABLE
+endif
+
+ifeq ($(shell uname -o),GNU/Linux)
+	CFLAGS += -D_GNU_SOURCE
+else
+	CFLAGS += -D_XOPEN_SOURCE=700
+endif
+
+all: CFLAGS += -Wall -O2 -g
 all: $(RUN)
 
-debug: CFLAGS = -Wall -g $(CFLAGS_COMMON)
+debug: CFLAGS += -Wall -g
 debug: $(RUN)
 
-release: CFLAGS = -O2 $(CFLAGS_COMMON)
+release: CFLAGS += -O2
 release: $(RUN)
-
-portable: CFLAGS = '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -D_PTRS_PORTABLE -D_XOPEN_SOURCE=700 -std=c99 -O2 -I$(FFI_DIR)
-portable: $(BIN) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS)
-	$(CC) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) -o $(BIN)/ptrs -rdynamic -ldl -lffi
 
 install: release
 	cp $(RUN) /usr/local/bin/
@@ -55,8 +73,8 @@ cleandeps:
 	$(MAKE) -C libffcb clean
 	$(MAKE) -C libjitas clean
 
-$(RUN): $(FFCB_BIN) $(JITAS_BIN) $(BIN) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS)
-	$(CC) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) $(FFCB_BIN) $(JITAS_BIN) -o $(BIN)/ptrs -rdynamic -ldl -lffi
+$(RUN): $(EXTERN_LIBS) $(BIN) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS)
+	$(CC) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) -o $(BIN)/ptrs -rdynamic $(EXTERN_LIBS)
 
 $(BIN):
 	mkdir $(BIN)
