@@ -43,6 +43,7 @@ ifeq ($(ARCH),x86_64)
 	EXTERN_LIBS += $(JITAS_BIN)
 else
 	CFLAGS += -D_PTRS_PORTABLE
+	$(info Building portable. Inline assembly and returning non-integers from native callbacks will not be available)
 endif
 
 ifeq ($(shell uname -o),GNU/Linux)
@@ -67,11 +68,9 @@ remove:
 	rm /usr/local/bin/ptrs
 
 clean:
-	if [ -d $(BIN) ]; then rm -r $(BIN); fi
-
-cleandeps:
 	$(MAKE) -C libffcb clean
 	$(MAKE) -C libjitas clean
+	if [ -d $(BIN) ]; then rm -r $(BIN); fi
 
 $(RUN): $(EXTERN_LIBS) $(BIN) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS)
 	$(CC) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) -o $(BIN)/ptrs -rdynamic $(EXTERN_LIBS)
