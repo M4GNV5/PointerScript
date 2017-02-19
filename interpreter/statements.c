@@ -46,14 +46,14 @@ ptrs_var_t *ptrs_handle_body(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 
 ptrs_var_t *ptrs_handle_define(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_define stmt = node->arg.define;
+	struct ptrs_ast_define *stmt = &node->arg.define;
 
-	if(stmt.value != NULL)
-		result = stmt.value->handler(stmt.value, result, scope);
+	if(stmt->value != NULL)
+		result = stmt->value->handler(stmt->value, result, scope);
 	else
 		result->type = PTRS_TYPE_UNDEFINED;
 
-	ptrs_scope_set(scope, stmt.symbol, result);
+	ptrs_scope_set(scope, stmt->symbol, result);
 
 	return result;
 }
@@ -68,12 +68,12 @@ ptrs_var_t *ptrs_handle_lazyinit(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 size_t ptrs_arraymax = PTRS_STACK_SIZE;
 ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_define stmt = node->arg.define;
+	struct ptrs_ast_define *stmt = &node->arg.define;
 
 	int size = -1;
-	if(stmt.value != NULL)
+	if(stmt->value != NULL)
 	{
-		ptrs_var_t *val = stmt.value->handler(stmt.value, result, scope);
+		ptrs_var_t *val = stmt->value->handler(stmt->value, result, scope);
 		size = ptrs_vartoi(val);
 
 		if(size <= 0 || size > ptrs_arraymax)
@@ -83,32 +83,32 @@ ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	ptrs_error_t error;
 	uint8_t *array = NULL;
 
-	if(!stmt.onStack && ptrs_error_catch(scope, &error, false))
+	if(!stmt->onStack && ptrs_error_catch(scope, &error, false))
 	{
 		if(array != NULL)
 			free(array);
 		ptrs_error_reThrow(scope, &error);
 	}
 
-	if(!stmt.isInitExpr)
+	if(!stmt->isInitExpr)
 	{
-		int len = ptrs_astlist_length(stmt.initVal, node, scope);
+		int len = ptrs_astlist_length(stmt->initVal, node, scope);
 
 		if(size < 0)
 			size = len;
 		else if(size < len)
 			ptrs_error(node, scope, "Array size (%d) is too small for initializer size (%d)", size, len);
 
-		if(stmt.onStack)
+		if(stmt->onStack)
 		 	array = ptrs_alloc(scope, size);
 		else
 			array = malloc(size);
 
-		ptrs_astlist_handleByte(stmt.initVal, size, array, scope);
+		ptrs_astlist_handleByte(stmt->initVal, size, array, scope);
 	}
-	else if(stmt.initExpr != NULL)
+	else if(stmt->initExpr != NULL)
 	{
-		ptrs_var_t *val = stmt.initExpr->handler(stmt.initExpr, result, scope);
+		ptrs_var_t *val = stmt->initExpr->handler(stmt->initExpr, result, scope);
 		char buff[32];
 		const char *initVal = ptrs_vartoa(val, buff, 32);
 		int len = strlen(initVal);
@@ -118,7 +118,7 @@ ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		else if(size < len)
 			ptrs_error(node, scope, "Array size (%d) is too small for initializer size (%d)", size, len);
 
-		if(stmt.onStack)
+		if(stmt->onStack)
 			array = ptrs_alloc(scope, size);
 		else
 			array = malloc(size);
@@ -131,13 +131,13 @@ ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		if(size <= 0 || size > ptrs_arraymax)
 			ptrs_error(node, scope, "Trying to create array of size %d", size);
 
-		if(stmt.onStack)
+		if(stmt->onStack)
 			array = ptrs_alloc(scope, size);
 		else
 			array = malloc(size);
 	}
 
-	if(!stmt.onStack)
+	if(!stmt->onStack)
 		ptrs_error_stopCatch(scope, &error);
 
 	result->type = PTRS_TYPE_NATIVE;
@@ -145,28 +145,28 @@ ptrs_var_t *ptrs_handle_array(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	result->meta.array.readOnly = false;
 	result->meta.array.size = size;
 
-	if(stmt.symbol.scope != (unsigned)-1)
-		ptrs_scope_set(scope, stmt.symbol, result);
+	if(stmt->symbol.scope != (unsigned)-1)
+		ptrs_scope_set(scope, stmt->symbol, result);
 	return result;
 }
 
 ptrs_var_t *ptrs_handle_vararray(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_define stmt = node->arg.define;
+	struct ptrs_ast_define *stmt = &node->arg.define;
 
 	int size = -1;
-	if(stmt.value != NULL)
+	if(stmt->value != NULL)
 	{
-		ptrs_var_t *val = stmt.value->handler(stmt.value, result, scope);
+		ptrs_var_t *val = stmt->value->handler(stmt->value, result, scope);
 		size = ptrs_vartoi(val) * sizeof(ptrs_var_t);
 
 		if(size <= 0 || size > ptrs_arraymax)
 			ptrs_error(node, scope, "Trying to create array of size %d", size);
 	}
 
-	if(stmt.initVal != NULL)
+	if(stmt->initVal != NULL)
 	{
-		int len = ptrs_astlist_length(stmt.initVal, node, scope);
+		int len = ptrs_astlist_length(stmt->initVal, node, scope);
 
 		if(size < 0)
 			size = len * sizeof(ptrs_var_t);
@@ -174,20 +174,20 @@ ptrs_var_t *ptrs_handle_vararray(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 			ptrs_error(node, scope, "Array size (%d) is too small for initializer size (%d)", size, len);
 
 		ptrs_var_t *array;
-		if(stmt.onStack)
+		if(stmt->onStack)
 		 	array = ptrs_alloc(scope, size);
 		else
 			array = malloc(size);
 
 		ptrs_error_t error;
-		if(!stmt.onStack && ptrs_error_catch(scope, &error, false))
+		if(!stmt->onStack && ptrs_error_catch(scope, &error, false))
 		{
 			if(array != NULL)
 				free(array);
 			ptrs_error_reThrow(scope, &error);
 		}
 
-		ptrs_astlist_handle(stmt.initVal, size / sizeof(ptrs_var_t), array, scope);
+		ptrs_astlist_handle(stmt->initVal, size / sizeof(ptrs_var_t), array, scope);
 		result->value.ptrval = array;
 	}
 	else
@@ -195,7 +195,7 @@ ptrs_var_t *ptrs_handle_vararray(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 		if(size <= 0 || size > ptrs_arraymax)
 			ptrs_error(node, scope, "Trying to create array of size %d", size);
 
-		if(stmt.onStack)
+		if(stmt->onStack)
 			result->value.ptrval = ptrs_alloc(scope, size);
 		else
 			result->value.ptrval = malloc(size);
@@ -204,18 +204,18 @@ ptrs_var_t *ptrs_handle_vararray(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 	result->type = PTRS_TYPE_POINTER;
 	result->meta.array.size = size / sizeof(ptrs_var_t);
 
-	if(stmt.symbol.scope != (unsigned)-1)
-		ptrs_scope_set(scope, stmt.symbol, result);
+	if(stmt->symbol.scope != (unsigned)-1)
+		ptrs_scope_set(scope, stmt->symbol, result);
 	return result;
 }
 
 ptrs_var_t *ptrs_handle_structvar(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_define stmt = node->arg.define;
-	result = ptrs_struct_construct(stmt.value->handler(stmt.value, result, scope),
-		stmt.initVal, true, node, result, scope);
+	struct ptrs_ast_define *stmt = &node->arg.define;
+	result = ptrs_struct_construct(stmt->value->handler(stmt->value, result, scope),
+		stmt->initVal, true, node, result, scope);
 
-	ptrs_scope_set(scope, stmt.symbol, result);
+	ptrs_scope_set(scope, stmt->symbol, result);
 	return result;
 }
 
@@ -498,7 +498,7 @@ ptrs_var_t *ptrs_handle_throw(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 
 ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_trycatch stmt = node->arg.trycatch;
+	struct ptrs_ast_trycatch *stmt = &node->arg.trycatch;
 	ptrs_var_t val;
 	ptrs_var_t *valp;
 	ptrs_error_t error;
@@ -507,9 +507,9 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 
 	result->type = PTRS_TYPE_UNDEFINED;
 
-	if(!ptrs_error_catch(scope, &error, stmt.catchBody != NULL || stmt.finallyBody == NULL))
+	if(!ptrs_error_catch(scope, &error, stmt->catchBody != NULL || stmt->finallyBody == NULL))
 	{
-		valp = stmt.tryBody->handler(stmt.tryBody, &val, scope);
+		valp = stmt->tryBody->handler(stmt->tryBody, &val, scope);
 		ptrs_error_stopCatch(scope, &error);
 
 		if(scope->exit == 3)
@@ -519,16 +519,16 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 			memcpy(result, valp, sizeof(ptrs_var_t));
 		}
 	}
-	else if(stmt.catchBody != NULL)
+	else if(stmt->catchBody != NULL)
 	{
 		char *msg;
 
 		ptrs_error_stopCatch(scope, &error);
-		ptrs_scope_t *catchScope = ptrs_scope_increase(scope, stmt.catchStackOffset);
+		ptrs_scope_t *catchScope = ptrs_scope_increase(scope, stmt->catchStackOffset);
 
 		val.type = PTRS_TYPE_NATIVE;
 		val.meta.array.readOnly = false;
-		if(stmt.argc > 0 && stmt.args[0].scope != (unsigned)-1)
+		if(stmt->argc > 0 && stmt->args[0].scope != (unsigned)-1)
 		{
 			val.meta.array.size = strlen(error.message) + 1;
 
@@ -536,9 +536,9 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 			strcpy(msg, error.message);
 			val.value.strval = msg;
 
-			ptrs_scope_set(catchScope, stmt.args[0], &val);
+			ptrs_scope_set(catchScope, stmt->args[0], &val);
 		}
-		if(stmt.argc > 1 && stmt.args[1].scope != (unsigned)-1)
+		if(stmt->argc > 1 && stmt->args[1].scope != (unsigned)-1)
 		{
 			val.meta.array.size = strlen(error.stack) + 1;
 
@@ -546,30 +546,30 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 			strcpy(msg, error.stack);
 			val.value.strval = msg;
 
-			ptrs_scope_set(catchScope, stmt.args[1], &val);
+			ptrs_scope_set(catchScope, stmt->args[1], &val);
 		}
-		if(stmt.argc > 2 && stmt.args[2].scope != (unsigned)-1)
+		if(stmt->argc > 2 && stmt->args[2].scope != (unsigned)-1)
 		{
 			val.value.strval = error.file;
-			ptrs_scope_set(catchScope, stmt.args[2], &val);
+			ptrs_scope_set(catchScope, stmt->args[2], &val);
 		}
 
 		free(error.message);
 		free(error.stack);
 
 		val.type = PTRS_TYPE_INT;
-		if(stmt.argc > 3 && stmt.args[3].scope != (unsigned)-1)
+		if(stmt->argc > 3 && stmt->args[3].scope != (unsigned)-1)
 		{
 			val.value.intval = error.line;
-			ptrs_scope_set(catchScope, stmt.args[3], &val);
+			ptrs_scope_set(catchScope, stmt->args[3], &val);
 		}
-		if(stmt.argc > 4 && stmt.args[4].scope != (unsigned)-1)
+		if(stmt->argc > 4 && stmt->args[4].scope != (unsigned)-1)
 		{
 			val.value.intval = error.column;
-			ptrs_scope_set(catchScope, stmt.args[4], &val);
+			ptrs_scope_set(catchScope, stmt->args[4], &val);
 		}
 
-		valp = stmt.catchBody->handler(stmt.catchBody, &val, catchScope);
+		valp = stmt->catchBody->handler(stmt->catchBody, &val, catchScope);
 
 		if(catchScope->exit == 3)
 		{
@@ -586,12 +586,12 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 		needsRethrow = true;
 	}
 
-	if(stmt.finallyBody != NULL)
+	if(stmt->finallyBody != NULL)
 	{
-		if(stmt.retVal.scope != (unsigned)-1)
-			ptrs_scope_set(scope, stmt.retVal, result);
+		if(stmt->retVal.scope != (unsigned)-1)
+			ptrs_scope_set(scope, stmt->retVal, result);
 
-		valp = stmt.finallyBody->handler(stmt.finallyBody, &val, scope);
+		valp = stmt->finallyBody->handler(stmt->finallyBody, &val, scope);
 
 		if(scope->exit == 3)
 		{
@@ -654,25 +654,25 @@ static void *ptrs_asmSymbolResolver(const char *symbol, struct ptrs_asmContext *
 }
 ptrs_var_t *ptrs_handle_asm(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_asm stmt = node->arg.asmstmt;
-	ptrs_var_t importValues[stmt.importCount];
+	struct ptrs_ast_asm *stmt = &node->arg.asmstmt;
+	ptrs_var_t importValues[stmt->importCount];
 
 	{
 		struct ptrs_asmContext ctx = {
-			.stmt = &stmt,
+			.stmt = stmt,
 			.importValues = importValues,
 			.node = node,
 			.scope = scope
 		};
 
-		stmt.context->resolver = (void *)ptrs_asmSymbolResolver;
-		jitas_link(stmt.context, &ctx);
+		stmt->context->resolver = (void *)ptrs_asmSymbolResolver;
+		jitas_link(stmt->context, &ctx);
 
 		int line;
-		char *error = jitas_error(stmt.context, &line);
+		char *error = jitas_error(stmt->context, &line);
 		if(error != NULL)
 		{
-			while(jitas_error(stmt.context, NULL) != NULL); //skip all other errors
+			while(jitas_error(stmt->context, NULL) != NULL); //skip all other errors
 
 			ptrs_ast_t errorstmt;
 			memcpy(&errorstmt, node, sizeof(ptrs_ast_t));
@@ -681,19 +681,19 @@ ptrs_var_t *ptrs_handle_asm(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 		}
 	}
 
-	for(int i = 0; i < stmt.exportCount; i++)
+	for(int i = 0; i < stmt->exportCount; i++)
 	{
-		ptrs_var_t *val = ptrs_scope_get(scope, stmt.exportSymbols[i]);
+		ptrs_var_t *val = ptrs_scope_get(scope, stmt->exportSymbols[i]);
 		val->type = PTRS_TYPE_NATIVE;
-		val->value.nativeval = stmt.exports[i];
+		val->value.nativeval = stmt->exports[i];
 		val->meta.array.size = 0;
 		val->meta.array.readOnly = true;
 	}
 
-	if(stmt.exportCount == 0)
+	if(stmt->exportCount == 0)
 	{
 		result->type = PTRS_TYPE_INT;
-		result->value.intval = stmt.asmFunc();
+		result->value.intval = stmt->asmFunc();
 	}
 	else
 	{
@@ -784,9 +784,9 @@ ptrs_var_t *ptrs_handle_struct(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 
 ptrs_var_t *ptrs_handle_with(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_with stmt = node->arg.with;
+	struct ptrs_ast_with *stmt = &node->arg.with;
 
-	ptrs_var_t *base = stmt.base->handler(stmt.base, result, scope);
+	ptrs_var_t *base = stmt->base->handler(stmt->base, result, scope);
 
 	if(base->type != PTRS_TYPE_STRUCT)
 		ptrs_error(node, scope, "Value of with statement must be of type struct not '%s'", ptrs_typetoa(base->type));
@@ -797,36 +797,36 @@ ptrs_var_t *ptrs_handle_with(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 		struct ptrs_structlist **member;
 	};
 
-	struct withVal *withVal = (struct withVal *)ptrs_scope_get(scope, stmt.symbol);
-	struct ptrs_structlist *member[stmt.count];
-	memset(member, 0, sizeof(struct ptrs_structlist *) * stmt.count);
+	struct withVal *withVal = (struct withVal *)ptrs_scope_get(scope, stmt->symbol);
+	struct ptrs_structlist *member[stmt->count];
+	memset(member, 0, sizeof(struct ptrs_structlist *) * stmt->count);
 
 	withVal->this = base->value.structval;
 	withVal->member = member;
 
-	return stmt.body->handler(stmt.body, result, scope);
+	return stmt->body->handler(stmt->body, result, scope);
 }
 
 ptrs_var_t *ptrs_handle_if(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_ifelse stmt = node->arg.ifelse;
+	struct ptrs_ast_ifelse *stmt = &node->arg.ifelse;
 
-	ptrs_var_t *condition = stmt.condition->handler(stmt.condition, result, scope);
+	ptrs_var_t *condition = stmt->condition->handler(stmt->condition, result, scope);
 
 	if(ptrs_vartob(condition))
-		result = stmt.ifBody->handler(stmt.ifBody, result, scope);
-	else if(stmt.elseBody != NULL)
-		result = stmt.elseBody->handler(stmt.elseBody, result, scope);
+		result = stmt->ifBody->handler(stmt->ifBody, result, scope);
+	else if(stmt->elseBody != NULL)
+		result = stmt->elseBody->handler(stmt->elseBody, result, scope);
 
 	return result;
 }
 
 ptrs_var_t *ptrs_handle_switch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_switch stmt = node->arg.switchcase;
-	int64_t val = ptrs_vartoi(stmt.condition->handler(stmt.condition, result, scope));
+	struct ptrs_ast_switch *stmt = &node->arg.switchcase;
+	int64_t val = ptrs_vartoi(stmt->condition->handler(stmt->condition, result, scope));
 
-	struct ptrs_ast_case *curr = stmt.cases;
+	struct ptrs_ast_case *curr = stmt->cases;
 	while(curr != NULL)
 	{
 		if(curr->value == val)
@@ -835,8 +835,8 @@ ptrs_var_t *ptrs_handle_switch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 		curr = curr->next;
 	}
 
-	if(stmt.defaultCase != NULL)
-		return stmt.defaultCase->handler(stmt.defaultCase, result, scope);
+	if(stmt->defaultCase != NULL)
+		return stmt->defaultCase->handler(stmt->defaultCase, result, scope);
 
 	result->type = PTRS_TYPE_UNDEFINED;
 	return result;
@@ -848,16 +848,16 @@ ptrs_var_t *ptrs_handle_while(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	ptrs_var_t *condition;
 	ptrs_var_t *_result = result;
 
-	struct ptrs_ast_control stmt = node->arg.control;
+	struct ptrs_ast_control *stmt = &node->arg.control;
 
 	for(;;)
 	{
-		condition = stmt.condition->handler(stmt.condition, &conditionv, scope);
+		condition = stmt->condition->handler(stmt->condition, &conditionv, scope);
 		if(!ptrs_vartob(condition))
 			break;
 
 		result = _result;
-		result = stmt.body->handler(stmt.body, result, scope);
+		result = stmt->body->handler(stmt->body, result, scope);
 
 		if(scope->exit > 1)
 		{
@@ -876,12 +876,12 @@ ptrs_var_t *ptrs_handle_dowhile(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope
 	ptrs_var_t *condition;
 	ptrs_var_t *_result = result;
 
-	struct ptrs_ast_control stmt = node->arg.control;
+	struct ptrs_ast_control *stmt = &node->arg.control;
 
 	do
 	{
 		result = _result;
-		result = stmt.body->handler(stmt.body, result, scope);
+		result = stmt->body->handler(stmt->body, result, scope);
 
 		if(scope->exit > 1)
 		{
@@ -890,7 +890,7 @@ ptrs_var_t *ptrs_handle_dowhile(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope
 			return result;
 		}
 
-		condition = stmt.condition->handler(stmt.condition, &conditionv, scope);
+		condition = stmt->condition->handler(stmt->condition, &conditionv, scope);
 	} while(ptrs_vartob(condition));
 
 	return result;
@@ -901,16 +901,16 @@ ptrs_var_t *ptrs_handle_for(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 	ptrs_var_t conditionv;
 	ptrs_var_t *condition;
 
-	struct ptrs_ast_for stmt = node->arg.forstatement;
-	stmt.init->handler(stmt.init, result, scope);
+	struct ptrs_ast_for *stmt = &node->arg.forstatement;
+	stmt->init->handler(stmt->init, result, scope);
 
 	for(;;)
 	{
-		condition = stmt.condition->handler(stmt.condition, &conditionv, scope);
+		condition = stmt->condition->handler(stmt->condition, &conditionv, scope);
 		if(!ptrs_vartob(condition))
 			break;
 
-		stmt.body->handler(stmt.body, result, scope);
+		stmt->body->handler(stmt->body, result, scope);
 
 		if(scope->exit > 1)
 		{
@@ -919,7 +919,7 @@ ptrs_var_t *ptrs_handle_for(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 			return result;
 		}
 
-		stmt.step->handler(stmt.step, result, scope);
+		stmt->step->handler(stmt->step, result, scope);
 	}
 
 	return result;
@@ -928,9 +928,9 @@ ptrs_var_t *ptrs_handle_for(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *
 ptrs_var_t __thread ptrs_forinOverloadResult;
 ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_forin stmt = node->arg.forin;
+	struct ptrs_ast_forin *stmt = &node->arg.forin;
 	ptrs_var_t valuev;
-	ptrs_var_t *val = stmt.value->handler(stmt.value, &valuev, ptrs_scope_increase(scope, 0));
+	ptrs_var_t *val = stmt->value->handler(stmt->value, &valuev, ptrs_scope_increase(scope, 0));
 
 	ptrs_var_t overload;
 	if(val->type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_forin, true)) != NULL)
@@ -952,11 +952,11 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	}
 	else if(val->type == PTRS_TYPE_POINTER || val->type == PTRS_TYPE_NATIVE)
 	{
-		ptrs_scope_t *stmtScope = ptrs_scope_increase(scope, stmt.stackOffset);
-		ptrs_var_t *indexvar = ptrs_scope_get(stmtScope, stmt.varsymbols[0]);
+		ptrs_scope_t *stmtScope = ptrs_scope_increase(scope, stmt->stackOffset);
+		ptrs_var_t *indexvar = ptrs_scope_get(stmtScope, stmt->varsymbols[0]);
 		ptrs_var_t *valvar = NULL;
-		if(stmt.varcount > 1)
-			valvar = ptrs_scope_get(stmtScope, stmt.varsymbols[1]);
+		if(stmt->varcount > 1)
+			valvar = ptrs_scope_get(stmtScope, stmt->varsymbols[1]);
 
 		int len = val->meta.array.size;
 		if(len == 0 && val->type == PTRS_TYPE_NATIVE)
@@ -977,7 +977,7 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 				memcpy(valvar, val->value.ptrval + i, sizeof(ptrs_var_t));
 			}
 
-			stmt.body->handler(stmt.body, result, stmtScope);
+			stmt->body->handler(stmt->body, result, stmtScope);
 
 			if(stmtScope->exit == 3)
 				scope->exit = 3;
@@ -988,11 +988,11 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	}
 	else if(val->type == PTRS_TYPE_STRUCT)
 	{
-		ptrs_scope_t *stmtScope = ptrs_scope_increase(scope, stmt.stackOffset);
-		ptrs_var_t *keyvar = ptrs_scope_get(stmtScope, stmt.varsymbols[0]);
+		ptrs_scope_t *stmtScope = ptrs_scope_increase(scope, stmt->stackOffset);
+		ptrs_var_t *keyvar = ptrs_scope_get(stmtScope, stmt->varsymbols[0]);
 		ptrs_var_t *valvar;
-		if(stmt.varcount > 1)
-			valvar = ptrs_scope_get(stmtScope, stmt.varsymbols[1]);
+		if(stmt->varcount > 1)
+			valvar = ptrs_scope_get(stmtScope, stmt->varsymbols[1]);
 		else
 			valvar = NULL;
 
@@ -1023,7 +1023,7 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 					memcpy(valvar, _valvar, sizeof(ptrs_var_t));
 			}
 
-			stmt.body->handler(stmt.body, result, stmtScope);
+			stmt->body->handler(stmt->body, result, stmtScope);
 
 			if(stmtScope->exit == 3)
 				scope->exit = 3;
@@ -1037,7 +1037,7 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	}
 	else
 	{
-		ptrs_error(stmt.value, scope, "Cannot iterate over variable of type %s", ptrs_typetoa(val->type));
+		ptrs_error(stmt->value, scope, "Cannot iterate over variable of type %s", ptrs_typetoa(val->type));
 		return result; //doh
 	}
 }
@@ -1052,8 +1052,8 @@ ptrs_var_t *ptrs_handle_file(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 
 ptrs_var_t *ptrs_handle_scopestatement(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_scopestmt stmt = node->arg.scopestatement;
-	return stmt.body->handler(stmt.body, result, ptrs_scope_increase(scope, stmt.stackOffset));
+	struct ptrs_ast_scopestmt *stmt = &node->arg.scopestatement;
+	return stmt->body->handler(stmt->body, result, ptrs_scope_increase(scope, stmt->stackOffset));
 }
 
 ptrs_var_t *ptrs_handle_exprstatement(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)

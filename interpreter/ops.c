@@ -130,11 +130,11 @@ static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *
 	{ \
 		ptrs_var_t leftv; \
 		ptrs_var_t rightv; \
-		struct ptrs_ast_binary expr = node->arg.binary; \
+		struct ptrs_ast_binary *expr = &node->arg.binary; \
 		ptrs_function_t *overload; \
 		\
-		ptrs_var_t *left = expr.left->handler(expr.left, &leftv, scope); \
-		ptrs_var_t *right = expr.right->handler(expr.right, &rightv, scope); \
+		ptrs_var_t *left = expr->left->handler(expr->left, &leftv, scope); \
+		ptrs_var_t *right = expr->right->handler(expr->right, &rightv, scope); \
 		ptrs_vartype_t tleft = left->type; \
 		ptrs_vartype_t tright = right->type; \
 		\
@@ -160,7 +160,7 @@ static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *
 		} \
 		\
 		if(isAssign && left == &leftv) \
-			expr.left->setHandler(expr.left, result, scope); \
+			expr->left->setHandler(expr->left, result, scope); \
 		\
 		return result; \
 	} \
