@@ -26,7 +26,6 @@ typedef enum
 	PTRS_SYMBOL_DEFAULT,
 	PTRS_SYMBOL_CONST,
 	PTRS_SYMBOL_LAZY,
-	PTRS_SYMBOL_REF,
 	PTRS_SYMBOL_THISMEMBER,
 	PTRS_SYMBOL_WILDCARD,
 } ptrs_symboltype_t;
@@ -77,7 +76,6 @@ struct code
 	ptrs_symboltable_t *symbols;
 	int withCount;
 	bool insideIndex;
-	bool yieldIsAlgo;
 	ptrs_symbol_t yield;
 };
 
@@ -93,7 +91,6 @@ static void parseMap(code_t *code, ptrs_ast_t *expr);
 static void parseStruct(code_t *code, ptrs_struct_t *struc);
 static void parseImport(code_t *code, ptrs_ast_t *stmt);
 static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt);
-static void parseAlgorithmExpression(code_t *code, struct ptrs_algorithmlist *curr, bool canBeLast);
 
 #ifndef _PTRS_PORTABLE
 static void parseAsm(code_t *code, ptrs_ast_t *stmt);
@@ -142,7 +139,6 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 	code.pos = 0;
 	code.withCount = 0;
 	code.insideIndex = false;
-	code.yieldIsAlgo = false;
 	code.yield.scope = (unsigned)-1;
 
 	if(symbols == NULL || *symbols == NULL)
@@ -229,24 +225,6 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 						ast->arg.lazy.symbol.scope = level;
 						ast->arg.lazy.symbol.offset = curr->arg.lazy.offset;
 						ast->arg.lazy.value = curr->arg.lazy.value;
-						break;
-
-					case PTRS_SYMBOL_REF:
-						*node = ast = talloc(ptrs_ast_t);
-						ast->handler = ptrs_handle_prefix_dereference;
-						ast->setHandler = ptrs_handle_assign_dereference;
-						ast->addressHandler = NULL;
-						ast->callHandler = NULL;
-
-						ast->arg.astval = talloc(ptrs_ast_t);
-						ast = ast->arg.astval;
-						ast->handler = ptrs_handle_identifier;
-						ast->setHandler = ptrs_handle_assign_identifier;
-						ast->addressHandler = NULL;
-						ast->callHandler = NULL;
-
-						ast->arg.varval.scope = level;
-						ast->arg.varval.offset = curr->arg.offset;
 						break;
 
 					case PTRS_SYMBOL_THISMEMBER:
@@ -409,12 +387,6 @@ static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_
 				curr = addHiddenSymbol(code, sizeof(ptrs_var_t));
 				symbol->arg.lazy.offset = curr.offset;
 				symbol->arg.lazy.value = NULL;
-			}
-			else if(lookahead(code, "ref"))
-			{
-				struct symbollist *symbol = addSpecialSymbol(code, readIdentifier(code), PTRS_SYMBOL_REF);
-				curr = addHiddenSymbol(code, sizeof(ptrs_var_t));
-				symbol->arg.offset = curr.offset;
 			}
 			else
 			{
@@ -1237,17 +1209,9 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		if(code->yield.scope != (unsigned)-1)
 		{
 			ast = talloc(ptrs_ast_t);
+			ast->handler = ptrs_handle_yield;
 			ast->arg.yield.yieldVal = code->yield;
-			if(code->yieldIsAlgo)
-			{
-				ast->handler = ptrs_handle_yield_algorithm;
-				ast->arg.yield.value = parseExpression(code, true);
-			}
-			else
-			{
-				ast->handler = ptrs_handle_yield;
-				ast->arg.yield.values = parseExpressionList(code, ';');
-			}
+			ast->arg.yield.values = parseExpressionList(code, ';');
 		}
 		else
 		{
@@ -1616,22 +1580,6 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 
 		ast = member;
 	}
-	else if(!ignoreAlgo && lookahead(code, "=>"))
-	{
-		struct ptrs_algorithmlist *curr = talloc(struct ptrs_algorithmlist);
-		curr->entry = ast;
-		curr->flags = 0;
-		curr->orCombine = false;
-
-		parseAlgorithmExpression(code, curr, true);
-
-		ast = talloc(ptrs_ast_t);
-		ast->handler = ptrs_handle_algorithm;
-		ast->arg.algolist = curr;
-		ast->code = code->src;
-		ast->codepos = curr->entry->codepos;
-		ast->file = curr->entry->file;
-	}
 	else
 	{
 		int pos = code->pos;
@@ -1690,23 +1638,6 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end)
 			if(curr->entry == NULL)
 				unexpected(code, "Expression");
 		}
-		else if(lookahead(code, "ref"))
-		{
-			ptrs_ast_t *ast = curr->entry = talloc(ptrs_ast_t);
-			ast->handler = ptrs_handle_prefix_address;
-			ast->setHandler = NULL;
-			ast->addressHandler = NULL;
-			ast->callHandler = NULL;
-
-			ast->file = code->filename;
-			ast->code = code->src;
-			ast->codepos = code->pos;
-
-			ast->arg.astval = parseExpression(code, true);
-
-			if(ast->arg.astval == NULL)
-				unexpected(code, "Expression");
-		}
 		else
 		{
 			curr->entry = parseExpression(code, true);
@@ -1725,57 +1656,6 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end)
 
 	curr->next = NULL;
 	return first;
-}
-
-static void parseAlgorithmExpression(code_t *code, struct ptrs_algorithmlist *curr, bool canBeLast)
-{
-	curr->next = talloc(struct ptrs_algorithmlist);
-	curr = curr->next;
-
-	switch(code->curr)
-	{
-		case '[':
-			curr->flags = 3;
-			break;
-		case '?':
-			curr->flags = 2;
-			break;
-		case '!':
-			curr->flags = 1;
-			break;
-		default:
-			curr->flags = 0;
-	}
-
-	if(curr->flags > 0)
-		next(code);
-
-	curr->entry = parseUnaryExpr(code, false, true);
-
-	if(curr->flags == 3)
-	{
-		curr->orCombine = false;
-		consumec(code, ']');
-		consume(code, "=>");
-		parseAlgorithmExpression(code, curr, true);
-	}
-	else if(lookahead(code, "=>"))
-	{
-		curr->orCombine = false;
-		parseAlgorithmExpression(code, curr, true);
-	}
-	else if(curr->flags < 2 && lookahead(code, "||"))
-	{
-		curr->orCombine = true;
-		parseAlgorithmExpression(code, curr, false);
-	}
-	else
-	{
-		if(curr->flags == 0 && canBeLast)
-			curr->next = NULL;
-		else
-			unexpected(code, "=>");
-	}
 }
 
 static void parseImport(code_t *code, ptrs_ast_t *stmt)
@@ -2259,8 +2139,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			symbolScope_increase(code, 1, false);
 			setSymbol(code, strdup("this"), 0);
 
-			uint8_t oldYieldType = 2;
-			ptrs_symbol_t oldYield = {(unsigned)-1, (unsigned)-1};
+			ptrs_symbol_t oldYield = code->yield;
 			const char *nameFormat;
 			const char *opLabel;
 			char *otherName = NULL;
@@ -2315,112 +2194,91 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 					if(overload->op == NULL)
 					{
-						if(lookahead(code, "=>"))
+						func->argc = 1;
+						overload->op = readBinaryOperator(code, &opLabel);
+
+						if(overload->op != NULL)
 						{
-							otherName = "any";
-							consume(code, "any");
-
-							oldYieldType = code->yieldIsAlgo ? 1 : 0;
-							oldYield = code->yield;
-							code->yieldIsAlgo = true;
-							code->yield = addHiddenSymbol(code, 16);
-
-							func->argc = 1;
+							nameFormat = "%1$s.op this %2$s %3$s";
+							otherName = readIdentifier(code);
 							func->args = talloc(ptrs_symbol_t);
-							func->args[0] = code->yield;
-
-							nameFormat = "%1$s.op this => any";
-							opLabel = "=>";
-							overload->op = ptrs_handle_algorithm;
+							func->args[0] = addSymbol(code, otherName);
 						}
 						else
 						{
-							func->argc = 1;
-							overload->op = readBinaryOperator(code, &opLabel);
-
-							if(overload->op != NULL)
+							char curr = code->curr;
+							if(curr == '.' || curr == '[')
 							{
-								nameFormat = "%1$s.op this %2$s %3$s";
+								next(code);
 								otherName = readIdentifier(code);
-								func->args = talloc(ptrs_symbol_t);
-								func->args[0] = addSymbol(code, otherName);
-							}
-							else
-							{
-								char curr = code->curr;
-								if(curr == '.' || curr == '[')
+
+								if(curr == '.')
 								{
-									next(code);
-									otherName = readIdentifier(code);
-
-									if(curr == '.')
-									{
-										nameFormat = "%1$s.op this.%3$s%2$s";
-									}
-									else
-									{
-										nameFormat = "%1$s.op this[%3$s]%2$s";
-										consumec(code, ']');
-									}
-
-									if(code->curr == '=')
-									{
-										consumec(code, '=');
-
-										func->argc = 2;
-										func->args = malloc(sizeof(ptrs_symbol_t) * 2);
-										func->args[0] = addSymbol(code, otherName);
-										func->args[1] = addSymbol(code, readIdentifier(code));
-
-										opLabel = " = value";
-										overload->op = curr == '.' ? ptrs_handle_assign_member : ptrs_handle_assign_index;
-									}
-									else if(code->curr == '(')
-									{
-										func->argc = parseArgumentDefinitionList(code,
-											&func->args, &func->argv, &func->vararg);
-										func->argc++;
-
-										opLabel = "()";
-										overload->op = curr == '.' ? ptrs_handle_call_member : ptrs_handle_call_index;
-
-
-										ptrs_symbol_t *newArgs = malloc(sizeof(ptrs_symbol_t) * func->argc);
-										newArgs[0] = addSymbol(code, otherName);
-
-										memcpy(newArgs + 1, func->args, sizeof(ptrs_symbol_t) * (func->argc - 1));
-										free(func->args);
-										func->args = newArgs;
-
-
-										if(func->argv != NULL)
-										{
-											ptrs_ast_t **newArgv = malloc(sizeof(ptrs_symbol_t) * func->argc);
-											newArgv[0] = NULL;
-
-											memcpy(newArgv + 1, func->argv, sizeof(ptrs_symbol_t) * (func->argc - 1));
-											free(func->argv);
-											func->argv = newArgv;
-										}
-									}
-									else
-									{
-										func->args = talloc(ptrs_symbol_t);
-										func->args[0] = addSymbol(code, otherName);
-
-										opLabel = "";
-										overload->op = curr == '.' ? ptrs_handle_member : ptrs_handle_index;
-									}
+									nameFormat = "%1$s.op this.%3$s%2$s";
 								}
-								else if(curr == '(')
+								else
+								{
+									nameFormat = "%1$s.op this[%3$s]%2$s";
+									consumec(code, ']');
+								}
+
+								if(code->curr == '=')
+								{
+									consumec(code, '=');
+
+									func->argc = 2;
+									func->args = malloc(sizeof(ptrs_symbol_t) * 2);
+									func->args[0] = addSymbol(code, otherName);
+									func->args[1] = addSymbol(code, readIdentifier(code));
+
+									opLabel = " = value";
+									overload->op = curr == '.' ? ptrs_handle_assign_member : ptrs_handle_assign_index;
+								}
+								else if(code->curr == '(')
 								{
 									func->argc = parseArgumentDefinitionList(code,
 										&func->args, &func->argv, &func->vararg);
-									overload->op = ptrs_handle_call;
+									func->argc++;
 
 									opLabel = "()";
-									nameFormat = "%1$s.op this()";
+									overload->op = curr == '.' ? ptrs_handle_call_member : ptrs_handle_call_index;
+
+
+									ptrs_symbol_t *newArgs = malloc(sizeof(ptrs_symbol_t) * func->argc);
+									newArgs[0] = addSymbol(code, otherName);
+
+									memcpy(newArgs + 1, func->args, sizeof(ptrs_symbol_t) * (func->argc - 1));
+									free(func->args);
+									func->args = newArgs;
+
+
+									if(func->argv != NULL)
+									{
+										ptrs_ast_t **newArgv = malloc(sizeof(ptrs_symbol_t) * func->argc);
+										newArgv[0] = NULL;
+
+										memcpy(newArgv + 1, func->argv, sizeof(ptrs_symbol_t) * (func->argc - 1));
+										free(func->argv);
+										func->argv = newArgv;
+									}
 								}
+								else
+								{
+									func->args = talloc(ptrs_symbol_t);
+									func->args[0] = addSymbol(code, otherName);
+
+									opLabel = "";
+									overload->op = curr == '.' ? ptrs_handle_member : ptrs_handle_index;
+								}
+							}
+							else if(curr == '(')
+							{
+								func->argc = parseArgumentDefinitionList(code,
+									&func->args, &func->argv, &func->vararg);
+								overload->op = ptrs_handle_call;
+
+								opLabel = "()";
+								nameFormat = "%1$s.op this()";
 							}
 						}
 					}
@@ -2443,9 +2301,6 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					nameFormat = "%1$s.op foreach in this";
 					overload->op = ptrs_handle_forin;
 
-					oldYieldType = code->yieldIsAlgo ? 1 : 0;
-					oldYield = code->yield;
-					code->yieldIsAlgo = false;
 					code->yield = addHiddenSymbol(code, 16);
 
 					func->argc = 1;
@@ -2483,52 +2338,15 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				{
 					otherName = readIdentifier(code);
 
-					if(lookahead(code, "=>"))
-					{
-						consume(code, "this");
+					func->argc = 1;
+					func->args = talloc(ptrs_symbol_t);
+					func->args[0] = addSymbol(code, otherName);
 
-						if(lookahead(code, "=>"))
-						{
-							nameFormat = "%1$s.op %3$s => this => any";
-							consume(code, "any");
+					overload->isLeftSide = false;
+					overload->op = readBinaryOperator(code, &opLabel);
 
-							oldYieldType = code->yieldIsAlgo ? 1 : 0;
-							oldYield = code->yield;
-							code->yieldIsAlgo = true;
-							code->yield = addHiddenSymbol(code, 16);
-
-							func->argc = 2;
-							func->args = malloc(sizeof(ptrs_symbol_t) * 2);
-							func->args[0] = code->yield;
-							func->args[1] = addSymbol(code, otherName);
-
-							overload->isLeftSide = false;
-							overload->op = ptrs_handle_yield_algorithm;
-						}
-						else
-						{
-							nameFormat = "%1$s.op %3$s => this";
-
-							func->argc = 1;
-							func->args = talloc(ptrs_symbol_t);
-							func->args[0] = addSymbol(code, otherName);
-
-							overload->isLeftSide = false;
-							overload->op = ptrs_handle_algorithm;
-						}
-					}
-					else
-					{
-						func->argc = 1;
-						func->args = talloc(ptrs_symbol_t);
-						func->args[0] = addSymbol(code, otherName);
-
-						overload->isLeftSide = false;
-						overload->op = readBinaryOperator(code, &opLabel);
-
-						nameFormat = "%1$s.op %3$s %2$s this";
-						consume(code, "this");
-					}
+					nameFormat = "%1$s.op %3$s %2$s this";
+					consume(code, "this");
 				}
 
 				if(overload->op == NULL)
@@ -2539,12 +2357,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			sprintf(func->name, nameFormat, structName, opLabel, otherName);
 
 			func->body = parseBody(code, &func->stackOffset, false, true);
-
-			if(oldYieldType != 2)
-			{
-				code->yield = oldYield;
-				code->yieldIsAlgo = oldYieldType == 1 ? true : false;
-			}
+			code->yield = oldYield;
 
 			overload->handler = func;
 			overload->next = struc->overloads;

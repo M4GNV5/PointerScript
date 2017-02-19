@@ -42,14 +42,6 @@ var testIILE = ((a, b) -> a + b)(33, 11);
 assertEq("kek", testIIFE);
 assertEq(44, testIILE);
 
-function testRef(ref x)
-{
-	x = 3;
-}
-var y = 5;
-testRef(ref y);
-assertEq(y, 3);
-
 function testLazy(use, lazy val)
 {
 	if(use)
