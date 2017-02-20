@@ -395,7 +395,7 @@ ptrs_var_t *ptrs_handle_import(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 		name = ptrs_vartoa(from, buff, 128);
 
 		char *ending = strrchr(name, '.');
-		if(strcmp(ending, ".ptrs") == 0)
+		if(ending != NULL && strcmp(ending, ".ptrs") == 0)
 			importScript(name, node, scope);
 		else
 			importNative(name, node, scope);
