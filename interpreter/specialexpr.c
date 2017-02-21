@@ -966,21 +966,21 @@ ptrs_var_t *ptrs_handle_prefix_typeof(ptrs_ast_t *node, ptrs_var_t *result, ptrs
 
 ptrs_var_t *ptrs_handle_op_ternary(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_ternary stmt = node->arg.ternary;
+	struct ptrs_ast_ternary *stmt = &node->arg.ternary;
 
-	ptrs_var_t *condition = stmt.condition->handler(stmt.condition, result, scope);
+	ptrs_var_t *condition = stmt->condition->handler(stmt->condition, result, scope);
 	if(ptrs_vartob(condition))
-		return stmt.trueVal->handler(stmt.trueVal, result, scope);
+		return stmt->trueVal->handler(stmt->trueVal, result, scope);
 	else
-		return stmt.falseVal->handler(stmt.falseVal, result, scope);
+		return stmt->falseVal->handler(stmt->falseVal, result, scope);
 }
 
 ptrs_var_t *ptrs_handle_op_instanceof(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_binary stmt = node->arg.binary;
+	struct ptrs_ast_binary *stmt = &node->arg.binary;
 	ptrs_var_t leftv;
-	ptrs_var_t *left = stmt.left->handler(stmt.left, &leftv, scope);
-	ptrs_var_t *right = stmt.right->handler(stmt.right, result, scope);
+	ptrs_var_t *left = stmt->left->handler(stmt->left, &leftv, scope);
+	ptrs_var_t *right = stmt->right->handler(stmt->right, result, scope);
 
 	if(left->type != PTRS_TYPE_STRUCT || right->type != PTRS_TYPE_STRUCT
 		|| left->value.structval->data == NULL || right->value.structval->data != NULL
@@ -999,15 +999,15 @@ ptrs_var_t *ptrs_handle_op_instanceof(ptrs_ast_t *node, ptrs_var_t *result, ptrs
 
 ptrs_var_t *ptrs_handle_op_in(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_binary stmt = node->arg.binary;
+	struct ptrs_ast_binary *stmt = &node->arg.binary;
 
 	ptrs_var_t leftv;
-	ptrs_var_t *left = stmt.left->handler(stmt.left, &leftv, scope);
+	ptrs_var_t *left = stmt->left->handler(stmt->left, &leftv, scope);
 
 	char buff[16];
 	const char *key = ptrs_vartoa(left, buff, 16);
 
-	ptrs_var_t *right = stmt.right->handler(stmt.right, result, scope);
+	ptrs_var_t *right = stmt->right->handler(stmt->right, result, scope);
 	if(right->type != PTRS_TYPE_STRUCT)
 		ptrs_error(node, scope, "Cannot use the 'in' operator on a variable of type %s", ptrs_typetoa(right->type));
 
