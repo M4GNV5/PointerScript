@@ -8,6 +8,7 @@
 
 extern __thread ptrs_ast_t *ptrs_lastast;
 extern __thread ptrs_scope_t *ptrs_lastscope;
+extern FILE *ptrs_errorfile;
 
 typedef struct ptrs_error
 {

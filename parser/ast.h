@@ -30,6 +30,12 @@ struct ptrs_ast_tls
 	pthread_key_t key;
 };
 
+struct ptrs_ast_lazy
+{
+	ptrs_symbol_t symbol;
+	struct ptrs_ast *value;
+};
+
 struct ptrs_ast_member
 {
 	struct ptrs_ast *base;
@@ -240,6 +246,7 @@ union ptrs_ast_arg
 
 	struct ptrs_ast_define define;
 	struct ptrs_ast_tls tls;
+	struct ptrs_ast_lazy lazy;
 	struct ptrs_ast_member member;
 	struct ptrs_ast_thismember thismember;
 	struct ptrs_ast_import import;
@@ -287,7 +294,8 @@ struct ptrs_astlist
 {
 	struct ptrs_ast *entry;
 	struct ptrs_astlist *next;
-	bool expand;
+	uint8_t expand : 1;
+	uint8_t lazy : 1;
 };
 
 struct ptrs_algorithmlist

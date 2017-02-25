@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <unistd.h>
 
 #include "../../parser/ast.h"
@@ -32,7 +33,7 @@ ptrs_ast_t *ptrs_dofile(const char *file, ptrs_var_t *result, ptrs_scope_t *scop
 
 	if(fd == NULL)
 	{
-		fprintf(stderr, "Failed to open file %s\n", file);
+		fprintf(stderr, "%s : %s\n", file, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 

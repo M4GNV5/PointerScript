@@ -15,8 +15,9 @@
 
 __thread ptrs_ast_t *ptrs_lastast = NULL;
 __thread ptrs_scope_t *ptrs_lastscope = NULL;
+FILE *ptrs_errorfile = NULL;
 
-#ifndef _PTRS_NOASM
+#ifndef _PTRS_PORTABLE
 #include <jitas.h>
 
 struct ptrs_asmStatement
@@ -99,7 +100,7 @@ char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative, bool 
 
 		for(int i = skipNative; i < count; i++)
 		{
-#ifndef _PTRS_NOASM
+#ifndef _PTRS_PORTABLE
 			if(trace[i] >= ptrs_asmBuffStart && trace[i] < ptrs_asmBuffStart + ptrs_asmSize)
 			{
 				struct ptrs_asmStatement *curr = ptrs_asmStatements;
@@ -282,15 +283,15 @@ void ptrs_handle_sig(int sig)
 		ptrs_throw(ptrs_lastast, ptrs_lastscope, "Received signal: %s", strsignal(sig));
 	}
 
-	fprintf(stderr, "Received signal: %s", strsignal(sig));
+	fprintf(ptrs_errorfile, "Received signal: %s", strsignal(sig));
 
 	if(ptrs_lastast != NULL)
-		ptrs_showpos(stderr, ptrs_lastast);
+		ptrs_showpos(ptrs_errorfile, ptrs_lastast);
 	else
-		fprintf(stderr, "\n");
+		fprintf(ptrs_errorfile, "\n");
 
 	if(ptrs_lastscope != NULL)
-		fprintf(stderr, "%s", ptrs_backtrace(ptrs_lastast, ptrs_lastscope, 3, true));
+		fprintf(ptrs_errorfile, "%s", ptrs_backtrace(ptrs_lastast, ptrs_lastscope, 3, true));
 	exit(EXIT_FAILURE);
 }
 
@@ -321,14 +322,14 @@ void ptrs_error(ptrs_ast_t *ast, ptrs_scope_t *scope, const char *msg, ...)
 	if(scope != NULL && scope->error != NULL)
 		ptrs_vthrow(ast, scope, msg, ap);
 
-	vfprintf(stderr, msg, ap);
+	vfprintf(ptrs_errorfile, msg, ap);
 	va_end(ap);
 
 	if(ast != NULL)
 	{
-		ptrs_showpos(stderr, ast);
+		ptrs_showpos(ptrs_errorfile, ast);
 		if(scope != NULL)
-			fprintf(stderr, "%s\n", ptrs_backtrace(ast, scope, 2, false));
+			fprintf(ptrs_errorfile, "%s\n", ptrs_backtrace(ast, scope, 2, false));
 	}
 	exit(EXIT_FAILURE);
 }

@@ -3,12 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef _PTRS_NOCALLBACK
-#include <ffcb.h>
-#endif
-
 #include "../parser/ast.h"
 #include "../parser/common.h"
+#include "interpreter.h"
 #include "include/error.h"
 #include "include/conversion.h"
 #include "include/scope.h"
@@ -18,17 +15,17 @@
 
 ptrs_var_t *ptrs_handle_call(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_call expr = node->arg.call;
+	struct ptrs_ast_call *expr = &node->arg.call;
 
-	if(expr.value->callHandler != NULL)
+	if(expr->value->callHandler != NULL)
 	{
-		return expr.value->callHandler(expr.value, result, scope, expr.retType, node, expr.arguments);
+		return expr->value->callHandler(expr->value, result, scope, expr->retType, node, expr->arguments);
 	}
 	else
 	{
 		ptrs_var_t funcv;
-		ptrs_var_t *func = expr.value->handler(expr.value, &funcv, scope);
-		return ptrs_call(expr.value, expr.retType, NULL, func, result, expr.arguments, scope);
+		ptrs_var_t *func = expr->value->handler(expr->value, &funcv, scope);
+		return ptrs_call(expr->value, expr->retType, NULL, func, result, expr->arguments, scope);
 	}
 }
 
@@ -37,6 +34,7 @@ ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 	int len = node->arg.strformat.insertionCount + 3;
 	struct ptrs_stringformat *curr = node->arg.strformat.insertions;
 	ptrs_var_t args[len];
+	ptrs_var_t overload;
 
 	for(int i = 3; i < len; i++)
 	{
@@ -47,7 +45,7 @@ ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 			if(val != args + i)
 				memcpy(args + i, val, sizeof(ptrs_var_t));
 		}
-		else if(val->type == PTRS_TYPE_NATIVE)
+		else if(val->type == PTRS_TYPE_NATIVE && val->meta.array.size > 0)
 		{
 			args[i].type = PTRS_TYPE_NATIVE;
 			int len = strnlen(val->value.strval, val->meta.array.size);
@@ -64,6 +62,15 @@ ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 
 				args[i].value.nativeval = dup;
 			}
+		}
+		else if(val->type == PTRS_TYPE_STRUCT &&
+			(overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_tostring, true)) != NULL)
+		{
+			overload.type = PTRS_TYPE_FUNCTION;
+			val = ptrs_callfunc(node, args + i, scope, val->value.structval, &overload, 0, NULL);
+
+			if(val != args + i)
+				memcpy(args + i, val, sizeof(ptrs_var_t));
 		}
 		else
 		{
@@ -95,28 +102,28 @@ ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 
 ptrs_var_t *ptrs_handle_new(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_new expr = node->arg.newexpr;
-	return ptrs_struct_construct(expr.value->handler(expr.value, result, scope),
-		expr.arguments, expr.onStack, node, result, scope);
+	struct ptrs_ast_new *expr = &node->arg.newexpr;
+	return ptrs_struct_construct(expr->value->handler(expr->value, result, scope),
+		expr->arguments, expr->onStack, node, result, scope);
 }
 
 ptrs_var_t *ptrs_handle_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_member expr = node->arg.member;
-	ptrs_var_t *base = expr.base->handler(expr.base, result, scope);
+	struct ptrs_ast_member *expr = &node->arg.member;
+	ptrs_var_t *base = expr->base->handler(expr->base, result, scope);
 
 	if(base->type != PTRS_TYPE_STRUCT)
-		ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr.name, ptrs_typetoa(base->type));
+		ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr->name, ptrs_typetoa(base->type));
 
-	ptrs_var_t *_result = ptrs_struct_get(base->value.structval, result, expr.name, node, scope);
+	ptrs_var_t *_result = ptrs_struct_get(base->value.structval, result, expr->name, node, scope);
 
 	ptrs_var_t overload;
 	if(_result == NULL && (overload.value.funcval = ptrs_struct_getOverload(base, ptrs_handle_member, true)) != NULL)
 	{
 		ptrs_var_t arg;
 		arg.type = PTRS_TYPE_NATIVE;
-		arg.value.strval = expr.name;
-		arg.meta.array.size = expr.namelen;
+		arg.value.strval = expr->name;
+		arg.meta.array.size = expr->namelen;
 		arg.meta.array.readOnly = true;
 
 		overload.type = PTRS_TYPE_FUNCTION;
@@ -124,21 +131,21 @@ ptrs_var_t *ptrs_handle_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	}
 	else if(_result == NULL)
 	{
-		ptrs_error(node, scope, "Struct %s has no property '%s'", base->value.structval->name, expr.name);
+		ptrs_error(node, scope, "Struct %s has no property '%s'", base->value.structval->name, expr->name);
 	}
 
 	return _result;
 }
 ptrs_var_t *ptrs_handle_assign_member(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_member expr = node->arg.member;
+	struct ptrs_ast_member *expr = &node->arg.member;
 	ptrs_var_t basev;
-	ptrs_var_t *base = expr.base->handler(expr.base, &basev, scope);
+	ptrs_var_t *base = expr->base->handler(expr->base, &basev, scope);
 
 	if(base->type != PTRS_TYPE_STRUCT)
-		ptrs_error(node, scope, "Cannot assign property '%s' of type %s", expr.name, ptrs_typetoa(base->type));
+		ptrs_error(node, scope, "Cannot assign property '%s' of type %s", expr->name, ptrs_typetoa(base->type));
 
-	if(ptrs_struct_set(base->value.structval, value, expr.name, node, scope))
+	if(ptrs_struct_set(base->value.structval, value, expr->name, node, scope))
 		return NULL;
 
 	ptrs_var_t overload;
@@ -148,8 +155,8 @@ ptrs_var_t *ptrs_handle_assign_member(ptrs_ast_t *node, ptrs_var_t *value, ptrs_
 
 		ptrs_var_t args[2];
 		args[0].type = PTRS_TYPE_NATIVE;
-		args[0].value.strval = expr.name;
-		args[0].meta.array.size = expr.namelen;
+		args[0].value.strval = expr->name;
+		args[0].meta.array.size = expr->namelen;
 		args[0].meta.array.readOnly = true;
 		memcpy(args + 1, value, sizeof(ptrs_var_t));
 
@@ -158,20 +165,20 @@ ptrs_var_t *ptrs_handle_assign_member(ptrs_ast_t *node, ptrs_var_t *value, ptrs_
 	}
 	else
 	{
-		ptrs_error(node, scope, "Struct %s has no property '%s'", base->value.structval->name, expr.name);
+		ptrs_error(node, scope, "Struct %s has no property '%s'", base->value.structval->name, expr->name);
 	}
 
 	return NULL;
 }
 ptrs_var_t *ptrs_handle_addressof_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_member expr = node->arg.member;
-	ptrs_var_t *base = expr.base->handler(expr.base, result, scope);
+	struct ptrs_ast_member *expr = &node->arg.member;
+	ptrs_var_t *base = expr->base->handler(expr->base, result, scope);
 
 	if(base->type != PTRS_TYPE_STRUCT)
-		ptrs_error(node, scope, "Cannot get address property '%s' of type %s", expr.name, ptrs_typetoa(base->type));
+		ptrs_error(node, scope, "Cannot get address property '%s' of type %s", expr->name, ptrs_typetoa(base->type));
 
-	if(!ptrs_struct_addressOf(base->value.structval, result, expr.name, node, scope))
+	if(!ptrs_struct_addressOf(base->value.structval, result, expr->name, node, scope))
 	{
 		ptrs_var_t overload;
 		if((overload.value.funcval = ptrs_struct_getOverload(base, ptrs_handle_addressof_member, true)) != NULL)
@@ -180,15 +187,15 @@ ptrs_var_t *ptrs_handle_addressof_member(ptrs_ast_t *node, ptrs_var_t *result, p
 
 			ptrs_var_t arg;
 			arg.type = PTRS_TYPE_NATIVE;
-			arg.value.strval = expr.name;
-			arg.meta.array.size = expr.namelen;
+			arg.value.strval = expr->name;
+			arg.meta.array.size = expr->namelen;
 			arg.meta.array.readOnly = true;
 
 			return ptrs_callfunc(node, result, scope, base->value.structval, &overload, 1, &arg);
 		}
 		else
 		{
-			ptrs_error(node, scope, "Struct %s has no property '%s'", base->value.structval->name, expr.name);
+			ptrs_error(node, scope, "Struct %s has no property '%s'", base->value.structval->name, expr->name);
 		}
 	}
 
@@ -198,13 +205,13 @@ ptrs_var_t *ptrs_handle_call_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_s
 	ptrs_nativetype_info_t *retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments)
 {
 	ptrs_var_t funcv;
-	struct ptrs_ast_member expr = node->arg.member;
-	ptrs_var_t *base = expr.base->handler(expr.base, result, scope);
+	struct ptrs_ast_member *expr = &node->arg.member;
+	ptrs_var_t *base = expr->base->handler(expr->base, result, scope);
 
 	if(base->type != PTRS_TYPE_STRUCT)
-		ptrs_error(node, scope, "Cannot call property '%s' of type %s", expr.name, ptrs_typetoa(base->type));
+		ptrs_error(node, scope, "Cannot call property '%s' of type %s", expr->name, ptrs_typetoa(base->type));
 
-	ptrs_var_t *func = ptrs_struct_get(base->value.structval, &funcv, expr.name, node, scope);
+	ptrs_var_t *func = ptrs_struct_get(base->value.structval, &funcv, expr->name, node, scope);
 
 	if(func != NULL)
 	{
@@ -218,28 +225,28 @@ ptrs_var_t *ptrs_handle_call_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_s
 		ptrs_var_t args[len];
 		ptrs_astlist_handle(arguments, len, args + 1, scope);
 		args[0].type = PTRS_TYPE_NATIVE;
-		args[0].value.strval = expr.name;
-		args[0].meta.array.size = expr.namelen;
+		args[0].value.strval = expr->name;
+		args[0].meta.array.size = expr->namelen;
 		args[0].meta.array.readOnly = true;
 
 		return ptrs_callfunc(node, result, scope, base->value.structval, &funcv, len, args);
 	}
 	else
 	{
-		ptrs_error(node, scope, "Struct %s has no property '%s'", base->value.structval->name, expr.name);
+		ptrs_error(node, scope, "Struct %s has no property '%s'", base->value.structval->name, expr->name);
 		return NULL; //doh
 	}
 }
 
 ptrs_var_t *ptrs_handle_thismember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_thismember expr = node->arg.thismember;
-	ptrs_var_t *base = ptrs_scope_get(scope, expr.base);
+	struct ptrs_ast_thismember *expr = &node->arg.thismember;
+	ptrs_var_t *base = ptrs_scope_get(scope, expr->base);
 
 	if(base->type != PTRS_TYPE_STRUCT)
-		ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr.member->name, ptrs_typetoa(base->type));
+		ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr->member->name, ptrs_typetoa(base->type));
 
-	ptrs_var_t *_result = ptrs_struct_getMember(base->value.structval, result, expr.member, node, scope);
+	ptrs_var_t *_result = ptrs_struct_getMember(base->value.structval, result, expr->member, node, scope);
 	if(_result == NULL)
 	{
 		result->type = PTRS_TYPE_UNDEFINED;
@@ -249,38 +256,38 @@ ptrs_var_t *ptrs_handle_thismember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 }
 ptrs_var_t *ptrs_handle_assign_thismember(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_thismember expr = node->arg.thismember;
-	ptrs_var_t *base = ptrs_scope_get(scope, expr.base);
+	struct ptrs_ast_thismember *expr = &node->arg.thismember;
+	ptrs_var_t *base = ptrs_scope_get(scope, expr->base);
 
 	if(base->type != PTRS_TYPE_STRUCT)
-		ptrs_error(node, scope, "Cannot assign property '%s' of type %s", expr.member->name, ptrs_typetoa(base->type));
+		ptrs_error(node, scope, "Cannot assign property '%s' of type %s", expr->member->name, ptrs_typetoa(base->type));
 
-	ptrs_struct_setMember(base->value.structval, value, expr.member, node, scope);
+	ptrs_struct_setMember(base->value.structval, value, expr->member, node, scope);
 
 	return NULL;
 }
 ptrs_var_t *ptrs_handle_addressof_thismember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_thismember expr = node->arg.thismember;
-	ptrs_var_t *base = ptrs_scope_get(scope, expr.base);
+	struct ptrs_ast_thismember *expr = &node->arg.thismember;
+	ptrs_var_t *base = ptrs_scope_get(scope, expr->base);
 
 	if(base->type != PTRS_TYPE_STRUCT)
-		ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr.member->name, ptrs_typetoa(base->type));
+		ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr->member->name, ptrs_typetoa(base->type));
 
-	ptrs_struct_addressOfMember(base->value.structval, result, expr.member, node, scope);
+	ptrs_struct_addressOfMember(base->value.structval, result, expr->member, node, scope);
 	return result;
 }
 ptrs_var_t *ptrs_handle_call_thismember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
 	ptrs_nativetype_info_t *retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments)
 {
 	ptrs_var_t funcv;
-	struct ptrs_ast_thismember expr = node->arg.thismember;
-	ptrs_var_t *base = ptrs_scope_get(scope, expr.base);
+	struct ptrs_ast_thismember *expr = &node->arg.thismember;
+	ptrs_var_t *base = ptrs_scope_get(scope, expr->base);
 
 	if(base->type != PTRS_TYPE_STRUCT)
-		ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr.member->name, ptrs_typetoa(base->type));
+		ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr->member->name, ptrs_typetoa(base->type));
 
-	ptrs_var_t *func = ptrs_struct_getMember(base->value.structval, &funcv, expr.member, node, scope);
+	ptrs_var_t *func = ptrs_struct_getMember(base->value.structval, &funcv, expr->member, node, scope);
 	if(func == NULL)
 	{
 		func = &funcv;
@@ -297,71 +304,71 @@ struct withVal
 };
 ptrs_var_t *ptrs_handle_withmember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_withmember expr = node->arg.withmember;
-	struct withVal *withVal = (struct withVal *)ptrs_scope_get(scope, expr.base);
+	struct ptrs_ast_withmember *expr = &node->arg.withmember;
+	struct withVal *withVal = (struct withVal *)ptrs_scope_get(scope, expr->base);
 
-	if(withVal->member[expr.index] == NULL)
+	if(withVal->member[expr->index] == NULL)
 	{
-		withVal->member[expr.index] = ptrs_struct_find(withVal->this, expr.name,
+		withVal->member[expr->index] = ptrs_struct_find(withVal->this, expr->name,
 			PTRS_STRUCTMEMBER_SETTER, node, scope);
 
-		if(withVal->member[expr.index] == NULL)
-			ptrs_error(node, scope, "Struct %s has no property '%s'", withVal->this->name, expr.name);
+		if(withVal->member[expr->index] == NULL)
+			ptrs_error(node, scope, "Struct %s has no property '%s'", withVal->this->name, expr->name);
 	}
 
-	return ptrs_struct_getMember(withVal->this, result, withVal->member[expr.index], node, scope);
+	return ptrs_struct_getMember(withVal->this, result, withVal->member[expr->index], node, scope);
 }
 ptrs_var_t *ptrs_handle_assign_withmember(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_withmember expr = node->arg.withmember;
-	struct withVal *withVal = (struct withVal *)ptrs_scope_get(scope, expr.base);
+	struct ptrs_ast_withmember *expr = &node->arg.withmember;
+	struct withVal *withVal = (struct withVal *)ptrs_scope_get(scope, expr->base);
 
-	if(withVal->member[expr.index] == NULL)
+	if(withVal->member[expr->index] == NULL)
 	{
-		withVal->member[expr.index] = ptrs_struct_find(withVal->this, expr.name,
+		withVal->member[expr->index] = ptrs_struct_find(withVal->this, expr->name,
 			PTRS_STRUCTMEMBER_GETTER, node, scope);
 
-		if(withVal->member[expr.index] == NULL)
-			ptrs_error(node, scope, "Struct %s has no property '%s'", withVal->this->name, expr.name);
+		if(withVal->member[expr->index] == NULL)
+			ptrs_error(node, scope, "Struct %s has no property '%s'", withVal->this->name, expr->name);
 	}
 
-	ptrs_struct_setMember(withVal->this, value, withVal->member[expr.index], node, scope);
+	ptrs_struct_setMember(withVal->this, value, withVal->member[expr->index], node, scope);
 	return NULL;
 }
 ptrs_var_t *ptrs_handle_addressof_withmember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_withmember expr = node->arg.withmember;
-	struct withVal *withVal = (struct withVal *)ptrs_scope_get(scope, expr.base);
+	struct ptrs_ast_withmember *expr = &node->arg.withmember;
+	struct withVal *withVal = (struct withVal *)ptrs_scope_get(scope, expr->base);
 
-	if(withVal->member[expr.index] == NULL)
+	if(withVal->member[expr->index] == NULL)
 	{
-		withVal->member[expr.index] = ptrs_struct_find(withVal->this, expr.name,
+		withVal->member[expr->index] = ptrs_struct_find(withVal->this, expr->name,
 			-1, node, scope);
 
-		if(withVal->member[expr.index] == NULL)
-			ptrs_error(node, scope, "Struct %s has no property '%s'", withVal->this->name, expr.name);
+		if(withVal->member[expr->index] == NULL)
+			ptrs_error(node, scope, "Struct %s has no property '%s'", withVal->this->name, expr->name);
 	}
 
-	ptrs_struct_addressOfMember(withVal->this, result, withVal->member[expr.index], node, scope);
+	ptrs_struct_addressOfMember(withVal->this, result, withVal->member[expr->index], node, scope);
 	return result;
 }
 ptrs_var_t *ptrs_handle_call_withmember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
 	ptrs_nativetype_info_t *retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments)
 {
 	ptrs_var_t funcv;
-	struct ptrs_ast_withmember expr = node->arg.withmember;
-	struct withVal *withVal = (struct withVal *)ptrs_scope_get(scope, expr.base);
+	struct ptrs_ast_withmember *expr = &node->arg.withmember;
+	struct withVal *withVal = (struct withVal *)ptrs_scope_get(scope, expr->base);
 
-	if(withVal->member[expr.index] == NULL)
+	if(withVal->member[expr->index] == NULL)
 	{
-		withVal->member[expr.index] = ptrs_struct_find(withVal->this, expr.name,
+		withVal->member[expr->index] = ptrs_struct_find(withVal->this, expr->name,
 			-1, node, scope);
 
-		if(withVal->member[expr.index] == NULL)
-			ptrs_error(node, scope, "Struct %s has no property '%s'", withVal->this->name, expr.name);
+		if(withVal->member[expr->index] == NULL)
+			ptrs_error(node, scope, "Struct %s has no property '%s'", withVal->this->name, expr->name);
 	}
 
-	ptrs_var_t *func = ptrs_struct_getMember(withVal->this, result, withVal->member[expr.index], node, scope);
+	ptrs_var_t *func = ptrs_struct_getMember(withVal->this, result, withVal->member[expr->index], node, scope);
 	if(func == NULL)
 	{
 		func = &funcv;
@@ -471,9 +478,9 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	char buff[32];
 	ptrs_var_t valuev;
 	ptrs_var_t indexv;
-	struct ptrs_ast_binary expr = node->arg.binary;
+	struct ptrs_ast_binary *expr = &node->arg.binary;
 
-	ptrs_var_t *value = expr.left->handler(expr.left, &valuev, scope);
+	ptrs_var_t *value = expr->left->handler(expr->left, &valuev, scope);
 
 	int64_t oldLen = indexLen;
 	if(value->type == PTRS_TYPE_STRUCT)
@@ -481,7 +488,7 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	else
 		indexLen = value->meta.array.size;
 
-	ptrs_var_t *index = expr.right->handler(expr.right, &indexv, scope);
+	ptrs_var_t *index = expr->right->handler(expr->right, &indexv, scope);
 	indexLen = oldLen;
 
 	ptrs_vartype_t valuet = value->type;
@@ -524,7 +531,7 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	else
 	{
 		const char *key = ptrs_vartoa(index, buff, 32);
-		ptrs_error(expr.left, scope, "Cannot get index '%s' of type %s", key, ptrs_typetoa(valuet));
+		ptrs_error(expr->left, scope, "Cannot get index '%s' of type %s", key, ptrs_typetoa(valuet));
 	}
 	return result;
 }
@@ -533,9 +540,9 @@ ptrs_var_t *ptrs_handle_assign_index(ptrs_ast_t *node, ptrs_var_t *value, ptrs_s
 	char buff[32];
 	ptrs_var_t valuev;
 	ptrs_var_t indexv;
-	struct ptrs_ast_binary expr = node->arg.binary;
+	struct ptrs_ast_binary *expr = &node->arg.binary;
 
-	ptrs_var_t *val = expr.left->handler(expr.left, &valuev, scope);
+	ptrs_var_t *val = expr->left->handler(expr->left, &valuev, scope);
 
 	int64_t oldLen = indexLen;
 	if(val->type == PTRS_TYPE_STRUCT)
@@ -543,7 +550,7 @@ ptrs_var_t *ptrs_handle_assign_index(ptrs_ast_t *node, ptrs_var_t *value, ptrs_s
 	else
 		indexLen = val->meta.array.size;
 
-	ptrs_var_t *index = expr.right->handler(expr.right, &indexv, scope);
+	ptrs_var_t *index = expr->right->handler(expr->right, &indexv, scope);
 	indexLen = oldLen;
 
 	if(val->type == PTRS_TYPE_POINTER)
@@ -590,7 +597,7 @@ ptrs_var_t *ptrs_handle_assign_index(ptrs_ast_t *node, ptrs_var_t *value, ptrs_s
 	else
 	{
 		const char *key = ptrs_vartoa(index, buff, 32);
-		ptrs_error(expr.left, scope, "Cannot set index '%s' of type %s", key, ptrs_typetoa(val->type));
+		ptrs_error(expr->left, scope, "Cannot set index '%s' of type %s", key, ptrs_typetoa(val->type));
 	}
 	return NULL;
 }
@@ -599,9 +606,9 @@ ptrs_var_t *ptrs_handle_addressof_index(ptrs_ast_t *node, ptrs_var_t *result, pt
 	char buff[32];
 	ptrs_var_t valuev;
 	ptrs_var_t indexv;
-	struct ptrs_ast_binary expr = node->arg.binary;
+	struct ptrs_ast_binary *expr = &node->arg.binary;
 
-	ptrs_var_t *value = expr.left->handler(expr.left, &valuev, scope);
+	ptrs_var_t *value = expr->left->handler(expr->left, &valuev, scope);
 
 	int64_t oldLen = indexLen;
 	if(value->type == PTRS_TYPE_STRUCT)
@@ -609,7 +616,7 @@ ptrs_var_t *ptrs_handle_addressof_index(ptrs_ast_t *node, ptrs_var_t *result, pt
 	else
 		indexLen = value->meta.array.size;
 
-	ptrs_var_t *index = expr.right->handler(expr.right, &indexv, scope);
+	ptrs_var_t *index = expr->right->handler(expr->right, &indexv, scope);
 	indexLen = oldLen;
 
 	if(value->type == PTRS_TYPE_POINTER)
@@ -651,7 +658,7 @@ ptrs_var_t *ptrs_handle_addressof_index(ptrs_ast_t *node, ptrs_var_t *result, pt
 	else
 	{
 		const char *key = ptrs_vartoa(index, buff, 32);
-		ptrs_error(expr.left, scope, "Cannot get index '%s' of type %s", key, ptrs_typetoa(value->type));
+		ptrs_error(expr->left, scope, "Cannot get index '%s' of type %s", key, ptrs_typetoa(value->type));
 	}
 	return result;
 }
@@ -661,9 +668,9 @@ ptrs_var_t *ptrs_handle_call_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 	char buff[32];
 	ptrs_var_t valuev;
 	ptrs_var_t indexv;
-	struct ptrs_ast_binary expr = node->arg.binary;
+	struct ptrs_ast_binary *expr = &node->arg.binary;
 
-	ptrs_var_t *value = expr.left->handler(expr.left, &valuev, scope);
+	ptrs_var_t *value = expr->left->handler(expr->left, &valuev, scope);
 
 	int64_t oldLen = indexLen;
 	if(value->type == PTRS_TYPE_STRUCT)
@@ -671,7 +678,7 @@ ptrs_var_t *ptrs_handle_call_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 	else
 		indexLen = value->meta.array.size;
 
-	ptrs_var_t *index = expr.right->handler(expr.right, &indexv, scope);
+	ptrs_var_t *index = expr->right->handler(expr->right, &indexv, scope);
 	indexLen = oldLen;
 
 	ptrs_vartype_t valuet = value->type;
@@ -714,19 +721,19 @@ ptrs_var_t *ptrs_handle_call_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 	else
 	{
 		const char *key = ptrs_vartoa(index, buff, 32);
-		ptrs_error(expr.left, scope, "Cannot call index '%s' of type %s", key, ptrs_typetoa(valuet));
+		ptrs_error(expr->left, scope, "Cannot call index '%s' of type %s", key, ptrs_typetoa(valuet));
 		return NULL; //doh
 	}
 }
 
 ptrs_var_t *ptrs_handle_slice(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_slice expr = node->arg.slice;
+	struct ptrs_ast_slice *expr = &node->arg.slice;
 	ptrs_var_t basev;
 	uint32_t start;
 	uint32_t end;
 
-	ptrs_var_t *base = expr.base->handler(expr.base, &basev, scope);
+	ptrs_var_t *base = expr->base->handler(expr->base, &basev, scope);
 
 	int64_t oldLen = indexLen;
 	if(base->type == PTRS_TYPE_STRUCT)
@@ -734,8 +741,8 @@ ptrs_var_t *ptrs_handle_slice(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	else
 		indexLen = base->meta.array.size;
 
-	start = ptrs_vartoi(expr.start->handler(expr.start, result, scope));
-	end = ptrs_vartoi(expr.end->handler(expr.end, result, scope));
+	start = ptrs_vartoi(expr->start->handler(expr->start, result, scope));
+	end = ptrs_vartoi(expr->end->handler(expr->end, result, scope));
 	indexLen = oldLen;
 
 	result->type = base->type;
@@ -753,10 +760,10 @@ ptrs_var_t *ptrs_handle_slice(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 
 ptrs_var_t *ptrs_handle_as(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_cast expr = node->arg.cast;
-	ptrs_var_t *value = expr.value->handler(expr.value, result, scope);
+	struct ptrs_ast_cast *expr = &node->arg.cast;
+	ptrs_var_t *value = expr->value->handler(expr->value, result, scope);
 
-	result->type = expr.builtinType;
+	result->type = expr->builtinType;
 	result->value = value->value;
 	memset(&result->meta, 0, sizeof(ptrs_meta_t));
 	return result;
@@ -764,8 +771,8 @@ ptrs_var_t *ptrs_handle_as(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *s
 
 ptrs_var_t *ptrs_handle_cast_builtin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_cast expr = node->arg.cast;
-	ptrs_var_t *value = expr.value->handler(expr.value, result, scope);
+	struct ptrs_ast_cast *expr = &node->arg.cast;
+	ptrs_var_t *value = expr->value->handler(expr->value, result, scope);
 
 	ptrs_var_t overload;
 	if(value->type == PTRS_TYPE_STRUCT
@@ -774,11 +781,11 @@ ptrs_var_t *ptrs_handle_cast_builtin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 		overload.type = PTRS_TYPE_FUNCTION;
 		ptrs_var_t arg;
 		arg.type = PTRS_TYPE_INT;
-		arg.value.intval = expr.builtinType;
+		arg.value.intval = expr->builtinType;
 		return ptrs_callfunc(node, result, scope, value->value.structval, &overload, 1, &arg);
 	}
 
-	switch(expr.builtinType)
+	switch(expr->builtinType)
 	{
 		case PTRS_TYPE_INT:
 			result->value.intval = ptrs_vartoi(value);
@@ -789,18 +796,16 @@ ptrs_var_t *ptrs_handle_cast_builtin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 		case PTRS_TYPE_NATIVE:
 			switch(value->type)
 			{
-#ifndef _PTRS_NOCALLBACK
 				case PTRS_TYPE_FUNCTION:
 					;
 					ptrs_function_t *func = value->value.funcval;
 					if(func->nativeCb == NULL)
-						func->nativeCb = ffcb_create(&ptrs_callcallback, func);
+						ptrs_createClosure(func);
 
 					result->value.nativeval = func->nativeCb;
 					result->meta.array.size = 0;
 					result->meta.array.readOnly = true;
 					break;
-#endif
 				case PTRS_TYPE_STRUCT:
 					result->value.nativeval = value->value.structval->data;
 					result->meta.array.size = value->value.structval->size;
@@ -811,28 +816,35 @@ ptrs_var_t *ptrs_handle_cast_builtin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 			}
 			break;
 		default:
-			ptrs_error(node, scope, "Cannot cast to %s", ptrs_typetoa(expr.builtinType));
+			ptrs_error(node, scope, "Cannot cast to %s", ptrs_typetoa(expr->builtinType));
 	}
 
-	result->type = expr.builtinType;
+	result->type = expr->builtinType;
 	return result;
 }
 
 ptrs_var_t *ptrs_handle_tostring(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_cast expr = node->arg.cast;
-	ptrs_var_t *val = expr.value->handler(expr.value, result, scope);
+	struct ptrs_ast_cast *expr = &node->arg.cast;
+	ptrs_var_t *val = expr->value->handler(expr->value, result, scope);
+	ptrs_var_t overload;
 
-	int len;
+	int len = 0;
 	if(val->type == PTRS_TYPE_NATIVE)
 		len = strnlen(val->value.strval, val->meta.array.size);
 
-	if(val->type != PTRS_TYPE_NATIVE || len < val->meta.array.size)
+	if(val->type == PTRS_TYPE_STRUCT &&
+		(overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_tostring, true)) != NULL)
+	{
+		overload.type = PTRS_TYPE_FUNCTION;
+		return ptrs_callfunc(node, result, scope, val->value.structval, &overload, 0, NULL);
+	}
+	else if(val->type != PTRS_TYPE_NATIVE || val->meta.array.size == 0 || len < val->meta.array.size)
 	{
 		char *buff = ptrs_alloc(scope, 32);
 		result->value.strval = ptrs_vartoa(val, buff, 32);
 		result->meta.array.size = strlen(result->value.strval) + 1;
-		result->meta.array.readOnly = result->value.strval != buff && val->meta.array.readOnly;
+		result->meta.array.readOnly = result->value.strval != buff;
 	}
 	else
 	{
@@ -851,24 +863,24 @@ ptrs_var_t *ptrs_handle_tostring(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 
 ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_cast expr = node->arg.cast;
+	struct ptrs_ast_cast *expr = &node->arg.cast;
 
 	ptrs_var_t typev;
-	ptrs_var_t *type = expr.type->handler(expr.type, &typev, scope);
+	ptrs_var_t *type = expr->type->handler(expr->type, &typev, scope);
 	if(type->type != PTRS_TYPE_STRUCT)
 		ptrs_error(node, scope, "Type of a cast has to be a variable type struct not %s", ptrs_typetoa(type->type));
 
-	ptrs_var_t *value = expr.value->handler(expr.value, result, scope);
+	ptrs_var_t *value = expr->value->handler(expr->value, result, scope);
 
 	ptrs_struct_t *struc;
-	if(expr.onStack)
+	if(expr->onStack)
 		struc = ptrs_alloc(scope, sizeof(ptrs_struct_t));
 	else
 		struc = malloc(sizeof(ptrs_struct_t));
 
 	memcpy(struc, type->value.structval, sizeof(ptrs_struct_t));
 	struc->data = value->value.nativeval;
-	struc->isOnStack = expr.onStack;
+	struc->isOnStack = expr->onStack;
 
 	result->type = PTRS_TYPE_STRUCT;
 	result->value.structval = struc;
@@ -877,14 +889,14 @@ ptrs_var_t *ptrs_handle_cast(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 
 ptrs_var_t *ptrs_handle_wildcardsymbol(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_wildcard expr = node->arg.wildcard;
-	ptrs_var_t *imports = ptrs_scope_get(scope, expr.symbol);
+	struct ptrs_ast_wildcard *expr = &node->arg.wildcard;
+	ptrs_var_t *imports = ptrs_scope_get(scope, expr->symbol);
 
 	if(imports->type == PTRS_TYPE_NATIVE)
 	{
 		void **nativeImports = imports->value.nativeval;
 		result->type = PTRS_TYPE_NATIVE;
-		result->value.nativeval = nativeImports[expr.index];
+		result->value.nativeval = nativeImports[expr->index];
 		result->meta.array.size = 0;
 		result->meta.array.readOnly = true;
 		return result;
@@ -892,7 +904,7 @@ ptrs_var_t *ptrs_handle_wildcardsymbol(ptrs_ast_t *node, ptrs_var_t *result, ptr
 	else
 	{
 		ptrs_var_t *scriptImports = imports->value.ptrval;
-		return &scriptImports[expr.index];
+		return &scriptImports[expr->index];
 	}
 }
 
@@ -915,6 +927,35 @@ ptrs_var_t *ptrs_handle_constant(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 	return result;
 }
 
+ptrs_var_t *ptrs_handle_lazy(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	ptrs_var_t *val = ptrs_scope_get(scope, node->arg.lazy.symbol);
+
+	if(val->type == (uint8_t)-1)
+	{
+		if(node->arg.lazy.value == NULL) //lazy function argument
+		{
+			ptrs_ast_t *ast = val->value.nativeval;
+			ptrs_scope_t *callScope = scope->callScope;
+
+			void *oldSp = callScope->sp;
+			callScope->sp = scope->sp;
+
+			result = ast->handler(ast, val, callScope);
+			callScope->sp = oldSp;
+		}
+		else
+		{
+			result = node->arg.lazy.value->handler(node->arg.lazy.value, val, scope);
+		}
+
+		if(result != val)
+			memcpy(val, result, sizeof(ptrs_var_t));
+	}
+
+	return val;
+}
+
 ptrs_var_t *ptrs_handle_prefix_typeof(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	ptrs_var_t *val = node->arg.astval->handler(node->arg.astval, result, scope);
@@ -925,21 +966,21 @@ ptrs_var_t *ptrs_handle_prefix_typeof(ptrs_ast_t *node, ptrs_var_t *result, ptrs
 
 ptrs_var_t *ptrs_handle_op_ternary(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_ternary stmt = node->arg.ternary;
+	struct ptrs_ast_ternary *stmt = &node->arg.ternary;
 
-	ptrs_var_t *condition = stmt.condition->handler(stmt.condition, result, scope);
+	ptrs_var_t *condition = stmt->condition->handler(stmt->condition, result, scope);
 	if(ptrs_vartob(condition))
-		return stmt.trueVal->handler(stmt.trueVal, result, scope);
+		return stmt->trueVal->handler(stmt->trueVal, result, scope);
 	else
-		return stmt.falseVal->handler(stmt.falseVal, result, scope);
+		return stmt->falseVal->handler(stmt->falseVal, result, scope);
 }
 
 ptrs_var_t *ptrs_handle_op_instanceof(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_binary stmt = node->arg.binary;
+	struct ptrs_ast_binary *stmt = &node->arg.binary;
 	ptrs_var_t leftv;
-	ptrs_var_t *left = stmt.left->handler(stmt.left, &leftv, scope);
-	ptrs_var_t *right = stmt.right->handler(stmt.right, result, scope);
+	ptrs_var_t *left = stmt->left->handler(stmt->left, &leftv, scope);
+	ptrs_var_t *right = stmt->right->handler(stmt->right, result, scope);
 
 	if(left->type != PTRS_TYPE_STRUCT || right->type != PTRS_TYPE_STRUCT
 		|| left->value.structval->data == NULL || right->value.structval->data != NULL
@@ -958,12 +999,15 @@ ptrs_var_t *ptrs_handle_op_instanceof(ptrs_ast_t *node, ptrs_var_t *result, ptrs
 
 ptrs_var_t *ptrs_handle_op_in(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_binary stmt = node->arg.binary;
+	struct ptrs_ast_binary *stmt = &node->arg.binary;
+
+	ptrs_var_t leftv;
+	ptrs_var_t *left = stmt->left->handler(stmt->left, &leftv, scope);
+
 	char buff[16];
-	ptrs_var_t *left = stmt.left->handler(stmt.left, result, scope);
 	const char *key = ptrs_vartoa(left, buff, 16);
 
-	ptrs_var_t *right = stmt.right->handler(stmt.right, result, scope);
+	ptrs_var_t *right = stmt->right->handler(stmt->right, result, scope);
 	if(right->type != PTRS_TYPE_STRUCT)
 		ptrs_error(node, scope, "Cannot use the 'in' operator on a variable of type %s", ptrs_typetoa(right->type));
 
@@ -974,14 +1018,8 @@ ptrs_var_t *ptrs_handle_op_in(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	}
 	else if((overload.value.funcval = ptrs_struct_getOverload(right, ptrs_handle_op_in, false)) != NULL)
 	{
-		ptrs_var_t arg;
-		arg.type = PTRS_TYPE_NATIVE;
-		arg.value.strval = key;
-		arg.meta.array.size = 0;
-		arg.meta.array.readOnly = false;
-
 		overload.type = PTRS_TYPE_FUNCTION;
-		return ptrs_callfunc(node, result, scope, right->value.structval, &overload, 1, &arg);
+		return ptrs_callfunc(node, result, scope, right->value.structval, &overload, 1, left);
 	}
 	else
 	{
@@ -995,12 +1033,12 @@ ptrs_var_t *ptrs_handle_op_in(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 extern ptrs_var_t __thread ptrs_forinOverloadResult;
 ptrs_var_t *ptrs_handle_yield(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_yield expr = node->arg.yield;
+	struct ptrs_ast_yield *expr = &node->arg.yield;
 	int len = ptrs_astlist_length(node->arg.yield.values, node, scope);
 	ptrs_var_t vals[len];
 	ptrs_astlist_handle(node->arg.yield.values, len, vals, scope);
 
-	void **yieldVal = ptrs_scope_get(scope, expr.yieldVal)->value.nativeval;
+	void **yieldVal = ptrs_scope_get(scope, expr->yieldVal)->value.nativeval;
 	struct ptrs_ast_forin *forStmt = yieldVal[0];
 
 	ptrs_scope_t *stmtScope = ptrs_scope_increase(scope, forStmt->stackOffset);

@@ -1,9 +1,11 @@
 #Content
 - [Usage](#usage)
+	- [Commandline Arguments](#commandline-arguments)
 	- [Types](#types)
 	- [Constants](#constants)
 	- [Structs](#structs)
-	- [Variable Arguments](#variablearguments)
+	- [C Interop](#c-interop)
+	- [Variable Arguments](#variable-arguments)
 - [Operators](#operators)
 	- [Binary](#binaryoperators)
 	- [Prefixed](#prefixedoperators)
@@ -32,13 +34,14 @@
 - [Expressions](#expressions)
 	- [CallExpression](#callexpression)
 	- [TypedCallExpression](#typedcallexpression)
+	- [StringFormatExpression](#stringformatexpression)
+	- [SizeofExpression](#sizeofexpression)
+	- [NewExpression](#newexpression)
+	- [NewStackExpression](#newstackexpression)
 	- [ArrayExpression](#arrayexpression)
 	- [VarArrayExpression](#vararrayexpression)
 	- [ArrayStackExpression](#arraystackexpression)
 	- [VarArrayStackExpression](#vararraystackexpression)
-	- [StringFormatExpression](#stringformatexpression)
-	- [NewExpression](#newexpression)
-	- [NewStackExpression](#newstackexpression)
 	- [MapExpression](#mapexpression)
 	- [MapStackExpression](#mapstackexpression)
 	- [MemberExpression](#memberexpression)
@@ -58,6 +61,21 @@
 	- [SuffixedExpression](#suffixedexpression)
 
 #Usage
+
+##Commandline Arguments
+The syntax is `ptrs [options ...] <file> [script options ...]`.
+Valid options are:
+
+| Option | Argument | Description | Default |
+|--------|----------|-------------|---------|
+| `--help` | - | Print usage and argument information | - |
+| `--stack-size` | `size` | Set stack size to 'size' bytes | 0x1000 |
+| `--array-max` | `size` | Set maximal allowed array size to 'size' bytes | `0x1000` |
+| `--asm-size` | `size` | Set size of memory region containing inline assembly | `0x1000` |
+| `--error` | `file` | Set where error messages are written to | `/dev/stderr` |
+| `--no-sig` | - | Do not listen to signals | `false` |
+| `--zero-mem` | - | Zero memory allocated on the stack | `false` |
+| `--interactive` | - | Enter interactive PointerScript shell | - |
 
 ##Types
 
@@ -81,7 +99,7 @@ var myString = cast<native>myVal;
 Changing the type of a variable. Note: this will not touch the actual value.
 ```js
 //by default all native functions return an int
-var ptr = as<native>malloc(1024);
+var ptr = malloc!native(1024);
 ```
 
 ###Type List
@@ -158,6 +176,53 @@ printf("data = %s\n", req.data);
 //free the previousely allocated memory and call the destructor
 delete req;
 ```
+
+##C interop
+
+###Functions
+You can directly import C functions using the [ImportStatement](#importstatement) and then call them like normal functions:
+```js
+import puts, fopen, fprintf, fclose;
+puts("Hello world!");
+
+var fd = fopen("hello.txt", "w+");
+fprintf(fd, "hi there!\nsome formats: %d %f %s", 42, 31.12, "ahoi");
+fclose(fd);
+```
+
+###Structs
+Structs can have typed members, thus you can use C functions that expect struct arguments:
+```js
+import printf, gettimeofday;
+
+struct timeval
+{
+	sec : u64;
+	usec : u64;
+};
+
+var time = new timeval();
+gettimeofday(time, NULL);
+
+printf("Seconds since epoch: %d\n", time.sec);
+printf("Nanoseconds remainder: %d\n", time.usec);
+printf("Milliseconds since epoch: %f\n", time.sec * 1000 + cast<float>time.usec / 1000);
+```
+
+When you have a function that returns `val` - a pointer to a struct you can also use `cast<structType>val` to create a struct of type `structType` using the memory pointed to by `val`. Note: you have to delete/free both `val` and the by `cast` created struct
+
+##Type list
+| Type | Description | Name in C |
+|------|-------------|-----------|
+| `char short int long longlong` | signed integers | `char short int long` and `long long` |
+| `uchar ushort uint ulong ulonglong` | unsigned integers | same as above but prefixed with `unsigned` |
+| `i8 i16 i32 i64` | explicitly sized signed integers | `int8_t int16_t int32_t int64_t` |
+| `u8 u16 u32 u64` | explicitly sized unsigned integers | `uint8_t uint16_t uint32_t uint64_t` |
+| `ssize size intptr uintptr ptrdiff` | special types | `size_t ssize_t intptr_t uintptr_t ptrdiff_t`
+| `single double` | floating point values | `float double` |
+| `native` | pointer to u8's | `uint8_t *` |
+| `pointer` | pointer to var's | `ptrs_var_t *` |
+
 
 ##Variable Arguments
 PointerScript uses a C#/Java like approach optionally converting variable arguments to an array.
@@ -540,7 +605,7 @@ age = 18;
 
 ####Typed member
 ```js
-//Identifier ':' NativeTypeName
+//Identifier ':' NativeType
 foo : long //char, int, long, longlong, uchar, uint, ulong, ulonglong
 bar : i64 //i8, i16, i32, i64, u8, u16, u32, u64
 tar : pointer
@@ -806,6 +871,29 @@ var val = 3;
 puts("val = $val"); //prints "val = 3"
 puts("pid = ${getpid()}");
 puts("valc = $%c{val + 'a'}"); //prints "valc = c"
+```
+
+##SizeofExpression
+Returns the size of an expression, a C type or the size of a variable.
+You can optionally put braces around the type (like in C)
+```js
+//'sizeof' Expression
+//'sizeof' [ '(' ] NativeType [ ')' ]
+//'sizeof' [ '(' ] 'var' [ ')' ]
+
+var foo[16];
+var bar{} = "hello!";
+
+sizeof foo; //16 same as sizeof(foo)
+sizeof bar; //7  same as sizeof(bar)
+sizeof(foo);
+sizeof(bar);
+
+sizeof int; //returns the size of the C 'int' type (usually 4 on amd64 computers)
+sizeof(int); //same
+
+sizeof var; //returns the size of a variable (same as the constant VARSIZE)
+sizeof(var); //same
 ```
 
 ##NewExpression

@@ -1,0 +1,53 @@
+import assert, assertEq from "../common.ptrs";
+
+var glob = 42;
+function testArgs(a, b)
+{
+	assertEq(3, a);
+	assertEq("hi", b);
+	assertEq(42, glob);
+}
+testArgs(3, "hi");
+
+function testDefault(a, b = 3, c = 1)
+{
+	return a + b + c;
+}
+assertEq(6, testDefault(2));
+assertEq(9, testDefault(3, 5));
+assertEq(10, testDefault(3, 5, 2));
+assertEq(9, testDefault(3, _, 3));
+
+function testIgnore(x, _, z)
+{
+	return x + z;
+}
+assertEq(4, testIgnore(3, _, 1));
+assertEq(45, testIgnore(3, "hello", 42));
+
+function testVarArgs(args...)
+{
+	assertEq(3, sizeof args);
+	assertEq(1337, args[0]);
+	assertEq(31.12, args[1]);
+	assertEq(assertEq, args[2]);
+}
+testVarArgs(1337, 31.12, assertEq);
+
+var testLambda = (a, b) -> a * b;
+assertEq(6, testLambda(2, 3));
+
+var testIIFE = (function() { return "kek"; })();
+var testIILE = ((a, b) -> a + b)(33, 11);
+assertEq("kek", testIIFE);
+assertEq(44, testIILE);
+
+function testLazy(use, lazy val)
+{
+	if(use)
+		return val;
+	else
+		return 42;
+}
+assertEq(42, testLazy(false, lazy assert(false)));
+assertEq("glob = 42", testLazy(true, "glob = $glob"));

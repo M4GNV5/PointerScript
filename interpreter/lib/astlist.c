@@ -38,6 +38,13 @@ void ptrs_astlist_handle(struct ptrs_astlist *list, int len, ptrs_var_t *out, pt
 			list = list->next;
 			continue;
 		}
+		if(list->lazy)
+		{
+			out[i].type = (uint8_t)-1;
+			out[i].value.nativeval = list->entry;
+			list = list->next;
+			continue;
+		}
 
 		ptrs_var_t *curr = list->entry->handler(list->entry, &out[i], scope);
 
@@ -52,6 +59,7 @@ void ptrs_astlist_handle(struct ptrs_astlist *list, int len, ptrs_var_t *out, pt
 		}
 		else if(curr != &out[i])
 		{
+			ptrs_var_t *curr = list->entry->handler(list->entry, &out[i], scope);
 			memcpy(&out[i], curr, sizeof(ptrs_var_t));
 		}
 
