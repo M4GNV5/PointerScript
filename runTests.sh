@@ -29,6 +29,7 @@ runTest runtime/strformat
 runTest runtime/struct
 runTest runtime/functions
 runTest runtime/alignment
+runTest runtime/sync
 
 if [ $hadError -ne 0 ]; then
 	exit 1

@@ -1,0 +1,43 @@
+import puts, sleep, pthread_*;
+import assert, assertEq from "../common.ptrs";
+
+var mutex = new array[1];
+var counter = 0;
+tls ownData = 42;
+
+function worker1()
+{
+	lock(mutex)
+	{
+		counter++;
+		assertEq(1, counter);
+
+		assertEq(42, ownData);
+		ownData = "hi";
+		assertEq("hi", ownData);
+
+		sleep(1);
+		counter--;
+	}
+}
+
+var counter2 = 0;
+function worker2()
+{
+	lock
+	{
+		counter2++;
+		assertEq(1, counter2);
+
+		sleep(1);
+		counter2--;
+	}
+}
+
+var threads[4];
+foreach(i in threads)
+	pthread_create(threads + i, NULL, i < 2 ? worker1 : worker2, NULL);
+
+var ret;
+foreach(i, t in threads)
+	pthread_join(t, &ret);
