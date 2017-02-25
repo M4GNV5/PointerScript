@@ -936,8 +936,8 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	if(val->type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_forin, true)) != NULL)
 	{
 		void *yieldVal[2];
-		yieldVal[0] = &node->arg.forin;
-		yieldVal[1] = (void*)scope;
+		yieldVal[0] = stmt;
+		yieldVal[1] = scope;
 
 		ptrs_var_t arg;
 		arg.type = PTRS_TYPE_NATIVE;
@@ -955,6 +955,7 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		ptrs_scope_t *stmtScope = ptrs_scope_increase(scope, stmt->stackOffset);
 		ptrs_var_t *indexvar = ptrs_scope_get(stmtScope, stmt->varsymbols[0]);
 		ptrs_var_t *valvar = NULL;
+
 		if(stmt->varcount > 1)
 			valvar = ptrs_scope_get(stmtScope, stmt->varsymbols[1]);
 

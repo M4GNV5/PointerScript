@@ -1047,8 +1047,12 @@ ptrs_var_t *ptrs_handle_yield(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	stmtScope->callAst = node;
 	stmtScope->calleeName = "(for in loop)";
 
-	for(int i = 0; i < forStmt->varcount; i++)
-		ptrs_scope_set(stmtScope, forStmt->varsymbols[i], &vals[i]);
+	int i = 0;
+	result->type = PTRS_TYPE_UNDEFINED;
+	for(i = 0; i < forStmt->varcount && i < len; i++)
+	{
+		ptrs_scope_set(stmtScope, forStmt->varsymbols[i], i < forStmt->varcount ? &vals[i] : result);
+	}
 
 	ptrs_var_t *_result = forStmt->body->handler(forStmt->body, result, stmtScope);
 
