@@ -31,24 +31,24 @@ EXTERN_LIBS += -lffi
 CFLAGS = '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -std=c99
 
 ifdef PORTABLE
-	ARCH = PORTABLE
+ARCH = PORTABLE
+CFLAGS += -D_XOPEN_SOURCE=700
 else
-	ARCH = $(shell uname -m)
+ARCH = $(shell uname -m)
+ifeq ($(shell uname -o),GNU/Linux)
+CFLAGS += -D_GNU_SOURCE
+else
+CFLAGS += -D_XOPEN_SOURCE=700
+endif
 endif
 
 ifeq ($(ARCH),x86_64)
-	CFLAGS += -I$(FFCB_DIR) -I$(JITAS_DIR)
-	EXTERN_LIBS += $(FFCB_BIN)
-	EXTERN_LIBS += $(JITAS_BIN)
+CFLAGS += -I$(FFCB_DIR) -I$(JITAS_DIR)
+EXTERN_LIBS += $(FFCB_BIN)
+EXTERN_LIBS += $(JITAS_BIN)
 else
-	CFLAGS += -D_PTRS_PORTABLE
-	$(info Building portable. Inline assembly and returning non-integers from native callbacks will not be available)
-endif
-
-ifeq ($(shell uname -o),GNU/Linux)
-	CFLAGS += -D_GNU_SOURCE
-else
-	CFLAGS += -D_XOPEN_SOURCE=700
+CFLAGS += -D_PTRS_PORTABLE
+$(info Building portable. Inline assembly and returning non-integers from native callbacks will not be available)
 endif
 
 all: CFLAGS += -Wall -O2 -g
