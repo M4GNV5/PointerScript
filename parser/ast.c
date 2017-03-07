@@ -139,7 +139,7 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 	code.pos = 0;
 	code.withCount = 0;
 	code.insideIndex = false;
-	code.yield.scope = (unsigned)-1;
+	code.yield.offset = (unsigned)-1;
 
 	if(symbols == NULL || *symbols == NULL)
 	{
@@ -1206,7 +1206,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 	}
 	else if(lookahead(code, "yield"))
 	{
-		if(code->yield.scope != (unsigned)-1)
+		if(code->yield.offset != (unsigned)-1)
 		{
 			ast = talloc(ptrs_ast_t);
 			ast->handler = ptrs_handle_yield;
@@ -2301,7 +2301,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					nameFormat = "%1$s.op foreach in this";
 					overload->op = ptrs_handle_forin;
 
-					code->yield = addHiddenSymbol(code, 16);
+					code->yield = addHiddenSymbol(code, sizeof(ptrs_var_t));
 
 					func->argc = 1;
 					func->args = talloc(ptrs_symbol_t);
@@ -3068,6 +3068,8 @@ static void symbolScope_increase(code_t *code, int buildInCount, bool isInline)
 	code->symbols = new;
 	if(isInline)
 		new->offset += new->outer->offset;
+	else
+		code->yield.scope++;
 }
 
 static unsigned symbolScope_decrease(code_t *code)
@@ -3096,6 +3098,9 @@ static unsigned symbolScope_decrease(code_t *code)
 	unsigned val = scope->offset > scope->maxOffset ? scope->offset : scope->maxOffset;
 	if(code->symbols != NULL && val > code->symbols->maxOffset)
 		code->symbols->maxOffset = val;
+
+	if(!scope->isInline)
+		code->yield.scope--;
 
 	free(scope);
 	return val;
