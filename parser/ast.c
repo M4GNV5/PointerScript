@@ -2768,6 +2768,7 @@ static char *readString(code_t *code, int *length, struct ptrs_stringformat **in
 {
 	int buffSize = 1024;
 	int i = 0;
+	uint8_t insertionMode = 0; //0 = no insertions or % yet, 1 = no insertions but had %, 2 = had insertion
 
 	if(insertionCount != NULL)
 		*insertionCount = 0;
@@ -2785,6 +2786,20 @@ static char *readString(code_t *code, int *length, struct ptrs_stringformat **in
 			 	buff[i++] = readEscapeSequence(code);
 				rawnext(code);
 			}
+			else if(code->curr == '%')
+			{
+				rawnext(code);
+				if(insertionMode < 2)
+				{
+					insertionMode = 1;
+					buff[i++] = '%';
+				}
+				else
+				{
+					buff[i++] = '%';
+					buff[i++] = '%';
+				}
+			}
 			else if(insertions != NULL && code->curr == '$')
 			{
 				rawnext(code);
@@ -2794,6 +2809,10 @@ static char *readString(code_t *code, int *length, struct ptrs_stringformat **in
 
 				if(curr == NULL)
 				{
+					if(insertionMode == 1)
+						unexpectedm(code, NULL, "String insertions cannot come after % in a string");
+					insertionMode = 2;
+
 					curr = talloc(struct ptrs_stringformat);
 					*insertions = curr;
 				}
@@ -2832,7 +2851,7 @@ static char *readString(code_t *code, int *length, struct ptrs_stringformat **in
 				{
 					int j;
 					char name[128];
-					for(j = 0; j < 128 && (isalnum(code->curr) || code->curr == '_'); j++)
+					for(j = 0; j < 127 && (isalnum(code->curr) || code->curr == '_'); j++)
 					{
 						name[j] = code->curr;
 						rawnext(code);
