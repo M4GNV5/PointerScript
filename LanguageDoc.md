@@ -874,7 +874,7 @@ puts("valc = $%c{val + 'a'}"); //prints "valc = c"
 ```
 
 ##SizeofExpression
-Returns the size of an expression, a C type or the size of a variable.
+Returns the size of an expression, a C type or a variable.
 You can optionally put braces around the type (like in C)
 ```js
 //'sizeof' Expression
@@ -885,19 +885,19 @@ var foo[16];
 var bar{} = "hello!";
 
 sizeof foo; //16 same as sizeof(foo)
-sizeof bar; //7  same as sizeof(bar)
+sizeof bar; //7  same as sizeof(bar), same as strlen(bar) + 1
 sizeof(foo);
 sizeof(bar);
 
 sizeof int; //returns the size of the C 'int' type (usually 4 on amd64 computers)
-sizeof(int); //same
+sizeof(int);
 
 sizeof var; //returns the size of a variable (same as the constant VARSIZE)
-sizeof(var); //same
+sizeof(var);
 ```
 
 ##NewExpression
-Creates an instance of a struct allocating its memory using malloc
+Creates an instance of a struct allocating its memory using `malloc`
 ```js
 //'new' Identifier '(' ExpressionList ')'
 new MyStruct(32);
@@ -988,8 +988,7 @@ items[7] //for arrays
 ```
 
 ##SliceExpression
-`a[b .. c]` returns an array starting at `&a[b]` and length `c - b`. You can write `$`
-instead of `b` meaning `b = 0`. Using `$` instead of `c` means `c = sizeof(a)`
+`a[b .. c]` returns an array starting at `&a[b]` and length `c - b`. Using `$` instead of `c` means `c = sizeof(a)`
 ```D
 //Expression '[' Expression '..' Expression ']'
 
@@ -1004,14 +1003,14 @@ Returns the length of the array currently indexing.
 ```js
 //'$'
 
-var foo[4] = ["hello", 31.12, "ptrs", 42];
+var foo[6] = ["hello", 42, 1337, 31.12, 666, "ptrs"];
 
 printf("%d\n", foo[$ - 1]); //prints 42
 printf("%s\n", foo[$ - 2]); //prints ptrs
 
-//sets bar to an array starting at `&foo[2]` with length '2'
+//sets bar to an array starting at `&foo[4]` with length '2'
 var bar = foo[$ - 2 .. $]
-//sets tar to an array starting at 'foo' with length '2'
+//sets tar to an array starting at 'foo' with length '4'
 var tar = foo[0 .. $ - 2];
 ```
 
