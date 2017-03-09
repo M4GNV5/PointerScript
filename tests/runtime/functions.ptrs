@@ -35,7 +35,9 @@ function testVarArgs(args...)
 testVarArgs(1337, 31.12, assertEq);
 
 var testLambda = (a, b) -> a * b;
+var testNoArgLambda = () -> 42;
 assertEq(6, testLambda(2, 3));
+assertEq(42, testNoArgLambda());
 
 var testIIFE = (function() { return "kek"; })();
 var testIILE = ((a, b) -> a + b)(33, 11);

@@ -1378,9 +1378,11 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		consumec(code, '(');
 
 		ast = NULL;
-		if(isalnum(code->curr))
+		if(isalnum(code->curr) || (code->curr == ')'))
 		{
-			free(readIdentifier(code));
+			if(code->curr != ')')
+				free(readIdentifier(code));
+
 			if(code->curr == ',' || (lookahead(code, ")") && lookahead(code, "->")))
 			{
 				code->pos = start;
