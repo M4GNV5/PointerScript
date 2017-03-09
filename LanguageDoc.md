@@ -130,7 +130,7 @@ var ptr = malloc!native(1024);
 
 ##Structs
 Structs are as powerful as classes in other languages (they support fields, functions, overlods, getters/setters, ...).
-Here is a example of basic/common struct usage.
+Here is an example of basic/common struct usage.
 For things like operator overloading etc. see [struct.ptrs](examples/struct.ptrs) in the examples directory.
 ```js
 struct Request
@@ -543,7 +543,7 @@ will be passed non-lazy (aka evaluated when calling the function) (see [CallExpr
 ```js
 //'lazy' Identifier [ '=' Expression ]
 ```
-The varargs argument will be set to an NULL terminated array of all additional arguments passed. This must be the last argument.
+The varargs argument will be set to a NULL terminated array of all additional arguments passed. This must be the last argument.
 For information on how to use varargs see the [Variable Arguments](#variable-arguments) section
 ```js
 //Identifier '...'
@@ -1083,14 +1083,14 @@ as<float>0x7fc00000
 ```
 
 ##CastBuiltinExpression
-Converts a expression to a specific type. Casting to int/float converts the value. Casting to native returns a native function bundle for functions and a pointer to the struct data for structs.
+Converts an expression to a specific type. Casting to int/float converts the value. Casting to native returns a native function bundle for functions and a pointer to the struct data for structs.
 ```js
 //'cast' '<' TypeName '>' Expression
 cast<int>3.14 //returns 3
 ```
 
 ##CastToStringExpression
-Converts a expression to a string (0-terminated byte sequence). If the argument is already of type `native` and its `strlen` is within its array size the orginal value is returned, otherwise memory is allocated on the stack and the value is stringyfied.
+Converts an expression to a string (0-terminated byte sequence). If the argument is already of type `native` and its `strlen` is within its array size the orginal value is returned, otherwise memory is allocated on the stack and the value is stringyfied.
 ```js
 //'cast' '<' 'string' '>' Expression
 cast<string>3.14 //returns "3.14"
