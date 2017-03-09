@@ -33,6 +33,7 @@
 	- [ControlStatements](#controlstatements)
 - [Expressions](#expressions)
 	- [CallExpression](#callexpression)
+	- [LambdaExpression](#lambdaexpression)
 	- [StringFormatExpression](#stringformatexpression)
 	- [SizeofExpression](#sizeofexpression)
 	- [NewExpression](#newexpression)
@@ -521,7 +522,7 @@ throw "I'm unhappy :(";
 ##FunctionStatement
 Defines a function.
 ```js
-//'function' Identifier '(' ArgumentDefinitionList ')' Block
+//'function' Identifier '(' ArgumentDefinitionList ')' '{' StatementList '}'
 function foo(a, b) { /* ... */ }
 function bar(x, y = 42, z = foo(x, y)) { /* ... */ }
 function foobar(m, _, n) { /* ... */ }
@@ -877,6 +878,29 @@ function log(lazy str)
 }
 //calculateHeavyErrorMessage will only be called if logging is enabled
 log(lazy calculateHeavyErrorMessage());
+```
+
+##LambdaExpression
+Function expression. For information about the argument syntax see [FunctionStatement](#functionstatement).
+`LambdaArgumentList` is similar to `ArgumentDefinitionList` but does not support
+default values and lazy arguments.
+```js
+//'(' LambdaArgumentList ')' -> Expression
+//'(' LambdaArgumentList ')' -> '{' StatementList '}'
+//'function' '(' ArgumentDefinitionList ')' '{' StatementList '}' '{' StatementList '}'
+
+var x = () -> 3;
+var compar = (a, b) -> a - b;
+var doStuff = (x, y) -> {
+	doOtherStuff(x, y);
+	return x;
+};
+var pow = function(base, exp = 2) {
+	var result = 1;
+	while(base > 0)
+		result *= base--;
+	return result;
+}
 ```
 
 ##StringFormatExpression
