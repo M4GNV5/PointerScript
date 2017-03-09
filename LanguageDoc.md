@@ -33,7 +33,6 @@
 	- [ControlStatements](#controlstatements)
 - [Expressions](#expressions)
 	- [CallExpression](#callexpression)
-	- [TypedCallExpression](#typedcallexpression)
 	- [StringFormatExpression](#stringformatexpression)
 	- [SizeofExpression](#sizeofexpression)
 	- [NewExpression](#newexpression)
@@ -523,26 +522,28 @@ throw "I'm unhappy :(";
 Defines a function.
 ```js
 //'function' Identifier '(' ArgumentDefinitionList ')' Block
-function foo(a, b)
-{
-
-}
-function bar(x, y = 42, z = foo(x, y))
-{
-
-}
-//for information on how to use varargs see the Variable Arguments section
-function tar(name, args...)
-{
-
-}
+function foo(a, b) { /* ... */ }
+function bar(x, y = 42, z = foo(x, y)) { /* ... */ }
+function foobar(m, _, n) { /* ... */ }
+function log(lazy msg)  { /* ... */ }
+function tar(name, args...) { /* ... */ }
 ```
 ###ArgumentDefinition
 Arguments will be set to the value to the caller provides or the default value if provided otherwise to `undefined`.
 ```js
 //Identifier [ '=' Expression ]
 ```
+`_` means that this argument will be ignored
+```js
+//'_'
+```
+A `lazy` argument will only be evaluated when used. The caller must prefix the argument with lazy or it
+will be passed non-lazy (aka evaluated when calling the function) (see [CallExpression](#callexpression))
+```js
+//'lazy' Identifier [ '=' Expression ]
+```
 The varargs argument will be set to an NULL terminated array of all additional arguments passed. This must be the last argument.
+For information on how to use varargs see the [Variable Arguments](#variable-arguments) section
 ```js
 //Identifier '...'
 ```
@@ -837,22 +838,45 @@ return atoi("42");
 #Expressions
 
 ##CallExpression
-Calls a function
+Calls a function.
+
+When calling a native function you can also specify the return type. This is necesarry for functions that return floats and handy for functions that return pointers or signed integers that are not `int64_t`'s.
 ```js
-//Identifier '(' ExpressionList ')'
+//Identifier '(' ArgumentList ')'
+//Identifier '!' TypeName '(' ArgumentList ')'
+
 printf("x = %d\n", x)
+
+pow!double(3.14, 7.2)
+powf!single(31.12, 5.0)
+
+dlerror!native()
+atol!long("-42")
 ```
 
-##TypedCallExpression
-When calling a native function you can also specify the return type. This is necesarry for functions that return floats and handy for functions that return pointers or signed integers that arent `int64_t`'s.
+Arguments can be one of:
+- `'_'` do not pass the argument (use default value)
+- `Expression` pass a value
+- `'...' Expression` expand an array as multiple arguments (expanding it)
+- `'lazy' Expression` pass a lazy argument
 ```js
-//Identifier '!' TypeName '(' ExpressionList ')'
+function foo(a = 3) { /* ... */ }
+foo(_); //a will be 3
 
-pow!double(3.14, 7.2);
-powf!single(31.12, 5.0);
+function bar(a) { /* ... */ }
+bar(5); //a will be 5
 
-dlerror!native();
-atol!long("-42");
+function doSomething(a, b, c) { /* ... */ }
+var args[] = [42, 1337, "foo"];
+doSomething(...args); //a will be 42, b will be 1336 and c will be "foo"
+
+function log(lazy str)
+{
+	if(LOGGING_ENABLED)
+		puts(str);
+}
+//calculateHeavyErrorMessage will only be called if logging is enabled
+log(lazy calculateHeavyErrorMessage());
 ```
 
 ##StringFormatExpression
@@ -1015,12 +1039,16 @@ var tar = foo[0 .. $ - 2];
 ```
 
 ##ExpandExpression
+note that expression must be of type `pointer`
 ```js
 //'...' Expression
-var args = new array[] [18, 666, "devil"];
-printf("age: %d, evil: %d, sentence: %s", ...args);
 
+var args = new array[] [18, "devil", 666];
 var foo = new array[] [42, ...args, "hihi"];
+
+//as seen under CallExpression
+printf("age: %d, sentence: %s, evil: %d", ...args);
+
 ```
 
 ##AsExpression
@@ -1083,6 +1111,7 @@ foo
 Note that constant mathematical expressions will be calculated during parse time.
 ```C
 //String | Integer | Float
+
 "Hello!"
 'x' //char code not string
 `Hello \ Whats up?
