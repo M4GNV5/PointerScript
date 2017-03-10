@@ -1036,7 +1036,7 @@ items[7] //for arrays
 ```
 
 ##SliceExpression
-`a[b .. c]` returns an array starting at `&a[b]` and length `c - b`. Using `$` instead of `c` means `c = sizeof(a)`
+`a[b .. c]` returns an array starting at `&a[b]` and length `c - b`.
 ```D
 //Expression '[' Expression '..' Expression ']'
 
