@@ -1428,8 +1428,67 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 
 		if(ast == NULL)
 		{
-			ast = parseExpression(code, true);
-			consumec(code, ')');
+			start = code->pos;
+			ptrs_asthandler_t handler = readBinaryOperator(code, NULL);
+			if(handler != NULL)
+			{
+				ast = talloc(ptrs_ast_t);
+				ast->handler = ptrs_handle_function;
+				ast->arg.function.isAnonymous = true;
+
+				ptrs_function_t *func = &ast->arg.function.func;
+				func->name = "(operator binding)";
+				func->scope = NULL;
+				func->nativeCb = NULL;
+				func->argv = NULL;
+
+				symbolScope_increase(code, 1, false);
+
+				ptrs_ast_t *stmt = talloc(ptrs_ast_t);
+				stmt->handler = ptrs_handle_return;
+				func->body = stmt;
+
+				stmt->arg.astval = talloc(ptrs_ast_t);
+				stmt = stmt->arg.astval;
+				stmt->handler = handler;
+				stmt->codepos = start;
+				stmt->code = code->src;
+				stmt->file = code->filename;
+
+				ptrs_ast_t *expr;
+				if(code->curr == ')')
+				{
+					func->argc = 2;
+					func->args = malloc(sizeof(ptrs_symbol_t) * 2);
+
+					func->args[1] = addHiddenSymbol(code, sizeof(ptrs_var_t));
+					expr = talloc(ptrs_ast_t);
+					expr->handler = ptrs_handle_identifier;
+					expr->arg.varval = func->args[1];
+					stmt->arg.binary.right = expr;
+				}
+				else
+				{
+					func->argc = 1;
+					func->args = malloc(sizeof(ptrs_symbol_t));
+
+					stmt->arg.binary.right = parseExpression(code, true);
+				}
+
+				func->args[0] = addHiddenSymbol(code, sizeof(ptrs_var_t));
+				expr = talloc(ptrs_ast_t);
+				expr->handler = ptrs_handle_identifier;
+				expr->arg.varval = func->args[0];
+				stmt->arg.binary.left = expr;
+
+				func->stackOffset = symbolScope_decrease(code);
+				consumec(code, ')');
+			}
+			else
+			{
+				ast = parseExpression(code, true);
+				consumec(code, ')');
+			}
 		}
 	}
 	else
@@ -2721,7 +2780,8 @@ static ptrs_asthandler_t readOperatorFrom(code_t *code, const char **label, stru
 	{
 		if(lookahead(code, ops[i].op))
 		{
-			*label = ops[i].op;
+			if(label != NULL)
+				*label = ops[i].op;
 			return ops[i].handler;
 		}
 	}
