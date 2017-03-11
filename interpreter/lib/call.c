@@ -92,12 +92,14 @@ ptrs_var_t *ptrs_callfunc(ptrs_ast_t *callAst, ptrs_var_t *result, ptrs_scope_t 
 	else if(result != _result)
 		memcpy(result, _result, sizeof(ptrs_var_t));
 
-	if((result->type == PTRS_TYPE_NATIVE || result->type == PTRS_TYPE_STRUCT)
+	if((result->type == PTRS_TYPE_NATIVE || result->type == PTRS_TYPE_POINTER || result->type == PTRS_TYPE_STRUCT)
 		&& result->value.nativeval > scope->bp && result->value.nativeval < scope->sp)
 	{
 		size_t len;
 		if(result->type == PTRS_TYPE_NATIVE)
-			len = strlen(result->value.nativeval) + 1;
+			len = result->meta.array.size;
+		else if(result->type == PTRS_TYPE_POINTER)
+			len = sizeof(ptrs_var_t) * result->meta.array.size;
 		else
 			len = sizeof(ptrs_struct_t) + result->value.structval->size;
 
