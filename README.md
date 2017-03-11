@@ -3,8 +3,7 @@ Dynamically typed scripting language with pointers and native library access. Po
 feels like C but has awesome features like operator overloading, dynamic typing and
 even though you have direct low level access your code is more safe thanks to boundary
 checks. Additionally finding errors is less painful as you get a full backtrace when a
-runtime error occurs or you receive e.g. a segmentation fault. If you love low level
-programming [you can even write inline assembly](LanguageDoc.md#asmstatement) (on linux-x86_64 only)
+runtime error occurs or you receive e.g. a segmentation fault.
 
 ###You can try the language online on the [playground](https://pointerscript.org/play/)
 
@@ -19,7 +18,7 @@ sudo apt-get install libffi-dev build-essential
 git clone --recursive https://github.com/M4GNV5/PointerScript
 cd PointerScript
 
-make release #if you are not on linux-x86_64 try 'make portable'
+make
 sudo make install #optional (copies bin/ptrs to /usr/local/bin/ptrs)
 ```
 
@@ -34,12 +33,13 @@ apm link
 ##Language
 
 ###Standard Library
-PointerScript has no standard-library. You can use all C libraries using the built-in ffi ([Import statement](LanguageDoc.md#importstatement)),
-however there are a couple of useful libraries and bindings (networking, regexp, http, json, lists, maps etc.)
-in [this repo](https://github.com/M4GNV5/PtrsStuff)
+PointerScript has no standard-library. You can use all C libraries using the built-in ffi ([Import statement](LanguageDoc.md#importstatement)).
+There are a couple of useful libraries and bindings (sockets, regexp, http, json, lists, maps etc.)
+in [this repository](https://github.com/M4GNV5/PtrsStuff)
+
+
 
 ###Performance
-Generally PointerScript runs faster than many other scripting languages due to the absence of a Garbage Collector and the usage of native libraries.
 You can create call graphs for the code examples in this repository using:
 ```bash
 sudo apt-get install valgrind graphviz python3
@@ -48,14 +48,21 @@ curl -O ../gprof2dot.py https://raw.githubusercontent.com/jrfonseca/gprof2dot/ma
 ```
 Currently the main time eaters are lookahead (parser) for small scripts without expensive loops and ptrs_scope_get for scripts with long loops
 
+
+
 ###Testing
 You can run tests for the interpreter by executing the `runTests.sh` script in the repository
+
+
 
 ###Documentation
 Most of PointerScript is similar to Javascript and/or C. For a full Documentation see [LanguageDoc.md](LanguageDoc.md)
 
-##Example code
-The following is quite a bit of unknown code, we'll go through it down below, remember you can run and modify this code in your browser in the [playground](https://pointerscript.org/play/)
+
+
+##Introduction
+The following is quite a bit of unknown code, we'll go through it (and some other things) below.
+Remember you can run and modify this code in your browser on the [playground](https://pointerscript.org/play/)
 ```javascript
 import puts, qsort;
 
@@ -149,7 +156,7 @@ But of course we can also use printf directly
 ```javascript
 for(var i = 0; i < sizeof nums; i++)
 {
-	//when using printf directly make sure to use the correct format for the
+	//when using printf make sure to use the correct format for the
 	//type of the variable passed, in this case %d for integers
 	printf("nums[%d] = %d\n", i, nums[i]);
 }
