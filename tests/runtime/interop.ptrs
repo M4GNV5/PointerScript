@@ -2,6 +2,7 @@ import atoi, atof, strcmp, qsort, puts;
 import pow, sin from "libm.so.6";
 import assert, assertEq from "../common.ptrs";
 import str*;
+import ptrs_nativeTypeCount : int, ptrs_zeroMemory : u8;
 
 var str = "hello!";
 var str2{} = str;
@@ -26,3 +27,6 @@ strcpy(buff, "hello world!");
 assertEq("hello world!", buff);
 assertEq(0, strncmp(buff, "hello", 5));
 assertEq(buff + 6, strstr!native(buff, "world"));
+
+assertEq(28, ptrs_nativeTypeCount);
+assertEq(0, ptrs_zeroMemory);
