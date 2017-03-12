@@ -25,6 +25,7 @@ typedef enum
 {
 	PTRS_SYMBOL_DEFAULT,
 	PTRS_SYMBOL_CONST,
+	PTRS_SYMBOL_TYPED,
 	PTRS_SYMBOL_LAZY,
 	PTRS_SYMBOL_THISMEMBER,
 	PTRS_SYMBOL_WILDCARD,
@@ -46,6 +47,11 @@ struct symbollist
 			ptrs_ast_t *value;
 			unsigned offset;
 		} lazy;
+		struct
+		{
+			ptrs_nativetype_info_t *type;
+			unsigned offset;
+		} typed;
 	} arg;
 	ptrs_symboltype_t type;
 	char *text;
@@ -214,6 +220,15 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 					case PTRS_SYMBOL_CONST:
 						*node = ast = talloc(ptrs_ast_t);
 						memcpy(ast, curr->arg.data, sizeof(ptrs_ast_t));
+						break;
+
+					case PTRS_SYMBOL_TYPED:
+						*node = ast = talloc(ptrs_ast_t);
+						ast->handler = ptrs_handle_typed;
+						ast->setHandler = ptrs_handle_assign_typed;
+						ast->arg.typed.symbol.scope = level;
+						ast->arg.lazy.symbol.offset = curr->arg.typed.offset;
+						ast->arg.typed.type = curr->arg.typed.type;
 						break;
 
 					case PTRS_SYMBOL_LAZY:
@@ -1740,6 +1755,23 @@ static void parseImport(code_t *code, ptrs_ast_t *stmt)
 			curr->importStmt = stmt;
 			curr->start = name;
 			curr->startLen = strlen(name);
+		}
+		else if(code->curr == ':')
+		{
+			next(code);
+
+			struct ptrs_importlist *curr = talloc(struct ptrs_importlist);
+			curr->name = name;
+			curr->symbol = addHiddenSymbol(code, sizeof(ptrs_var_t)); //TODO use type's size here? or keep alignment?
+			curr->next = stmt->arg.import.imports;
+			stmt->arg.import.imports = curr;
+
+			struct symbollist *symbol = addSpecialSymbol(code, strdup(name), PTRS_SYMBOL_TYPED);
+			symbol->arg.typed.offset = curr->symbol.offset;
+			symbol->arg.typed.type = readNativeType(code);
+
+			if(symbol->arg.typed.type == NULL)
+				unexpected(code, "Native type name");
 		}
 		else
 		{

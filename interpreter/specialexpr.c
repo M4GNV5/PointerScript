@@ -921,6 +921,23 @@ ptrs_var_t *ptrs_handle_assign_identifier(ptrs_ast_t *node, ptrs_var_t *value, p
 	return NULL;
 }
 
+ptrs_var_t *ptrs_handle_typed(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
+{
+	ptrs_nativetype_info_t *type = node->arg.typed.type;
+	ptrs_var_t *ptr = ptrs_scope_get(scope, node->arg.typed.symbol);
+
+	type->getHandler(ptr->value.nativeval, type->size, result);
+	return result;
+}
+ptrs_var_t *ptrs_handle_assign_typed(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope)
+{
+	ptrs_nativetype_info_t *type = node->arg.typed.type;
+	ptrs_var_t *ptr = ptrs_scope_get(scope, node->arg.typed.symbol);
+
+	type->setHandler(ptr->value.nativeval, type->size, value);
+	return NULL;
+}
+
 ptrs_var_t *ptrs_handle_constant(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	memcpy(result, &(node->arg.constval), sizeof(ptrs_var_t));

@@ -23,6 +23,12 @@ struct ptrs_ast_define
 	uint8_t onStack : 1;
 };
 
+struct ptrs_ast_typed
+{
+	ptrs_symbol_t symbol;
+	ptrs_nativetype_info_t *type;
+};
+
 struct ptrs_ast_lazy
 {
 	ptrs_symbol_t symbol;
@@ -229,6 +235,7 @@ union ptrs_ast_arg
 
 	struct ptrs_ast_define define;
 	struct ptrs_ast_lazy lazy;
+	struct ptrs_ast_typed typed;
 	struct ptrs_ast_member member;
 	struct ptrs_ast_thismember thismember;
 	struct ptrs_ast_import import;
