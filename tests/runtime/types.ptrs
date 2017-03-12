@@ -19,8 +19,10 @@ assertEq(type<native>, typeof printf);
 
 function func() {}
 var lambda = (x) -> 42;
+var op = (==);
 assertEq(type<function>, typeof func);
 assertEq(type<function>, typeof lambda);
+assertEq(type<function>, typeof op);
 
 struct Struc
 {
