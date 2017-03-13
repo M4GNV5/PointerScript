@@ -1,0 +1,32 @@
+import assert, assertEq from "../common.ptrs";
+
+var val = 0;
+struct Test
+{
+	operator foreach in this
+	{
+		assertEq(false, yield 0);
+
+		val = "hi";
+		assertEq(false, yield val);
+
+		scoped
+		{
+			val = 31.12;
+			assertEq(false, yield val);
+		}
+
+		val = 42;
+		assertEq(true, yield val);
+	}
+};
+
+var test = new Test();
+
+foreach(val2, val3 in test)
+{
+	assertEq(type<undefined>, typeof val3);
+	assertEq(val, val2);
+	if(val == 42)
+		return;
+}

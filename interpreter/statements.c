@@ -953,20 +953,26 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	else if(val->type == PTRS_TYPE_POINTER || val->type == PTRS_TYPE_NATIVE)
 	{
 		ptrs_scope_t *stmtScope = ptrs_scope_increase(scope, stmt->stackOffset);
-		ptrs_var_t *indexvar = ptrs_scope_get(stmtScope, stmt->varsymbols[0]);
-		ptrs_var_t *valvar = NULL;
 
-		if(stmt->varcount > 1)
+		ptrs_var_t *indexvar;
+		if(stmt->varsymbols[0].scope != (unsigned)-1)
+			indexvar = ptrs_scope_get(stmtScope, stmt->varsymbols[0]);
+		else
+			indexvar = NULL;
+
+		ptrs_var_t *valvar;
+		if(stmt->varcount > 1 && stmt->varsymbols[1].scope != (unsigned)-1)
 			valvar = ptrs_scope_get(stmtScope, stmt->varsymbols[1]);
+		else
+			valvar = NULL;
 
-		int len = val->meta.array.size;
-		if(len == 0 && val->type == PTRS_TYPE_NATIVE)
-			len = strlen(val->value.strval);
-
-		for(int i = 0; i < len; i++)
+		for(int i = 0; i < val->meta.array.size; i++)
 		{
-			indexvar->type = PTRS_TYPE_INT;
-			indexvar->value.intval = i;
+			if(indexvar != NULL)
+			{
+				indexvar->type = PTRS_TYPE_INT;
+				indexvar->value.intval = i;
+			}
 
 			if(valvar != NULL && val->type == PTRS_TYPE_NATIVE)
 			{
@@ -990,9 +996,15 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	else if(val->type == PTRS_TYPE_STRUCT)
 	{
 		ptrs_scope_t *stmtScope = ptrs_scope_increase(scope, stmt->stackOffset);
-		ptrs_var_t *keyvar = ptrs_scope_get(stmtScope, stmt->varsymbols[0]);
+
+		ptrs_var_t *keyvar;
+		if(stmt->varsymbols[0].scope != (unsigned)-1)
+			keyvar = ptrs_scope_get(stmtScope, stmt->varsymbols[0]);
+		else
+			keyvar = NULL;
+
 		ptrs_var_t *valvar;
-		if(stmt->varcount > 1)
+		if(stmt->varcount > 1 && stmt->varsymbols[1].scope != (unsigned)-1)
 			valvar = ptrs_scope_get(stmtScope, stmt->varsymbols[1]);
 		else
 			valvar = NULL;
@@ -1006,10 +1018,13 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 				continue;
 			}
 
-			keyvar->type = PTRS_TYPE_NATIVE;
-			keyvar->value.strval = curr->name;
-			keyvar->meta.array.size = curr->namelen;
-			keyvar->meta.array.readOnly = true;
+			if(keyvar != NULL)
+			{
+				keyvar->type = PTRS_TYPE_NATIVE;
+				keyvar->value.strval = curr->name;
+				keyvar->meta.array.size = curr->namelen;
+				keyvar->meta.array.readOnly = true;
+			}
 
 			if(valvar != NULL)
 			{

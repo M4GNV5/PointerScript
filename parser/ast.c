@@ -339,21 +339,29 @@ int parseIdentifierList(code_t *code, char *end, ptrs_symbol_t **symbols, char *
 
 	for(int i = 0; i < count; i++)
 	{
-		char *name = readIdentifier(code);
-		if(fields != NULL)
+		if(fields != NULL && lookahead(code, "_"))
 		{
-			if(lookahead(code, "as"))
+			(*symbols)[i].scope = (unsigned)-1;
+		}
+		else
+		{
+			char *name = readIdentifier(code);
+			if(fields != NULL)
 			{
-				(*fields)[i] = name;
-				name = readIdentifier(code);
+				if(lookahead(code, "as"))
+				{
+					(*fields)[i] = name;
+					name = readIdentifier(code);
+				}
+				else
+				{
+					(*fields)[i] = strdup(name);
+				}
 			}
-			else
-			{
-				(*fields)[i] = strdup(name);
-			}
+
+			(*symbols)[i] = addSymbol(code, name);
 		}
 
-		(*symbols)[i] = addSymbol(code, name);
 		if(i < count - 1)
 			consumec(code, ',');
 	}
