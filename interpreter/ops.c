@@ -11,59 +11,62 @@
 #include "include/call.h"
 #include "include/struct.h"
 
-static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *op, ptrs_vartype_t tleft, ptrs_vartype_t tright)
-{
-	ptrs_error(node, scope, "Cannot use operator %s on variables of type %s and %s",
-		op, ptrs_typetoa(tleft), ptrs_typetoa(tright));
-}
+#define typcomp(left, right) ((uint8_t)PTRS_TYPE_##left << 4) | (uint8_t)PTRS_TYPE_##right
 
 #define binary_typecheck(val) \
 	else if(tleft != tright) \
 	{ \
 		result->type = PTRS_TYPE_INT; \
 		result->value.intval = val; \
+		return result; \
 	}
 
-#define binary_floatop(operator) \
-	else if((tleft == PTRS_TYPE_FLOAT || tleft == PTRS_TYPE_INT) \
-	 	&& (tright == PTRS_TYPE_FLOAT || tright == PTRS_TYPE_INT)) \
-	{ \
+#define binary_floatop(operator, isAssign) \
+	case typcomp(FLOAT, INT): \
+	case typcomp(INT, FLOAT): \
+	case typcomp(FLOAT, FLOAT): \
+		; \
 		double fleft = ptrs_vartof(left); \
 		double fright = ptrs_vartof(right); \
 		\
 		result->type = PTRS_TYPE_FLOAT; \
 		result->value.floatval = fleft operator fright; \
-	}
-
-#define binary_assignfloatop(operator) \
-	else if((tleft == PTRS_TYPE_FLOAT || tleft == PTRS_TYPE_INT) \
-	 	&& (tright == PTRS_TYPE_FLOAT || tright == PTRS_TYPE_INT)) \
-	{ \
-		double fleft = ptrs_vartof(left); \
-		double fright = ptrs_vartof(right); \
-		\
-		result->type = left->type = PTRS_TYPE_FLOAT; \
-		result->value.floatval = left->value.floatval = fleft operator fright; \
-	}
+		if(isAssign) \
+		{ \
+			left->type = PTRS_TYPE_FLOAT; \
+			left->value.floatval = result->value.floatval; \
+		} \
+		break;
 
 #define binary_pointer_compare(operator) \
-	else if((tleft == PTRS_TYPE_INT || tleft > PTRS_TYPE_FLOAT) \
-		&& (tright == PTRS_TYPE_INT || tright > PTRS_TYPE_FLOAT)) \
-	{ \
+	case typcomp(NATIVE, NATIVE): \
+	case typcomp(NATIVE, POINTER): \
+	case typcomp(NATIVE, FUNCTION): \
+	case typcomp(NATIVE, STRUCT): \
+	case typcomp(POINTER, NATIVE): \
+	case typcomp(POINTER, POINTER): \
+	case typcomp(POINTER, FUNCTION): \
+	case typcomp(POINTER, STRUCT): \
+	case typcomp(STRUCT, NATIVE): \
+	case typcomp(STRUCT, POINTER): \
+	case typcomp(STRUCT, FUNCTION): \
+	case typcomp(STRUCT, STRUCT): \
+	case typcomp(FUNCTION, NATIVE): \
+	case typcomp(FUNCTION, POINTER): \
+	case typcomp(FUNCTION, FUNCTION): \
+	case typcomp(FUNCTION, STRUCT): \
 		result->type = PTRS_TYPE_INT; \
-		result->value.intval = left->value.intval operator right->value.intval; \
-	} \
+		result->value.intval = left->value.nativeval operator right->value.nativeval; \
+		break;
 
 #define binary_pointer_add(operator, isAssign) \
-	else if(tleft == PTRS_TYPE_NATIVE && tright == PTRS_TYPE_INT) \
-	{ \
+	case typcomp(NATIVE, INT): \
 		result->type = PTRS_TYPE_NATIVE; \
 		result->value.nativeval = left->value.nativeval operator right->value.intval; \
 		result->meta.array.size = left->meta.array.size - right->value.intval; \
 		result->meta.array.readOnly = left->meta.array.readOnly; \
-	} \
-	else if(tleft == PTRS_TYPE_INT && tright == PTRS_TYPE_NATIVE) \
-	{ \
+		break; \
+	case typcomp(INT, NATIVE): \
 		result->type = PTRS_TYPE_NATIVE; \
 		result->value.nativeval = left->value.intval + right->value.nativeval; \
 		result->meta.array.size = right->meta.array.size - left->value.intval; \
@@ -73,15 +76,13 @@ static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *
 			left->type = PTRS_TYPE_NATIVE; \
 			left->value.nativeval = result->value.nativeval; \
 		} \
-	} \
-	else if(tleft == PTRS_TYPE_POINTER && tright == PTRS_TYPE_INT) \
-	{ \
+		break; \
+	case typcomp(POINTER, INT): \
 		result->type = PTRS_TYPE_POINTER; \
 		result->value.ptrval = left->value.ptrval operator right->value.intval; \
 		result->meta.array.size = left->meta.array.size - right->value.intval; \
-	} \
-	else if(tleft == PTRS_TYPE_INT && tright == PTRS_TYPE_POINTER) \
-	{ \
+		break; \
+	case typcomp(INT, POINTER): \
 		result->type = PTRS_TYPE_POINTER; \
 		result->value.ptrval = left->value.intval + right->value.ptrval; \
 		result->meta.array.size = right->meta.array.size - left->value.intval; \
@@ -90,30 +91,25 @@ static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *
 			left->type = PTRS_TYPE_POINTER; \
 			left->value.ptrval = result->value.ptrval; \
 		} \
-	}
+		break;
 
 #define binary_pointer_sub(operator, isAssign) \
-	else if((tleft == PTRS_TYPE_NATIVE) ^ (tright == PTRS_TYPE_NATIVE) \
-		&& (tleft == PTRS_TYPE_INT || tright == PTRS_TYPE_INT)) \
-	{ \
+	case typcomp(NATIVE, INT): \
 		result->type = PTRS_TYPE_NATIVE; \
 		result->value.intval = left->value.intval operator right->value.intval; \
 		result->meta.array.readOnly = tleft == PTRS_TYPE_NATIVE ? left->meta.array.readOnly : right->meta.array.readOnly; \
-	} \
-	else if(tleft == PTRS_TYPE_NATIVE && tright == PTRS_TYPE_NATIVE) \
-	{ \
+		break; \
+	case typcomp(NATIVE, NATIVE): \
 		result->type = PTRS_TYPE_INT; \
 		if(isAssign) \
 			left->type = PTRS_TYPE_INT; \
 		result->value.intval = left->value.intval operator right->value.intval; \
-	} \
-	else if(tleft == PTRS_TYPE_POINTER && tright == PTRS_TYPE_INT) \
-	{ \
+		break; \
+	case typcomp(POINTER, INT): \
 		result->type = PTRS_TYPE_POINTER; \
 		result->value.ptrval = left->value.ptrval operator right->value.intval; \
-	} \
-	else if(tleft == PTRS_TYPE_POINTER && tright == PTRS_TYPE_POINTER) \
-	{ \
+		break; \
+	case typcomp(POINTER, POINTER): \
 		result->type = PTRS_TYPE_INT; \
 		result->value.intval = left->value.ptrval - right->value.ptrval; \
 		if(isAssign) \
@@ -121,11 +117,11 @@ static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *
 			left->type = PTRS_TYPE_INT; \
 			left->value.intval = result->value.intval; \
 		} \
-	}
+		break;
 
 
 
-#define handle_binary(name, operator, oplabel, isAssign, ...) \
+#define handle_binary(name, operator, oplabel, isAssign, cases, preCheck) \
 	ptrs_var_t *ptrs_handle_op_##name(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope) \
 	{ \
 		ptrs_var_t leftv; \
@@ -148,15 +144,18 @@ static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *
 			ptrs_var_t func = {{.funcval = overload}, .type = PTRS_TYPE_FUNCTION}; \
 			return ptrs_callfunc(node, result, scope, right->value.structval, &func, 1, left); \
 		} \
-		else if(tleft == PTRS_TYPE_INT && tright == PTRS_TYPE_INT) \
+		preCheck \
+		\
+		switch(((uint8_t)tleft << 4) | (uint8_t)tright) \
 		{ \
-			result->type = PTRS_TYPE_INT; \
-			result->value.intval = left->value.intval operator right->value.intval; \
-		} \
-		__VA_ARGS__ \
-		else \
-		{ \
-			binary_typeerror(node, scope, oplabel, tleft, tright); \
+			case typcomp(INT, INT): \
+				result->type = PTRS_TYPE_INT; \
+				result->value.intval = left->value.intval operator right->value.intval; \
+				break; \
+			cases \
+			default: \
+				ptrs_error(node, scope, "Cannot use operator %s on variables of type %s and %s", \
+					oplabel, ptrs_typetoa(tleft), ptrs_typetoa(tright)); \
 		} \
 		\
 		if(isAssign && left == &leftv) \
@@ -165,34 +164,34 @@ static void binary_typeerror(ptrs_ast_t *node, ptrs_scope_t *scope, const char *
 		return result; \
 	} \
 
-handle_binary(typeequal, ==, "===", false, binary_typecheck(false) binary_floatop(==) binary_pointer_compare(==))
-handle_binary(typeinequal, ==, "!==", false, binary_typecheck(true) binary_floatop(!=) binary_pointer_compare(!=))
-handle_binary(equal, ==, "==", false, binary_floatop(==) binary_pointer_compare(==))
-handle_binary(inequal, !=, "!=", false, binary_floatop(!=) binary_pointer_compare(!=))
-handle_binary(lessequal, <=, "<=", false, binary_floatop(<=) binary_pointer_compare(<=))
-handle_binary(greaterequal, >=, ">=", false, binary_floatop(>=) binary_pointer_compare(>=))
-handle_binary(less, <, "<", false, binary_floatop(<) binary_pointer_compare(<))
-handle_binary(greater, >, ">", false, binary_floatop(>) binary_pointer_compare(>))
-handle_binary(or, |, "|", false)
-handle_binary(xor, ^, "^", false)
-handle_binary(and, &, "&", false)
-handle_binary(shr, >>, ">>", false)
-handle_binary(shl, <<, "<<", false)
-handle_binary(add, +, "+", false, binary_floatop(+) binary_pointer_add(+, false))
-handle_binary(sub, -, "-", false, binary_floatop(-) binary_pointer_sub(-, false))
-handle_binary(mul, *, "*", false, binary_floatop(*))
-handle_binary(div, /, "/", false, binary_floatop(/))
-handle_binary(mod, %, "%", false)
-handle_binary(addassign, +=, "+=", true, binary_assignfloatop(+=) binary_pointer_add(+=, true))
-handle_binary(subassign, -=, "-=", true, binary_assignfloatop(-=) binary_pointer_sub(-=, true))
-handle_binary(mulassign, *=, "*=", true, binary_assignfloatop(*=))
-handle_binary(divassign, /=, "/=", true, binary_assignfloatop(/=))
-handle_binary(modassign, %=, "%=", true)
-handle_binary(shrassign, >>=, ">>=", true)
-handle_binary(shlassign, <<=, "<<=", true)
-handle_binary(andassign, &=, "&=", true)
-handle_binary(xorassign, ^=, "^=", true)
-handle_binary(orassign, |=, "|=", true)
+handle_binary(typeequal, ==, "===", false, binary_floatop(==, false) binary_pointer_compare(==), binary_typecheck(false))
+handle_binary(typeinequal, ==, "!==", false, binary_floatop(!=, false) binary_pointer_compare(!=), binary_typecheck(true))
+handle_binary(equal, ==, "==", false, binary_floatop(==, false) binary_pointer_compare(==), /*none*/)
+handle_binary(inequal, !=, "!=", false, binary_floatop(!=, false) binary_pointer_compare(!=), /*none*/)
+handle_binary(lessequal, <=, "<=", false, binary_floatop(<=, false) binary_pointer_compare(<=), /*none*/)
+handle_binary(greaterequal, >=, ">=", false, binary_floatop(>=, false) binary_pointer_compare(>=), /*none*/)
+handle_binary(less, <, "<", false, binary_floatop(<, false) binary_pointer_compare(<), /*none*/)
+handle_binary(greater, >, ">", false, binary_floatop(>, false) binary_pointer_compare(>), /*none*/)
+handle_binary(or, |, "|", false, /*none*/, /*none*/)
+handle_binary(xor, ^, "^", false, /*none*/, /*none*/)
+handle_binary(and, &, "&", false, /*none*/, /*none*/)
+handle_binary(shr, >>, ">>", false, /*none*/, /*none*/)
+handle_binary(shl, <<, "<<", false, /*none*/, /*none*/)
+handle_binary(add, +, "+", false, binary_floatop(+, false) binary_pointer_add(+, false), /*none*/)
+handle_binary(sub, -, "-", false, binary_floatop(-, false) binary_pointer_sub(-, false), /*none*/)
+handle_binary(mul, *, "*", false, binary_floatop(*, false), /*none*/)
+handle_binary(div, /, "/", false, binary_floatop(/, false), /*none*/)
+handle_binary(mod, %, "%", false, /*none*/, /*none*/)
+handle_binary(addassign, +=, "+=", true, binary_floatop(+=, true) binary_pointer_add(+=, true), /*none*/)
+handle_binary(subassign, -=, "-=", true, binary_floatop(-=, true) binary_pointer_sub(-=, true), /*none*/)
+handle_binary(mulassign, *=, "*=", true, binary_floatop(*=, true), /*none*/)
+handle_binary(divassign, /=, "/=", true, binary_floatop(/=, true), /*none*/)
+handle_binary(modassign, %=, "%=", true, /*none*/, /*none*/)
+handle_binary(shrassign, >>=, ">>=", true, /*none*/, /*none*/)
+handle_binary(shlassign, <<=, "<<=", true, /*none*/, /*none*/)
+handle_binary(andassign, &=, "&=", true, /*none*/, /*none*/)
+handle_binary(xorassign, ^=, "^=", true, /*none*/, /*none*/)
+handle_binary(orassign, |=, "|=", true, /*none*/, /*none*/)
 
 ptrs_var_t *ptrs_handle_op_assign(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
