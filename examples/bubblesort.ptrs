@@ -13,6 +13,19 @@ for(var i = 0; i < len; i++)
 note: if you want speed use 'qsort' (see `man 3 qsort`)
 import qsort;
 qsort(parts, len, VARSIZE, (a, b) -> *as<pointer>a - *as<pointer>b);
+
+
+
+if you want even more speed (e.g. when sorting arrays of length >10mio)
+you can use a native compar function instead of a lambda:
+asm compar
+{
+	compar:
+		mov (%rdi), %rax
+		sub (%rsi), %rax
+		ret
+}
+qsort(parts, len, VARSIZE, compar);
 */
 
 //simple bubble sort
