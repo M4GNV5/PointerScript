@@ -305,8 +305,18 @@ static ptrs_ast_t *parseStmtList(code_t *code, char end)
 		curr = next;
 	}
 
-	curr->next = NULL;
-	return elem;
+	if(curr == elem->arg.astlist)
+	{
+		free(elem);
+		elem = curr->entry;
+		free(curr);
+		return elem;
+	}
+	else
+	{
+		curr->next = NULL;
+		return elem;
+	}
 }
 
 int parseIdentifierList(code_t *code, char *end, ptrs_symbol_t **symbols, char ***fields)
