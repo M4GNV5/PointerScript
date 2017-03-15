@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include "../../parser/common.h"
 
-#define PTRS_STACK_SIZE (1024 * 1024)
+#define PTRS_STACK_SIZE (64 * 1024)
 
 extern const ptrs_symbol_t ptrs_thisSymbol;
 extern size_t ptrs_stacksize;
