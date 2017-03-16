@@ -1,10 +1,68 @@
 import assert, assertEq from "../common.ptrs";
 
+var op = "";
 var val = 0;
 struct Test
 {
+	constructor(args...)
+	{
+		op = "ctor";
+		val = new array[] [...args];
+	}
+
+	operator this / rval
+	{
+		op = "ldiv";
+		val = rval;
+		return 1;
+	}
+	operator lval / this
+	{
+		op = "rdiv";
+		val = lval;
+		return 2;
+	}
+
+	operator cast<typ>this
+	{
+		op = "cast";
+		val = typ;
+		return 3;
+	}
+	operator cast<string>this
+	{
+		op = "tostr";
+		return 4;
+	}
+
+	operator this(args...)
+	{
+		op = "call";
+		val = new array[] [...args];
+	}
+
+	operator this.key
+	{
+		op = ".get";
+		val = key;
+		return 6;
+	}
+	operator this.key = rval
+	{
+		op = ".set";
+		val = new array[] [key, rval];
+		return 7;
+	}
+	operator this.key(args...)
+	{
+		op = ".call";
+		val = new array[] [key, ...args];
+		return 8;
+	}
+
 	operator foreach in this
 	{
+		val = false;
 		assertEq(false, yield 0);
 
 		val = "hi";
@@ -18,10 +76,49 @@ struct Test
 
 		val = 42;
 		assertEq(true, yield val);
+
+		op = "each";
 	}
 };
 
-var test = new Test();
+var test = new Test(42, "kek", 3.14);
+assertEq("ctor", op);
+assertEq(42, val[0]);
+assertEq("kek", val[1]);
+assertEq(3.14, val[2]);
+delete val;
+
+assertEq(1, test / 3);
+assertEq("ldiv", op);
+assertEq(3, val);
+
+assertEq(2, 42 / test);
+assertEq("rdiv", op);
+assertEq(42, val);
+
+assertEq(3, cast<native>test);
+assertEq("cast", op);
+assertEq(type<native>, val);
+
+assertEq(4, cast<string>test);
+assertEq("tostr", op);
+
+assertEq(6, test.foo);
+assertEq(".get", op);
+assertEq("foo", val);
+
+assertEq(42f, test.bar = 42f);
+assertEq(".set", op);
+assertEq("bar", val[0]);
+assertEq(42f, val[1]);
+delete val;
+
+assertEq(8, test.tar("devil", 666));
+assertEq(".call", op);
+assertEq("tar", val[0]);
+assertEq("devil", val[1]);
+assertEq(666, val[2]);
+delete val;
 
 foreach(val2, val3 in test)
 {
@@ -30,3 +127,4 @@ foreach(val2, val3 in test)
 	if(val === 42)
 		return;
 }
+assertEq("each", op);

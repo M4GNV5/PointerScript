@@ -67,3 +67,11 @@ try
 	allFine = false;
 }
 assert(allFine);
+
+var vals[] = [42, 1337, 666];
+var vals2 = new array[] ['a', ...vals, 'b'];
+assertEq('a', vals2[0]);
+assertEq(42, vals2[1]);
+assertEq(1337, vals2[2]);
+assertEq(666, vals2[3]);
+assertEq('b', vals2[4]);
