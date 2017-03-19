@@ -1463,7 +1463,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		{
 			start = code->pos;
 			ptrs_asthandler_t handler = readBinaryOperator(code, NULL);
-			if(handler != NULL)
+			if(handler != NULL && lookahead(code, ")"))
 			{
 				ast = talloc(ptrs_ast_t);
 				ast->handler = ptrs_handle_function;
@@ -1488,25 +1488,9 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 				stmt->code = code->src;
 				stmt->file = code->filename;
 
+				func->argc = 2;
+				func->args = malloc(sizeof(ptrs_symbol_t) * 2);
 				ptrs_ast_t *expr;
-				if(code->curr == ')')
-				{
-					func->argc = 2;
-					func->args = malloc(sizeof(ptrs_symbol_t) * 2);
-
-					func->args[1] = addHiddenSymbol(code, sizeof(ptrs_var_t));
-					expr = talloc(ptrs_ast_t);
-					expr->handler = ptrs_handle_identifier;
-					expr->arg.varval = func->args[1];
-					stmt->arg.binary.right = expr;
-				}
-				else
-				{
-					func->argc = 1;
-					func->args = malloc(sizeof(ptrs_symbol_t));
-
-					stmt->arg.binary.right = parseExpression(code, true);
-				}
 
 				func->args[0] = addHiddenSymbol(code, sizeof(ptrs_var_t));
 				expr = talloc(ptrs_ast_t);
@@ -1514,11 +1498,18 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 				expr->arg.varval = func->args[0];
 				stmt->arg.binary.left = expr;
 
+				func->args[1] = addHiddenSymbol(code, sizeof(ptrs_var_t));
+				expr = talloc(ptrs_ast_t);
+				expr->handler = ptrs_handle_identifier;
+				expr->arg.varval = func->args[1];
+				stmt->arg.binary.right = expr;
+
 				func->stackOffset = symbolScope_decrease(code);
-				consumec(code, ')');
 			}
 			else
 			{
+				code->pos = start;
+				code->curr = code->src[code->pos];
 				ast = parseExpression(code, true);
 				consumec(code, ')');
 			}
