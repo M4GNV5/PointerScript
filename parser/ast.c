@@ -1731,7 +1731,7 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end)
 				unexpected(code, "Expression");
 		}
 
-		if(!lookahead(code, ",") || code->curr == end)
+		if(!lookahead(code, ","))
 			break;
 
 		struct ptrs_astlist *next = talloc(struct ptrs_astlist);
