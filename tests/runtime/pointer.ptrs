@@ -68,6 +68,13 @@ try
 }
 assert(allFine);
 
+var str2 = new array{} {'a', ...str, 'b'};
+assertEq('a', str2[0]);
+assertEq('h', str2[1]);
+assertEq('i', str2[2]);
+assertEq(0, str2[3]);
+assertEq('b', str2[4]);
+
 var vals[] = [42, 1337, 666];
 var vals2 = new array[] ['a', ...vals, 'b'];
 assertEq('a', vals2[0]);
@@ -75,3 +82,17 @@ assertEq(42, vals2[1]);
 assertEq(1337, vals2[2]);
 assertEq(666, vals2[3]);
 assertEq('b', vals2[4]);
+
+var vals3 = new array[] ["42", ..."hi", "hello"];
+assertEq("42", vals3[0]);
+assertEq('h', vals3[1]);
+assertEq('i', vals3[2]);
+assertEq(0, vals3[3]);
+assertEq("hello", vals3[4]);
+
+var str3 = new array{} {...vals3};
+assertEq(42, str3[0]);
+assertEq('h', str3[1]);
+assertEq('i', str3[2]);
+assertEq(0, str3[3]);
+assertEq(0, str3[4]);
