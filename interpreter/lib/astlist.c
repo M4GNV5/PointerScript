@@ -51,20 +51,23 @@ void ptrs_astlist_handle(struct ptrs_astlist *list, int len, ptrs_var_t *out, pt
 
 		if(list->expand)
 		{
+			ptrs_var_t currv;
+			memcpy(&currv, curr, sizeof(ptrs_var_t));
+
 			if(curr->type == PTRS_TYPE_POINTER)
 			{
-				for(int j = 0; j < curr->meta.array.size; j++)
+				for(int j = 0; j < currv.meta.array.size; j++)
 				{
-					memcpy(&out[i], &curr->value.ptrval[j], sizeof(ptrs_var_t));
+					memcpy(&out[i], &currv.value.ptrval[j], sizeof(ptrs_var_t));
 					i++;
 				}
 			}
 			else //PTRS_TYPE_NATIVE
 			{
-				for(int j = 0; j < curr->meta.array.size; j++)
+				for(int j = 0; j < currv.meta.array.size; j++)
 				{
 					out[i].type = PTRS_TYPE_INT;
-					out[i].value.intval = ((uint8_t *)curr->value.strval)[j];
+					out[i].value.intval = ((uint8_t *)currv.value.strval)[j];
 					i++;
 				}
 			}
