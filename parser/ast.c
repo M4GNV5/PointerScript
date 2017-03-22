@@ -1709,8 +1709,9 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end)
 		{
 			curr->expand = true;
 			curr->entry = parseExpression(code, true);
-			if(curr->entry->handler != ptrs_handle_identifier)
-				unexpectedm(code, NULL, "Array spreading can only be used on identifiers");
+			if(curr->entry->handler != ptrs_handle_identifier
+				&& curr->entry->handler != ptrs_handle_constant)
+				unexpectedm(code, NULL, "Array spreading can only be used on identifiers and constants");
 
 			if(curr->entry == NULL)
 				unexpected(code, "Expression");

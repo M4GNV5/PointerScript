@@ -12,8 +12,9 @@ int ptrs_astlist_length(struct ptrs_astlist *list, ptrs_ast_t *node, ptrs_scope_
 	{
 		if(list->expand)
 		{
-			ptrs_var_t *val = ptrs_scope_get(scope, list->entry->arg.varval);
-			if(val->type != PTRS_TYPE_POINTER)
+			ptrs_var_t valv;
+			ptrs_var_t *val = list->entry->handler(list->entry, &valv, scope);
+			if(val->type != PTRS_TYPE_POINTER && val->type != PTRS_TYPE_NATIVE)
 				ptrs_error(node, scope, "Cannot expand variable of type %s", ptrs_typetoa(val->type));
 
 			len += val->meta.array.size;
@@ -50,10 +51,22 @@ void ptrs_astlist_handle(struct ptrs_astlist *list, int len, ptrs_var_t *out, pt
 
 		if(list->expand)
 		{
-			for(int j = 0; j < curr->meta.array.size; j++)
+			if(curr->type == PTRS_TYPE_POINTER)
 			{
-				memcpy(&out[i], &curr->value.ptrval[j], sizeof(ptrs_var_t));
-				i++;
+				for(int j = 0; j < curr->meta.array.size; j++)
+				{
+					memcpy(&out[i], &curr->value.ptrval[j], sizeof(ptrs_var_t));
+					i++;
+				}
+			}
+			else //PTRS_TYPE_NATIVE
+			{
+				for(int j = 0; j < curr->meta.array.size; j++)
+				{
+					out[i].type = PTRS_TYPE_INT;
+					out[i].value.intval = ((uint8_t *)curr->value.strval)[j];
+					i++;
+				}
 			}
 			i--;
 		}
@@ -90,10 +103,18 @@ void ptrs_astlist_handleByte(struct ptrs_astlist *list, int len, uint8_t *out, p
 
 		if(list->expand)
 		{
-			for(int j = 0; j < curr->meta.array.size; j++)
+			if(curr->type == PTRS_TYPE_POINTER)
 			{
-				out[i] = ptrs_vartoi(&curr->value.ptrval[j]);
-				i++;
+				for(int j = 0; j < curr->meta.array.size; j++)
+				{
+					out[i] = ptrs_vartoi(&curr->value.ptrval[j]);
+					i++;
+				}
+			}
+			else //PTRS_TYPE_NATIVE
+			{
+				memcpy(out + i, curr->value.strval, curr->meta.array.size);
+				i += curr->meta.array.size;
 			}
 			i--;
 		}
