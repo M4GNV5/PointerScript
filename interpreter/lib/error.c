@@ -15,6 +15,7 @@
 
 __thread ptrs_ast_t *ptrs_lastast = NULL;
 __thread ptrs_scope_t *ptrs_lastscope = NULL;
+static __thread bool insideErrorHandler = false;
 FILE *ptrs_errorfile = NULL;
 
 #ifndef _PTRS_PORTABLE
@@ -78,96 +79,82 @@ char *ptrs_backtrace(ptrs_ast_t *pos, ptrs_scope_t *scope, int skipNative, bool 
 	char *buffptr = buff;
 
 #ifdef _GNU_SOURCE
-	static bool hadError;
-	if(hadError)
-	{
-		buffptr += sprintf(buffptr,
-			"It appears like we raised a signal when backtracing the native stack.\n"
-			"Skipping native backtrace.\n");
-		hadError = false;
-	}
-	else
-	{
-		hadError = true;
-		uint8_t *trace[32];
-		int count = backtrace((void **)trace, 32);
-		Dl_info infos[count];
+	uint8_t *trace[32];
+	int count = backtrace((void **)trace, 32);
+	Dl_info infos[count];
 
-		Dl_info selfInfo;
-		Dl_info ffiInfo;
-		dladdr(ptrs_backtrace, &selfInfo);
-		dladdr(dlsym(NULL, "ffi_call"), &ffiInfo);
+	Dl_info selfInfo;
+	Dl_info ffiInfo;
+	dladdr(ptrs_backtrace, &selfInfo);
+	dladdr(dlsym(NULL, "ffi_call"), &ffiInfo);
 
-		for(int i = skipNative; i < count; i++)
-		{
+	for(int i = skipNative; i < count; i++)
+	{
 #ifndef _PTRS_PORTABLE
-			if(trace[i] >= ptrs_asmBuffStart && trace[i] < ptrs_asmBuffStart + ptrs_asmSize)
+		if(trace[i] >= ptrs_asmBuffStart && trace[i] < ptrs_asmBuffStart + ptrs_asmSize)
+		{
+			struct ptrs_asmStatement *curr = ptrs_asmStatements;
+			jitas_symboltable_t *symbol = NULL;
+
+			while(curr != NULL)
 			{
-				struct ptrs_asmStatement *curr = ptrs_asmStatements;
-				jitas_symboltable_t *symbol = NULL;
-
-				while(curr != NULL)
+				if(trace[i] >= curr->start && trace[i] <= curr->end)
 				{
-					if(trace[i] >= curr->start && trace[i] <= curr->end)
+					symbol = curr->context->localSymbols;
+					while(symbol != NULL)
 					{
-						symbol = curr->context->localSymbols;
-						while(symbol != NULL)
-						{
-							if(symbol->next == NULL || symbol->next->ptr > trace[i])
-								break;
+						if(symbol->next == NULL || symbol->next->ptr > trace[i])
+							break;
 
-							symbol = symbol->next;
-						}
-
-						break;
+						symbol = symbol->next;
 					}
 
-					curr = curr->next;
+					break;
 				}
 
-				if(curr != NULL)
-				{
-					if(symbol == NULL)
-						buffptr += sprintf(buffptr, "    at asm+%lX ", (unsigned long)(trace[i] - curr->start));
-					else
-						buffptr += sprintf(buffptr, "    at %s+%lX ", symbol->symbol, (unsigned long)(trace[i] - symbol->ptr));
-
-					buffptr +=  ptrs_printpos(buffptr, curr->ast);
-					continue;
-				}
+				curr = curr->next;
 			}
+
+			if(curr != NULL)
+			{
+				if(symbol == NULL)
+					buffptr += sprintf(buffptr, "    at asm+%lX ", (unsigned long)(trace[i] - curr->start));
+				else
+					buffptr += sprintf(buffptr, "    at %s+%lX ", symbol->symbol, (unsigned long)(trace[i] - symbol->ptr));
+
+				buffptr +=  ptrs_printpos(buffptr, curr->ast);
+				continue;
+			}
+		}
 #endif
 
-			if(dladdr(trace[i], &infos[i]) == 0)
-			{
-				infos[i].dli_sname = NULL;
-				infos[i].dli_fname = NULL;
-			}
-
-			if((!gotSig || i != skipNative)
-				&& (infos[i].dli_fbase == selfInfo.dli_fbase || infos[i].dli_fbase == ffiInfo.dli_fbase))
-				break;
-
-			if(buffptr - buff > bufflen - 128)
-			{
-				int diff = buffptr - buff;
-				bufflen *= 2;
-				buff = realloc(buff, bufflen);
-				buffptr = buff + diff;
-			}
-
-			if(infos[i].dli_sname != NULL)
-				buffptr += sprintf(buffptr, "    at %s ", infos[i].dli_sname);
-			else
-				buffptr += sprintf(buffptr, "    at %p ", trace[i]);
-
-			if(infos[i].dli_fname != NULL)
-				buffptr += sprintf(buffptr, "(%s)\n", infos[i].dli_fname);
-			else
-				buffptr += sprintf(buffptr, "(unknown)\n");
+		if(dladdr(trace[i], &infos[i]) == 0)
+		{
+			infos[i].dli_sname = NULL;
+			infos[i].dli_fname = NULL;
 		}
 
-		hadError = false;
+		if((!gotSig || i != skipNative)
+			&& (infos[i].dli_fbase == selfInfo.dli_fbase || infos[i].dli_fbase == ffiInfo.dli_fbase))
+			break;
+
+		if(buffptr - buff > bufflen - 128)
+		{
+			int diff = buffptr - buff;
+			bufflen *= 2;
+			buff = realloc(buff, bufflen);
+			buffptr = buff + diff;
+		}
+
+		if(infos[i].dli_sname != NULL)
+			buffptr += sprintf(buffptr, "    at %s ", infos[i].dli_sname);
+		else
+			buffptr += sprintf(buffptr, "    at %p ", trace[i]);
+
+		if(infos[i].dli_fname != NULL)
+			buffptr += sprintf(buffptr, "(%s)\n", infos[i].dli_fname);
+		else
+			buffptr += sprintf(buffptr, "(unknown)\n");
 	}
 #endif
 
@@ -238,6 +225,7 @@ void ptrs_vthrow(ptrs_ast_t *ast, ptrs_scope_t *scope, const char *format, va_li
 	error->line = pos.line;
 	error->column = pos.column;
 
+	insideErrorHandler = false;
 	siglongjmp(error->catch, 1);
 }
 
@@ -271,11 +259,20 @@ void ptrs_error_reThrow(ptrs_scope_t *scope, ptrs_error_t *error)
 	oldError->column = error->column;
 
 	scope->error = error->oldError;
+	insideErrorHandler = false;
 	siglongjmp(scope->error->catch, 1);
 }
 
 void ptrs_handle_sig(int sig)
 {
+	if(insideErrorHandler)
+	{
+		fprintf(ptrs_errorfile, "Received signal '%s' whilst backtracing. Aborting...\n", strsignal(sig));
+		signal(SIGABRT, SIG_DFL);
+		abort();
+	}
+	insideErrorHandler = true;
+	
 	if(sig != SIGINT && sig != SIGTERM &&
 		ptrs_lastscope != NULL && ptrs_lastscope->error != NULL)
 	{
@@ -311,6 +308,7 @@ void ptrs_handle_signals()
 
 void ptrs_error(ptrs_ast_t *ast, ptrs_scope_t *scope, const char *msg, ...)
 {
+	insideErrorHandler = true;
 	va_list ap;
 	va_start(ap, msg);
 
