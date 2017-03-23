@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <inttypes.h>
 #include <stdbool.h>
+#include <alloca.h>
+#include <inttypes.h>
 #include <string.h>
 #include <math.h>
 
@@ -26,6 +27,22 @@ bool ptrs_vartob(ptrs_var_t *val)
 	}
 }
 
+int64_t strntol(const char *str, uint32_t len)
+{
+	char *str2;
+	if(strnlen(str, len) == len)
+	{
+		str2 = alloca(len) + 1;
+		strncpy(str2, str, len);
+		str2[len] = 0;
+	}
+	else
+	{
+		str2 = (char *)str;
+	}
+	
+	return strtoimax(str2, NULL, 0);
+}
 int64_t ptrs_vartoi(ptrs_var_t *val)
 {
 	if(val == NULL)
@@ -40,12 +57,29 @@ int64_t ptrs_vartoi(ptrs_var_t *val)
 		case PTRS_TYPE_FLOAT:
 			return val->value.floatval;
 		case PTRS_TYPE_NATIVE:
-			return strtoimax(val->value.strval, NULL, 0);
+			if(val->meta.array.size > 0)
+				return strntol(val->value.strval, val->meta.array.size);
 		default: //pointer type
 			return (intptr_t)val->value.strval;
 	}
 }
 
+double strntod(char *str, uint32_t len)
+{
+	char *str2;
+	if(strnlen(str, len) == len)
+	{
+		str2 = alloca(len) + 1;
+		strncpy(str2, str, len);
+		str2[len] = 0;
+	}
+	else
+	{
+		str2 = (char *)str;
+	}
+	
+	return atof(str2);
+}
 double ptrs_vartof(ptrs_var_t *val)
 {
 	if(val == NULL)
@@ -60,7 +94,8 @@ double ptrs_vartof(ptrs_var_t *val)
 		case PTRS_TYPE_FLOAT:
 			return val->value.floatval;
 		case PTRS_TYPE_NATIVE:
-			return atof(val->value.strval);
+			if(val->meta.array.size > 0)
+				return strntol(val->value.strval, val->meta.array.size);
 		default: //pointer type
 			return (intptr_t)val->value.strval;
 	}
