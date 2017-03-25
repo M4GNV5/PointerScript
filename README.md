@@ -5,9 +5,9 @@ even though you have direct low level access your code is more safe thanks to bo
 checks. Additionally finding errors is less painful as you get a full backtrace when a
 runtime error occurs or you receive e.g. a segmentation fault.
 
-###You can try the language online on the [playground](https://pointerscript.org/play/)
+### You can try the language online on the [playground](https://pointerscript.org/play/)
 
-##Installing
+## Installing
 Requirements are [libffi](https://github.com/libffi/libffi) and build tools.
 The following instructions are for debian based distros however apart from dependency
 installation there shouldnt be any difference to other distros.
@@ -30,16 +30,16 @@ cd language-pointerscript
 apm link
 ```
 
-##Language
+## Language
 
-###Standard Library
+### Standard Library
 PointerScript has no standard-library. You can use all C libraries using the built-in ffi ([Import statement](LanguageDoc.md#importstatement)).
 There are a couple of useful libraries and bindings (sockets, regexp, http, json, lists, maps etc.)
 in [this repository](https://github.com/M4GNV5/PtrsStuff)
 
 
 
-###Performance
+### Performance
 You can create call graphs for the code examples in this repository using:
 ```bash
 sudo apt-get install valgrind graphviz python3
@@ -50,17 +50,17 @@ Currently the main time eaters are lookahead (parser) for small scripts without 
 
 
 
-###Testing
+### Testing
 You can run tests for the interpreter by executing the `runTests.sh` script in the repository
 
 
 
-###Documentation
+### Documentation
 Most of PointerScript is similar to Javascript and/or C. For a full Documentation see [LanguageDoc.md](LanguageDoc.md)
 
 
 
-##Introduction
+## Introduction
 The following is quite a bit of unknown code, we'll go through it (and some other things) below.
 Remember you can run and modify this code in your browser on the [playground](https://pointerscript.org/play/)
 ```javascript
@@ -164,7 +164,7 @@ for(var i = 0; i < sizeof nums; i++)
 
 
 
-###More example code
+### More example code
 There are examples including the usage of Types, Structs, Arrays, Threading and many more in the [examples](examples/) directory of this repository. The most interresting ones are listed here:
 
 - [pi](examples/pi.ptrs) and [circle](examples/circle.ptrs) Basic mathematic expressions and loops
@@ -179,7 +179,7 @@ There are examples including the usage of Types, Structs, Arrays, Threading and 
 
 
 
-###License
+### License
 PointerScript - Scripting language with pointers and native library access
 
 Copyright (C) 2017 Jakob Löw (jakob@löw.com)

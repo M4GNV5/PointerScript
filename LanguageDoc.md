@@ -1,4 +1,4 @@
-#Content
+# Content
 - [Usage](#usage)
 	- [Commandline Arguments](#commandline-arguments)
 	- [Types](#types)
@@ -60,9 +60,9 @@
 	- [PrefixedExpression](#prefixedexpression)
 	- [SuffixedExpression](#suffixedexpression)
 
-#Usage
+# Usage
 
-##Commandline Arguments
+## Commandline Arguments
 The syntax is `ptrs [options ...] <file> [script options ...]`.
 Valid options are:
 
@@ -77,9 +77,9 @@ Valid options are:
 | `--zero-mem` | - | Zero memory allocated on the stack | `false` |
 | `--interactive` | - | Enter interactive PointerScript shell | - |
 
-##Types
+## Types
 
-###Type Usage
+### Type Usage
 Checking if a variable has a specific type, can be done via `typeof` and `type<...>`.
 The latter one will be replaced by a constant integer (the type) at parse time
 (comparing integer is generally faster than comparing strings like with JavaScript's typeof)
@@ -102,7 +102,7 @@ Changing the type of a variable. Note: this will not touch the actual value.
 var ptr = malloc!native(1024);
 ```
 
-###Type List
+### Type List
 | Name | Name in C | Description |
 |------|-----------|-------------|
 | `undefined` | - | A not defined value |
@@ -113,7 +113,7 @@ var ptr = malloc!native(1024);
 | `function` | `ptrs_function_t *` | A PointerScript function |
 | `struct` | `ptrs_struct_t *` | A PointerScript struct |
 
-##Constants
+## Constants
 | Name | Type | Value |
 |------|------|-------|
 | `true` | `int` | 1 |
@@ -128,7 +128,7 @@ var ptr = malloc!native(1024);
 | `PI` | `float` | pi |
 | `E` | `float` | e |
 
-##Structs
+## Structs
 Structs are as powerful as classes in other languages (they support fields, functions, overlods, getters/setters, ...).
 Here is an example of basic/common struct usage.
 For things like operator overloading etc. see [struct.ptrs](examples/struct.ptrs) in the examples directory.
@@ -177,9 +177,9 @@ printf("data = %s\n", req.data);
 delete req;
 ```
 
-##C interop
+## C interop
 
-###Functions
+### Functions
 You can directly import C functions using the [ImportStatement](#importstatement) and then call them like normal functions:
 ```js
 import puts, fopen, fprintf, fclose;
@@ -190,7 +190,7 @@ fprintf(fd, "hi there!\nsome formats: %d %f %s", 42, 31.12, "ahoi");
 fclose(fd);
 ```
 
-###Structs
+### Structs
 Structs can have typed members, thus you can use C functions that expect struct arguments:
 ```js
 import printf, gettimeofday;
@@ -211,7 +211,7 @@ printf("Milliseconds since epoch: %f\n", time.sec * 1000 + cast<float>time.usec 
 
 When you have a function that returns `val` - a pointer to a struct you can also use `cast<structType>val` to create a struct of type `structType` using the memory pointed to by `val`. Note: you have to delete/free both `val` and the by `cast` created struct
 
-##Type list
+## Type list
 | Type | Description | Name in C |
 |------|-------------|-----------|
 | `char short int long longlong` | signed integers | `char short int long` and `long long` |
@@ -224,7 +224,7 @@ When you have a function that returns `val` - a pointer to a struct you can also
 | `pointer` | pointer to var's | `ptrs_var_t *` |
 
 
-##Variable Arguments
+## Variable Arguments
 PointerScript uses a C#/Java like approach optionally converting variable arguments to an array.
 ```js
 function sum(values...)
@@ -249,9 +249,9 @@ function printfln(fmt, args...)
 }
 ```
 
-#Operators
+# Operators
 
-##BinaryOperators
+## BinaryOperators
 | Precedence | Operator | Description | Associativity |
 |------------|----------|-------------|---------------|
 | 1 | `= += -= *= /= %= <<= >>= &= ^= |=` | Assignment operators | Right-to-Left |
@@ -270,7 +270,7 @@ function printfln(fmt, args...)
 | 13 | `+ -` | Addition, subtraction | Left-to-Right |
 | 14 | `* / %` | Multiplication, division, division remainder | Left-to-Right |
 
-##PrefixedOperators
+## PrefixedOperators
 | Operator | Description |
 |------------|----------|
 | `++ --` | Increment, decrement |
@@ -282,19 +282,19 @@ function printfln(fmt, args...)
 | `*` | Dereference |
 | `+ -` | Unary plus, minus |
 
-##SuffixedOperators
+## SuffixedOperators
 | Operator | Description |
 |------------|----------|
 | `++ --` | Increment, decrement |
 
-#Statements
-##ExpressionStatement
+# Statements
+## ExpressionStatement
 ```js
 //Expression ';'
 printf("%d", 42);
 ```
 
-##DefinitionStatement
+## DefinitionStatement
 Defines a variable, optionally initializing it with a start value.
 ```js
 //'var' Identifier [ '=' Expression ] ';'
@@ -303,7 +303,7 @@ var bar = "Hello";
 var tar = 42 * 3112;
 ```
 
-##ArrayDefinitionStatement
+## ArrayDefinitionStatement
 Creates an array of bytes on the Stack, optionally initialized with values from a string or an array literal.
 ```js
 //'var' Identifier '{' Expression '}' ';'
@@ -318,7 +318,7 @@ var foo{} = {31 * 12, 666};
 var bar{32} = {42, 1337};
 ```
 
-##VarArrayDefinitionStatement
+## VarArrayDefinitionStatement
 Creates an array of variables on the Stack, optionally initialized with values from an array literal.
 ```js
 //'var' Identifier '[' Expression ']' ';'
@@ -329,14 +329,14 @@ var foo[] = [31 * 12, 3.14, "Ahoi"];
 var bar[32] = [42, 13.37, foo];
 ```
 
-##StructVariableDefinition
+## StructVariableDefinition
 Creates a struct on the stack.
 ```js
 //'var' Identifier ':' Identifier '(' ExpressionList ')' ';'
 var bar : Foo(42, 666);
 ```
 
-##ConstDefinition
+## ConstDefinition
 Creates a parse-time variable with a constant value
 ```js
 //'const' Identifier '=' Expression ';'
@@ -345,7 +345,7 @@ const SEEK_CUR = 1;
 const SEEK_END = 2;
 ```
 
-##ImportStatement
+## ImportStatement
 Imports variables/functions from native libraries or from other PointerScript files. If the from part is left out the functions will be searched in the default native library search order.
 ```js
 //'import' IdentifierList [ 'from' Expression ] ';'
@@ -371,7 +371,7 @@ curl_easy_perform(ctx);
 curl_easy_cleanup(ctx);
 ```
 
-##AsmStatement
+## AsmStatement
 (only available on linux-x86_64) The assembly code will be assembled at parse time and linked at runtime. This is powered by [libjitas](https://github.com/M4GNV5/libjitas) using GAS syntax for instructions and Intel syntax for data (`db`, `resq` etc.)
 ```js
 //'asm' [ IdentifierList ] '{' AsmInstructionList '}' ';'
@@ -416,7 +416,7 @@ asm myFunc, myData
 myFunc(2) == myData[2];
 ```
 
-##ScopeStatement
+## ScopeStatement
 Variables and stack allocations within a scoped statement won't be available outside the statement. Please note that all statements (except `foreach`) dont create a scope by themselves so doing stack allocations within a loop (e.g. by doing `var buff{1024};`) is probably a bad idea
 ```js
 //'scoped' '{' StatementList '}'
@@ -430,7 +430,7 @@ scoped {
 //the 1024 bytes used by myData are available again here
 ```
 
-##TryStatement
+## TryStatement
 Executes the try block ignoring any error (including signals)
 ```js
 //'try' Statement
@@ -445,7 +445,7 @@ try
 try printf("%s", 42);
 ```
 
-##TryCatchStatement
+## TryCatchStatement
 Executes the try block and catches any error (including signals) passing an error message, a backtrace string and source position information to the catch block. The catch block does not have to define identifiers for all 5 arguments.
 ```js
 //'try' Statement 'catch' '(' IdentifierList ')' Statement
@@ -460,7 +460,7 @@ catch(error, backtrace, file, line, column)
 }
 ```
 
-##TryFinallyStatement
+## TryFinallyStatement
 Executes the try block, if no error occurs the finally body will be executed. When an error occurs
 in the try block, the finally block will be executed and the error will be re-thrown.
 This can be used to close ressources or free memory.
@@ -491,7 +491,7 @@ finally(ret)
 }
 ```
 
-##TryCatchFinallyStatement
+## TryCatchFinallyStatement
 This combines the [TryCatchStatement](#trycatchstatement) and the [TryFinallyStatement](#tryfinallystatement)
 ```js
 //'try' Statement 'catch' '(' IdentifierList ')' Statement 'finally' [ '(' Identifier ')' ] Statement
@@ -513,13 +513,13 @@ finally
 }
 ```
 
-##ThrowStatement
+## ThrowStatement
 ```js
 //throw Expression ';'
 throw "I'm unhappy :(";
 ```
 
-##FunctionStatement
+## FunctionStatement
 Defines a function.
 ```js
 //'function' Identifier '(' ArgumentDefinitionList ')' '{' StatementList '}'
@@ -529,7 +529,7 @@ function foobar(m, _, n) { /* ... */ }
 function log(lazy msg)  { /* ... */ }
 function tar(name, args...) { /* ... */ }
 ```
-###ArgumentDefinition
+### ArgumentDefinition
 Arguments will be set to the value to the caller provides or the default value if provided otherwise to `undefined`.
 ```js
 //Identifier [ '=' Expression ]
@@ -549,7 +549,7 @@ For information on how to use varargs see the [Variable Arguments](#variable-arg
 //Identifier '...'
 ```
 
-##StructStatement
+## StructStatement
 Defines a struct.
 ```js
 //'struct' Identifier '{' StructMemberDefinitionList '}' ';'
@@ -591,7 +591,7 @@ struct Person
 	}
 }
 ```
-###StructMemberDefinition
+### StructMemberDefinition
 Note: the following code examples are only valid within a struct definition.
 Modifiers:
 - `private` wont be accesible through the `.` and `[]` operators
@@ -599,13 +599,13 @@ Modifiers:
 - `public` (default) always accesible
 - `static` all instances use the same value
 
-####Variable member
+#### Variable member
 ```js
 //Identifier [ '=' Expression ] ';'
 age = 18;
 ```
 
-####Typed member
+#### Typed member
 ```js
 //Identifier ':' NativeType
 foo : long //char, int, long, longlong, uchar, uint, ulong, ulonglong
@@ -615,7 +615,7 @@ xar : single //single, double
 zar : ptrdiff //ssize, size, intptr, uintptr, ptrdiff
 ```
 
-####Array member
+#### Array member
 ```js
 //Identifier '{' ConstantExpression '}' ';'
 name{128};
@@ -623,7 +623,7 @@ name{128};
 items[16];
 ```
 
-####Function member
+#### Function member
 ```js
 //Identifier '(' ArgumentDefinitionList ')' '{' StatementList '}'
 executeRequest(host = "localhost", port = 80)
@@ -631,7 +631,7 @@ executeRequest(host = "localhost", port = 80)
 
 }
 ```
-####Getter/Setter
+#### Getter/Setter
 ```js
 //'get' Identifier '{' StatementList '}'
 get age
@@ -645,7 +645,7 @@ set age
 }
 ```
 
-####Operator overload member
+#### Operator overload member
 ```js
 //'constructor' '(' ArgumentDefinitionList ')' '{' StatementList '}'
 constructor(x, y = 10, z = x + y)
@@ -734,7 +734,7 @@ operator foreach in this //overloads the foreach statement
 }
 ```
 
-##DeleteStatement
+## DeleteStatement
 Free's memory allocated with `new`. For structs it also calls the destructor
 ```js
 //'delete' Expression ';'
@@ -748,7 +748,7 @@ var baz = new array{1024};
 delete baz;
 ```
 
-##SwitchStatement
+## SwitchStatement
 Note: A break between one cases body and the next case is **not** necessary.
 Also one case statement can have multiple cases seperated by a comma (all cases must be constants of type integer).
 ```js
@@ -768,7 +768,7 @@ switch(getchar())
 }
 ```
 
-##ForEachStatement
+## ForEachStatement
 This statement can be used to iterate over arrays and structs.
 Note that having more than one iterator is optional.
 ```js
@@ -791,7 +791,7 @@ foreach(index, val in items)
 }
 ```
 
-##ControlStatements
+## ControlStatements
 These are the same as in any other language (C, D, Javascript, ...)
 ```js
 //'if' '(' Expression ')' Statement [ 'else' Statement ]
@@ -836,9 +836,9 @@ return;
 return atoi("42");
 ```
 
-#Expressions
+# Expressions
 
-##CallExpression
+## CallExpression
 Calls a function.
 
 When calling a native function you can also specify the return type. This is necesarry for functions that return floats and handy for functions that return pointers or signed integers that are not `int64_t`'s.
@@ -880,7 +880,7 @@ function log(lazy str)
 log(lazy calculateHeavyErrorMessage());
 ```
 
-##LambdaExpression
+## LambdaExpression
 Function expression. For information about the argument syntax see [FunctionStatement](#functionstatement).
 `LambdaArgumentList` is similar to `ArgumentDefinitionList` but does not support
 default values and lazy arguments.
@@ -903,7 +903,7 @@ var pow = function(base, exp = 2) {
 }
 ```
 
-##StringFormatExpression
+## StringFormatExpression
 Allocates a string of the required size on the stack, inserting variables and
 expressions using `snprintf`. Without a custom sprintf-like format the value is
 stringified and the format `%s` is used. If you provide a format the value is
@@ -921,7 +921,7 @@ puts("pid = ${getpid()}");
 puts("valc = $%c{val + 'a'}"); //prints "valc = c"
 ```
 
-##SizeofExpression
+## SizeofExpression
 Returns the size of an expression, a C type or a variable.
 You can optionally put braces around the type (like in C)
 ```js
@@ -944,21 +944,21 @@ sizeof var; //returns the size of a variable (same as the constant VARSIZE)
 sizeof(var);
 ```
 
-##NewExpression
+## NewExpression
 Creates an instance of a struct allocating its memory using `malloc`
 ```js
 //'new' Identifier '(' ExpressionList ')'
 new MyStruct(32);
 ```
 
-##NewStackExpression
+## NewStackExpression
 Creates an instance of a struct allocating its memory on the stack
 ```js
 //'new_stack' Identifier '(' ExpressionList ')'
 new_stack MyStruct(32);
 ```
 
-##ArrayExpression
+## ArrayExpression
 Creates an array. Memory will be allocated using `malloc`
 ```js
 //'new' 'array' '{' Expression '}' [ '{' ExpressionList '}' ]
@@ -967,7 +967,7 @@ new array{128} {'h', 'i', 0};
 new array{} {'h', 'e', 'l', 'l', 'o', 0};
 ```
 
-##VarArrayExpression
+## VarArrayExpression
 Creates a var-array. Memory will be allocated using `malloc`
 ```js
 //'new' 'array' '[' Expression ']' [ '[' ExpressionList ']' ]
@@ -976,7 +976,7 @@ new array[8] [42, "hello", 31.12];
 new array[] ["hi", 1337, PI, 9.11];
 ```
 
-##ArrayStackExpression
+## ArrayStackExpression
 Same as [ArrayExpression](#arrayexpression) but memory will be allocated on the stack
 ```js
 //'new_stack' 'array' '{' Expression '}' [ '{' ExpressionList '}' ]
@@ -985,7 +985,7 @@ new_stack array{128} {'h', 'i', 0};
 new_stack array{} {'h', 'e', 'l', 'l', 'o', 0};
 ```
 
-##VarArrayStackExpression
+## VarArrayStackExpression
 Same as [VarArrayExpression](#vararrayexpression) but memory will be allocated on the stack
 ```js
 //'new_stack' 'array' '[' Expression ']' [ '[' ExpressionList ']' ]
@@ -994,7 +994,7 @@ new_stack array[8] [42, "hello", 31.12];
 new_stack array[] ["hi", 1337, PI, 9.11];
 ```
 
-##MapExpression
+## MapExpression
 Creates a map of key->values in the form of a struct instance. This is a short form for
 defining a struct, useful when defining constant data.
 ```js
@@ -1010,7 +1010,7 @@ var escapes = map {
 };
 ```
 
-##MapStackExpression
+## MapStackExpression
 Same as [MapExpression](#mapexpression) but memory for the map is allocated on the stack
 ```js
 //'map_stack' '{' MapEntryList '}'
@@ -1022,20 +1022,20 @@ map_stack {
 }
 ```
 
-##MemberExpression
+## MemberExpression
 ```js
 //Expression '.' Identifier
 foo.bar
 ```
 
-##IndexExpression
+## IndexExpression
 ```js
 //Expression '[' Expression ']'
 foo["bar"] //for structs
 items[7] //for arrays
 ```
 
-##SliceExpression
+## SliceExpression
 `a[b .. c]` returns an array starting at `&a[b]` and length `c - b`.
 ```D
 //Expression '[' Expression '..' Expression ']'
@@ -1045,7 +1045,7 @@ var foo[16];
 var bar = foo[4 .. 12];
 ```
 
-##IndexLengthExpression
+## IndexLengthExpression
 Only valid inside [IndexExpression](#indexexpression)s and [SliceExpression](#sliceexpression)s.
 Returns the length of the array currently indexing.
 ```js
@@ -1062,7 +1062,7 @@ var bar = foo[$ - 2 .. $]
 var tar = foo[0 .. $ - 2];
 ```
 
-##ExpandExpression
+## ExpandExpression
 note that expression must be of type `pointer`
 ```js
 //'...' Expression
@@ -1075,28 +1075,28 @@ printf("age: %d, sentence: %s, evil: %d", ...args);
 
 ```
 
-##AsExpression
+## AsExpression
 Note this will not convert any values, it will only change the type
 ```js
 //'as' '<' TypeName '>' Expression
 as<float>0x7fc00000
 ```
 
-##CastBuiltinExpression
+## CastBuiltinExpression
 Converts an expression to a specific type. Casting to int/float converts the value. Casting to native returns a native function bundle for functions and a pointer to the struct data for structs.
 ```js
 //'cast' '<' TypeName '>' Expression
 cast<int>3.14 //returns 3
 ```
 
-##CastToStringExpression
+## CastToStringExpression
 Converts an expression to a string (0-terminated byte sequence). If the argument is already of type `native` and its `strlen` is within its array size the orginal value is returned, otherwise memory is allocated on the stack and the value is stringyfied.
 ```js
 //'cast' '<' 'string' '>' Expression
 cast<string>3.14 //returns "3.14"
 ```
 
-##CastExpression
+## CastExpression
 Creates a struct of a specific type using the provided expression as the memory region.
 This allows interop to C structs. This will **not** call the struct constructor
 Note that this will allocate memory for struct metadata that has to be free'd using 'delete'
@@ -1118,7 +1118,7 @@ var entry = cast<dirent>readdir(dp);
 delete entry; //cast will allocate memory that can be freed using 'delete'
 ```
 
-##CastStackExpression
+## CastStackExpression
 Same as [CastExpression](#castexpression) but the memory for the struct metadata will be allocated
 on the stack, thus a 'delete' is not necessary
 ```js
@@ -1126,12 +1126,12 @@ on the stack, thus a 'delete' is not necessary
 cast_stack<foo>bar;
 ```
 
-##IdentifierExpression
+## IdentifierExpression
 ```js
 foo
 ```
 
-##ConstantExpression
+## ConstantExpression
 Note that constant mathematical expressions will be calculated during parse time.
 ```C
 //String | Integer | Float
@@ -1145,20 +1145,20 @@ Are you fine?` //wysiwyg string
 3.14 * 5 + 7
 ```
 
-##BinaryExpression
+## BinaryExpression
 see
 ```js
 //Expression Operator Expression
 foo * 3
 ```
 
-##PrefixedExpression
+## PrefixedExpression
 ```js
 //PrefixOperator Expression
 -foo
 ```
 
-##SuffixedExpression
+## SuffixedExpression
 ```js
 //Expression SuffixOperator
 foo++
