@@ -129,9 +129,6 @@ void ptrs_astlist_handleByte(struct ptrs_astlist *list, int len, uint8_t *out, p
 		list = list->next;
 	}
 
-	uint8_t last = out[i - 1];
-	for(; i < len; i++)
-	{
-		out[i] = last;
-	}
+	if(i < len)
+		memset(out + i, out[i - 1], len - i);
 }
