@@ -4,6 +4,7 @@
 #include "../parser/common.h"
 #include "../parser/ast.h"
 #include "include/scope.h"
+#include "include/struct.h"
 #include "include/error.h"
 
 #define PTRS_HANDLE_ASTERROR(ast, ...) \

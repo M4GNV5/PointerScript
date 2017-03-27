@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <ctype.h>
 #include <string.h>
 
 #include "../../parser/common.h"
@@ -24,7 +25,7 @@ ptrs_function_t *ptrs_struct_getOverload(ptrs_var_t *struc, void *handler, bool 
 	return NULL;
 }
 
-bool ptrs_struct_canAccess(ptrs_struct_t *struc, struct ptrs_structlist *member, ptrs_ast_t *node, ptrs_scope_t *scope)
+bool ptrs_struct_canAccess(ptrs_struct_t *struc, struct ptrs_structmember *member, ptrs_ast_t *node, ptrs_scope_t *scope)
 {
 	switch(member->protection)
 	{
@@ -39,27 +40,58 @@ bool ptrs_struct_canAccess(ptrs_struct_t *struc, struct ptrs_structlist *member,
 				return true;
 			//fallthrough
 		default:
+			if(node->handler == ptrs_handle_thismember
+				|| node->handler == ptrs_handle_assign_thismember
+				|| node->handler == ptrs_handle_addressof_thismember
+				|| node->handler == ptrs_handle_call_thismember)
+				return true;
+
 			if(node != NULL)
 				ptrs_error(node, scope, "Cannot access property %s of struct %s\n", member->name, struc->name);
 			return false;
 	}
 }
 
-struct ptrs_structlist *ptrs_struct_find(ptrs_struct_t *struc, const char *key,
-	enum ptrs_structmembertype exclude, ptrs_ast_t *ast, ptrs_scope_t *scope)
+unsigned long ptrs_struct_hashName(const char *key)
 {
-	struct ptrs_structlist *curr = struc->member;
-	while(curr != NULL)
+	//TODO find a better hashing algorithm
+	unsigned long hash = toupper(*key++) - '0';
+	while(*key != 0)
 	{
-		if(strcmp(curr->name, key) == 0 && curr->type != exclude && ptrs_struct_canAccess(struc, curr, ast, scope))
-			return curr;
-		curr = curr->next;
+		if(isupper(*key) || isdigit(*key))
+		{
+			hash <<= 6;
+			hash *= toupper(*(key - 1)) - '0';
+			hash += toupper(*key) - '0';
+		}
+		key++;
 	}
-
-	return NULL;
+	
+	hash += toupper(*--key);
+	return hash;
 }
 
-ptrs_var_t *ptrs_struct_getMember(ptrs_struct_t *struc, ptrs_var_t *result, struct ptrs_structlist *member,
+struct ptrs_structmember *ptrs_struct_find(ptrs_struct_t *struc, const char *key,
+	enum ptrs_structmembertype exclude, ptrs_ast_t *ast, ptrs_scope_t *scope)
+{
+	if(struc->memberCount == 0)
+		return NULL;
+
+	int start = ptrs_struct_hashName(key) % struc->memberCount;
+	int i = start;
+	
+	while(strcmp(struc->member[i].name, key) != 0 || struc->member[i].type == exclude)
+	{
+		i = (i + 1) % struc->memberCount;
+		if(i == start)
+			return NULL;
+	}
+	
+	ptrs_struct_canAccess(struc, &struc->member[i], ast, scope);
+	return &struc->member[i];
+}
+
+ptrs_var_t *ptrs_struct_getMember(ptrs_struct_t *struc, ptrs_var_t *result, struct ptrs_structmember *member,
 	ptrs_ast_t *ast, ptrs_scope_t *scope)
 {
 	void *data = struc->data;
@@ -104,7 +136,7 @@ ptrs_var_t *ptrs_struct_getMember(ptrs_struct_t *struc, ptrs_var_t *result, stru
 	return NULL;
 }
 
-void ptrs_struct_setMember(ptrs_struct_t *struc, ptrs_var_t *value, struct ptrs_structlist *member,
+void ptrs_struct_setMember(ptrs_struct_t *struc, ptrs_var_t *value, struct ptrs_structmember *member,
 	ptrs_ast_t *ast, ptrs_scope_t *scope)
 {
 	void *data = struc->data;
@@ -139,7 +171,7 @@ void ptrs_struct_setMember(ptrs_struct_t *struc, ptrs_var_t *value, struct ptrs_
 	}
 }
 
-void ptrs_struct_addressOfMember(ptrs_struct_t *struc, ptrs_var_t *result, struct ptrs_structlist *member,
+void ptrs_struct_addressOfMember(ptrs_struct_t *struc, ptrs_var_t *result, struct ptrs_structmember *member,
 	ptrs_ast_t *ast, ptrs_scope_t *scope)
 {
 	void *data = struc->data;
@@ -171,7 +203,7 @@ void ptrs_struct_addressOfMember(ptrs_struct_t *struc, ptrs_var_t *result, struc
 
 ptrs_var_t *ptrs_struct_get(ptrs_struct_t *struc, ptrs_var_t *result, const char *key, ptrs_ast_t *ast, ptrs_scope_t *scope)
 {
-	struct ptrs_structlist *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, ast, scope);
+	struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, ast, scope);
 	if(member == NULL)
 		return NULL;
 
@@ -180,7 +212,7 @@ ptrs_var_t *ptrs_struct_get(ptrs_struct_t *struc, ptrs_var_t *result, const char
 
 bool ptrs_struct_set(ptrs_struct_t *struc, ptrs_var_t *value, const char *key, ptrs_ast_t *ast, ptrs_scope_t *scope)
 {
-	struct ptrs_structlist *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_GETTER, ast, scope);
+	struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_GETTER, ast, scope);
 	if(member == NULL)
 		return false;
 
@@ -191,7 +223,7 @@ bool ptrs_struct_set(ptrs_struct_t *struc, ptrs_var_t *value, const char *key, p
 bool ptrs_struct_addressOf(ptrs_struct_t *struc, ptrs_var_t *result, const char *key,
 	ptrs_ast_t *ast, ptrs_scope_t *scope)
 {
-	struct ptrs_structlist *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_GETTER, ast, scope);
+	struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_GETTER, ast, scope);
 	if(member == NULL)
 		return false;
 
@@ -227,9 +259,10 @@ ptrs_var_t *ptrs_struct_construct(ptrs_var_t *constructor, struct ptrs_astlist *
 	ptrs_scope_t *initScope = ptrs_scope_increase(scope, 0);
 	initScope->outer = instance->scope;
 
-	struct ptrs_structlist *member = instance->member;
-	while(member != NULL)
+	for(int i = 0; i < instance->memberCount; i++)
 	{
+		struct ptrs_structmember *member = &instance->member[i];
+
 		if(member->type == PTRS_STRUCTMEMBER_VAR && member->value.startval != NULL && !member->isStatic)
 		{
 			ptrs_ast_t *ast = member->value.startval;
@@ -255,7 +288,6 @@ ptrs_var_t *ptrs_struct_construct(ptrs_var_t *constructor, struct ptrs_astlist *
 
 			ptrs_astlist_handle(member->value.arrayInit, size, instance->data + member->offset, scope);
 		}
-		member = member->next;
 	}
 
 	ptrs_var_t overload = {{.structval = instance}, .type = PTRS_TYPE_STRUCT};

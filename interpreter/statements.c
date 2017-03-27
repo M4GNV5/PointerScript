@@ -732,9 +732,10 @@ ptrs_var_t *ptrs_handle_struct(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	ptrs_struct_t *struc = &node->arg.structval;
 	struc->scope = scope;
 
-	struct ptrs_structlist *curr = struc->member;
-	while(curr != NULL)
+	for(int i = 0; i < struc->memberCount; i++)
 	{
+		struct ptrs_structmember *curr = &struc->member[i];
+
 		if(curr->type == PTRS_STRUCTMEMBER_FUNCTION
 			|| curr->type == PTRS_STRUCTMEMBER_GETTER
 			|| curr->type == PTRS_STRUCTMEMBER_SETTER)
@@ -764,7 +765,6 @@ ptrs_var_t *ptrs_handle_struct(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 
 			ptrs_astlist_handle(curr->value.arrayInit, size, struc->staticData + curr->offset, scope);
 		}
-		curr = curr->next;
 	}
 
 	struct ptrs_opoverload *currop = struc->overloads;
@@ -794,12 +794,12 @@ ptrs_var_t *ptrs_handle_with(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t 
 	struct withVal
 	{
 		ptrs_struct_t *this;
-		struct ptrs_structlist **member;
+		struct ptrs_structmember **member;
 	};
 
 	struct withVal *withVal = (struct withVal *)ptrs_scope_get(scope, stmt->symbol);
-	struct ptrs_structlist *member[stmt->count];
-	memset(member, 0, sizeof(struct ptrs_structlist *) * stmt->count);
+	struct ptrs_structmember *member[stmt->count];
+	memset(member, 0, sizeof(struct ptrs_structmember *) * stmt->count);
 
 	withVal->this = base->value.structval;
 	withVal->member = member;
@@ -1009,14 +1009,13 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		else
 			valvar = NULL;
 
-		struct ptrs_structlist *curr = val->value.structval->member;
-		while(curr != NULL)
+		ptrs_struct_t *struc = val->value.structval;
+		for(int i = 0; i < struc->memberCount; i++)
 		{
-			if(!ptrs_struct_canAccess(val->value.structval, curr, NULL, scope))
-			{
-				curr = curr->next;
+			struct ptrs_structmember *curr = &struc->member[i];
+
+			if(!ptrs_struct_canAccess(struc, curr, NULL, scope))
 				continue;
-			}
 
 			if(keyvar != NULL)
 			{
@@ -1028,12 +1027,9 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 
 			if(valvar != NULL)
 			{
-				ptrs_var_t *_valvar = ptrs_struct_getMember(val->value.structval, valvar, curr, node, scope);
+				ptrs_var_t *_valvar = ptrs_struct_getMember(struc, valvar, curr, node, scope);
 				if(_valvar == NULL)
-				{
-					curr = curr->next;
 					continue;
-				}
 
 				if(_valvar != valvar)
 					memcpy(valvar, _valvar, sizeof(ptrs_var_t));
@@ -1045,8 +1041,6 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 				scope->exit = 3;
 			if(stmtScope->exit > 1)
 				return result;
-
-			curr = curr->next;
 		}
 
 		return result;

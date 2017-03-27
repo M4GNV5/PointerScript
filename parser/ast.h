@@ -45,7 +45,7 @@ struct ptrs_ast_member
 struct ptrs_ast_thismember
 {
 	ptrs_symbol_t base;
-	struct ptrs_structlist *member;
+	const char *name;
 };
 
 struct ptrs_ast_import

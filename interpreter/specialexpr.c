@@ -244,9 +244,9 @@ ptrs_var_t *ptrs_handle_thismember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 	ptrs_var_t *base = ptrs_scope_get(scope, expr->base);
 
 	if(base->type != PTRS_TYPE_STRUCT)
-		ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr->member->name, ptrs_typetoa(base->type));
+		ptrs_error(node, scope, "Struct this-member is of type %s", ptrs_typetoa(base->type));
 
-	ptrs_var_t *_result = ptrs_struct_getMember(base->value.structval, result, expr->member, node, scope);
+	ptrs_var_t *_result = ptrs_struct_get(base->value.structval, result, expr->name, node, scope);
 	if(_result == NULL)
 	{
 		result->type = PTRS_TYPE_UNDEFINED;
@@ -260,9 +260,9 @@ ptrs_var_t *ptrs_handle_assign_thismember(ptrs_ast_t *node, ptrs_var_t *value, p
 	ptrs_var_t *base = ptrs_scope_get(scope, expr->base);
 
 	if(base->type != PTRS_TYPE_STRUCT)
-		ptrs_error(node, scope, "Cannot assign property '%s' of type %s", expr->member->name, ptrs_typetoa(base->type));
+		ptrs_error(node, scope, "Struct this-member is of type %s", ptrs_typetoa(base->type));
 
-	ptrs_struct_setMember(base->value.structval, value, expr->member, node, scope);
+	ptrs_struct_set(base->value.structval, value, expr->name, node, scope);
 
 	return NULL;
 }
@@ -272,9 +272,9 @@ ptrs_var_t *ptrs_handle_addressof_thismember(ptrs_ast_t *node, ptrs_var_t *resul
 	ptrs_var_t *base = ptrs_scope_get(scope, expr->base);
 
 	if(base->type != PTRS_TYPE_STRUCT)
-		ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr->member->name, ptrs_typetoa(base->type));
+		ptrs_error(node, scope, "Struct this-member is of type %s", ptrs_typetoa(base->type));
 
-	ptrs_struct_addressOfMember(base->value.structval, result, expr->member, node, scope);
+	ptrs_struct_addressOf(base->value.structval, result, expr->name, node, scope);
 	return result;
 }
 ptrs_var_t *ptrs_handle_call_thismember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
@@ -285,9 +285,9 @@ ptrs_var_t *ptrs_handle_call_thismember(ptrs_ast_t *node, ptrs_var_t *result, pt
 	ptrs_var_t *base = ptrs_scope_get(scope, expr->base);
 
 	if(base->type != PTRS_TYPE_STRUCT)
-		ptrs_error(node, scope, "Cannot read property '%s' of type %s", expr->member->name, ptrs_typetoa(base->type));
+		ptrs_error(node, scope, "Struct this-member is of type %s", ptrs_typetoa(base->type));
 
-	ptrs_var_t *func = ptrs_struct_getMember(base->value.structval, &funcv, expr->member, node, scope);
+	ptrs_var_t *func = ptrs_struct_get(base->value.structval, &funcv, expr->name, node, scope);
 	if(func == NULL)
 	{
 		func = &funcv;
@@ -300,7 +300,7 @@ ptrs_var_t *ptrs_handle_call_thismember(ptrs_ast_t *node, ptrs_var_t *result, pt
 struct withVal
 {
 	ptrs_struct_t *this;
-	struct ptrs_structlist **member;
+	struct ptrs_structmember **member;
 };
 ptrs_var_t *ptrs_handle_withmember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {

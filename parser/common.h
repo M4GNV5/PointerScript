@@ -83,18 +83,7 @@ enum ptrs_structmembertype
 	PTRS_STRUCTMEMBER_SETTER,
 	PTRS_STRUCTMEMBER_TYPED,
 };
-union ptrs_structmember
-{
-	struct ptrs_ast *startval;
-	struct
-	{
-		struct ptrs_astlist *arrayInit;
-		uint64_t size;
-	};
-	ptrs_function_t *function;
-	ptrs_nativetype_info_t *type;
-};
-struct ptrs_structlist
+struct ptrs_structmember
 {
 	char *name;
 	unsigned offset;
@@ -102,8 +91,17 @@ struct ptrs_structlist
 	uint8_t protection : 2; //0 = public, 1 = internal, 2 = private
 	uint8_t isStatic : 1;
 	enum ptrs_structmembertype type;
-	union ptrs_structmember value;
-	struct ptrs_structlist *next;
+	union
+	{
+		struct ptrs_ast *startval;
+		struct
+		{
+			struct ptrs_astlist *arrayInit;
+			uint64_t size;
+		};
+		ptrs_function_t *function;
+		ptrs_nativetype_info_t *type;
+	} value;
 };
 struct ptrs_opoverload
 {
@@ -117,10 +115,11 @@ typedef struct ptrs_struct
 {
 	char *name;
 	ptrs_symbol_t symbol;
-	struct ptrs_structlist *member;
+	struct ptrs_structmember *member;
 	struct ptrs_opoverload *overloads;
 	ptrs_scope_t *scope;
-	int size;
+	uint32_t size;
+	uint16_t memberCount;
 	bool isOnStack;
 	void *staticData;
 	void *data;

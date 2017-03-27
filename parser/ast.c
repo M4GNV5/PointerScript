@@ -251,7 +251,7 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 
 						ast->arg.thismember.base.scope = level - 1;
 						ast->arg.thismember.base.offset = 0;
-						ast->arg.thismember.member = curr->arg.data;
+						ast->arg.thismember.name = curr->arg.data;
 						break;
 
 					case PTRS_SYMBOL_WILDCARD:
@@ -2089,6 +2089,36 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 	return ast;
 }
 
+struct ptrs_structParseList
+{
+	struct ptrs_structmember member;
+	struct ptrs_structParseList *next;
+};
+static struct ptrs_structmember *createStructHashmap(struct ptrs_structParseList *curr, int count)
+{
+	if(count == 0)
+		return NULL;
+
+	struct ptrs_structmember *member = malloc(count * sizeof(struct ptrs_structmember));
+	for(int i = 0; i < count; i++)
+		member[i].name = NULL;
+	
+	while(curr != NULL)
+	{
+		int i = ptrs_struct_hashName(curr->member.name) % count;
+		while(member[i].name != NULL)
+		{
+			//printf("collision %s >< %s\n", curr->member.name, member[i].name);
+			i = (i + 1) % count;
+		}
+		
+		memcpy(&member[i], &curr->member, sizeof(struct ptrs_structmember));
+		curr = curr->next;
+	}
+	
+	return member;
+}
+
 static void parseMap(code_t *code, ptrs_ast_t *ast)
 {
 	ptrs_ast_t *structExpr = talloc(ptrs_ast_t);
@@ -2110,40 +2140,47 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 	consumec(code, '{');
 	symbolScope_increase(code, 0, false);
 
-	struct ptrs_structlist *curr = NULL;
+	int count = 0;
+	struct ptrs_structParseList *start = NULL;
+	struct ptrs_structParseList *curr = NULL;
 	for(;;)
 	{
-		if(curr == NULL)
+		if(start == NULL)
 		{
-			curr = talloc(struct ptrs_structlist);
-			struc->member = curr;
+			curr = alloca(sizeof(struct ptrs_structParseList));
+			start = curr;
 		}
 		else
 		{
-			curr->next = talloc(struct ptrs_structlist);
+			curr->next = alloca(sizeof(struct ptrs_structParseList));
 			curr = curr->next;
 		}
-		curr->type = PTRS_STRUCTMEMBER_VAR;
-		curr->protection = 0;
-		curr->isStatic = 0;
-		curr->offset = struc->size;
+		count++;
+
+		curr->member.type = PTRS_STRUCTMEMBER_VAR;
+		curr->member.protection = 0;
+		curr->member.isStatic = 0;
+		curr->member.offset = struc->size;
 		struc->size += sizeof(ptrs_var_t);
 
 		if(lookahead(code, "\""))
-			curr->name = readString(code, NULL, NULL, NULL);
+			curr->member.name = readString(code, NULL, NULL, NULL);
 		else
-			curr->name = readIdentifier(code);
+			curr->member.name = readIdentifier(code);
 
-		curr->namelen = strlen(curr->name);
+		curr->member.namelen = strlen(curr->member.name);
 
 		consumec(code, ':');
-		curr->value.startval = parseExpression(code, true);
+		curr->member.value.startval = parseExpression(code, true);
 
 		if(code->curr == '}')
 			break;
 		consumec(code, ',');
 	}
+
 	curr->next = NULL;
+	struc->memberCount = count;
+	struc->member = createStructHashmap(start, count);
 
 	symbolScope_decrease(code);
 
@@ -2161,7 +2198,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 	if(ptrs_ast_getSymbol(code->symbols, structName, &oldAst) == 0)
 	{
 		if(oldAst->handler != ptrs_handle_identifier)
-			PTRS_HANDLE_ASTERROR(NULL, "Cannot redefine special symbol %s as a function", structName);
+			PTRS_HANDLE_ASTERROR(NULL, "Cannot redefine special symbol %s as a struct", structName);
 
 		struc->symbol = oldAst->arg.varval;
 		free(oldAst);
@@ -2178,7 +2215,11 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 	consumec(code, '{');
 
 	symbolScope_increase(code, 0, true);
-	struct ptrs_structlist *curr = NULL;
+	int memberCount = 0;
+	struct ptrs_structParseList *start = NULL;
+	struct ptrs_structParseList *currList;
+	struct ptrs_structmember *curr = NULL;
+	struct ptrs_structmember *old;
 	while(code->curr != '}')
 	{
 		bool isStatic;
@@ -2448,13 +2489,19 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			continue;
 		}
 
-		struct ptrs_structlist *old = curr;
-		curr = talloc(struct ptrs_structlist);
-
-		if(old == NULL)
-			struc->member = curr;
+		old = curr;
+		if(start == NULL)
+		{
+			currList = alloca(sizeof(struct ptrs_structParseList));
+			start = currList;
+		}
 		else
-			old->next = curr;
+		{
+			currList->next = alloca(sizeof(struct ptrs_structParseList));
+			currList = currList->next;
+		}
+		curr = &currList->member;
+		memberCount++;
 
 		if(lookahead(code, "private"))
 			curr->protection = 2;
@@ -2489,7 +2536,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 		curr->namelen = strlen(name);
 
 		struct symbollist *symbol = addSpecialSymbol(code, strdup(curr->name), PTRS_SYMBOL_THISMEMBER);
-		symbol->arg.data = curr;
+		symbol->arg.data = curr->name;
 
 		if(isProperty > 0)
 		{
@@ -2644,10 +2691,11 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 	else
 		struc->staticData = NULL;
 
-	if(curr == NULL)
-		struc->member = NULL;
-	else
-		curr->next = NULL;
+	if(memberCount != 0)
+		currList->next = NULL;
+	struc->memberCount = memberCount;
+	struc->member = createStructHashmap(start, memberCount);
+	
 	symbolScope_decrease(code);
 	consumec(code, '}');
 	consumec(code, ';');
