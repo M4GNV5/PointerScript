@@ -1041,7 +1041,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 	char curr = code->curr;
 	int pos = code->pos;
 	bool noSetHandler = true;
-	ptrs_ast_t *ast;
+	ptrs_ast_t *ast = NULL;
 
 	for(int i = 0; i < prefixOpCount; i++)
 	{
@@ -2175,7 +2175,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 	symbolScope_increase(code, 0, true);
 	int memberCount = 0;
 	struct ptrs_structParseList *start = NULL;
-	struct ptrs_structParseList *currList;
+	struct ptrs_structParseList *currList = NULL;
 	struct ptrs_structmember *curr = NULL;
 	struct ptrs_structmember *old;
 	while(code->curr != '}')

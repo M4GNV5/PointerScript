@@ -40,10 +40,11 @@ bool ptrs_struct_canAccess(ptrs_struct_t *struc, struct ptrs_structmember *membe
 				return true;
 			//fallthrough
 		default:
-			if(node->handler == ptrs_handle_thismember
-				|| node->handler == ptrs_handle_assign_thismember
-				|| node->handler == ptrs_handle_addressof_thismember
-				|| node->handler == ptrs_handle_call_thismember)
+			//TODO make thismember expressions great again
+			if(node->handler == (void *)ptrs_handle_thismember
+				|| node->handler == (void *)ptrs_handle_assign_thismember
+				|| node->handler == (void *)ptrs_handle_addressof_thismember
+				|| node->handler == (void *)ptrs_handle_call_thismember)
 				return true;
 
 			if(node != NULL)
