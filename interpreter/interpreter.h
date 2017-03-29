@@ -27,7 +27,6 @@ ptrs_var_t *ptrs_handle_trycatch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 ptrs_var_t *ptrs_handle_asm(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_function(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_struct(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
-ptrs_var_t *ptrs_handle_with(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_if(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_switch(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_while(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
@@ -43,7 +42,6 @@ ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 ptrs_var_t *ptrs_handle_new(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_thismember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
-ptrs_var_t *ptrs_handle_withmember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_indexlength(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_slice(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
@@ -63,20 +61,16 @@ ptrs_var_t *ptrs_handle_assign_dereference(ptrs_ast_t *node, ptrs_var_t *value, 
 ptrs_var_t *ptrs_handle_assign_index(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_assign_member(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_assign_thismember(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
-ptrs_var_t *ptrs_handle_assign_withmember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 
 ptrs_var_t *ptrs_handle_addressof_index(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_addressof_member(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
 ptrs_var_t *ptrs_handle_addressof_thismember(ptrs_ast_t *node, ptrs_var_t *value, ptrs_scope_t *scope);
-ptrs_var_t *ptrs_handle_addressof_withmember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);
 
 ptrs_var_t *ptrs_handle_call_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
 	ptrs_nativetype_info_t *retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments);
 ptrs_var_t *ptrs_handle_call_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
 	ptrs_nativetype_info_t *retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments);
 ptrs_var_t *ptrs_handle_call_thismember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
-	ptrs_nativetype_info_t *retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments);
-ptrs_var_t *ptrs_handle_call_withmember(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope,
 	ptrs_nativetype_info_t *retType, ptrs_ast_t *caller, struct ptrs_astlist *arguments);
 
 ptrs_var_t *ptrs_handle_op_ternary(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope);

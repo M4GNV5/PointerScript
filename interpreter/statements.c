@@ -782,31 +782,6 @@ ptrs_var_t *ptrs_handle_struct(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	return result;
 }
 
-ptrs_var_t *ptrs_handle_with(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
-{
-	struct ptrs_ast_with *stmt = &node->arg.with;
-
-	ptrs_var_t *base = stmt->base->handler(stmt->base, result, scope);
-
-	if(base->type != PTRS_TYPE_STRUCT)
-		ptrs_error(node, scope, "Value of with statement must be of type struct not '%s'", ptrs_typetoa(base->type));
-
-	struct withVal
-	{
-		ptrs_struct_t *this;
-		struct ptrs_structmember **member;
-	};
-
-	struct withVal *withVal = (struct withVal *)ptrs_scope_get(scope, stmt->symbol);
-	struct ptrs_structmember *member[stmt->count];
-	memset(member, 0, sizeof(struct ptrs_structmember *) * stmt->count);
-
-	withVal->this = base->value.structval;
-	withVal->member = member;
-
-	return stmt->body->handler(stmt->body, result, scope);
-}
-
 ptrs_var_t *ptrs_handle_if(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_ifelse *stmt = &node->arg.ifelse;
