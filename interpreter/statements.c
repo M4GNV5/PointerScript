@@ -735,6 +735,8 @@ ptrs_var_t *ptrs_handle_struct(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	for(int i = 0; i < struc->memberCount; i++)
 	{
 		struct ptrs_structmember *curr = &struc->member[i];
+		if(curr->name == NULL)
+			continue;
 
 		if(curr->type == PTRS_STRUCTMEMBER_FUNCTION
 			|| curr->type == PTRS_STRUCTMEMBER_GETTER
@@ -988,6 +990,8 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		for(int i = 0; i < struc->memberCount; i++)
 		{
 			struct ptrs_structmember *curr = &struc->member[i];
+			if(curr->name == NULL)
+				continue;
 
 			if(!ptrs_struct_canAccess(struc, curr, NULL, scope))
 				continue;

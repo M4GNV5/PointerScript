@@ -264,6 +264,8 @@ ptrs_var_t *ptrs_struct_construct(ptrs_var_t *constructor, struct ptrs_astlist *
 	for(int i = 0; i < instance->memberCount; i++)
 	{
 		struct ptrs_structmember *member = &instance->member[i];
+		if(member->name == NULL)
+			continue;
 
 		if(member->type == PTRS_STRUCTMEMBER_VAR && member->value.startval != NULL && !member->isStatic)
 		{
