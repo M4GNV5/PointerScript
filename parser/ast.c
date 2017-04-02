@@ -1394,7 +1394,6 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 				func->argc = parseArgumentDefinitionList(code, &func->args, NULL, &func->vararg);
 
 				consume(code, "->");
-				code->symbols->offset += 2 * sizeof(ptrs_var_t);
 				if(lookahead(code, "{"))
 				{
 					func->body = parseStmtList(code, '}');
@@ -2134,21 +2133,53 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 		}
 		count++;
 
-		curr->member.type = PTRS_STRUCTMEMBER_VAR;
-		curr->member.protection = 0;
-		curr->member.isStatic = 0;
-		curr->member.offset = struc->size;
-		struc->size += sizeof(ptrs_var_t);
-
 		if(lookahead(code, "\""))
 			curr->member.name = readString(code, NULL, NULL, NULL);
 		else
 			curr->member.name = readIdentifier(code);
 
 		curr->member.namelen = strlen(curr->member.name);
+		curr->member.protection = 0;
+		curr->member.isStatic = 0;
 
-		consumec(code, ':');
-		curr->member.value.startval = parseExpression(code, true);
+		if(code->curr == '(')
+		{
+			curr->member.type = PTRS_STRUCTMEMBER_FUNCTION;
+			symbolScope_increase(code, 1, false);
+			setSymbol(code, strdup("this"), 0);
+
+			ptrs_function_t *func = curr->member.value.function = talloc(ptrs_function_t);
+			func->name = "(map function member)";
+			func->scope = NULL;
+			func->nativeCb = NULL;
+			func->argc = parseArgumentDefinitionList(code, &func->args, &func->argv, &func->vararg);
+
+			consume(code, "->");
+			if(lookahead(code, "{"))
+			{
+				func->body = parseStmtList(code, '}');
+				consumec(code, '}');
+			}
+			else
+			{
+				ptrs_ast_t *retStmt = talloc(ptrs_ast_t);
+				retStmt->handler = ptrs_handle_return;
+				retStmt->arg.astval = parseExpression(code, true);
+				func->body = retStmt;
+			}
+
+			func->stackOffset = symbolScope_decrease(code);
+		}
+		else
+		{
+			consumec(code, ':');
+
+			curr->member.type = PTRS_STRUCTMEMBER_VAR;
+			curr->member.offset = struc->size;
+			struc->size += sizeof(ptrs_var_t);
+			curr->member.value.startval = parseExpression(code, true);
+		}
+
 
 		if(code->curr == '}')
 			break;
