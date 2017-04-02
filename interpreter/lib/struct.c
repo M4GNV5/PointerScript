@@ -61,13 +61,13 @@ unsigned long ptrs_struct_hashName(const char *key)
 	{
 		if(isupper(*key) || isdigit(*key))
 		{
-			hash <<= 6;
-			hash *= toupper(*(key - 1)) - '0';
-			hash += toupper(*key) - '0';
+			hash <<= 3;
+			hash += toupper(*(key - 1)) - '0';
+			hash ^= toupper(*key) - '0';
 		}
 		key++;
 	}
-	
+
 	hash += toupper(*--key);
 	return hash;
 }
@@ -78,18 +78,19 @@ struct ptrs_structmember *ptrs_struct_find(ptrs_struct_t *struc, const char *key
 	if(struc->memberCount == 0)
 		return NULL;
 
-	int start = ptrs_struct_hashName(key) % struc->memberCount;
-	int i = start;
-	
-	while(strcmp(struc->member[i].name, key) != 0 || struc->member[i].type == exclude)
+	int i = ptrs_struct_hashName(key) % struc->memberCount;
+	while(struc->member[i].name != NULL)
 	{
+		if(strcmp(struc->member[i].name, key) == 0 && struc->member[i].type != exclude)
+		{
+			ptrs_struct_canAccess(struc, &struc->member[i], ast, scope);
+			return &struc->member[i];
+		}
+
 		i = (i + 1) % struc->memberCount;
-		if(i == start)
-			return NULL;
 	}
-	
-	ptrs_struct_canAccess(struc, &struc->member[i], ast, scope);
-	return &struc->member[i];
+
+	return NULL;
 }
 
 ptrs_var_t *ptrs_struct_getMember(ptrs_struct_t *struc, ptrs_var_t *result, struct ptrs_structmember *member,

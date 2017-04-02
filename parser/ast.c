@@ -2047,20 +2047,38 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 	return ast;
 }
 
+static uint8_t knownPrimes[] = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97};
 struct ptrs_structParseList
 {
 	struct ptrs_structmember member;
 	struct ptrs_structParseList *next;
 };
-static struct ptrs_structmember *createStructHashmap(struct ptrs_structParseList *curr, int count)
+static void createStructHashmap(code_t *code, ptrs_struct_t *struc, struct ptrs_structParseList *curr, int count)
 {
 	if(count == 0)
-		return NULL;
+	{
+		struc->memberCount = 0;
+		struc->member = NULL;
+		return;
+	}
+	else if(count >= 97) //TODO search for primes instead?
+	{
+		unexpectedm(code, NULL, "Structs cannot have more than 96 fields");
+	}
+
+	for(int i = 0; i < sizeof(knownPrimes); i++)
+	{
+		if(knownPrimes[i] > count)
+		{
+			count = knownPrimes[i];
+			break;
+		}
+	}
 
 	struct ptrs_structmember *member = malloc(count * sizeof(struct ptrs_structmember));
 	for(int i = 0; i < count; i++)
 		member[i].name = NULL;
-	
+
 	while(curr != NULL)
 	{
 		int i = ptrs_struct_hashName(curr->member.name) % count;
@@ -2069,12 +2087,13 @@ static struct ptrs_structmember *createStructHashmap(struct ptrs_structParseList
 			//printf("collision %s >< %s\n", curr->member.name, member[i].name);
 			i = (i + 1) % count;
 		}
-		
+
 		memcpy(&member[i], &curr->member, sizeof(struct ptrs_structmember));
 		curr = curr->next;
 	}
-	
-	return member;
+
+	struc->member = member;
+	struc->memberCount = count;
 }
 
 static void parseMap(code_t *code, ptrs_ast_t *ast)
@@ -2137,8 +2156,7 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 	}
 
 	curr->next = NULL;
-	struc->memberCount = count;
-	struc->member = createStructHashmap(start, count);
+	createStructHashmap(code, struc, start, count);
 
 	symbolScope_decrease(code);
 
@@ -2651,9 +2669,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 	if(memberCount != 0)
 		currList->next = NULL;
-	struc->memberCount = memberCount;
-	struc->member = createStructHashmap(start, memberCount);
-	
+	createStructHashmap(code, struc, start, memberCount);
+
 	symbolScope_decrease(code);
 	consumec(code, '}');
 	consumec(code, ';');
