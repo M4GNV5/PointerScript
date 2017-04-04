@@ -105,7 +105,6 @@ struct ptrs_structmember
 };
 struct ptrs_opoverload
 {
-	uint8_t isLeftSide : 1;
 	uint8_t isStatic : 1;
 	void *op;
 	ptrs_function_t *handler;

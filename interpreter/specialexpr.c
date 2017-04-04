@@ -64,7 +64,7 @@ ptrs_var_t *ptrs_handle_stringformat(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 			}
 		}
 		else if(val->type == PTRS_TYPE_STRUCT &&
-			(overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_tostring, true)) != NULL)
+			(overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_tostring)) != NULL)
 		{
 			overload.type = PTRS_TYPE_FUNCTION;
 			val = ptrs_callfunc(node, args + i, scope, val->value.structval, &overload, 0, NULL);
@@ -118,7 +118,7 @@ ptrs_var_t *ptrs_handle_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 	ptrs_var_t *_result = ptrs_struct_get(base->value.structval, result, expr->name, node, scope);
 
 	ptrs_var_t overload;
-	if(_result == NULL && (overload.value.funcval = ptrs_struct_getOverload(base, ptrs_handle_member, true)) != NULL)
+	if(_result == NULL && (overload.value.funcval = ptrs_struct_getOverload(base, ptrs_handle_member)) != NULL)
 	{
 		ptrs_var_t arg;
 		arg.type = PTRS_TYPE_NATIVE;
@@ -149,7 +149,7 @@ ptrs_var_t *ptrs_handle_assign_member(ptrs_ast_t *node, ptrs_var_t *value, ptrs_
 		return NULL;
 
 	ptrs_var_t overload;
-	if((overload.value.funcval = ptrs_struct_getOverload(base, ptrs_handle_assign_member, true)) != NULL)
+	if((overload.value.funcval = ptrs_struct_getOverload(base, ptrs_handle_assign_member)) != NULL)
 	{
 		overload.type = PTRS_TYPE_FUNCTION;
 
@@ -181,7 +181,7 @@ ptrs_var_t *ptrs_handle_addressof_member(ptrs_ast_t *node, ptrs_var_t *result, p
 	if(!ptrs_struct_addressOf(base->value.structval, result, expr->name, node, scope))
 	{
 		ptrs_var_t overload;
-		if((overload.value.funcval = ptrs_struct_getOverload(base, ptrs_handle_addressof_member, true)) != NULL)
+		if((overload.value.funcval = ptrs_struct_getOverload(base, ptrs_handle_addressof_member)) != NULL)
 		{
 			overload.type = PTRS_TYPE_FUNCTION;
 
@@ -217,7 +217,7 @@ ptrs_var_t *ptrs_handle_call_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_s
 	{
 		return ptrs_call(node, retType, base->value.structval, func, result, arguments, scope);
 	}
-	else if((funcv.value.funcval = ptrs_struct_getOverload(base, ptrs_handle_call_member, true)) != NULL)
+	else if((funcv.value.funcval = ptrs_struct_getOverload(base, ptrs_handle_call_member)) != NULL)
 	{
 		funcv.type = PTRS_TYPE_FUNCTION;
 
@@ -309,7 +309,7 @@ ptrs_var_t *ptrs_handle_prefix_length(ptrs_ast_t *node, ptrs_var_t *result, ptrs
 	else if(value->type == PTRS_TYPE_STRUCT)
 	{
 		ptrs_var_t overload;
-		if((overload.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_prefix_length, true)) != NULL)
+		if((overload.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_prefix_length)) != NULL)
 		{
 			overload.type = PTRS_TYPE_FUNCTION;
 			value = ptrs_callfunc(node, result, scope, value->value.structval, &overload, 0, NULL);
@@ -435,7 +435,7 @@ ptrs_var_t *ptrs_handle_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 		ptrs_var_t *_result = ptrs_struct_get(value->value.structval, result, key, node, scope);
 
 		ptrs_var_t overload;
-		if(_result == NULL && (overload.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_index, true)) != NULL)
+		if(_result == NULL && (overload.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_index)) != NULL)
 		{
 			overload.type = PTRS_TYPE_FUNCTION;
 			return ptrs_callfunc(node, result, scope, value->value.structval, &overload, 1, index);
@@ -497,7 +497,7 @@ ptrs_var_t *ptrs_handle_assign_index(ptrs_ast_t *node, ptrs_var_t *value, ptrs_s
 		if(!ptrs_struct_set(val->value.structval, value, key, node, scope))
 		{
 			ptrs_var_t overload;
-			if((overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_assign_index, true)) != NULL)
+			if((overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_assign_index)) != NULL)
 			{
 				overload.type = PTRS_TYPE_FUNCTION;
 
@@ -563,7 +563,7 @@ ptrs_var_t *ptrs_handle_addressof_index(ptrs_ast_t *node, ptrs_var_t *result, pt
 		if(!ptrs_struct_addressOf(value->value.structval, result, key, node, scope))
 		{
 			ptrs_var_t overload;
-			if((overload.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_addressof_index, true)) != NULL)
+			if((overload.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_addressof_index)) != NULL)
 			{
 				overload.type = PTRS_TYPE_FUNCTION;
 				return ptrs_callfunc(node, result, scope, value->value.structval, &overload, 1, index);
@@ -620,7 +620,7 @@ ptrs_var_t *ptrs_handle_call_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 		{
 			return ptrs_call(node, retType, value->value.structval, func, result, arguments, scope);
 		}
-		else if((indexv.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_call_index, true)) != NULL)
+		else if((indexv.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_call_index)) != NULL)
 		{
 			indexv.type = PTRS_TYPE_FUNCTION;
 
@@ -695,7 +695,7 @@ ptrs_var_t *ptrs_handle_cast_builtin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_
 
 	ptrs_var_t overload;
 	if(value->type == PTRS_TYPE_STRUCT
-		&& (overload.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_cast_builtin, true)) != NULL)
+		&& (overload.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_cast_builtin)) != NULL)
 	{
 		overload.type = PTRS_TYPE_FUNCTION;
 		ptrs_var_t arg;
@@ -753,7 +753,7 @@ ptrs_var_t *ptrs_handle_tostring(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scop
 		len = strnlen(val->value.strval, val->meta.array.size);
 
 	if(val->type == PTRS_TYPE_STRUCT &&
-		(overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_tostring, true)) != NULL)
+		(overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_tostring)) != NULL)
 	{
 		overload.type = PTRS_TYPE_FUNCTION;
 		return ptrs_callfunc(node, result, scope, val->value.structval, &overload, 0, NULL);
@@ -952,7 +952,7 @@ ptrs_var_t *ptrs_handle_op_in(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	{
 		result->value.intval = true;
 	}
-	else if((overload.value.funcval = ptrs_struct_getOverload(right, ptrs_handle_op_in, false)) != NULL)
+	else if((overload.value.funcval = ptrs_struct_getOverload(right, ptrs_handle_op_in)) != NULL)
 	{
 		overload.type = PTRS_TYPE_FUNCTION;
 		return ptrs_callfunc(node, result, scope, right->value.structval, &overload, 1, left);

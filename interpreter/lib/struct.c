@@ -11,14 +11,13 @@
 #include "../include/astlist.h"
 #include "../include/call.h"
 
-ptrs_function_t *ptrs_struct_getOverload(ptrs_var_t *struc, void *handler, bool isLeftSide)
+ptrs_function_t *ptrs_struct_getOverload(ptrs_var_t *struc, void *handler)
 {
 	bool isInstance = struc->value.structval->data != NULL;
 	struct ptrs_opoverload *curr = struc->value.structval->overloads;
 	while(curr != NULL)
 	{
-		if(curr->op == handler && curr->isLeftSide == isLeftSide
-			&& (isInstance || curr->isStatic))
+		if(curr->op == handler && (isInstance || curr->isStatic))
 			return curr->handler;
 		curr = curr->next;
 	}
@@ -295,7 +294,7 @@ ptrs_var_t *ptrs_struct_construct(ptrs_var_t *constructor, struct ptrs_astlist *
 	}
 
 	ptrs_var_t overload = {{.structval = instance}, .type = PTRS_TYPE_STRUCT};
-	if((overload.value.funcval = ptrs_struct_getOverload(&overload, ptrs_handle_new, true)) != NULL)
+	if((overload.value.funcval = ptrs_struct_getOverload(&overload, ptrs_handle_new)) != NULL)
 	{
 		overload.type = PTRS_TYPE_FUNCTION;
 		ptrs_call(node, PTRS_TYPE_UNDEFINED, instance, &overload, result, arguments, scope);

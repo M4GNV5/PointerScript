@@ -2250,209 +2250,157 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			func->vararg.scope = (unsigned)-1;
 
 			struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
-			overload->isLeftSide = true;
 			overload->isStatic = isStatic;
 
-			overload->op = readPrefixOperator(code, &opLabel);
-
-			if(overload->op != NULL)
+			bool isAddressOf = false;
+			if(lookahead(code, "&"))
 			{
 				consume(code, "this");
+				isAddressOf = true;
+			}
 
-				if(overload->op == ptrs_handle_prefix_address && (code->curr == '.' || code->curr == '['))
+			if(isAddressOf || lookahead(code, "this"))
+			{
+				char curr = code->curr;
+				if(curr == '.' || curr == '[')
 				{
-					char curr = code->curr;
 					next(code);
 					otherName = readIdentifier(code);
+					func->argc = 1;
 
 					if(curr == '.')
 					{
-						nameFormat = "%1$s.op &this.%3$s";
-						overload->op = ptrs_handle_addressof_member;
+						nameFormat = "%1$s.op this.%3$s%2$s";
 					}
 					else
 					{
+						nameFormat = "%1$s.op this[%3$s]%2$s";
 						consumec(code, ']');
-						nameFormat = "%1$s.op &this[%3$s]";
-						overload->op = ptrs_handle_addressof_index;
 					}
 
-					func->argc = 1;
-					func->args = talloc(ptrs_symbol_t);
-					func->args[0] = addSymbol(code, otherName);
+					if(isAddressOf)
+					{
+						func->args = talloc(ptrs_symbol_t);
+						func->args[0] = addSymbol(code, otherName);
+
+						nameFormat = curr == '.' ? "%1$s.op &this.%3$s" : "%1$s.op &this[%3$s]";
+						overload->op = curr == '.' ? ptrs_handle_addressof_member : ptrs_handle_addressof_index;
+					}
+					else if(lookahead(code, "="))
+					{
+						func->argc = 2;
+						func->args = malloc(sizeof(ptrs_symbol_t) * 2);
+						func->args[0] = addSymbol(code, otherName);
+						func->args[1] = addSymbol(code, readIdentifier(code));
+
+						opLabel = " = value";
+						overload->op = curr == '.' ? ptrs_handle_assign_member : ptrs_handle_assign_index;
+					}
+					else if(code->curr == '(')
+					{
+						func->argc = parseArgumentDefinitionList(code,
+							&func->args, &func->argv, &func->vararg);
+						func->argc++;
+
+						opLabel = "()";
+						overload->op = curr == '.' ? ptrs_handle_call_member : ptrs_handle_call_index;
+
+
+						ptrs_symbol_t *newArgs = malloc(sizeof(ptrs_symbol_t) * func->argc);
+						newArgs[0] = addSymbol(code, otherName);
+
+						memcpy(newArgs + 1, func->args, sizeof(ptrs_symbol_t) * (func->argc - 1));
+						free(func->args);
+						func->args = newArgs;
+
+
+						if(func->argv != NULL)
+						{
+							ptrs_ast_t **newArgv = malloc(sizeof(ptrs_symbol_t) * func->argc);
+							newArgv[0] = NULL;
+
+							memcpy(newArgv + 1, func->argv, sizeof(ptrs_symbol_t) * (func->argc - 1));
+							free(func->argv);
+							func->argv = newArgv;
+						}
+					}
+					else
+					{
+						func->args = talloc(ptrs_symbol_t);
+						func->args[0] = addSymbol(code, otherName);
+
+						opLabel = "";
+						overload->op = curr == '.' ? ptrs_handle_member : ptrs_handle_index;
+					}
+				}
+				else if(curr == '(')
+				{
+					func->argc = parseArgumentDefinitionList(code,
+						&func->args, &func->argv, &func->vararg);
+					overload->op = ptrs_handle_call;
+
+					opLabel = "()";
+					nameFormat = "%1$s.op this()";
 				}
 				else
 				{
-					nameFormat = "%1$s.op %2$sthis";
+					unexpected(code, "missing member overload");
 				}
 			}
-			else
+			else if(lookahead(code, "sizeof"))
 			{
-				if(lookahead(code, "this"))
+				consume(code, "this");
+
+				nameFormat = "%1$s.op sizeof this";
+				overload->op = ptrs_handle_prefix_length;
+
+				func->argc = 0;
+				func->args = NULL;
+			}
+			else if(lookahead(code, "foreach"))
+			{
+				consume(code, "in");
+				consume(code, "this");
+
+				nameFormat = "%1$s.op foreach in this";
+				overload->op = ptrs_handle_forin;
+
+				code->yield = addHiddenSymbol(code, sizeof(ptrs_var_t));
+
+				func->argc = 1;
+				func->args = talloc(ptrs_symbol_t);
+				func->args[0] = code->yield;
+			}
+			else if(lookahead(code, "cast"))
+			{
+				consumec(code, '<');
+
+				if(lookahead(code, "string"))
 				{
-					overload->op = readSuffixOperator(code, &opLabel);
-					nameFormat = "%1$s.op this%2$s";
-
-					if(overload->op == NULL)
-					{
-						func->argc = 1;
-						overload->op = readBinaryOperator(code, &opLabel);
-
-						if(overload->op != NULL)
-						{
-							nameFormat = "%1$s.op this %2$s %3$s";
-							otherName = readIdentifier(code);
-							func->args = talloc(ptrs_symbol_t);
-							func->args[0] = addSymbol(code, otherName);
-						}
-						else
-						{
-							char curr = code->curr;
-							if(curr == '.' || curr == '[')
-							{
-								next(code);
-								otherName = readIdentifier(code);
-
-								if(curr == '.')
-								{
-									nameFormat = "%1$s.op this.%3$s%2$s";
-								}
-								else
-								{
-									nameFormat = "%1$s.op this[%3$s]%2$s";
-									consumec(code, ']');
-								}
-
-								if(code->curr == '=')
-								{
-									consumec(code, '=');
-
-									func->argc = 2;
-									func->args = malloc(sizeof(ptrs_symbol_t) * 2);
-									func->args[0] = addSymbol(code, otherName);
-									func->args[1] = addSymbol(code, readIdentifier(code));
-
-									opLabel = " = value";
-									overload->op = curr == '.' ? ptrs_handle_assign_member : ptrs_handle_assign_index;
-								}
-								else if(code->curr == '(')
-								{
-									func->argc = parseArgumentDefinitionList(code,
-										&func->args, &func->argv, &func->vararg);
-									func->argc++;
-
-									opLabel = "()";
-									overload->op = curr == '.' ? ptrs_handle_call_member : ptrs_handle_call_index;
-
-
-									ptrs_symbol_t *newArgs = malloc(sizeof(ptrs_symbol_t) * func->argc);
-									newArgs[0] = addSymbol(code, otherName);
-
-									memcpy(newArgs + 1, func->args, sizeof(ptrs_symbol_t) * (func->argc - 1));
-									free(func->args);
-									func->args = newArgs;
-
-
-									if(func->argv != NULL)
-									{
-										ptrs_ast_t **newArgv = malloc(sizeof(ptrs_symbol_t) * func->argc);
-										newArgv[0] = NULL;
-
-										memcpy(newArgv + 1, func->argv, sizeof(ptrs_symbol_t) * (func->argc - 1));
-										free(func->argv);
-										func->argv = newArgv;
-									}
-								}
-								else
-								{
-									func->args = talloc(ptrs_symbol_t);
-									func->args[0] = addSymbol(code, otherName);
-
-									opLabel = "";
-									overload->op = curr == '.' ? ptrs_handle_member : ptrs_handle_index;
-								}
-							}
-							else if(curr == '(')
-							{
-								func->argc = parseArgumentDefinitionList(code,
-									&func->args, &func->argv, &func->vararg);
-								overload->op = ptrs_handle_call;
-
-								opLabel = "()";
-								nameFormat = "%1$s.op this()";
-							}
-						}
-					}
-				}
-				else if(lookahead(code, "sizeof"))
-				{
-					consume(code, "this");
-
-					nameFormat = "%1$s.op sizeof this";
-					overload->op = ptrs_handle_prefix_length;
+					otherName = NULL;
+					nameFormat = "%1$s.op cast<string>this";
+					overload->op = ptrs_handle_tostring;
 
 					func->argc = 0;
 					func->args = NULL;
 				}
-				else if(lookahead(code, "foreach"))
-				{
-					consume(code, "in");
-					consume(code, "this");
-
-					nameFormat = "%1$s.op foreach in this";
-					overload->op = ptrs_handle_forin;
-
-					code->yield = addHiddenSymbol(code, sizeof(ptrs_var_t));
-
-					func->argc = 1;
-					func->args = talloc(ptrs_symbol_t);
-					func->args[0] = code->yield;
-				}
-				else if(lookahead(code, "cast"))
-				{
-					consumec(code, '<');
-
-					if(lookahead(code, "string"))
-					{
-						otherName = NULL;
-						nameFormat = "%1$s.op cast<string>this";
-						overload->op = ptrs_handle_tostring;
-
-						func->argc = 0;
-						func->args = NULL;
-					}
-					else
-					{
-						otherName = readIdentifier(code);
-						nameFormat = "%1$s.op cast<%3$s>this";
-						overload->op = ptrs_handle_cast_builtin;
-
-						func->argc = 1;
-						func->args = talloc(ptrs_symbol_t);
-						func->args[0] = addSymbol(code, otherName);
-					}
-
-					consumec(code, '>');
-					consume(code, "this");
-				}
 				else
 				{
 					otherName = readIdentifier(code);
+					nameFormat = "%1$s.op cast<%3$s>this";
+					overload->op = ptrs_handle_cast_builtin;
 
 					func->argc = 1;
 					func->args = talloc(ptrs_symbol_t);
 					func->args[0] = addSymbol(code, otherName);
-
-					overload->isLeftSide = false;
-					overload->op = readBinaryOperator(code, &opLabel);
-
-					nameFormat = "%1$s.op %3$s %2$s this";
-					consume(code, "this");
 				}
 
-				if(overload->op == NULL)
-					unexpected(code, "Operator");
+				consumec(code, '>');
+				consume(code, "this");
 			}
+
+			if(overload->op == NULL)
+				unexpected(code, "Operator");
 
 			func->name = malloc(snprintf(NULL, 0, nameFormat, structName, opLabel, otherName) + 1);
 			sprintf(func->name, nameFormat, structName, opLabel, otherName);
@@ -2471,7 +2419,6 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			sprintf(name, "%s.constructor", structName);
 
 			struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
-			overload->isLeftSide = true;
 			overload->op = ptrs_handle_new;
 			overload->handler = parseFunction(code, name);
 			overload->isStatic = isStatic;
@@ -2486,7 +2433,6 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			sprintf(name, "%s.destructor", structName);
 
 			struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
-			overload->isLeftSide = true;
 			overload->op = ptrs_handle_delete;
 			overload->handler = parseFunction(code, name);
 			overload->isStatic = isStatic;

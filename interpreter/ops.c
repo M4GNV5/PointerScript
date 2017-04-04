@@ -14,7 +14,7 @@
 #define typcomp(left, right) ((uint8_t)PTRS_TYPE_##left << 4) | (uint8_t)PTRS_TYPE_##right
 
 #define binary_typecheck(val) \
-	else if(tleft != tright) \
+	if(tleft != tright) \
 	{ \
 		result->type = PTRS_TYPE_INT; \
 		result->value.intval = val; \
@@ -127,23 +127,12 @@
 		ptrs_var_t leftv; \
 		ptrs_var_t rightv; \
 		struct ptrs_ast_binary *expr = &node->arg.binary; \
-		ptrs_function_t *overload; \
 		\
 		ptrs_var_t *left = expr->left->handler(expr->left, &leftv, scope); \
 		ptrs_var_t *right = expr->right->handler(expr->right, &rightv, scope); \
 		ptrs_vartype_t tleft = left->type; \
 		ptrs_vartype_t tright = right->type; \
 		\
-		if(tleft == PTRS_TYPE_STRUCT && (overload = ptrs_struct_getOverload(left, ptrs_handle_op_##name, true)) != NULL) \
-		{ \
-			ptrs_var_t func = {{.funcval = overload}, .type = PTRS_TYPE_FUNCTION}; \
-			return ptrs_callfunc(node, result, scope, left->value.structval, &func, 1, right); \
-		} \
-		else if(tright == PTRS_TYPE_STRUCT && (overload = ptrs_struct_getOverload(right, ptrs_handle_op_##name, false)) != NULL) \
-		{ \
-			ptrs_var_t func = {{.funcval = overload}, .type = PTRS_TYPE_FUNCTION}; \
-			return ptrs_callfunc(node, result, scope, right->value.structval, &func, 1, left); \
-		} \
 		preCheck \
 		\
 		switch(((uint8_t)tleft << 4) | (uint8_t)tright) \
@@ -254,14 +243,7 @@ ptrs_var_t *ptrs_handle_prefix_logicnot(ptrs_ast_t *node, ptrs_var_t *result, pt
 		ptrs_ast_t *expr = node->arg.astval; \
 		ptrs_var_t *value = expr->handler(expr, result, scope); \
 		ptrs_vartype_t type = value->type; \
-		ptrs_var_t overload; \
 		result->type = type; \
-		\
-		if(type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_prefix_##name, true)) != NULL) \
-		{ \
-			overload.type = PTRS_TYPE_FUNCTION; \
-			return ptrs_callfunc(node, result, scope, value->value.structval, &overload, 0, NULL); \
-		} \
 		\
 		if(type == PTRS_TYPE_INT) \
 			result->value.intval = operator value->value.intval; \
@@ -300,14 +282,7 @@ handle_prefix(minus, -, "-", false, handle_prefix_float(-), /*nothing*/)
 		ptrs_var_t valuev; \
 		ptrs_var_t *value = expr->handler(expr, &valuev, scope); \
 		ptrs_vartype_t type = value->type; \
-		ptrs_var_t overload; \
 		result->type = type; \
-		\
-		if(type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(value, ptrs_handle_suffix_##name, true)) != NULL) \
-		{ \
-			overload.type = PTRS_TYPE_FUNCTION; \
-			return ptrs_callfunc(node, result, scope, value->value.structval, &overload, 0, NULL); \
-		} \
 		\
 		if(type == PTRS_TYPE_INT) \
 			result->value.intval = value->value.intval operator; \

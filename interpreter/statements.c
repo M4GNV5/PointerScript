@@ -450,7 +450,7 @@ ptrs_var_t *ptrs_handle_delete(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_
 		case PTRS_TYPE_STRUCT:
 			;
 			ptrs_var_t overload;
-			if((overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_delete, true)) != NULL)
+			if((overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_delete)) != NULL)
 			{
 				overload.type = PTRS_TYPE_FUNCTION;
 				result = ptrs_callfunc(node, result, scope, val->value.structval, &overload, 0, NULL);
@@ -910,7 +910,7 @@ ptrs_var_t *ptrs_handle_forin(ptrs_ast_t *node, ptrs_var_t *result, ptrs_scope_t
 	ptrs_var_t *val = stmt->value->handler(stmt->value, &valuev, ptrs_scope_increase(scope, 0));
 
 	ptrs_var_t overload;
-	if(val->type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_forin, true)) != NULL)
+	if(val->type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(val, ptrs_handle_forin)) != NULL)
 	{
 		void *yieldVal[2];
 		yieldVal[0] = stmt;

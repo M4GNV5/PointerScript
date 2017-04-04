@@ -33,7 +33,7 @@ ptrs_var_t *ptrs_call(ptrs_ast_t *ast, ptrs_nativetype_info_t *retType, ptrs_str
 	{
 		ptrs_callnative(retType, result, func->value.nativeval, len, args);
 	}
-	else if(func->type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(func, ptrs_handle_call, true)) != NULL)
+	else if(func->type == PTRS_TYPE_STRUCT && (overload.value.funcval = ptrs_struct_getOverload(func, ptrs_handle_call)) != NULL)
 	{
 		overload.type = PTRS_TYPE_FUNCTION;
 		result = ptrs_callfunc(ast, result, scope, func->value.structval, &overload, len, args);
