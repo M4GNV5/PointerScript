@@ -105,7 +105,7 @@ static ptrs_vartype_t readTypeName(code_t *code);
 static ptrs_nativetype_info_t *readNativeType(code_t *code);
 static ptrs_asthandler_t readPrefixOperator(code_t *code, const char **label);
 static ptrs_asthandler_t readSuffixOperator(code_t *code, const char **label);
-static ptrs_asthandler_t readBinaryOperator(code_t *code, const char **label);
+//static ptrs_asthandler_t readBinaryOperator(code_t *code, const char **label);
 static char *readIdentifier(code_t *code);
 static char *readString(code_t *code, int *length, struct ptrs_stringformat **insertions, int *insertionsCount);
 static char readEscapeSequence(code_t *code);
@@ -1043,39 +1043,38 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 	bool noSetHandler = true;
 	ptrs_ast_t *ast = NULL;
 
-	for(int i = 0; i < prefixOpCount; i++)
-	{
-		if(lookahead(code, prefixOps[i].op))
-		{
-			ast = talloc(ptrs_ast_t);
-			ast->arg.astval = parseUnaryExpr(code, false, true);
-			ast->handler = prefixOps[i].handler;
-			ast->addressHandler = NULL;
-			ast->callHandler = NULL;
-			if(ast->handler == ptrs_handle_prefix_dereference)
-				ast->setHandler = ptrs_handle_assign_dereference;
-			else
-				ast->setHandler = NULL;
 
-			ast->codepos = pos;
-			ast->code = code->src;
-			ast->file = code->filename;
+	ptrs_asthandler_t handler = readPrefixOperator(code, NULL);
+	if(handler != NULL)
+	{
+		ast = talloc(ptrs_ast_t);
+		ast->arg.astval = parseUnaryExpr(code, false, true);
+		ast->handler = handler;
+		ast->addressHandler = NULL;
+		ast->callHandler = NULL;
+		if(handler == ptrs_handle_prefix_dereference)
+			ast->setHandler = ptrs_handle_assign_dereference;
+		else
+			ast->setHandler = NULL;
+
+		ast->codepos = pos;
+		ast->code = code->src;
+		ast->file = code->filename;
 
 #ifndef PTRS_DISABLE_CONSTRESOLVE
-			if(ast->arg.astval->handler == ptrs_handle_constant)
-			{
-				ptrs_lastast = ast;
+		if(ast->arg.astval->handler == ptrs_handle_constant)
+		{
+			ptrs_lastast = ast;
 
-				ptrs_var_t result;
-				ast->handler(ast, &result, NULL);
-				ast->handler = ptrs_handle_constant;
+			ptrs_var_t result;
+			ast->handler(ast, &result, NULL);
+			ast->handler = ptrs_handle_constant;
 
-				free(ast->arg.astval);
-				memcpy(&ast->arg.constval, &result, sizeof(ptrs_var_t));
-			}
-#endif
-			return ast;
+			free(ast->arg.astval);
+			memcpy(&ast->arg.constval, &result, sizeof(ptrs_var_t));
 		}
+#endif
+		return ast;
 	}
 
 	for(int i = 0; i < constantCount; i++)
@@ -1575,20 +1574,18 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 	else
 	{
 		int pos = code->pos;
-		for(int i = 0; i < suffixedOpCount; i++)
+		ptrs_asthandler_t handler = readSuffixOperator(code, NULL);
+		if(handler != NULL)
 		{
-			if(lookahead(code, suffixedOps[i].op))
-			{
-				ptrs_ast_t *opAst = talloc(ptrs_ast_t);
-				opAst->codepos = pos;
-				opAst->code = code->src;
-				opAst->file = code->filename;
-				opAst->arg.astval = ast;
-				opAst->handler = suffixedOps[i].handler;
-				opAst->setHandler = NULL;
-				opAst->callHandler = NULL;
-				return opAst;
-			}
+			ptrs_ast_t *opAst = talloc(ptrs_ast_t);
+			opAst->codepos = pos;
+			opAst->code = code->src;
+			opAst->file = code->filename;
+			opAst->arg.astval = ast;
+			opAst->handler = handler;
+			opAst->setHandler = NULL;
+			opAst->callHandler = NULL;
+			return opAst;
 		}
 	}
 
@@ -2241,8 +2238,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			setSymbol(code, strdup("this"), 0);
 
 			ptrs_symbol_t oldYield = code->yield;
-			const char *nameFormat;
-			const char *opLabel;
+			const char *nameFormat = NULL;
+			const char *opLabel = NULL;
 			char *otherName = NULL;
 			ptrs_function_t *func = talloc(ptrs_function_t);
 			func->argc = 0;
@@ -2787,10 +2784,10 @@ static ptrs_asthandler_t readSuffixOperator(code_t *code, const char **label)
 {
 	return readOperatorFrom(code, label, suffixedOps, suffixedOpCount);
 }
-static ptrs_asthandler_t readBinaryOperator(code_t *code, const char **label)
+/*static ptrs_asthandler_t readBinaryOperator(code_t *code, const char **label)
 {
 	return readOperatorFrom(code, label, binaryOps, binaryOpCount);
-}
+}*/
 
 static char *readIdentifier(code_t *code)
 {
