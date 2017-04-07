@@ -2395,6 +2395,20 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				consumec(code, '>');
 				consume(code, "this");
 			}
+			else
+			{
+				otherName = readIdentifier(code);
+				if(lookahead(code, "in"))
+				{
+					consume(code, "this");
+					nameFormat = "%1$s.op %3$s in this";
+					overload->op = ptrs_handle_op_in;
+
+					func->argc = 1;
+					func->args = talloc(ptrs_symbol_t);
+					func->args[0] = addSymbol(code, otherName);
+				}
+			}
 
 			if(overload->op == NULL)
 				unexpected(code, "Operator");

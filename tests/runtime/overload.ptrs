@@ -47,6 +47,13 @@ struct Test
 		return 8;
 	}
 
+	operator key in this
+	{
+		op = "in";
+		val = key;
+		return 9;
+	}
+
 	operator foreach in this
 	{
 		val = false;
@@ -82,11 +89,6 @@ assertEq(type<native>, val);
 assertEq(4, cast<string>test);
 assertEq("tostr", op);
 
-asm
-{
-	//int3
-	ret
-}
 assertEq(6, test.foo);
 assertEq(".get", op);
 assertEq("foo", val);
@@ -103,6 +105,10 @@ assertEq("tar", val[0]);
 assertEq("devil", val[1]);
 assertEq(666, val[2]);
 delete val;
+
+assertEq(9, "xar" in test);
+assertEq("in", op);
+assertEq("xar", val);
 
 foreach(val2, val3 in test)
 {
