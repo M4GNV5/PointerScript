@@ -1,8 +1,6 @@
 CC = gcc
-FFCB_DIR = libffcb/src
-FFCB_BIN = libffcb/bin/libffcb.a
-JITAS_DIR = libjitas/src
-JITAS_BIN = libjitas/bin/libjitas.a
+MYJIT_DIR = myjit/jitlib
+MYJIT_BIN = myjit/jitlib-core.o
 INTERPRETER_INCLUDE = "../interpreter/interpreter.h"
 
 BIN = bin
@@ -27,8 +25,9 @@ RUN_OBJECTS += $(BIN)/main.o
 
 EXTERN_LIBS += -ldl
 EXTERN_LIBS += -lffi
+EXTERN_LIBS += -l$(MYJIT_BIN)
 
-CFLAGS = '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -std=c99
+CFLAGS = '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -std=c99 -I$(FFCB_DIR) -I$(JITAS_DIR) -I$(MYJIT_DIR)
 
 ifdef PORTABLE
 ARCH = PORTABLE
@@ -40,15 +39,6 @@ CFLAGS += -D_GNU_SOURCE
 else
 CFLAGS += -D_XOPEN_SOURCE=700
 endif
-endif
-
-ifeq ($(ARCH),x86_64)
-CFLAGS += -I$(FFCB_DIR) -I$(JITAS_DIR)
-EXTERN_LIBS += $(FFCB_BIN)
-EXTERN_LIBS += $(JITAS_BIN)
-else
-CFLAGS += -D_PTRS_PORTABLE
-$(info Building portable. Inline assembly and returning non-integers from native callbacks will not be available)
 endif
 
 all: CFLAGS += -Wall -O2 -g
@@ -67,21 +57,17 @@ remove:
 	rm /usr/local/bin/ptrs
 
 clean:
-	$(MAKE) -C libffcb clean
-	$(MAKE) -C libjitas clean
+	$(MAKE) -C myjit clean
 	if [ -d $(BIN) ]; then rm -r $(BIN); fi
 
-$(RUN): $(EXTERN_LIBS) $(BIN) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS)
+$(RUN): $(MYJIT_BIN) $(BIN) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS)
 	$(CC) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) -o $(BIN)/ptrs -rdynamic $(EXTERN_LIBS)
 
 $(BIN):
 	mkdir $(BIN)
 
-$(FFCB_BIN):
-	$(MAKE) -C libffcb
-
-$(JITAS_BIN):
-	$(MAKE) -C libjitas
+$(MYJIT_BIN):
+	$(MAKE) -C myjit
 
 $(BIN)/%.o: parser/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
