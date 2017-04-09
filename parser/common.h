@@ -35,15 +35,7 @@ struct ptrs_error;
 
 typedef struct ptrs_scope
 {
-	struct ptrs_scope *outer;
-	void *stackstart;
-	void *sp;
-	void *bp;
-	struct ptrs_ast *callAst;
-	struct ptrs_scope *callScope;
-	const char *calleeName;
-	struct ptrs_error *error;
-	uint8_t exit : 2; // 00 = nothing   01 = exit block (continue)   10 = exit loop (break)   11 = exit function (return)
+	intptr_t fpOffset;
 } ptrs_scope_t;
 
 typedef struct ptrs_var *(*ptrs_nativetype_handler_t)(void *target, size_t typeSize, struct ptrs_var *value);
@@ -135,21 +127,36 @@ typedef union val
 	ptrs_struct_t *structval;
 } ptrs_val_t;
 
-typedef union meta
+typedef struct meta
 {
-	struct
+	uint8_t type;
+	union
 	{
-		uint32_t size;
-		bool readOnly;
-	} __attribute__((packed)) array;
+		struct
+		{
+			bool readOnly;
+			uint32_t size;
+		} __attribute__((packed)) array;
+	}
 } ptrs_meta_t;
 
 struct ptrs_var
 {
 	ptrs_val_t value;
 	ptrs_meta_t meta;
-	uint8_t type;
 };
 typedef struct ptrs_var ptrs_var_t;
+
+#define ptrs_jit_load_val(result, offset) (jit_ldxi(jit, result, R_FP, scope->fpOffset + offset, 8))
+#define ptrs_jit_load_meta(result, offset) (jit_ldxi(jit, result, R_FP, scope->fpOffset + offset + 8, 8))
+#define ptrs_jit_load_type(result, offset) (jit_ldxi(jit, result, R_FP, scope->fpOffset + offset + 8, 1))
+#define ptrs_jit_load_arrayreadonly(result, offset) (jit_ldxi(jit, result, R_FP, scope->fpOffset + offset + 9, 1))
+#define ptrs_jit_load_arraysize(result, offset) (jit_ldxi(jit, result, R_FP, scope->fpOffset + offset + 12, 4))
+
+#define ptrs_jit_store_val(offset, val) (jit_stxi(jit, R_FP, scope->fpOffset + offset, val, 8))
+#define ptrs_jit_store_meta(offset, val) (jit_stxi(jit, R_FP, scope->fpOffset + offset + 8, val, 8))
+#define ptrs_jit_store_type(offset, val) (jit_stxi(jit, R_FP, scope->fpOffset + offset + 8, val, 1))
+#define ptrs_jit_store_arrayreadonly(offset, val) (jit_stxi(jit, R_FP, scope->fpOffset + offset + 9, val, 1))
+#define ptrs_jit_store_arraysize(offset, val) (jit_stxi(jit, R_FP, scope->fpOffset + offset + 12, val, 4))
 
 #endif

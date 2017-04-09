@@ -2,6 +2,7 @@
 #define _PTRS_AST
 
 #include <stdbool.h>
+#include <jitlib.h>
 
 struct ptrs_ast;
 struct ptrs_astlist;
@@ -12,7 +13,7 @@ typedef struct ptrs_symboltable ptrs_symboltable_t;
 
 struct ptrs_ast_define
 {
-	ptrs_symbol_t symbol;
+	unsigned fpOffset;
 	struct ptrs_ast *value;
 	union
 	{
@@ -261,8 +262,9 @@ union ptrs_ast_arg
 	struct ptrs_ast_yield yield;
 };
 
-typedef ptrs_var_t *(*ptrs_asthandler_t)(struct ptrs_ast *, ptrs_var_t *, ptrs_scope_t *);
-typedef ptrs_var_t *(*ptrs_callhandler_t)(struct ptrs_ast *, ptrs_var_t *, ptrs_scope_t *,
+typedef struct jit jit_state_t;
+typedef void *(*ptrs_asthandler_t)(struct ptrs_ast *, jit_state_t *, ptrs_scope_t *);
+typedef void *(*ptrs_callhandler_t)(struct ptrs_ast *, jit_state_t *, ptrs_scope_t *,
 	ptrs_nativetype_info_t *, struct ptrs_ast *, struct ptrs_astlist *);
 
 struct ptrs_ast
