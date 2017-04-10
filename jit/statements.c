@@ -1,9 +1,8 @@
-#include <jitlib.h>
-
 #include "../parser/ast.h"
 #include "../parser/common.h"
 #include "include/conversion.h"
 #include "include/astlist.h"
+#include "include/error.h"
 
 void ptrs_handle_body(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
@@ -60,18 +59,18 @@ void ptrs_handle_array(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 	}
 
 	//make sure array is not too big
-	jit_bgti_u(ptrs_error, R(0), ptrs_arraymax); //TODO
+	jit_bgti_u(jit, ptrs_error, R(0), ptrs_arraymax); //TODO
 	ptrs_jit_store_arraysize(stmt->fpOffset, R(0));
 
 	//allocate memory
 	jit_prepare(jit);
 	jit_putargr(jit, R(0));
-	jit_calli(jit, stmt->onStack ? alloca : malloc);
+	jit_call(jit, stmt->onStack ? alloca : malloc);
 	jit_retval(jit, R(0));
 
 	//store the array
 	ptrs_jit_load_meta(R(1), stmt->fpOffset);
-	jit_ori(jit, R(1), (uintptr_t)metaInit);
+	jit_ori(jit, R(1), R(1), *(uintptr_t *)&metaInit);
 
 	ptrs_jit_store_val(stmt->fpOffset, R(0));
 	ptrs_jit_store_meta(stmt->fpOffset, R(1));
@@ -81,7 +80,7 @@ void ptrs_handle_array(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 		stmt->initExpr->handler(stmt->initExpr, jit, scope);
 
 		//check type of initExpr
-		jit_bmci(jit, ptrs_error, R(1), PTRS_TYPE_NATIVE << 56);
+		jit_bmci(jit, (uintptr_t)ptrs_error, R(1), (uint64_t)PTRS_TYPE_NATIVE << 56);
 
 		//check initExpr.size <= array.size
 		jit_andi(jit, R(1), R(1), 0xFFFFFFFF);
@@ -94,7 +93,7 @@ void ptrs_handle_array(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 		jit_putargr(jit, R(2)); //dst
 		jit_putargr(jit, R(0)); //src
 		jit_putargr(jit, R(1)); //length
-		jit_calli(jit, memcpy);
+		jit_call(jit, memcpy);
 	}
 	else
 	{
@@ -104,7 +103,35 @@ void ptrs_handle_array(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 
 void ptrs_handle_vararray(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
-	//TODO
+	struct ptrs_ast_define *stmt = &node->arg.define;
+
+	if(stmt->value != NULL)
+	{
+		stmt->value->handler(stmt->value, jit, scope);
+		ptrs_jit_convert(jit, ptrs_vartoi, R(0), R(0), R(1));
+	}
+	else
+	{
+		//TODO
+	}
+
+	//make sure array is not too big
+	jit_bgti_u(jit, ptrs_error, R(0), ptrs_arraymax); //TODO
+	ptrs_jit_store_arraysize(stmt->fpOffset, R(0));
+
+	jit_muli(jit, R(0), R(0), 16); //use sizeof(ptrs_var_t) instead?
+
+	//allocate memory
+	jit_prepare(jit);
+	jit_putargr(jit, R(0));
+	jit_call(jit, stmt->onStack ? alloca : malloc);
+	jit_retval(jit, R(0));
+
+	//store the array
+	ptrs_jit_store_type(stmt->fpOffset, PTRS_TYPE_POINTER);
+	ptrs_jit_store_val(stmt->fpOffset, R(0));
+
+	ptrs_astlist_handle(stmt->initVal, stmt->fpOffset, jit, scope);
 }
 
 void ptrs_handle_structvar(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)

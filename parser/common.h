@@ -137,7 +137,7 @@ typedef struct meta
 			bool readOnly;
 			uint32_t size;
 		} __attribute__((packed)) array;
-	}
+	};
 } ptrs_meta_t;
 
 struct ptrs_var

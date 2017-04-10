@@ -9,7 +9,7 @@ struct ptrs_astlist;
 typedef struct ptrs_symboltable ptrs_symboltable_t;
 
 #include "common.h"
-#include "../interpreter/include/scope.h"
+#include "../jit/include/scope.h"
 
 struct ptrs_ast_define
 {
