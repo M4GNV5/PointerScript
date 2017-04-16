@@ -1,8 +1,11 @@
+#include <stdio.h>
+#include <dlfcn.h>
+#include <libgen.h>
+
 #include "../parser/ast.h"
 #include "../parser/common.h"
 #include "include/conversion.h"
 #include "include/astlist.h"
-#include "include/error.h"
 
 void ptrs_handle_body(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
@@ -59,7 +62,7 @@ void ptrs_handle_array(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 	}
 
 	//make sure array is not too big
-	jit_bgti_u(jit, ptrs_error, R(0), ptrs_arraymax); //TODO
+	//jit_bgti_u(jit, ptrs_error, R(0), ptrs_arraymax); //TODO
 	ptrs_jit_store_arraysize(stmt->fpOffset, R(0));
 
 	//allocate memory
@@ -80,12 +83,12 @@ void ptrs_handle_array(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 		stmt->initExpr->handler(stmt->initExpr, jit, scope);
 
 		//check type of initExpr
-		jit_bmci(jit, (uintptr_t)ptrs_error, R(1), (uint64_t)PTRS_TYPE_NATIVE << 56);
+		//jit_bmci(jit, (uintptr_t)ptrs_error, R(1), (uint64_t)PTRS_TYPE_NATIVE << 56);
 
 		//check initExpr.size <= array.size
 		jit_andi(jit, R(1), R(1), 0xFFFFFFFF);
 		ptrs_jit_load_arraysize(R(2), stmt->fpOffset);
-		jit_bgti_u(jit, ptrs_error, R(0), R(2));
+		//jit_bgtr_u(jit, ptrs_error, R(0), R(2));
 
 		//copy initExpr memory to aray
 		ptrs_jit_load_val(R(2), stmt->fpOffset);
@@ -116,7 +119,7 @@ void ptrs_handle_vararray(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scop
 	}
 
 	//make sure array is not too big
-	jit_bgti_u(jit, ptrs_error, R(0), ptrs_arraymax); //TODO
+	//jit_bgti_u(jit, ptrs_error, R(0), ptrs_arraymax); //TODO
 	ptrs_jit_store_arraysize(stmt->fpOffset, R(0));
 
 	jit_muli(jit, R(0), R(0), 16); //use sizeof(ptrs_var_t) instead?
@@ -181,46 +184,119 @@ ptrs_cache_t *importCachedScript(char *path, ptrs_ast_t *node, ptrs_scope_t *sco
 	ptrs_cache = cache;
 	return cache;
 }
-
-char *resolveRelPath(ptrs_ast_t *node, ptrs_scope_t *scope, const char *path)
-{
-	char *fullPath;
-	if(path[0] != '/')
-	{
-		char dirbuff[strlen(node->file) + 1];
-		strcpy(dirbuff, node->file);
-		char *dir = dirname(dirbuff);
-
-		char buff[strlen(dir) + strlen(path) + 2];
-		sprintf(buff, "%s/%s", dir, path);
-
-		fullPath = realpath(buff, NULL);
-	}
-	else
-	{
-		fullPath = realpath(path, NULL);
-	}
-
-	if(fullPath == NULL)
-		ptrs_error(node, scope, "Could not resolve path '%s'", path);
-
-	return fullPath;
-}
 */
 
-void importScript(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
+static const char *importScript(void **output, ptrs_ast_t *node, char *from)
 {
 	//TODO
+	return NULL;
 }
-
-void importNative(const char *from, ptrs_ast_t *node, ptrs_scope_t *scope)
+static const char *importNative(void **output, ptrs_ast_t *node, char *from)
 {
-	//TODO
+	struct ptrs_ast_import *stmt = &node->arg.import;
+	const char *error;
+
+	dlerror();
+
+	void *handle = NULL;
+	if(from != NULL)
+	{
+		handle = dlopen(from, RTLD_NOW);
+		free(from);
+
+		error = dlerror();
+		if(error != NULL)
+			return error;
+	}
+
+	struct ptrs_importlist *curr = node->arg.import.imports;
+	for(int i = 0; curr != NULL; i++)
+	{
+		output[i] = dlsym(handle, curr->name);
+		//TODO do wildcards need special care?
+
+		error = dlerror();
+		if(error != NULL)
+			return error;
+
+		curr = curr->next;
+	}
+
+	return NULL;
+}
+const char *ptrs_import(void **output, ptrs_ast_t *node, ptrs_val_t fromVal, ptrs_meta_t fromMeta)
+{
+	char *from = NULL;
+	if(fromMeta.type != PTRS_TYPE_UNDEFINED)
+	{
+		if(fromMeta.type == PTRS_TYPE_NATIVE)
+		{
+			int len = strnlen(fromVal.strval, fromMeta.array.size);
+			if(len < fromMeta.array.size)
+			{
+				from = (char *)fromVal.strval;
+			}
+			else
+			{
+				from = alloca(len) + 1;
+				memcpy(from, fromVal.strval, len);
+				from[len] = 0;
+			}
+		}
+		else
+		{
+			from = alloca(32);
+			ptrs_vartoa(fromVal, fromMeta, from, 32);
+		}
+
+		if(from[0] != '/')
+		{
+			char dirbuff[strlen(node->file) + 1];
+			strcpy(dirbuff, node->file);
+			char *dir = dirname(dirbuff);
+
+			char buff[strlen(dir) + strlen(from) + 2];
+			sprintf(buff, "%s/%s", dir, from);
+
+			from = realpath(buff, NULL);
+		}
+		else
+		{
+			from = realpath(from, NULL);
+		}
+
+		if(from == NULL)
+			return "Error resolving path";
+	}
+
+	char *ending = strrchr(from, '.');
+	if(ending != NULL && strcmp(ending, ".ptrs") == 0)
+		return importScript(output, node, from);
+	else
+		return importNative(output, node, from);
 }
 
 void ptrs_handle_import(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
-	//TODO
+	struct ptrs_ast_import *stmt = &node->arg.import;
+	//R(0) = from.value
+	//R(1) = from.meta
+	//R(2) = output ptr
+
+	stmt->from->handler(stmt->from, jit, scope);
+
+	jit_movr(jit, R(2), R_FP);
+	jit_addi(jit, R(2), R(2), scope->fpOffset);
+
+	jit_prepare(jit);
+	jit_putargr(jit, R(2));
+	jit_putargi(jit, node);
+	jit_putargr(jit, R(0));
+	jit_putargr(jit, R(1));
+	jit_call(jit, ptrs_import);
+	jit_retval(jit, R(0));
+
+	//jit_bnei(jit, ptrs_error, R(0), 0);
 }
 
 void ptrs_handle_return(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
