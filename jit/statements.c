@@ -6,6 +6,7 @@
 #include "../parser/common.h"
 #include "include/conversion.h"
 #include "include/astlist.h"
+#include "include/error.h"
 
 void ptrs_handle_body(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
@@ -62,7 +63,7 @@ void ptrs_handle_array(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 	}
 
 	//make sure array is not too big
-	//jit_bgti_u(jit, ptrs_error, R(0), ptrs_arraymax); //TODO
+	jit_bgti_u(jit, ptrs_jiterror, R(0), ptrs_arraymax);
 	ptrs_jit_store_arraysize(stmt->fpOffset, R(0));
 
 	//allocate memory
@@ -83,12 +84,12 @@ void ptrs_handle_array(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 		stmt->initExpr->handler(stmt->initExpr, jit, scope);
 
 		//check type of initExpr
-		//jit_bmci(jit, (uintptr_t)ptrs_error, R(1), (uint64_t)PTRS_TYPE_NATIVE << 56);
+		jit_bmci(jit, ptrs_jiterror, R(1), (uint64_t)PTRS_TYPE_NATIVE << 56);
 
 		//check initExpr.size <= array.size
 		jit_andi(jit, R(1), R(1), 0xFFFFFFFF);
 		ptrs_jit_load_arraysize(R(2), stmt->fpOffset);
-		//jit_bgtr_u(jit, ptrs_error, R(0), R(2));
+		jit_bgtr_u(jit, ptrs_jiterror, R(0), R(2));
 
 		//copy initExpr memory to aray
 		ptrs_jit_load_val(R(2), stmt->fpOffset);
@@ -119,7 +120,7 @@ void ptrs_handle_vararray(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scop
 	}
 
 	//make sure array is not too big
-	//jit_bgti_u(jit, ptrs_error, R(0), ptrs_arraymax); //TODO
+	jit_bgti_u(jit, ptrs_jiterror, R(0), ptrs_arraymax);
 	ptrs_jit_store_arraysize(stmt->fpOffset, R(0));
 
 	jit_muli(jit, R(0), R(0), 16); //use sizeof(ptrs_var_t) instead?
@@ -296,7 +297,7 @@ void ptrs_handle_import(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 	jit_call(jit, ptrs_import);
 	jit_retval(jit, R(0));
 
-	//jit_bnei(jit, ptrs_error, R(0), 0);
+	jit_bnei(jit, ptrs_jiterror, R(0), 0);
 }
 
 void ptrs_handle_return(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
