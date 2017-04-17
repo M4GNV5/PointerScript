@@ -6,13 +6,13 @@
 #include <inttypes.h>
 #include <string.h>
 #include <math.h>
-#include <libjit.h>
+#include <jitlib.h>
 
 #include "../../parser/common.h"
 
 bool ptrs_vartob(ptrs_val_t val, ptrs_meta_t meta)
 {
-	switch(meta->type)
+	switch(meta.type)
 	{
 		case PTRS_TYPE_UNDEFINED:
 			return false;
@@ -43,7 +43,7 @@ int64_t strntol(const char *str, uint32_t len)
 }
 int64_t ptrs_vartoi(ptrs_val_t val, ptrs_meta_t meta)
 {
-	switch(val->type)
+	switch(meta.type)
 	{
 		case PTRS_TYPE_UNDEFINED:
 			return 0;
@@ -59,7 +59,7 @@ int64_t ptrs_vartoi(ptrs_val_t val, ptrs_meta_t meta)
 	}
 }
 
-double strntod(char *str, uint32_t len)
+double strntod(const char *str, uint32_t len)
 {
 	char *str2;
 	if(strnlen(str, len) == len)
@@ -77,10 +77,7 @@ double strntod(char *str, uint32_t len)
 }
 double ptrs_vartof(ptrs_val_t val, ptrs_meta_t meta)
 {
-	if(val == NULL)
-		return 0;
-
-	switch(val->type)
+	switch(meta.type)
 	{
 		case PTRS_TYPE_UNDEFINED:
 			return NAN;
@@ -90,7 +87,7 @@ double ptrs_vartof(ptrs_val_t val, ptrs_meta_t meta)
 			return val.floatval;
 		case PTRS_TYPE_NATIVE:
 			if(meta.array.size > 0)
-				return strntod(value.strval, meta.array.size);
+				return strntod(val.strval, meta.array.size);
 		default: //pointer type
 			return (intptr_t)val.nativeval;
 	}
@@ -98,11 +95,7 @@ double ptrs_vartof(ptrs_val_t val, ptrs_meta_t meta)
 
 const char *ptrs_vartoa(ptrs_val_t val, ptrs_meta_t meta, char *buff, size_t maxlen)
 {
-	if(val == NULL)
-		return "undefined";
-
-	ptrs_vartype_t type = val->type;
-	switch(type)
+	switch(meta.type)
 	{
 		case PTRS_TYPE_UNDEFINED:
 			return "undefined";
