@@ -8,40 +8,53 @@
 #include "include/astlist.h"
 #include "include/error.h"
 
-void ptrs_handle_body(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_body(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	struct ptrs_astlist *list = node->arg.astlist;
+	unsigned result = -1;
+
 	while(list != NULL)
 	{
-		 list->entry->handler(list->entry, jit, scope);
-		 list = list->next;
+		result = list->entry->handler(list->entry, jit, scope);
+		list = list->next;
 	}
+
+	return result;
 }
 
-void ptrs_handle_define(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_define(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_define *stmt = &node->arg.define;
 
 	if(stmt->value != NULL)
 	{
-		stmt->value->handler(stmt->value, jit, scope);
-		jit_stxi(jit, R_FP, stmt->fpOffset, R(0), 8);
-		jit_stxi(jit, R_FP, stmt->fpOffset + 8, R(1), 1);
+		unsigned val = stmt->value->handler(stmt->value, jit, scope);
+
+		ptrs_jit_store_val(stmt->fpOffset, R(val));
+		ptrs_jit_store_meta(stmt->fpOffset, R(val + 1));
+		return val;
 	}
 	else
 	{
-		jit_movi(jit, R(1), PTRS_TYPE_UNDEFINED);
-		jit_stxi(jit, R_FP, stmt->fpOffset + 8, R(1), 1);
+		long tmp = R(scope->usedRegCount);
+
+		jit_movi(jit, tmp, 0);
+		ptrs_jit_store_val(stmt->fpOffset, tmp);
+
+		jit_movi(jit, tmp, PTRS_TYPE_UNDEFINED);
+		ptrs_jit_store_type(stmt->fpOffset, tmp);
+
+		return -1;
 	}
 }
 
-void ptrs_handle_lazyinit(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_lazyinit(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
 size_t ptrs_arraymax = PTRS_STACK_SIZE;
-void ptrs_handle_array(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_array(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_define *stmt = &node->arg.define;
 	const ptrs_meta_t metaInit = {
@@ -52,10 +65,13 @@ void ptrs_handle_array(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 		}
 	};
 
+	long val = R(scope->usedRegCount++);
+	long meta = R(scope->usedRegCount++);
+
 	if(stmt->value != NULL)
 	{
-		stmt->value->handler(stmt->value, jit, scope);
-		ptrs_jit_convert(jit, ptrs_vartoi, R(0), R(0), R(1));
+		unsigned size = stmt->value->handler(stmt->value, jit, scope);
+		ptrs_jit_convert(jit, ptrs_vartoi, meta, R(size), R(size + 1));
 	}
 	else
 	{
@@ -63,56 +79,58 @@ void ptrs_handle_array(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 	}
 
 	//make sure array is not too big
-	jit_bgti_u(jit, ptrs_jiterror, R(0), ptrs_arraymax);
-	ptrs_jit_store_arraysize(stmt->fpOffset, R(0));
+	jit_bgti_u(jit, ptrs_jiterror, meta, ptrs_arraymax);
 
 	//allocate memory
 	jit_prepare(jit);
-	jit_putargr(jit, R(0));
+	jit_putargr(jit, meta);
 	jit_call(jit, stmt->onStack ? alloca : malloc);
-	jit_retval(jit, R(0));
+	jit_retval(jit, val);
 
 	//store the array
-	ptrs_jit_load_meta(R(1), stmt->fpOffset);
-	jit_ori(jit, R(1), R(1), *(uintptr_t *)&metaInit);
-
-	ptrs_jit_store_val(stmt->fpOffset, R(0));
-	ptrs_jit_store_meta(stmt->fpOffset, R(1));
+	jit_ori(jit, meta, meta, *(uintptr_t *)&metaInit);
+	ptrs_jit_store_val(stmt->fpOffset, val);
+	ptrs_jit_store_meta(stmt->fpOffset, meta);
 
 	if(stmt->isInitExpr)
 	{
-		stmt->initExpr->handler(stmt->initExpr, jit, scope);
+		long init = stmt->initExpr->handler(stmt->initExpr, jit, scope);
+		long initMeta = R(init + 1);
+		init = R(init);
 
 		//check type of initExpr
-		jit_bmci(jit, ptrs_jiterror, R(1), (uint64_t)PTRS_TYPE_NATIVE << 56);
+		jit_bmci(jit, ptrs_jiterror, initMeta, (uint64_t)PTRS_TYPE_NATIVE << 56);
 
 		//check initExpr.size <= array.size
-		jit_andi(jit, R(1), R(1), 0xFFFFFFFF);
-		ptrs_jit_load_arraysize(R(2), stmt->fpOffset);
-		jit_bgtr_u(jit, ptrs_jiterror, R(0), R(2));
+		jit_andi(jit, initMeta, initMeta, 0xFFFFFFFF);
+		jit_andi(jit, meta, meta, 0xFFFFFFFF);
+		jit_bgtr_u(jit, ptrs_jiterror, meta, initMeta);
 
-		//copy initExpr memory to aray
-		ptrs_jit_load_val(R(2), stmt->fpOffset);
+		//copy initExpr memory to array
 		jit_prepare(jit);
-		jit_putargr(jit, R(2)); //dst
-		jit_putargr(jit, R(0)); //src
-		jit_putargr(jit, R(1)); //length
+		jit_putargr(jit, val); //dst
+		jit_putargr(jit, init); //src
+		jit_putargr(jit, initMeta); //length
 		jit_call(jit, memcpy);
 	}
 	else
 	{
-		ptrs_astlist_handleByte(stmt->initVal, stmt->fpOffset, jit, scope);
+		ptrs_astlist_handleByte(stmt->initVal, val, meta, jit, scope);
 	}
+
+	scope->usedRegCount -= 2;
 }
 
-void ptrs_handle_vararray(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_vararray(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_define *stmt = &node->arg.define;
+	long val = R(scope->usedRegCount++);
+	long size = R(scope->usedRegCount++);
 
 	if(stmt->value != NULL)
 	{
-		stmt->value->handler(stmt->value, jit, scope);
-		ptrs_jit_convert(jit, ptrs_vartoi, R(0), R(0), R(1));
+		unsigned sizeVal = stmt->value->handler(stmt->value, jit, scope);
+		ptrs_jit_convert(jit, ptrs_vartoi, size, R(sizeVal), R(sizeVal + 1));
 	}
 	else
 	{
@@ -120,25 +138,27 @@ void ptrs_handle_vararray(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scop
 	}
 
 	//make sure array is not too big
-	jit_bgti_u(jit, ptrs_jiterror, R(0), ptrs_arraymax);
-	ptrs_jit_store_arraysize(stmt->fpOffset, R(0));
+	jit_bgti_u(jit, ptrs_jiterror, size, ptrs_arraymax);
+	ptrs_jit_store_arraysize(stmt->fpOffset, size);
 
-	jit_muli(jit, R(0), R(0), 16); //use sizeof(ptrs_var_t) instead?
+	jit_muli(jit, size, size, 16); //use sizeof(ptrs_var_t) instead?
 
 	//allocate memory
 	jit_prepare(jit);
-	jit_putargr(jit, R(0));
+	jit_putargr(jit, size);
 	jit_call(jit, stmt->onStack ? alloca : malloc);
-	jit_retval(jit, R(0));
+	jit_retval(jit, val);
 
 	//store the array
 	ptrs_jit_store_type(stmt->fpOffset, PTRS_TYPE_POINTER);
-	ptrs_jit_store_val(stmt->fpOffset, R(0));
+	ptrs_jit_store_val(stmt->fpOffset, val);
 
-	ptrs_astlist_handle(stmt->initVal, stmt->fpOffset, jit, scope);
+	ptrs_astlist_handle(stmt->initVal, val, size, jit, scope);
+
+	scope->usedRegCount -= 2;
 }
 
-void ptrs_handle_structvar(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_structvar(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	//TODO
 }
@@ -277,107 +297,107 @@ const char *ptrs_import(void **output, ptrs_ast_t *node, ptrs_val_t fromVal, ptr
 		return importNative(output, node, from);
 }
 
-void ptrs_handle_import(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_import(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_import *stmt = &node->arg.import;
 	//R(0) = from.value
 	//R(1) = from.meta
 	//R(2) = output ptr
 
-	stmt->from->handler(stmt->from, jit, scope);
+	unsigned from = stmt->from->handler(stmt->from, jit, scope);
+	long ptr = R(scope->usedRegCount);
 
-	jit_movr(jit, R(2), R_FP);
-	jit_addi(jit, R(2), R(2), scope->fpOffset);
+	jit_addi(jit, ptr, R_FP, scope->fpOffset);
 
 	jit_prepare(jit);
-	jit_putargr(jit, R(2));
+	jit_putargr(jit, ptr);
 	jit_putargi(jit, node);
-	jit_putargr(jit, R(0));
-	jit_putargr(jit, R(1));
+	jit_putargr(jit, R(from));
+	jit_putargr(jit, R(from + 1));
 	jit_call(jit, ptrs_import);
-	jit_retval(jit, R(0));
+	jit_retval(jit, ptr);
 
-	jit_bnei(jit, ptrs_jiterror, R(0), 0);
+	jit_bnei(jit, ptrs_jiterror, ptr, 0);
 }
 
-void ptrs_handle_return(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_return(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-void ptrs_handle_break(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_break(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-void ptrs_handle_continue(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_continue(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-void ptrs_handle_delete(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_delete(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-void ptrs_handle_throw(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_throw(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-void ptrs_handle_trycatch(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_trycatch(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
 #ifndef _PTRS_PORTABLE
-void ptrs_handle_asm(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_asm(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	//TODO
 }
 #endif
 
-void ptrs_handle_function(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_function(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-void ptrs_handle_struct(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_struct(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-void ptrs_handle_if(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_if(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-void ptrs_handle_switch(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_switch(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-void ptrs_handle_while(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_while(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-void ptrs_handle_dowhile(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_dowhile(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-void ptrs_handle_for(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_for(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-void ptrs_handle_forin(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_forin(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-void ptrs_handle_scopestatement(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_scopestatement(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	ptrs_ast_t *body = node->arg.scopestatement.body;
 
@@ -386,7 +406,7 @@ void ptrs_handle_scopestatement(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t
 	//TODO make sure FP is decremented
 }
 
-void ptrs_handle_exprstatement(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_exprstatement(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	ptrs_ast_t *expr = node->arg.astval;
 

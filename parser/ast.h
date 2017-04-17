@@ -263,8 +263,8 @@ union ptrs_ast_arg
 };
 
 typedef struct jit jit_state_t;
-typedef void *(*ptrs_asthandler_t)(struct ptrs_ast *, jit_state_t *, ptrs_scope_t *);
-typedef void *(*ptrs_callhandler_t)(struct ptrs_ast *, jit_state_t *, ptrs_scope_t *,
+typedef unsigned (*ptrs_asthandler_t)(struct ptrs_ast *, jit_state_t *, ptrs_scope_t *);
+typedef unsigned (*ptrs_callhandler_t)(struct ptrs_ast *, jit_state_t *, ptrs_scope_t *,
 	ptrs_nativetype_info_t *, struct ptrs_ast *, struct ptrs_astlist *);
 
 struct ptrs_ast

@@ -36,6 +36,7 @@ struct ptrs_error;
 typedef struct ptrs_scope
 {
 	intptr_t fpOffset;
+	unsigned usedRegCount;
 } ptrs_scope_t;
 
 typedef struct ptrs_var *(*ptrs_nativetype_handler_t)(void *target, size_t typeSize, struct ptrs_var *value);
