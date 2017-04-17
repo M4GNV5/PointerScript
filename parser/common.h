@@ -33,10 +33,20 @@ typedef enum type
 
 struct ptrs_error;
 
+typedef struct ptrs_patchlist
+{
+	void *patch;
+	struct ptrs_patchlist *next;
+} ptrs_patchlist_t;
 typedef struct ptrs_scope
 {
 	intptr_t fpOffset;
 	unsigned usedRegCount;
+	unsigned usedFRegCount;
+	uintptr_t continueLabel;
+	uintptr_t breakLabel;
+	ptrs_patchlist_t *continuePatches;
+	ptrs_patchlist_t *breakPatches;
 } ptrs_scope_t;
 
 typedef struct ptrs_var *(*ptrs_nativetype_handler_t)(void *target, size_t typeSize, struct ptrs_var *value);

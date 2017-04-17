@@ -7,6 +7,7 @@
 #include "include/conversion.h"
 #include "include/astlist.h"
 #include "include/error.h"
+#include "include/scope.h"
 
 unsigned ptrs_handle_body(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
@@ -53,7 +54,7 @@ unsigned ptrs_handle_lazyinit(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *
 	//TODO
 }
 
-size_t ptrs_arraymax = PTRS_STACK_SIZE;
+size_t ptrs_arraymax = UINT32_MAX;
 unsigned ptrs_handle_array(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_define *stmt = &node->arg.define;
@@ -119,6 +120,7 @@ unsigned ptrs_handle_array(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *sco
 	}
 
 	scope->usedRegCount -= 2;
+	return -1;
 }
 
 unsigned ptrs_handle_vararray(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
@@ -156,6 +158,7 @@ unsigned ptrs_handle_vararray(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *
 	ptrs_astlist_handle(stmt->initVal, val, size, jit, scope);
 
 	scope->usedRegCount -= 2;
+	return -1;
 }
 
 unsigned ptrs_handle_structvar(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
@@ -322,17 +325,48 @@ unsigned ptrs_handle_import(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *sc
 
 unsigned ptrs_handle_return(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
-	//TODO
+	if(node->arg.astval == NULL)
+	{
+		jit_reti(jit, 0);
+	}
+	else
+	{
+		unsigned val = node->arg.astval->handler(node->arg.astval, jit, scope);
+		//TODO how to return multiple values?
+		jit_retr(jit, R(0));
+	}
 }
 
 unsigned ptrs_handle_break(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
-	//TODO
+	if(scope->breakLabel == 0)
+	{
+		ptrs_patchlist_t *entry = malloc(sizeof(ptrs_patchlist_t));
+		entry->patch = jit_jmpi(jit, JIT_FORWARD);
+		entry->next = scope->breakPatches;
+		scope->breakPatches = entry;
+	}
+	else
+	{
+		jit_jmpi(jit, scope->breakLabel);
+	}
+	return -1;
 }
 
 unsigned ptrs_handle_continue(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
-	//TODO
+	if(scope->continueLabel == 0)
+	{
+		ptrs_patchlist_t *entry = malloc(sizeof(ptrs_patchlist_t));
+		entry->patch = jit_jmpi(jit, JIT_FORWARD);
+		entry->next = scope->continuePatches;
+		scope->continuePatches = entry;
+	}
+	else
+	{
+		jit_jmpi(jit, scope->continueLabel);
+	}
+	return -1;
 }
 
 unsigned ptrs_handle_delete(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
@@ -369,7 +403,40 @@ unsigned ptrs_handle_struct(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *sc
 
 unsigned ptrs_handle_if(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
-	//TODO
+	struct ptrs_ast_ifelse *stmt = &node->arg.ifelse;
+
+	long conditionVal = stmt->condition->handler(stmt->condition, jit, scope);
+	long conditionType = R(conditionVal + 1);
+	conditionVal = R(conditionVal);
+
+	//extract the type
+	jit_rshi_u(jit, R(conditionType + 1), R(conditionType + 1), 65);
+
+	//branch to the elseBody if type == undefined or val == 0
+	jit_op *isUndefined = jit_beqi(jit, JIT_FORWARD, conditionType, PTRS_TYPE_UNDEFINED);
+	jit_op *isZero = jit_beqi(jit, JIT_FORWARD, conditionVal, 0);
+
+	stmt->ifBody->handler(stmt->ifBody, jit, scope);
+
+	if(stmt->elseBody != NULL)
+	{
+		//let the end of the true body jump over the else body
+		jit_op *end = jit_jmpi(jit, JIT_FORWARD);
+
+		//patch the jumps to the else body
+		jit_patch(jit, isUndefined);
+		jit_patch(jit, isZero);
+		stmt->elseBody->handler(stmt->elseBody, jit, scope);
+
+		jit_patch(jit, end);
+	}
+	else
+	{
+		jit_patch(jit, isUndefined);
+		jit_patch(jit, isZero);
+	}
+
+	return -1;
 }
 
 unsigned ptrs_handle_switch(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
@@ -379,12 +446,65 @@ unsigned ptrs_handle_switch(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *sc
 
 unsigned ptrs_handle_while(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
-	//TODO
+	struct ptrs_ast_control *stmt = &node->arg.control;
+	ptrs_patchstore_t store;
+	ptrs_scope_storePatches(&store, scope);
+
+	jit_label *check = jit_get_label(jit);
+	scope->continueLabel = (uintptr_t)check;
+
+	//evaluate the condition
+	long conditionVal = stmt->condition->handler(stmt->condition, jit, scope);
+	long conditionType = R(conditionVal + 1);
+	conditionVal = R(conditionVal);
+
+	//extract the type
+	jit_rshi_u(jit, R(conditionType + 1), R(conditionType + 1), 65);
+
+	//exit the loop if type == undefined or val == 0
+	jit_op *isUndefined = jit_beqi(jit, JIT_FORWARD, conditionType, PTRS_TYPE_UNDEFINED);
+	jit_op *isZero = jit_beqi(jit, JIT_FORWARD, conditionVal, 0);
+
+	//run the while body, jumping back th 'check' at the end
+	stmt->body->handler(stmt->body, jit, scope);
+	jit_jmpi(jit, check);
+
+	//after the loop - patch the end and breaks
+	jit_patch(jit, isUndefined);
+	jit_patch(jit, isZero);
+	ptrs_scope_patch(jit, scope->breakPatches);
+	ptrs_scope_restorePatches(&store, scope);
 }
 
 unsigned ptrs_handle_dowhile(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
-	//TODO
+	struct ptrs_ast_control *stmt = &node->arg.control;
+	ptrs_patchstore_t store;
+	ptrs_scope_storePatches(&store, scope);
+
+	//run the while body
+	jit_label *body = jit_get_label(jit);
+	stmt->body->handler(stmt->body, jit, scope);
+
+	//patch all continues to after the body & before the condition check
+	ptrs_scope_patch(jit, scope->continuePatches);
+
+	//evaluate the condition
+	long conditionVal = stmt->condition->handler(stmt->condition, jit, scope);
+	long conditionType = R(conditionVal + 1);
+	conditionVal = R(conditionVal);
+
+	//extract the type
+	jit_rshi_u(jit, R(conditionType + 1), R(conditionType + 1), 65);
+
+	//jump back to body if type != undefined and value != 0
+	jit_op *isUndefined = jit_beqi(jit, JIT_FORWARD, conditionType, PTRS_TYPE_UNDEFINED);
+	jit_bnei(jit, (uintptr_t)body, conditionVal, 0);
+
+	//after the loop - patch isUndefined and breaks
+	jit_patch(jit, isUndefined);
+	ptrs_scope_patch(jit, scope->breakPatches);
+	ptrs_scope_restorePatches(&store, scope);
 }
 
 unsigned ptrs_handle_for(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
