@@ -1,4 +1,7 @@
 # PointerScript
+
+## Currently a work in progress, check [this repo](https://github.com/M4GNV5/PointerScript) for a working version (interpreted)
+
 Dynamically typed scripting language with pointers and native library access. PointerScript
 feels like C but has awesome features like operator overloading, dynamic typing and
 even though you have direct low level access your code is more safe thanks to boundary
@@ -36,17 +39,6 @@ apm link
 PointerScript has no standard-library. You can use all C libraries using the built-in ffi ([Import statement](LanguageDoc.md#importstatement)).
 There are a couple of useful libraries and bindings (sockets, regexp, http, json, lists, maps etc.)
 in [this repository](https://github.com/M4GNV5/PtrsStuff)
-
-
-
-### Performance
-You can create call graphs for the code examples in this repository using:
-```bash
-sudo apt-get install valgrind graphviz python3
-curl -O ../gprof2dot.py https://raw.githubusercontent.com/jrfonseca/gprof2dot/master/gprof2dot.py
-./measureExamples.sh
-```
-Currently the main time eaters are lookahead (parser) for small scripts without expensive loops and ptrs_scope_get for scripts with long loops
 
 
 
