@@ -6,7 +6,6 @@
 #include <inttypes.h>
 #include <string.h>
 #include <math.h>
-#include <jitlib.h>
 
 #include "../../parser/common.h"
 

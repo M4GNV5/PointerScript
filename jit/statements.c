@@ -405,16 +405,9 @@ unsigned ptrs_handle_if(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_ifelse *stmt = &node->arg.ifelse;
 
-	long conditionVal = stmt->condition->handler(stmt->condition, jit, scope);
-	long conditionType = R(conditionVal + 1);
-	conditionVal = R(conditionVal);
-
-	//extract the type
-	jit_rshi_u(jit, R(conditionType + 1), R(conditionType + 1), 65);
-
-	//branch to the elseBody if type == undefined or val == 0
-	jit_op *isUndefined = jit_beqi(jit, JIT_FORWARD, conditionType, PTRS_TYPE_UNDEFINED);
-	jit_op *isZero = jit_beqi(jit, JIT_FORWARD, conditionVal, 0);
+	unsigned condition = stmt->condition->handler(stmt->condition, jit, scope);
+	ptrs_jit_vartob(jit, R(condition), R(condition - 1));
+	jit_op *isFalse = jit_beqi(jit, JIT_FORWARD, R(condition), 0);
 
 	stmt->ifBody->handler(stmt->ifBody, jit, scope);
 
@@ -424,16 +417,14 @@ unsigned ptrs_handle_if(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 		jit_op *end = jit_jmpi(jit, JIT_FORWARD);
 
 		//patch the jumps to the else body
-		jit_patch(jit, isUndefined);
-		jit_patch(jit, isZero);
+		jit_patch(jit, isFalse);
 		stmt->elseBody->handler(stmt->elseBody, jit, scope);
 
 		jit_patch(jit, end);
 	}
 	else
 	{
-		jit_patch(jit, isUndefined);
-		jit_patch(jit, isZero);
+		jit_patch(jit, isFalse);
 	}
 
 	return -1;
@@ -454,24 +445,16 @@ unsigned ptrs_handle_while(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *sco
 	scope->continueLabel = (uintptr_t)check;
 
 	//evaluate the condition
-	long conditionVal = stmt->condition->handler(stmt->condition, jit, scope);
-	long conditionType = R(conditionVal + 1);
-	conditionVal = R(conditionVal);
-
-	//extract the type
-	jit_rshi_u(jit, R(conditionType + 1), R(conditionType + 1), 65);
-
-	//exit the loop if type == undefined or val == 0
-	jit_op *isUndefined = jit_beqi(jit, JIT_FORWARD, conditionType, PTRS_TYPE_UNDEFINED);
-	jit_op *isZero = jit_beqi(jit, JIT_FORWARD, conditionVal, 0);
+	unsigned condition = stmt->condition->handler(stmt->condition, jit, scope);
+	ptrs_jit_vartob(jit, R(condition), R(condition - 1));
+	jit_op *isFalse = jit_beqi(jit, JIT_FORWARD, R(condition), 0);
 
 	//run the while body, jumping back th 'check' at the end
 	stmt->body->handler(stmt->body, jit, scope);
 	jit_jmpi(jit, check);
 
 	//after the loop - patch the end and breaks
-	jit_patch(jit, isUndefined);
-	jit_patch(jit, isZero);
+	jit_patch(jit, isFalse);
 	ptrs_scope_patch(jit, scope->breakPatches);
 	ptrs_scope_restorePatches(&store, scope);
 }
@@ -490,19 +473,10 @@ unsigned ptrs_handle_dowhile(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *s
 	ptrs_scope_patch(jit, scope->continuePatches);
 
 	//evaluate the condition
-	long conditionVal = stmt->condition->handler(stmt->condition, jit, scope);
-	long conditionType = R(conditionVal + 1);
-	conditionVal = R(conditionVal);
+	unsigned condition = stmt->condition->handler(stmt->condition, jit, scope);
+	ptrs_jit_vartob(jit, R(condition), R(condition - 1));
+	jit_bnei(jit, (uintptr_t)body, R(condition), 0);
 
-	//extract the type
-	jit_rshi_u(jit, R(conditionType + 1), R(conditionType + 1), 65);
-
-	//jump back to body if type != undefined and value != 0
-	jit_op *isUndefined = jit_beqi(jit, JIT_FORWARD, conditionType, PTRS_TYPE_UNDEFINED);
-	jit_bnei(jit, (uintptr_t)body, conditionVal, 0);
-
-	//after the loop - patch isUndefined and breaks
-	jit_patch(jit, isUndefined);
 	ptrs_scope_patch(jit, scope->breakPatches);
 	ptrs_scope_restorePatches(&store, scope);
 }
