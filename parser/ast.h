@@ -263,6 +263,7 @@ union ptrs_ast_arg
 
 typedef struct jit jit_state_t;
 typedef unsigned (*ptrs_asthandler_t)(struct ptrs_ast *, jit_state_t *, ptrs_scope_t *);
+typedef unsigned (*ptrs_sethandler_t)(struct ptrs_ast *, jit_state_t *, ptrs_scope_t *, long val, long meta);
 typedef unsigned (*ptrs_callhandler_t)(struct ptrs_ast *, jit_state_t *, ptrs_scope_t *,
 	ptrs_nativetype_info_t *, struct ptrs_ast *, struct ptrs_astlist *);
 
@@ -270,7 +271,7 @@ struct ptrs_ast
 {
 	union ptrs_ast_arg arg;
 	ptrs_asthandler_t handler;
-	ptrs_asthandler_t setHandler;
+	ptrs_sethandler_t setHandler;
 	ptrs_asthandler_t addressHandler;
 	ptrs_callhandler_t callHandler;
 	int codepos;
