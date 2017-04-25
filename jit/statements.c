@@ -31,8 +31,8 @@ unsigned ptrs_handle_define(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *sc
 	{
 		unsigned val = stmt->value->handler(stmt->value, jit, scope);
 
-		ptrs_jit_store_val(stmt->fpOffset, R(val));
-		ptrs_jit_store_meta(stmt->fpOffset, R(val + 1));
+		ptrs_jit_store_val(jit, stmt->fpOffset, R(val));
+		ptrs_jit_store_meta(jit, stmt->fpOffset, R(val + 1));
 		return val;
 	}
 	else
@@ -40,10 +40,10 @@ unsigned ptrs_handle_define(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *sc
 		long tmp = R(scope->usedRegCount);
 
 		jit_movi(jit, tmp, 0);
-		ptrs_jit_store_val(stmt->fpOffset, tmp);
+		ptrs_jit_store_val(jit, stmt->fpOffset, tmp);
 
 		jit_movi(jit, tmp, PTRS_TYPE_UNDEFINED);
-		ptrs_jit_store_type(stmt->fpOffset, tmp);
+		ptrs_jit_store_type(jit, stmt->fpOffset, tmp);
 
 		return -1;
 	}
@@ -90,8 +90,8 @@ unsigned ptrs_handle_array(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *sco
 
 	//store the array
 	jit_ori(jit, meta, meta, *(uintptr_t *)&metaInit);
-	ptrs_jit_store_val(stmt->fpOffset, val);
-	ptrs_jit_store_meta(stmt->fpOffset, meta);
+	ptrs_jit_store_val(jit, stmt->fpOffset, val);
+	ptrs_jit_store_meta(jit, stmt->fpOffset, meta);
 
 	if(stmt->isInitExpr)
 	{
@@ -141,7 +141,7 @@ unsigned ptrs_handle_vararray(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *
 
 	//make sure array is not too big
 	jit_bgti_u(jit, ptrs_jiterror, size, ptrs_arraymax);
-	ptrs_jit_store_arraysize(stmt->fpOffset, size);
+	ptrs_jit_store_arraysize(jit, stmt->fpOffset, size);
 
 	jit_muli(jit, size, size, 16); //use sizeof(ptrs_var_t) instead?
 
@@ -152,8 +152,8 @@ unsigned ptrs_handle_vararray(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *
 	jit_retval(jit, val);
 
 	//store the array
-	ptrs_jit_store_type(stmt->fpOffset, PTRS_TYPE_POINTER);
-	ptrs_jit_store_val(stmt->fpOffset, val);
+	ptrs_jit_store_type(jit, stmt->fpOffset, PTRS_TYPE_POINTER);
+	ptrs_jit_store_val(jit, stmt->fpOffset, val);
 
 	ptrs_astlist_handle(stmt->initVal, val, size, jit, scope);
 

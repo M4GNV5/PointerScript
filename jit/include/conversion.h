@@ -15,7 +15,7 @@ const char *ptrs_vartoa(ptrs_val_t val, ptrs_meta_t meta, char *buff, size_t max
 		jit_nei(jit, meta, meta, PTRS_TYPE_UNDEFINED); \
 		jit_nei(jit, val, val, 0); \
 		jit_andr(jit, val, val, meta); \
-	} while(0);
+	} while(0)
 #define ptrs_jit_convert(jit, method, result, val, meta) \
 	do { \
 		jit_prepare(jit); \
@@ -23,7 +23,7 @@ const char *ptrs_vartoa(ptrs_val_t val, ptrs_meta_t meta, char *buff, size_t max
 		jit_putargr(jit, meta); \
 		jit_call(jit, method); \
 		jit_retval(jit, result); \
-	} while(0);
+	} while(0)
 
 
 const char *ptrs_typetoa(ptrs_vartype_t type);
