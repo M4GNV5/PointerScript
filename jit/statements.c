@@ -26,27 +26,22 @@ unsigned ptrs_handle_body(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scop
 unsigned ptrs_handle_define(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_define *stmt = &node->arg.define;
+	unsigned val;
 
 	if(stmt->value != NULL)
 	{
-		unsigned val = stmt->value->handler(stmt->value, jit, scope);
-
-		ptrs_jit_store_val(jit, stmt->fpOffset, R(val));
-		ptrs_jit_store_meta(jit, stmt->fpOffset, R(val + 1));
-		return val;
+		val = stmt->value->handler(stmt->value, jit, scope);
 	}
 	else
 	{
-		long tmp = R(scope->usedRegCount);
+		val = scope->usedRegCount;
 
-		jit_movi(jit, tmp, 0);
-		ptrs_jit_store_val(jit, stmt->fpOffset, tmp);
-
-		jit_movi(jit, tmp, PTRS_TYPE_UNDEFINED);
-		ptrs_jit_store_type(jit, stmt->fpOffset, tmp);
-
-		return -1;
+		jit_movi(jit, R(val), 0);
+		jit_movi(jit, R(val + 1), PTRS_TYPE_UNDEFINED);
 	}
+
+	ptrs_scope_store(jit, scope, stmt->symbol, R(val), R(val + 1));
+	return val;
 }
 
 unsigned ptrs_handle_lazyinit(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
@@ -58,14 +53,6 @@ size_t ptrs_arraymax = UINT32_MAX;
 unsigned ptrs_handle_array(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_define *stmt = &node->arg.define;
-	const ptrs_meta_t metaInit = {
-		.type = PTRS_TYPE_NATIVE,
-		.array = {
-			.readOnly = false,
-			.size = 0
-		}
-	};
-
 	long val = R(scope->usedRegCount++);
 	long meta = R(scope->usedRegCount++);
 
@@ -89,9 +76,8 @@ unsigned ptrs_handle_array(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *sco
 	jit_retval(jit, val);
 
 	//store the array
-	jit_ori(jit, meta, meta, *(uintptr_t *)&metaInit);
-	ptrs_jit_store_val(jit, stmt->fpOffset, val);
-	ptrs_jit_store_meta(jit, stmt->fpOffset, meta);
+	ptrs_jit_seti_type(jit, meta, PTRS_TYPE_NATIVE);
+	ptrs_scope_store(jit, scope, stmt->symbol, val, meta);
 
 	if(stmt->isInitExpr)
 	{
@@ -120,7 +106,7 @@ unsigned ptrs_handle_array(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *sco
 	}
 
 	scope->usedRegCount -= 2;
-	return -1;
+	return scope->usedRegCount;
 }
 
 unsigned ptrs_handle_vararray(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
@@ -139,11 +125,9 @@ unsigned ptrs_handle_vararray(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *
 		//TODO
 	}
 
-	//make sure array is not too big
+	//calculate array size in bytes and make sure its not too much
+	jit_muli(jit, size, size, 16); //TODO use sizeof(ptrs_var_t) instead?
 	jit_bgti_u(jit, ptrs_jiterror, size, ptrs_arraymax);
-	ptrs_jit_store_arraysize(jit, stmt->fpOffset, size);
-
-	jit_muli(jit, size, size, 16); //use sizeof(ptrs_var_t) instead?
 
 	//allocate memory
 	jit_prepare(jit);
@@ -151,14 +135,15 @@ unsigned ptrs_handle_vararray(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *
 	jit_call(jit, stmt->onStack ? alloca : malloc);
 	jit_retval(jit, val);
 
-	//store the array
-	ptrs_jit_store_type(jit, stmt->fpOffset, PTRS_TYPE_POINTER);
-	ptrs_jit_store_val(jit, stmt->fpOffset, val);
-
 	ptrs_astlist_handle(stmt->initVal, val, size, jit, scope);
 
+	//store the array
+	jit_divi(jit, size, size, 16);
+	ptrs_jit_seti_type(jit, size, PTRS_TYPE_POINTER);
+	ptrs_scope_store(jit, scope, stmt->symbol, val, size);
+
 	scope->usedRegCount -= 2;
-	return -1;
+	return scope->usedRegCount;
 }
 
 unsigned ptrs_handle_structvar(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)

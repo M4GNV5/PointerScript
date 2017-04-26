@@ -12,7 +12,7 @@ typedef struct ptrs_symboltable ptrs_symboltable_t;
 
 struct ptrs_ast_define
 {
-	unsigned fpOffset;
+	ptrs_symbol_t symbol;
 	struct ptrs_ast *value;
 	union
 	{

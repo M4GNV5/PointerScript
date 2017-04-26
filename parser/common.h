@@ -164,7 +164,7 @@ typedef struct ptrs_var ptrs_var_t;
 #define ptrs_jit_clear_type(jit, meta) (jit_andi(jit, meta, meta, ~(0xFF << 54)))
 #define ptrs_jit_clear_arraysize(jit, meta) (jit_andi(jit, meta, meta, ~0xFFFFFFFF))
 
-#define ptrs_jit_seti_type(jit, meta, type) (jit_ori(jit, meta, meta, (type) << 54))
+#define ptrs_jit_seti_type(jit, meta, type) (jit_ori(jit, meta, meta, (uint64_t)(type) << 54))
 #define ptrs_jit_seti_arraysize(jit, meta, size) (jit_ori(jit, meta, meta, size))
 
 #define ptrs_jit_setr_type(jit, meta, type) do \
@@ -180,10 +180,10 @@ typedef struct ptrs_var ptrs_var_t;
 #define ptrs_jit_load_arrayreadonly(jit, result, offset) (jit_ldxi(jit, result, R_FP, scope->fpOffset + offset + 9, 1))
 #define ptrs_jit_load_arraysize(jit, result, offset) (jit_ldxi(jit, result, R_FP, scope->fpOffset + offset + 12, 4))
 
-#define ptrs_jit_store_val(jit, jit, offset, val) (jit_stxi(jit, R_FP, scope->fpOffset + offset, val, 8))
-#define ptrs_jit_store_meta(jit, jit, offset, val) (jit_stxi(jit, R_FP, scope->fpOffset + offset + 8, val, 8))
-#define ptrs_jit_store_type(jit, jit, offset, val) (jit_stxi(jit, R_FP, scope->fpOffset + offset + 8, val, 1))
-#define ptrs_jit_store_arrayreadonly(jit, jit, offset, val) (jit_stxi(jit, R_FP, scope->fpOffset + offset + 9, val, 1))
-#define ptrs_jit_store_arraysize(jit, jit, offset, val) (jit_stxi(jit, R_FP, scope->fpOffset + offset + 12, val, 4))
+#define ptrs_jit_store_val(jit, offset, val) (jit_stxi(jit, R_FP, scope->fpOffset + offset, val, 8))
+#define ptrs_jit_store_meta(jit, offset, val) (jit_stxi(jit, R_FP, scope->fpOffset + offset + 8, val, 8))
+#define ptrs_jit_store_type(jit, offset, val) (jit_stxi(jit, R_FP, scope->fpOffset + offset + 8, val, 1))
+#define ptrs_jit_store_arrayreadonly(jit, offset, val) (jit_stxi(jit, R_FP, scope->fpOffset + offset + 9, val, 1))
+#define ptrs_jit_store_arraysize(jit, offset, val) (jit_stxi(jit, R_FP, scope->fpOffset + offset + 12, val, 4))
 
 #endif
