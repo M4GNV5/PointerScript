@@ -61,7 +61,7 @@ void ptrs_showpos(FILE *fd, ptrs_ast_t *ast)
 	fprintf(fd, "^\n\n");
 }
 
-ptrs_ast_t *ptrs_retrieveast(void *mem)
+ptrs_ast_t *ptrs_retrieveast(void *mem, const char **funcName)
 {
 	ptrs_positionlist_t *curr = ptrs_positions;
 	while(curr != NULL)
@@ -74,6 +74,9 @@ ptrs_ast_t *ptrs_retrieveast(void *mem)
 
 	if(curr == NULL)
 		return NULL;
+
+	if(funcName != NULL)
+		*funcName = curr->funcName;
 
 	void *ptr = curr->start;
 	for(int i = 0; ptr < curr->end; i++)
@@ -95,25 +98,9 @@ char *ptrs_backtrace(int skipNative, bool gotSig)
 #ifdef _GNU_SOURCE
 	uint8_t *trace[32];
 	int count = backtrace((void **)trace, 32);
-	Dl_info infos[count];
-
-	Dl_info selfInfo;
-	Dl_info ffiInfo;
-	dladdr(ptrs_backtrace, &selfInfo);
-	dladdr(dlsym(NULL, "ffi_call"), &ffiInfo);
 
 	for(int i = skipNative; i < count; i++)
 	{
-		if(dladdr(trace[i], &infos[i]) == 0)
-		{
-			infos[i].dli_sname = NULL;
-			infos[i].dli_fname = NULL;
-		}
-
-		if((!gotSig || i != skipNative)
-			&& (infos[i].dli_fbase == selfInfo.dli_fbase || infos[i].dli_fbase == ffiInfo.dli_fbase))
-			break;
-
 		if(buffptr - buff > bufflen - 128)
 		{
 			int diff = buffptr - buff;
@@ -122,15 +109,35 @@ char *ptrs_backtrace(int skipNative, bool gotSig)
 			buffptr = buff + diff;
 		}
 
-		if(infos[i].dli_sname != NULL)
-			buffptr += sprintf(buffptr, "    at %s ", infos[i].dli_sname);
-		else
-			buffptr += sprintf(buffptr, "    at %p ", trace[i]);
+		const char *func;
+		ptrs_ast_t *ast = ptrs_retrieveast(trace[i], &func);
+		if(ast != NULL)
+		{
+			codepos_t pos;
+			ptrs_getpos(&pos, ast);
 
-		if(infos[i].dli_fname != NULL)
-			buffptr += sprintf(buffptr, "(%s)\n", infos[i].dli_fname);
+			buffptr += sprintf(buffptr, "    at %s (%s:%d:%d)\n", func, ast->file, pos.line, pos.column);
+		}
 		else
-			buffptr += sprintf(buffptr, "(unknown)\n");
+		{
+			Dl_info info;
+			if(dladdr(trace[i], &info) == 0)
+			{
+				info.dli_sname = NULL;
+				info.dli_fname = NULL;
+			}
+
+			if(info.dli_sname != NULL)
+				buffptr += sprintf(buffptr, "    at %s ", info.dli_sname);
+			else
+				buffptr += sprintf(buffptr, "    at %p ", trace[i]);
+
+			if(info.dli_fname != NULL)
+				buffptr += sprintf(buffptr, "(%s)\n", info.dli_fname);
+			else
+				buffptr += sprintf(buffptr, "(unknown)\n");
+		}
+
 	}
 #else
 	sprintf(buff, "Backtraces are only available on GNU systems\n");
@@ -150,6 +157,8 @@ void ptrs_handle_sig(int sig, siginfo_t *info, void *data)
 		fprintf(ptrs_errorfile, "\n");
 
 	fprintf(ptrs_errorfile, "%s", ptrs_backtrace(3, true));
+
+	//TODO allow catching errors
 	exit(EXIT_FAILURE);
 }
 

@@ -18,6 +18,7 @@ typedef struct ptrs_positionlist
 {
 	void *start;
 	void *end;
+	const char *funcName;
 	struct ptrs_knownpos *positions;
 	struct ptrs_positionlist *next;
 } ptrs_positionlist_t;
