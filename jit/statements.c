@@ -67,7 +67,9 @@ unsigned ptrs_handle_array(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *sco
 	}
 
 	//make sure array is not too big
-	jit_bgti_u(jit, ptrs_jiterror, meta, ptrs_arraymax);
+	ptrs_jit_addError(node, scope,
+		jit_bgti_u(jit, (uintptr_t)JIT_FORWARD, meta, ptrs_arraymax),
+		1, "Cannot create array of size %d", meta);
 
 	//allocate memory
 	jit_prepare(jit);
@@ -86,12 +88,16 @@ unsigned ptrs_handle_array(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *sco
 		init = R(init);
 
 		//check type of initExpr
-		jit_bmci(jit, ptrs_jiterror, initMeta, (uint64_t)PTRS_TYPE_NATIVE << 56);
+		ptrs_jit_addError(node, scope,
+			jit_bmci(jit, (uintptr_t)JIT_FORWARD, initMeta, (uint64_t)PTRS_TYPE_NATIVE << 56),
+			1, "Array init expression must be of type native not %mt", initMeta);
 
 		//check initExpr.size <= array.size
-		jit_andi(jit, initMeta, initMeta, 0xFFFFFFFF);
-		jit_andi(jit, meta, meta, 0xFFFFFFFF);
-		jit_bgtr_u(jit, ptrs_jiterror, meta, initMeta);
+		ptrs_jit_get_arraysize(jit, initMeta, initMeta);
+		ptrs_jit_get_arraysize(jit, meta, meta);
+		ptrs_jit_addError(node, scope,
+			jit_bgtr_u(jit, (uintptr_t)JIT_FORWARD, meta, initMeta),
+			2, "Init expression size of %d is too big for array of size %d", initMeta, meta);
 
 		//copy initExpr memory to array
 		jit_prepare(jit);
@@ -127,7 +133,9 @@ unsigned ptrs_handle_vararray(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *
 
 	//calculate array size in bytes and make sure its not too much
 	jit_muli(jit, size, size, 16); //TODO use sizeof(ptrs_var_t) instead?
-	jit_bgti_u(jit, ptrs_jiterror, size, ptrs_arraymax);
+	ptrs_jit_addError(node, scope,
+		jit_bgti_u(jit, (uintptr_t)JIT_FORWARD, size, ptrs_arraymax),
+		1, "Cannot create array of size %d", size);
 
 	//allocate memory
 	jit_prepare(jit);
@@ -195,10 +203,9 @@ ptrs_cache_t *importCachedScript(char *path, ptrs_ast_t *node, ptrs_scope_t *sco
 }
 */
 
-static const char *importScript(void **output, ptrs_ast_t *node, char *from)
+static void importScript(void **output, ptrs_ast_t *node, char *from)
 {
 	//TODO
-	return NULL;
 }
 static const char *importNative(void **output, ptrs_ast_t *node, char *from)
 {
@@ -215,7 +222,7 @@ static const char *importNative(void **output, ptrs_ast_t *node, char *from)
 
 		error = dlerror();
 		if(error != NULL)
-			return error;
+			ptrs_error(node, error);
 	}
 
 	struct ptrs_importlist *curr = node->arg.import.imports;
@@ -226,18 +233,17 @@ static const char *importNative(void **output, ptrs_ast_t *node, char *from)
 
 		error = dlerror();
 		if(error != NULL)
-			return error;
+			ptrs_error(node, error);
 
 		curr = curr->next;
 	}
-
-	return NULL;
 }
-const char *ptrs_import(void **output, ptrs_ast_t *node, ptrs_val_t fromVal, ptrs_meta_t fromMeta)
+void ptrs_import(void **output, ptrs_ast_t *node, ptrs_val_t fromVal, ptrs_meta_t fromMeta)
 {
-	char *from = NULL;
+	char *path;
 	if(fromMeta.type != PTRS_TYPE_UNDEFINED)
 	{
+		char *from = NULL;
 		if(fromMeta.type == PTRS_TYPE_NATIVE)
 		{
 			int len = strnlen(fromVal.strval, fromMeta.array.size);
@@ -267,22 +273,22 @@ const char *ptrs_import(void **output, ptrs_ast_t *node, ptrs_val_t fromVal, ptr
 			char buff[strlen(dir) + strlen(from) + 2];
 			sprintf(buff, "%s/%s", dir, from);
 
-			from = realpath(buff, NULL);
+			path = realpath(buff, NULL);
 		}
 		else
 		{
-			from = realpath(from, NULL);
+			path = realpath(from, NULL);
 		}
 
 		if(from == NULL)
-			return "Error resolving path";
+			ptrs_error(node, "Error resolving path '%s'", from);
 	}
 
-	char *ending = strrchr(from, '.');
+	char *ending = strrchr(path, '.');
 	if(ending != NULL && strcmp(ending, ".ptrs") == 0)
-		return importScript(output, node, from);
+		importScript(output, node, path);
 	else
-		return importNative(output, node, from);
+		importNative(output, node, path);
 }
 
 unsigned ptrs_handle_import(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
@@ -303,9 +309,6 @@ unsigned ptrs_handle_import(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *sc
 	jit_putargr(jit, R(from));
 	jit_putargr(jit, R(from + 1));
 	jit_call(jit, ptrs_import);
-	jit_retval(jit, ptr);
-
-	jit_bnei(jit, ptrs_jiterror, ptr, 0);
 }
 
 unsigned ptrs_handle_return(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)

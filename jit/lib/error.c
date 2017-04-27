@@ -8,6 +8,7 @@
 #include "../../parser/common.h"
 #include "../../parser/ast.h"
 #include "../include/error.h"
+#include "../include/conversion.h"
 
 typedef struct
 {
@@ -18,7 +19,6 @@ typedef struct
 
 ptrs_positionlist_t *ptrs_positions = NULL;
 FILE *ptrs_errorfile = NULL;
-uintptr_t ptrs_jiterror;
 
 void ptrs_getpos(codepos_t *pos, ptrs_ast_t *ast)
 {
@@ -89,7 +89,7 @@ ptrs_ast_t *ptrs_retrieveast(void *mem, const char **funcName)
 	return NULL;
 }
 
-char *ptrs_backtrace(int skipNative, bool gotSig)
+char *ptrs_backtrace()
 {
 	int bufflen = 1024;
 	char *buff = malloc(bufflen);
@@ -99,7 +99,7 @@ char *ptrs_backtrace(int skipNative, bool gotSig)
 	uint8_t *trace[32];
 	int count = backtrace((void **)trace, 32);
 
-	for(int i = skipNative; i < count; i++)
+	for(int i = 0; i < count; i++)
 	{
 		if(buffptr - buff > bufflen - 128)
 		{
@@ -148,17 +148,17 @@ char *ptrs_backtrace(int skipNative, bool gotSig)
 
 void ptrs_handle_sig(int sig, siginfo_t *info, void *data)
 {
+	//TODO allow catching errors
+
 	fprintf(ptrs_errorfile, "Received signal: %s", strsignal(sig));
-	ptrs_ast_t *ast = ptrs_retrieveast(info->si_addr);
+	ptrs_ast_t *ast = ptrs_retrieveast(info->si_addr, NULL);
 
 	if(ast != NULL)
 		ptrs_showpos(ptrs_errorfile, ast);
 	else
 		fprintf(ptrs_errorfile, "\n");
 
-	fprintf(ptrs_errorfile, "%s", ptrs_backtrace(3, true));
-
-	//TODO allow catching errors
+	fprintf(ptrs_errorfile, "%s", ptrs_backtrace());
 	exit(EXIT_FAILURE);
 }
 
@@ -178,21 +178,75 @@ void ptrs_error_init(jit_state_t *jit)
 	sigaction(SIGFPE, &action, NULL);
 	sigaction(SIGSEGV, &action, NULL);
 	sigaction(SIGPIPE, &action, NULL);
-
-	ptrs_jiterror = (uintptr_t)jit_get_label(jit);
-	//TODO print some sort of error message
-	//TODO allow catching errors
-	jit_prepare(jit);
-	jit_call(jit, abort);
 }
 
 void ptrs_error(ptrs_ast_t *ast, const char *msg, ...)
 {
+	//TODO allow catching errors
+	//TODO implement special printf formats
+	//		%t for printing a type
+	//		%mt for printing the type stored in a ptrs_meta_t
+	//		%ms for printing the array size stored in a ptrs_meta_t
+	//		%v for printing a variable
+
 	va_list ap;
 	va_start(ap, msg);
 	vfprintf(ptrs_errorfile, msg, ap);
 
 	if(ast != NULL)
 		ptrs_showpos(ptrs_errorfile, ast);
+
+	fprintf(ptrs_errorfile, "%s", ptrs_backtrace());
 	exit(EXIT_FAILURE);
+}
+
+ptrs_error_t *ptrs_jit_addError(ptrs_ast_t *ast, ptrs_scope_t *scope, jit_op *jump,
+	size_t argCount, const char *text, ...)
+{
+	long *args;
+	if(argCount > 0)
+	{
+		va_list ap;
+		va_start(ap, text);
+
+		args = malloc(sizeof(long) * argCount);
+		for(size_t i = 0; i < argCount; i++)
+			args[i] = va_arg(ap, long);
+
+		va_end(ap);
+	}
+	else
+	{
+		args = NULL;
+	}
+
+	ptrs_error_t *error = malloc(sizeof(ptrs_error_t));
+	error->ast = ast;
+	error->jump = jump;
+	error->text = text;
+	error->argCount = argCount;
+	error->args = args;
+
+	error->next = scope->errors;
+	scope->errors = error;
+	return error;
+}
+
+void ptrs_jit_compileErrors(jit_state_t *jit, ptrs_scope_t *scope)
+{
+	ptrs_error_t *curr = scope->errors;
+	while(curr != NULL)
+	{
+		jit_prepare(jit);
+
+		jit_putargi(jit, (uintptr_t)curr->ast);
+		for(size_t i = 0; i < curr->argCount; i++)
+			jit_putargr(jit, curr->args[i]);
+
+		jit_call(jit, ptrs_error);
+
+		ptrs_error_t *next = curr->next;
+		free(curr);
+		curr = next;
+	}
 }
