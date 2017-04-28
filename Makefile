@@ -12,10 +12,12 @@ RUN_LIB_OBJECTS += $(BIN)/conversion.o
 RUN_LIB_OBJECTS += $(BIN)/error.o
 RUN_LIB_OBJECTS += $(BIN)/scope.o
 RUN_LIB_OBJECTS += $(BIN)/astlist.o
+RUN_LIB_OBJECTS += $(BIN)/run.o
 
 RUN_OBJECTS += $(BIN)/statements.o
 RUN_OBJECTS += $(BIN)/specialexpr.o
 RUN_OBJECTS += $(BIN)/ops.o
+RUN_OBJECTS += $(BIN)/main.o
 
 EXTERN_LIBS += -ldl
 EXTERN_LIBS += -lffi
