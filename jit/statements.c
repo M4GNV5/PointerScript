@@ -290,9 +290,9 @@ void ptrs_import(ptrs_stackframe_t *frame, ptrs_ast_t *node, ptrs_val_t fromVal,
 
 	char *ending = strrchr(path, '.');
 	if(ending != NULL && strcmp(ending, ".ptrs") == 0)
-		importScript(output, node, path);
+		importScript(frame, node, path);
 	else
-		importNative(output, node, path);
+		importNative(frame, node, path);
 }
 
 unsigned ptrs_handle_import(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)

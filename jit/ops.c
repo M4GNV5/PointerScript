@@ -55,8 +55,8 @@
 		scope->usedRegCount = left + 2; \
 		\
 		/*convert the left-side expression to a boolean*/ \
-		long tmpVal = R(scope->usedFRegCount); \
-		long tmpMeta = R(scope->usedFRegCount + 1); \
+		long tmpVal = R(scope->usedRegCount); \
+		long tmpMeta = R(scope->usedRegCount + 1); \
 		jit_movr(jit, tmpVal, R(left)); \
 		jit_movr(jit, tmpMeta, R(left + 1)); \
 		ptrs_jit_vartob(jit, tmpVal, tmpMeta); \

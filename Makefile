@@ -1,7 +1,7 @@
 CC = gcc
-MYJIT_DIR = myjit/jitlib
+MYJIT_DIR = myjit/myjit
 MYJIT_BIN = myjit/jitlib-core.o
-INTERPRETER_INCLUDE = "../interpreter/interpreter.h"
+JIT_INCLUDE = "../jit/jit.h"
 
 BIN = bin
 RUN = $(BIN)/ptrs
@@ -10,24 +10,18 @@ PARSER_OBJECTS += $(BIN)/ast.o
 
 RUN_LIB_OBJECTS += $(BIN)/conversion.o
 RUN_LIB_OBJECTS += $(BIN)/error.o
-RUN_LIB_OBJECTS += $(BIN)/debug.o
 RUN_LIB_OBJECTS += $(BIN)/scope.o
-RUN_LIB_OBJECTS += $(BIN)/call.o
-RUN_LIB_OBJECTS += $(BIN)/run.o
-RUN_LIB_OBJECTS += $(BIN)/struct.o
 RUN_LIB_OBJECTS += $(BIN)/astlist.o
-RUN_LIB_OBJECTS += $(BIN)/nativetypes.o
 
 RUN_OBJECTS += $(BIN)/statements.o
 RUN_OBJECTS += $(BIN)/specialexpr.o
 RUN_OBJECTS += $(BIN)/ops.o
-RUN_OBJECTS += $(BIN)/main.o
 
 EXTERN_LIBS += -ldl
 EXTERN_LIBS += -lffi
-EXTERN_LIBS += -l$(MYJIT_BIN)
+EXTERN_LIBS += $(MYJIT_BIN)
 
-CFLAGS = '-DINTERPRETER_INCLUDE=$(INTERPRETER_INCLUDE)' -std=c99 -I$(FFCB_DIR) -I$(JITAS_DIR) -I$(MYJIT_DIR)
+CFLAGS = '-DJIT_INCLUDE=$(JIT_INCLUDE)' -I$(MYJIT_DIR) -std=c99
 
 ifdef PORTABLE
 ARCH = PORTABLE
@@ -41,7 +35,7 @@ CFLAGS += -D_XOPEN_SOURCE=700
 endif
 endif
 
-all: CFLAGS += -Wall -O2 -g
+all: CFLAGS += -O2 -g
 all: $(RUN)
 
 debug: CFLAGS += -Wall -g
@@ -72,8 +66,8 @@ $(MYJIT_BIN):
 $(BIN)/%.o: parser/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(BIN)/%.o: interpreter/lib/%.c
+$(BIN)/%.o: jit/lib/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(BIN)/%.o: interpreter/%.c
+$(BIN)/%.o: jit/%.c
 	$(CC) $(CFLAGS) -c $< -o $@

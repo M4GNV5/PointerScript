@@ -6,14 +6,8 @@
 #include <math.h>
 
 #include <ffi.h>
-
-#ifndef _PTRS_PORTABLE
-#include <jitas.h>
-#include <sys/mman.h>
-#endif
-
 #include "common.h"
-#include INTERPRETER_INCLUDE
+#include JIT_INCLUDE
 #include "ast.h"
 
 #define talloc(type) malloc(sizeof(type))
@@ -963,27 +957,6 @@ static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 			ahead = peekBinaryOp(code);
 		}
 
-#ifndef PTRS_DISABLE_CONSTRESOLVE
-		if(left->handler == ptrs_handle_constant && right->handler == ptrs_handle_constant)
-		{
-			ptrs_var_t result;
-			ptrs_ast_t node;
-
-			node.handler = op->handler;
-			node.arg.binary.left = left;
-			node.arg.binary.right = right;
-			node.file = code->filename;
-			node.code = code->src;
-			node.codepos = pos;
-
-			ptrs_lastast = &node;
-
-			node.handler(&node, &result, NULL);
-			free(right);
-			memcpy(&left->arg.constval, &result, sizeof(ptrs_var_t));
-			continue;
-		}
-#endif
 		if(op->handler == ptrs_handle_op_ternary)
 		{
 			ptrs_ast_t *ast = talloc(ptrs_ast_t);
@@ -1061,19 +1034,6 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		ast->code = code->src;
 		ast->file = code->filename;
 
-#ifndef PTRS_DISABLE_CONSTRESOLVE
-		if(ast->arg.astval->handler == ptrs_handle_constant)
-		{
-			ptrs_lastast = ast;
-
-			ptrs_var_t result;
-			ast->handler(ast, &result, NULL);
-			ast->handler = ptrs_handle_constant;
-
-			free(ast->arg.astval);
-			memcpy(&ast->arg.constval, &result, sizeof(ptrs_var_t));
-		}
-#endif
 		return ast;
 	}
 
@@ -1082,7 +1042,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		if(lookahead(code, constants[i].text))
 		{
 			ast = talloc(ptrs_ast_t);
-			ast->arg.constval.type = constants[i].type;
+			ast->arg.constval.meta.type = constants[i].type;
 			ast->arg.constval.value = constants[i].value;
 			memset(&ast->arg.constval.meta, 0, sizeof(ptrs_meta_t));
 			ast->handler = ptrs_handle_constant;
@@ -1111,7 +1071,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 
 		ast = talloc(ptrs_ast_t);
 		ast->handler = ptrs_handle_constant;
-		ast->arg.constval.type = PTRS_TYPE_INT;
+		ast->arg.constval.meta.type = PTRS_TYPE_INT;
 		ast->arg.constval.value.intval = type;
 		consumec(code, '>');
 	}
@@ -1129,7 +1089,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 				consumec(code, ')');
 
 			ast->handler = ptrs_handle_constant;
-			ast->arg.constval.type = PTRS_TYPE_INT;
+			ast->arg.constval.meta.type = PTRS_TYPE_INT;
 			ast->arg.constval.value.intval = nativeType->size;
 		}
 		else if(lookahead(code, "var"))
@@ -1138,7 +1098,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 				consumec(code, ')');
 
 			ast->handler = ptrs_handle_constant;
-			ast->arg.constval.type = PTRS_TYPE_INT;
+			ast->arg.constval.meta.type = PTRS_TYPE_INT;
 			ast->arg.constval.value.intval = sizeof(ptrs_var_t);
 		}
 		else
@@ -1271,20 +1231,20 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		ast = talloc(ptrs_ast_t);
 		ast->handler = ptrs_handle_constant;
 
-		ast->arg.constval.type = PTRS_TYPE_INT;
+		ast->arg.constval.meta.type = PTRS_TYPE_INT;
 		ast->arg.constval.value.intval = readInt(code, 0);
 
 		if(code->curr == '.' || code->curr == 'e')
 		{
 			code->pos = startPos;
 			code->curr = code->src[code->pos];
-			ast->arg.constval.type = PTRS_TYPE_FLOAT;
+			ast->arg.constval.meta.type = PTRS_TYPE_FLOAT;
 			ast->arg.constval.value.floatval = readDouble(code);
 			lookahead(code, "f");
 		}
 		else if(lookahead(code, "f"))
 		{
-			ast->arg.constval.type = PTRS_TYPE_FLOAT;
+			ast->arg.constval.meta.type = PTRS_TYPE_FLOAT;
 			ast->arg.constval.value.floatval = ast->arg.constval.value.intval;
 		}
 	}
@@ -1302,7 +1262,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		rawnext(code);
 		ast = talloc(ptrs_ast_t);
 		ast->handler = ptrs_handle_constant;
-		ast->arg.constval.type = PTRS_TYPE_INT;
+		ast->arg.constval.meta.type = PTRS_TYPE_INT;
 
 		if(code->curr == '\\')
 		{
@@ -1335,7 +1295,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		else
 		{
 			ast->handler = ptrs_handle_constant;
-			ast->arg.constval.type = PTRS_TYPE_NATIVE;
+			ast->arg.constval.meta.type = PTRS_TYPE_NATIVE;
 			ast->arg.constval.value.strval = str;
 			ast->arg.constval.meta.array.readOnly = true;
 			ast->arg.constval.meta.array.size = len;
@@ -1357,7 +1317,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 
 		ast = talloc(ptrs_ast_t);
 		ast->handler = ptrs_handle_constant;
-		ast->arg.constval.type = PTRS_TYPE_NATIVE;
+		ast->arg.constval.meta.type = PTRS_TYPE_NATIVE;
 		ast->arg.constval.value.strval = str;
 		ast->arg.constval.meta.array.readOnly = true;
 		ast->arg.constval.meta.array.size = len;
@@ -1790,7 +1750,7 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 				for(;;)
 				{
 					ptrs_ast_t *expr = parseExpression(code, true);
-					if(expr->handler != ptrs_handle_constant || expr->arg.constval.type != PTRS_TYPE_INT)
+					if(expr->handler != ptrs_handle_constant || expr->arg.constval.meta.type != PTRS_TYPE_INT)
 						unexpected(code, "integer constant");
 
 					currCase->next = talloc(struct ptrs_ast_case);
@@ -1828,156 +1788,6 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 }
 
 
-void *ptrs_asmBuffStart = NULL;
-void *ptrs_asmBuff = NULL;
-size_t ptrs_asmSize = 4096;
-
-#ifndef _PTRS_PORTABLE
-
-struct ptrs_asmStatement
-{
-	uint8_t *start;
-	uint8_t *end;
-	ptrs_ast_t *ast;
-	jitas_context_t *context;
-	struct ptrs_asmStatement *next;
-};
-struct ptrs_asmStatement *ptrs_asmStatements = NULL;
-
-static void parseAsm(code_t *code, ptrs_ast_t *stmt)
-{
-	struct ptrs_ast_asm *arg = &stmt->arg.asmstmt;
-
-	if(ptrs_asmBuff == NULL)
-	{
-		ptrs_asmBuff = mmap(NULL, ptrs_asmSize, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-		ptrs_asmBuffStart = ptrs_asmBuff;
-	}
-
-	arg->asmFunc = ptrs_asmBuff;
-	arg->context = malloc(sizeof(jitas_context_t));
-	jitas_init(arg->context, ptrs_asmBuff, NULL);
-	arg->context->identifierToken = "._*";
-
-	char **fields;
-	if(code->curr == '{')
-		arg->exportCount = 0;
-	else
-		arg->exportCount = parseIdentifierList(code, "{",
-			&arg->exportSymbols, &fields);
-
-	consumec(code, '{');
-
-	char buff[128];
-	char *buffptr = buff;
-	int startPos = code->pos;
-	jitas_symboltable_t *curr = NULL;
-	jitas_symboltable_t *last = NULL;
-
-	while(code->curr != '}' && code->curr != 0)
-	{
-		if(code->curr == '\n' || skipComments(code))
-		{
-			*buffptr = 0;
-			rawnext(code);
-			buffptr = buff;
-
-			if(arg->context->ptr - (uint8_t *)ptrs_asmBuff > ptrs_asmSize)
-				PTRS_HANDLE_ASTERROR(stmt, "Inline assembly size exceed. Try running with --asm-size <value>");
-
-			jitas_assemble(arg->context, buff);
-
-			int line;
-			char *error = jitas_error(arg->context, &line);
-			if(error != NULL)
-			{
-				while(jitas_error(arg->context, NULL) != NULL);
-
-				ptrs_ast_t errstmt;
-				memcpy(&errstmt, stmt, sizeof(ptrs_ast_t));
-				errstmt.codepos = startPos;
-				PTRS_HANDLE_ASTERROR(&errstmt, "%s", error);
-			}
-
-			curr = arg->context->symbols;
-			while(curr != last)
-			{
-				curr->line = startPos;
-				curr = curr->next;
-			}
-			last = curr;
-
-			startPos = code->pos;
-		}
-		else
-		{
-			*buffptr++ = code->curr;
-			rawnext(code);
-		}
-	}
-	consumec(code, '}');
-
-	struct ptrs_asmStatement *asmStmt = malloc(sizeof(struct ptrs_asmStatement));
-	asmStmt->start = ptrs_asmBuff;
-	asmStmt->end = arg->context->ptr - 1;
-	asmStmt->ast = stmt;
-	asmStmt->context = arg->context;
-	asmStmt->next = ptrs_asmStatements;
-	ptrs_asmStatements = asmStmt;
-
-	ptrs_asmBuff = arg->context->ptr;
-
-	arg->importCount = 0;
-	curr = arg->context->symbols;
-	while(curr != NULL)
-	{
-		if(jitas_findLocalSymbol(arg->context, curr->symbol) == NULL)
-			arg->importCount++;
-
-		curr = curr->next;
-	}
-
-	if(arg->importCount != 0)
-	{
-		arg->imports = malloc(sizeof(const char *) * arg->importCount);
-		arg->importAsts = malloc(sizeof(ptrs_ast_t **) * arg->importCount);
-
-		curr = arg->context->symbols;
-		int index = 0;
-		while(curr != NULL)
-		{
-			if(jitas_findLocalSymbol(arg->context, curr->symbol) == NULL)
-			{
-				arg->imports[index] = curr->symbol;
-				if(curr->symbol[0] == '*')
-					arg->importAsts[index] = getSymbol(code, (char *)curr->symbol + 1);
-				else
-					arg->importAsts[index] = getSymbol(code, (char *)curr->symbol);
-				index++;
-			}
-
-			curr = curr->next;
-		}
-	}
-
-	if(arg->exportCount != 0)
-	{
-		arg->exports = malloc(sizeof(void *) * arg->exportCount);
-		arg->exportSymbols = malloc(sizeof(ptrs_symbol_t) * arg->exportCount);
-		for(int i = 0; i < arg->exportCount; i++)
-		{
-			void *ptr = jitas_findLocalSymbol(arg->context, fields[i]);
-			if(ptr == NULL)
-				PTRS_HANDLE_ASTERROR(stmt, "Assembly code has no symbol '%s'", fields[i]);
-
-			arg->exports[i] = ptr;
-			arg->exportSymbols[i] = addSymbol(code, fields[i]);
-		}
-
-		free(fields);
-	}
-}
-#endif
 
 static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 {

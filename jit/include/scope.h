@@ -30,7 +30,7 @@ struct ptrs_stackframe
 */
 void ptrs_scope_store(jit_state_t *jit, ptrs_scope_t *scope, ptrs_symbol_t symbol, long val, long meta);
 void ptrs_scope_load(jit_state_t *jit, ptrs_scope_t *scope, ptrs_symbol_t symbol, long val, long meta);
-void ptrs_stack_get(ptrs_stackframe_t *frame, ptrs_symbol_t symbol);
+ptrs_var_t *ptrs_stack_get(ptrs_stackframe_t *frame, ptrs_symbol_t symbol);
 void ptrs_stack_set(ptrs_stackframe_t *frame, ptrs_symbol_t symbol, ptrs_var_t *val);
 
 #endif

@@ -155,8 +155,8 @@ void ptrs_handle_assign_typed(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *
 unsigned ptrs_handle_constant(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	unsigned val = scope->usedRegCount;
-	jit_movi(jit, R(val), *(uintptr_t)&node->arg.constval.value);
-	jit_movi(jit, R(val + 1), *(uintptr_t)&node->arg.constval.meta);
+	jit_movi(jit, R(val), *(uintptr_t *)&node->arg.constval.value);
+	jit_movi(jit, R(val + 1), *(uintptr_t *)&node->arg.constval.meta);
 	return val;
 }
 

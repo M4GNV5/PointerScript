@@ -5,6 +5,11 @@
 #include <string.h>
 #include <signal.h>
 
+#ifdef _GNU_SOURCE
+#include <dlfcn.h>
+#include <execinfo.h>
+#endif
+
 #include "../../parser/common.h"
 #include "../../parser/ast.h"
 #include "../include/error.h"
