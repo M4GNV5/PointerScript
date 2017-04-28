@@ -298,6 +298,11 @@ struct ptrs_stringformat
 struct ptrs_importlist
 {
 	char *name;
+	union
+	{
+		ptrs_symbol_t symbol;
+		int wildcardIndex;
+	};
 	struct ptrs_importlist *next;
 };
 

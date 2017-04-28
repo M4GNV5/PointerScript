@@ -151,12 +151,19 @@ typedef struct meta
 	};
 } ptrs_meta_t;
 
-struct ptrs_var
+typedef struct ptrs_var
 {
 	ptrs_val_t value;
 	ptrs_meta_t meta;
-};
-typedef struct ptrs_var ptrs_var_t;
+} ptrs_var_t;
+
+typedef struct ptrs_stackframe
+{
+	struct ptrs_stackframe *outer;
+	ptrs_var_t variables[];
+} ptrs_stackframe_t;
+
+
 
 #define ptrs_jit_get_type(jit, result, meta) (jit_rshi_u(jit, result, meta, 54))
 #define ptrs_jit_get_arraysize(jit, result, meta) (jit_andi(jit, result, meta, 0xFFFFFFFF))

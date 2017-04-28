@@ -203,11 +203,11 @@ ptrs_cache_t *importCachedScript(char *path, ptrs_ast_t *node, ptrs_scope_t *sco
 }
 */
 
-static void importScript(void **output, ptrs_ast_t *node, char *from)
+static void importScript(ptrs_stackframe_t *frame, ptrs_ast_t *node, char *from)
 {
 	//TODO
 }
-static const char *importNative(void **output, ptrs_ast_t *node, char *from)
+static const char *importNative(ptrs_stackframe_t *frame, ptrs_ast_t *node, char *from)
 {
 	struct ptrs_ast_import *stmt = &node->arg.import;
 	const char *error;
@@ -228,7 +228,11 @@ static const char *importNative(void **output, ptrs_ast_t *node, char *from)
 	struct ptrs_importlist *curr = node->arg.import.imports;
 	for(int i = 0; curr != NULL; i++)
 	{
-		output[i] = dlsym(handle, curr->name);
+		ptrs_var_t *val = ptrs_stack_get(frame, curr->symbol);
+		val->meta.type = PTRS_TYPE_NATIVE;
+		val->meta.array.size = 0;
+		val->value.nativeval = dlsym(handle, curr->name);
+
 		//TODO do wildcards need special care?
 
 		error = dlerror();
@@ -238,7 +242,7 @@ static const char *importNative(void **output, ptrs_ast_t *node, char *from)
 		curr = curr->next;
 	}
 }
-void ptrs_import(void **output, ptrs_ast_t *node, ptrs_val_t fromVal, ptrs_meta_t fromMeta)
+void ptrs_import(ptrs_stackframe_t *frame, ptrs_ast_t *node, ptrs_val_t fromVal, ptrs_meta_t fromMeta)
 {
 	char *path;
 	if(fromMeta.type != PTRS_TYPE_UNDEFINED)
