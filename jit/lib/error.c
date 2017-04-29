@@ -167,7 +167,7 @@ void ptrs_handle_sig(int sig, siginfo_t *info, void *data)
 	exit(EXIT_FAILURE);
 }
 
-void ptrs_error_init(jit_state_t *jit)
+void ptrs_handle_signals(jit_state_t *jit)
 {
 	struct sigaction action;
 	action.sa_sigaction = ptrs_handle_sig;
