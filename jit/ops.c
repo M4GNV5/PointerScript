@@ -44,6 +44,31 @@
 		return left; \
 	}
 
+#define handle_binary_typecompare(comparer) \
+	ptrs_jit_get_type(jit, R(left + 1), R(left + 1)); \
+	ptrs_jit_get_type(jit, R(right + 1), R(right + 1)); \
+	jit_##comparer##r(jit, R(left + 1), R(left + 1), R(right + 1)); \
+	jit_andr(jit, R(left), R(left), R(left + 1));
+#define handle_binary_compare(name, comparer, extra) \
+	unsigned ptrs_handle_op_##name(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope) \
+	{ \
+		struct ptrs_ast_binary *expr = &node->arg.binary; \
+		\
+		unsigned left = expr->left->handler(expr->left, jit, scope); \
+		assert(scope->usedRegCount == left); \
+		scope->usedRegCount += 2; \
+		\
+		unsigned right = expr->right->handler(expr->right, jit, scope); \
+		\
+		/* TODO floats */ \
+		jit_##comparer##r(jit, R(left), R(left), R(right)); \
+		\
+		extra \
+		\
+		ptrs_jit_seti_type(jit, R(left + 1), PTRS_TYPE_INT); \
+		return left; \
+	}
+
 #define handle_binary_logic(name, comparer) \
 	unsigned ptrs_handle_op_##name(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope) \
 	{ \
@@ -74,14 +99,14 @@
 		return left; \
 	}
 
-//handle_binary(typeequal) TODO
-//handle_binary(typeinequal) TODO
-handle_binary(equal, eq) //==
-handle_binary(inequal, ne) //!=
-handle_binary(lessequal, le) //<=
-handle_binary(greaterequal, ge) //>=
-handle_binary(less, lt) //<
-handle_binary(greater, gt) //>
+handle_binary_compare(typeequal, eq, handle_binary_typecompare(eq))
+handle_binary_compare(typeinequal, ne, handle_binary_typecompare(ne))
+handle_binary_compare(equal, eq, ) //==
+handle_binary_compare(inequal, ne, ) //!=
+handle_binary_compare(lessequal, le, ) //<=
+handle_binary_compare(greaterequal, ge, ) //>=
+handle_binary_compare(less, lt, ) //<
+handle_binary_compare(greater, gt, ) //>
 handle_binary(or, or) //|
 handle_binary(xor, xor) //^
 handle_binary(and, and) //&
