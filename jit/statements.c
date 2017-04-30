@@ -9,6 +9,10 @@
 #include "include/error.h"
 #include "include/scope.h"
 
+//see alloca.s
+//TODO find a more portable way (myjit should provide jit_allocar)
+void *ptrs_alloca(uintptr_t size);
+
 unsigned ptrs_handle_body(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	struct ptrs_astlist *list = node->arg.astlist;
@@ -74,7 +78,7 @@ unsigned ptrs_handle_array(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *sco
 	//allocate memory
 	jit_prepare(jit);
 	jit_putargr(jit, meta);
-	jit_call(jit, stmt->onStack ? alloca : malloc);
+	jit_call(jit, stmt->onStack ? ptrs_alloca : malloc);
 	jit_retval(jit, val);
 
 	//store the array
@@ -140,7 +144,7 @@ unsigned ptrs_handle_vararray(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *
 	//allocate memory
 	jit_prepare(jit);
 	jit_putargr(jit, size);
-	jit_call(jit, stmt->onStack ? alloca : malloc);
+	jit_call(jit, stmt->onStack ? ptrs_alloca : malloc);
 	jit_retval(jit, val);
 
 	ptrs_astlist_handle(stmt->initVal, val, size, jit, scope);
@@ -302,8 +306,8 @@ unsigned ptrs_handle_import(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *sc
 	//R(1) = from.meta
 	//R(2) = output ptr
 
+	long ptr = R(scope->usedRegCount++);
 	unsigned from = stmt->from->handler(stmt->from, jit, scope);
-	long ptr = R(scope->usedRegCount);
 
 	jit_addi(jit, ptr, R_FP, scope->fpOffset);
 

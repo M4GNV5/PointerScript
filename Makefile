@@ -13,11 +13,13 @@ RUN_LIB_OBJECTS += $(BIN)/error.o
 RUN_LIB_OBJECTS += $(BIN)/scope.o
 RUN_LIB_OBJECTS += $(BIN)/astlist.o
 RUN_LIB_OBJECTS += $(BIN)/run.o
+RUN_LIB_OBJECTS += $(BIN)/struct.o
 
 RUN_OBJECTS += $(BIN)/statements.o
 RUN_OBJECTS += $(BIN)/specialexpr.o
 RUN_OBJECTS += $(BIN)/ops.o
 RUN_OBJECTS += $(BIN)/main.o
+RUN_OBJECTS += $(BIN)/alloca.o
 
 EXTERN_LIBS += -ldl
 EXTERN_LIBS += -lffi
@@ -73,3 +75,6 @@ $(BIN)/%.o: jit/lib/%.c
 
 $(BIN)/%.o: jit/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BIN)/%.o: jit/%.s
+	$(CC) -c $< -o $@

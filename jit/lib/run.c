@@ -16,12 +16,15 @@ ptrs_result_t *ptrs_compile(char *src, const char *filename)
 
 	ptrs_result_t *result = malloc(sizeof(ptrs_result_t));
 
+	result->symbols = NULL;
 	result->ast = ptrs_parse(src, filename, &result->symbols);
 	result->jit = jit_init();
 
 	jit_prolog(result->jit, &result->code);
 	result->ast->handler(result->ast, result->jit, &scope);
 	jit_reti(result->jit, 0);
+
+	jit_generate_code(result->jit);
 
 	return result;
 }

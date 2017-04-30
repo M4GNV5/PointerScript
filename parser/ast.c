@@ -91,10 +91,6 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc);
 static void parseImport(code_t *code, ptrs_ast_t *stmt);
 static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt);
 
-#ifndef _PTRS_PORTABLE
-static void parseAsm(code_t *code, ptrs_ast_t *stmt);
-#endif
-
 static ptrs_vartype_t readTypeName(code_t *code);
 static ptrs_nativetype_info_t *readNativeType(code_t *code);
 static ptrs_asthandler_t readPrefixOperator(code_t *code, const char **label);
@@ -714,15 +710,6 @@ static ptrs_ast_t *parseStatement(code_t *code)
 			stmt->arg.trycatch.retVal.scope = (unsigned)-1;
 			stmt->arg.trycatch.finallyBody = NULL;
 		}
-	}
-	else if(lookahead(code, "asm"))
-	{
-#ifndef _PTRS_PORTABLE
-		stmt->handler = ptrs_handle_asm;
-		parseAsm(code, stmt);
-#else
-		PTRS_HANDLE_ASTERROR(stmt, "Inline assembly is not available");
-#endif
 	}
 	else if(lookahead(code, "function"))
 	{
@@ -2526,6 +2513,7 @@ static ptrs_vartype_t readTypeName(code_t *code)
 #endif
 
 ptrs_nativetype_info_t ptrs_nativeTypes[] = {
+/*
 	{"char", sizeof(signed char), ptrs_handle_native_getInt, ptrs_handle_native_setInt, &ffi_type_schar},
 	{"short", sizeof(short), ptrs_handle_native_getInt, ptrs_handle_native_setInt, &ffi_type_sshort},
 	{"int", sizeof(int), ptrs_handle_native_getInt, ptrs_handle_native_setInt, &ffi_type_sint},
@@ -2560,6 +2548,7 @@ ptrs_nativetype_info_t ptrs_nativeTypes[] = {
 	{"intptr", sizeof(uintptr_t), ptrs_handle_native_getInt, ptrs_handle_native_setInt, &ffi_type_sintptr},
 	{"uintptr", sizeof(intptr_t), ptrs_handle_native_getUInt, ptrs_handle_native_setUInt, &ffi_type_uintptr},
 	{"ptrdiff", sizeof(ptrdiff_t), ptrs_handle_native_getInt, ptrs_handle_native_setInt, &ffi_type_ptrdiff},
+*/
 };
 int ptrs_nativeTypeCount = sizeof(ptrs_nativeTypes) / sizeof(ptrs_nativetype_info_t);
 
