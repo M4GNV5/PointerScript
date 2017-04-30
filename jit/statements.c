@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <assert.h>
 #include <dlfcn.h>
 #include <libgen.h>
 
@@ -35,16 +36,19 @@ unsigned ptrs_handle_define(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *sc
 	if(stmt->value != NULL)
 	{
 		val = stmt->value->handler(stmt->value, jit, scope);
+		assert(val == scope->usedRegCount);
 	}
 	else
 	{
 		val = scope->usedRegCount;
 
 		jit_movi(jit, R(val), 0);
-		jit_movi(jit, R(val + 1), PTRS_TYPE_UNDEFINED);
+		ptrs_jit_seti_type(jit, R(val + 1), PTRS_TYPE_UNDEFINED);
 	}
 
+	scope->usedRegCount += 2;
 	ptrs_scope_store(jit, scope, stmt->symbol, R(val), R(val + 1));
+	scope->usedRegCount -= 2;
 	return val;
 }
 
@@ -236,6 +240,7 @@ static const char *importNative(ptrs_stackframe_t *frame, ptrs_ast_t *node, char
 		val->meta.type = PTRS_TYPE_NATIVE;
 		val->meta.array.size = 0;
 		val->value.nativeval = dlsym(handle, curr->name);
+		ptrs_stack_set(frame, curr->symbol, val);
 
 		//TODO do wildcards need special care?
 

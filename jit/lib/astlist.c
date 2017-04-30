@@ -26,8 +26,8 @@ void ptrs_astlist_handle(struct ptrs_astlist *list, long valReg, long sizeReg, j
 			result = list->entry->handler(list->entry, jit, scope);
 		}
 
-		jit_stxi(jit, valReg, i, R(result), 8);
-		jit_stxi(jit, valReg, i + 8, R(result + 1), 8);
+		jit_stxi(jit, i, valReg, R(result), sizeof(ptrs_val_t));
+		jit_stxi(jit, i + 8, valReg, R(result + 1), sizeof(ptrs_meta_t));
 
 		list = list->next;
 	}
@@ -73,7 +73,7 @@ void ptrs_astlist_handleByte(struct ptrs_astlist *list, long valReg, long sizeRe
 			ptrs_jit_convert(jit, ptrs_vartoi, R(result), R(result), R(result + 1));
 		}
 
-		jit_stxi(jit, valReg, i, result, 1);
+		jit_stxi(jit, i, valReg, result, 1);
 
 		list = list->next;
 	}

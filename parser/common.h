@@ -146,6 +146,7 @@ typedef struct meta
 		struct
 		{
 			bool readOnly;
+			uint16_t padding;
 			uint32_t size;
 		} __attribute__((packed)) array;
 	};
