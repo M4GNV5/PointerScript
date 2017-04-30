@@ -8,7 +8,7 @@
 #include "include/error.h"
 
 #define PTRS_HANDLE_ASTERROR(ast, ...) \
-	ptrs_error(ast, NULL, __VA_ARGS__)
+	ptrs_error(ast, __VA_ARGS__)
 
 unsigned ptrs_handle_body(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope);
 unsigned ptrs_handle_define(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope);
