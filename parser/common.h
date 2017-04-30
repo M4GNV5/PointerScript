@@ -166,6 +166,9 @@ typedef struct ptrs_stackframe
 
 
 
+#define ptrs_const_meta(type) ((type) << 65)
+#define ptrs_const_arraymeta(type, readOnly, size) ((type) << 65 | (readOnly) << 57 | (size))
+
 #define ptrs_jit_get_type(jit, result, meta) (jit_rshi_u(jit, result, meta, 54))
 #define ptrs_jit_get_arraysize(jit, result, meta) (jit_andi(jit, result, meta, 0xFFFFFFFF))
 

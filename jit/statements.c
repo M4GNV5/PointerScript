@@ -97,7 +97,7 @@ unsigned ptrs_handle_array(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *sco
 
 		//check type of initExpr
 		ptrs_jit_addError(node, scope,
-			jit_bmci(jit, (uintptr_t)JIT_FORWARD, initMeta, (uint64_t)PTRS_TYPE_NATIVE << 56),
+			jit_bmci(jit, (uintptr_t)JIT_FORWARD, initMeta, ptrs_const_meta(PTRS_TYPE_NATIVE)),
 			1, "Array init expression must be of type native not %mt", initMeta);
 
 		//check initExpr.size <= array.size
