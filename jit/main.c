@@ -10,6 +10,7 @@
 
 static bool handleSignals = true;
 static bool interactive = false;
+static int dumpOps = -1;
 extern size_t ptrs_arraymax;
 extern bool ptrs_zeroMemory;
 extern int ptrs_asmSize;
@@ -17,8 +18,10 @@ extern int ptrs_asmSize;
 static struct option options[] = {
 	{"array-max", required_argument, 0, 1},
 	{"no-sig", no_argument, 0, 2},
-	{"error", required_argument, 0, 3},
-	{"help", no_argument, 0, 4},
+	{"asmdump", no_argument, 0, 3},
+	{"jitdump", no_argument, 0, 4},
+	{"error", required_argument, 0, 5},
+	{"help", no_argument, 0, 6},
 	{0, 0, 0, 0}
 };
 
@@ -39,6 +42,17 @@ static int parseOptions(int argc, char **argv)
 				handleSignals = false;
 				break;
 			case 3:
+				if(dumpOps == JIT_DEBUG_OPS)
+					dumpOps = JIT_DEBUG_COMBINED;
+				else
+					dumpOps = JIT_DEBUG_CODE;
+				break;
+			case 4:
+				if(dumpOps == JIT_DEBUG_CODE)
+					dumpOps = JIT_DEBUG_COMBINED;
+				else
+					dumpOps = JIT_DEBUG_OPS;
+				break;
 				ptrs_errorfile = fopen(optarg, "w");
 				if(ptrs_errorfile == NULL)
 				{
@@ -46,7 +60,7 @@ static int parseOptions(int argc, char **argv)
 					exit(EXIT_FAILURE);
 				}
 				break;
-			case 4:
+			case 5:
 				printf("Usage: ptrs [options ...] <file> [script options ...]\n"
 					"Valid Options:\n"
 						"\t--help               Show this information\n"
@@ -88,7 +102,11 @@ int main(int argc, char **argv)
 
 	//TODO pass the arguments to the main function
 	ptrs_result_t *result = ptrs_compilefile(file);
-	result->code();
+
+	if(dumpOps != -1)
+		jit_dump_ops(result->jit, dumpOps);
+	else
+		result->code();
 
 	return EXIT_SUCCESS;
 }
