@@ -425,7 +425,7 @@ unsigned ptrs_handle_if(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 	struct ptrs_ast_ifelse *stmt = &node->arg.ifelse;
 
 	unsigned condition = stmt->condition->handler(stmt->condition, jit, scope);
-	ptrs_jit_vartob(jit, R(condition), R(condition - 1));
+	ptrs_jit_vartob(jit, R(condition), R(condition + 1));
 	jit_op *isFalse = jit_beqi(jit, JIT_FORWARD, R(condition), 0);
 
 	stmt->ifBody->handler(stmt->ifBody, jit, scope);
@@ -465,7 +465,7 @@ unsigned ptrs_handle_while(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *sco
 
 	//evaluate the condition
 	unsigned condition = stmt->condition->handler(stmt->condition, jit, scope);
-	ptrs_jit_vartob(jit, R(condition), R(condition - 1));
+	ptrs_jit_vartob(jit, R(condition), R(condition + 1));
 	jit_op *isFalse = jit_beqi(jit, JIT_FORWARD, R(condition), 0);
 
 	//run the while body, jumping back th 'check' at the end
@@ -493,7 +493,7 @@ unsigned ptrs_handle_dowhile(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *s
 
 	//evaluate the condition
 	unsigned condition = stmt->condition->handler(stmt->condition, jit, scope);
-	ptrs_jit_vartob(jit, R(condition), R(condition - 1));
+	ptrs_jit_vartob(jit, R(condition), R(condition + 1));
 	jit_bnei(jit, (uintptr_t)body, R(condition), 0);
 
 	ptrs_scope_patch(jit, scope->breakPatches);

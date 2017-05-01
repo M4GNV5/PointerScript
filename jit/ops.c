@@ -65,7 +65,7 @@
 		\
 		extra \
 		\
-		ptrs_jit_seti_type(jit, R(left + 1), PTRS_TYPE_INT); \
+		jit_movi(jit, R(left + 1), ptrs_const_meta(PTRS_TYPE_INT)); \
 		return left; \
 	}
 
