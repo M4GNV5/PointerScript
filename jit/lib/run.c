@@ -22,7 +22,6 @@ ptrs_result_t *ptrs_compile(char *src, const char *filename)
 
 	jit_prolog(result->jit, &result->code);
 	result->ast->handler(result->ast, result->jit, &scope);
-	jit_reti(result->jit, 0);
 
 	jit_enable_optimization(result->jit, JIT_OPT_OMIT_UNUSED_ASSIGNEMENTS);
 	jit_enable_optimization(result->jit, JIT_OPT_JOIN_ADDMUL);

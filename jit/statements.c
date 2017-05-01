@@ -510,13 +510,20 @@ unsigned ptrs_handle_forin(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *sco
 	//TODO
 }
 
-unsigned ptrs_handle_scopestatement(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+unsigned ptrs_handle_file(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
 	ptrs_ast_t *body = node->arg.scopestatement.body;
 
 	scope->fpOffset = jit_allocai(jit, node->arg.scopestatement.stackOffset);
-	body->handler(body, jit, scope);
-	//TODO make sure FP is decremented
+	unsigned ret = body->handler(body, jit, scope);
+	jit_retr(jit, R(ret));
+
+	ptrs_jit_compileErrors(jit, scope);
+}
+
+unsigned ptrs_handle_scopestatement(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+{
+	//TODO
 }
 
 unsigned ptrs_handle_exprstatement(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)

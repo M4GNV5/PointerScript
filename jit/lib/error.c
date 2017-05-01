@@ -240,8 +240,11 @@ ptrs_error_t *ptrs_jit_addError(ptrs_ast_t *ast, ptrs_scope_t *scope, jit_op *ju
 void ptrs_jit_compileErrors(jit_state_t *jit, ptrs_scope_t *scope)
 {
 	ptrs_error_t *curr = scope->errors;
+	scope->errors = NULL;
+
 	while(curr != NULL)
 	{
+		jit_patch(jit, curr->jump);
 		jit_prepare(jit);
 
 		jit_putargi(jit, (uintptr_t)curr->ast);
