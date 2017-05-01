@@ -1,7 +1,6 @@
-#include <stdio.h>
 #include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
+#include <assert.h>
+#include <jitlib.h>
 
 #include "../parser/ast.h"
 #include "../parser/common.h"
@@ -11,7 +10,64 @@
 
 unsigned ptrs_handle_call(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
-	//TODO
+	struct ptrs_ast_call *expr = &node->arg.call;
+
+	unsigned func = expr->value->handler(expr->value, jit, scope);
+	assert(func == scope->usedRegCount);
+	scope->usedRegCount += 2;
+
+	int i;
+	struct ptrs_astlist *list = expr->arguments;
+	for(i = 0; list != NULL; i++)
+	{
+		unsigned val;
+		//if(list->expand) //TODO
+
+		if(list->entry == NULL)
+		{
+			val = scope->usedRegCount;
+			jit_movi(jit, R(val), 0);
+			jit_movi(jit, R(val + 1), 0);
+		}
+		else
+		{
+			val = list->entry->handler(list->entry, jit, scope);
+			assert(val == scope->usedRegCount);
+		}
+
+		scope->usedRegCount += 2;
+		list = list->next;
+	}
+
+
+
+	jit_op *isFunc = jit_bmsi(jit, (uintptr_t)JIT_FORWARD, R(func + 1), ptrs_const_meta(PTRS_TYPE_FUNCTION));
+	ptrs_jit_addError(node, scope, jit_bmci(jit, (uintptr_t)JIT_FORWARD, R(func + 1), ptrs_const_meta(PTRS_TYPE_NATIVE)),
+		1, "Cannot call value of type %mt", R(func + 1));
+
+	//calling a native value
+	jit_prepare(jit);
+	for(int j = 0; j < i; j++)
+	{
+		unsigned val = scope->usedRegCount - i * 2 + j * 2;
+		jit_putargr(jit, R(val));
+	}
+	jit_callr(jit, R(func));
+	jit_op *done = jit_jmpi(jit, JIT_FORWARD);
+
+	//calling a pointerscript function
+	jit_patch(jit, isFunc);
+	jit_prepare(jit);
+	for(int j = 0; j < i; j++)
+	{
+		unsigned val = scope->usedRegCount - i * 2 + j * 2;
+		jit_putargr(jit, R(val));
+		jit_putargr(jit, R(val + 1));
+	}
+	jit_callr(jit, R(func));
+
+	jit_patch(jit, done);
+	//TODO handle return value
 }
 
 unsigned ptrs_handle_stringformat(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
