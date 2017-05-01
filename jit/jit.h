@@ -123,14 +123,14 @@ unsigned ptrs_handle_prefix_minus(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope
 unsigned ptrs_handle_suffix_inc(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope);
 unsigned ptrs_handle_suffix_dec(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope);
 
-ptrs_var_t *ptrs_handle_native_getInt(void *target, size_t size, ptrs_var_t *value);
-ptrs_var_t *ptrs_handle_native_setInt(void *target, size_t size, ptrs_var_t *value);
-ptrs_var_t *ptrs_handle_native_getUInt(void *target, size_t size, ptrs_var_t *value);
-ptrs_var_t *ptrs_handle_native_setUInt(void *target, size_t size, ptrs_var_t *value);
-ptrs_var_t *ptrs_handle_native_getNative(void *target, size_t size, ptrs_var_t *value);
-ptrs_var_t *ptrs_handle_native_getPointer(void *target, size_t size, ptrs_var_t *value);
-ptrs_var_t *ptrs_handle_native_setPointer(void *target, size_t size, ptrs_var_t *value);
-ptrs_var_t *ptrs_handle_native_getFloat(void *target, size_t size, ptrs_var_t *value);
-ptrs_var_t *ptrs_handle_native_setFloat(void *target, size_t size, ptrs_var_t *value);
+void ptrs_handle_native_getInt(void *target, size_t size, ptrs_var_t *value);
+void ptrs_handle_native_setInt(void *target, size_t size, ptrs_var_t *value);
+void ptrs_handle_native_getUInt(void *target, size_t size, ptrs_var_t *value);
+void ptrs_handle_native_setUInt(void *target, size_t size, ptrs_var_t *value);
+void ptrs_handle_native_getNative(void *target, size_t size, ptrs_var_t *value);
+void ptrs_handle_native_getPointer(void *target, size_t size, ptrs_var_t *value);
+void ptrs_handle_native_setPointer(void *target, size_t size, ptrs_var_t *value);
+void ptrs_handle_native_getFloat(void *target, size_t size, ptrs_var_t *value);
+void ptrs_handle_native_setFloat(void *target, size_t size, ptrs_var_t *value);
 
 #endif

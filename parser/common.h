@@ -49,14 +49,13 @@ typedef struct ptrs_scope
 	struct ptrs_error *errors;
 } ptrs_scope_t;
 
-typedef struct ptrs_var *(*ptrs_nativetype_handler_t)(void *target, size_t typeSize, struct ptrs_var *value);
+typedef void (*ptrs_nativetype_handler_t)(void *target, size_t typeSize, struct ptrs_var *value);
 typedef struct ptrs_nativetype_info
 {
 	const char *name;
 	size_t size;
 	ptrs_nativetype_handler_t getHandler;
 	ptrs_nativetype_handler_t setHandler;
-	void *ffiType;
 } ptrs_nativetype_info_t;
 
 typedef struct function

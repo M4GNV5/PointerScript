@@ -130,7 +130,8 @@ ptrs_var_t *ptrs_struct_getMember(ptrs_struct_t *struc, ptrs_var_t *result,
 			result->meta.array.size = member->value.size / sizeof(ptrs_var_t);
 			return result;
 		case PTRS_STRUCTMEMBER_TYPED:
-			return member->value.type->getHandler(data + member->offset, member->value.type->size, result);
+			member->value.type->getHandler(data + member->offset, member->value.type->size, result);
+			return result;
 	}
 
 	return NULL;
