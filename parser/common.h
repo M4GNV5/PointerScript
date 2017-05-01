@@ -138,6 +138,21 @@ typedef union val
 	ptrs_struct_t *structval;
 } ptrs_val_t;
 
+#if (__BYTE_ORDER__==__ORDER_LITTLE_ENDIAN__)
+typedef struct meta
+{
+	union
+	{
+		struct
+		{
+			uint32_t size;
+			uint16_t padding;
+			bool readOnly;
+		} __attribute__((packed)) array;
+	};
+	uint8_t type;
+} ptrs_meta_t;
+#else
 typedef struct meta
 {
 	uint8_t type;
@@ -151,6 +166,7 @@ typedef struct meta
 		} __attribute__((packed)) array;
 	};
 } ptrs_meta_t;
+#endif
 
 typedef struct ptrs_var
 {
@@ -166,8 +182,8 @@ typedef struct ptrs_stackframe
 
 
 
-#define ptrs_const_meta(type) ((type) << 65)
-#define ptrs_const_arraymeta(type, readOnly, size) ((type) << 65 | (readOnly) << 57 | (size))
+#define ptrs_const_meta(type) ((uintptr_t)(type) << 56)
+#define ptrs_const_arraymeta(type, readOnly, size) ((uint8_t)(type) << 56 | (bool)(readOnly) << 48 | (size))
 
 #define ptrs_jit_get_type(jit, result, meta) (jit_rshi_u(jit, result, meta, 54))
 #define ptrs_jit_get_arraysize(jit, result, meta) (jit_andi(jit, result, meta, 0xFFFFFFFF))
@@ -191,6 +207,7 @@ typedef struct ptrs_stackframe
 #define ptrs_jit_load_arrayreadonly(jit, result, offset) (jit_ldxi(jit, result, R_FP, scope->fpOffset + offset + 9, 1))
 #define ptrs_jit_load_arraysize(jit, result, offset) (jit_ldxi(jit, result, R_FP, scope->fpOffset + offset + 12, 4))
 
+//TODO dont use + 8/8/12 here, instead ouse sizeof and offsetof
 #define ptrs_jit_store_val(jit, offset, val) (jit_stxi(jit, R_FP, scope->fpOffset + offset, val, 8))
 #define ptrs_jit_store_meta(jit, offset, val) (jit_stxi(jit, R_FP, scope->fpOffset + offset + 8, val, 8))
 #define ptrs_jit_store_type(jit, offset, val) (jit_stxi(jit, R_FP, scope->fpOffset + offset + 8, val, 1))

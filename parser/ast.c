@@ -10,7 +10,7 @@
 #include JIT_INCLUDE
 #include "ast.h"
 
-#define talloc(type) malloc(sizeof(type))
+#define talloc(type) calloc(sizeof(type), 1)
 
 typedef struct code code_t;
 struct symbollist;

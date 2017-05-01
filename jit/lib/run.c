@@ -24,6 +24,9 @@ ptrs_result_t *ptrs_compile(char *src, const char *filename)
 	result->ast->handler(result->ast, result->jit, &scope);
 	jit_reti(result->jit, 0);
 
+	jit_enable_optimization(result->jit, JIT_OPT_OMIT_UNUSED_ASSIGNEMENTS);
+	jit_enable_optimization(result->jit, JIT_OPT_JOIN_ADDMUL);
+	jit_enable_optimization(result->jit, JIT_OPT_OMIT_FRAME_PTR);
 	jit_generate_code(result->jit);
 
 	return result;
