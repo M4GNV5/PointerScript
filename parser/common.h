@@ -69,10 +69,6 @@ typedef struct function
 	struct ptrs_ast *body;
 	ptrs_scope_t *scope;
 	void *nativeCb;
-#ifdef _PTRS_PORTABLE
-	void *ffiCif;
-	void *nativeCbWrite;
-#endif
 } ptrs_function_t;
 
 enum ptrs_structmembertype
@@ -176,6 +172,7 @@ typedef struct ptrs_var
 typedef struct ptrs_stackframe
 {
 	struct ptrs_stackframe *outer;
+	ptrs_struct_t *self;
 	ptrs_var_t variables[];
 } ptrs_stackframe_t;
 

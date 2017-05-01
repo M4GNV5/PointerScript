@@ -9,7 +9,6 @@
 #include "../include/error.h"
 #include "../include/conversion.h"
 #include "../include/astlist.h"
-#include "../include/call.h"
 
 ptrs_function_t *ptrs_struct_getOverload(ptrs_var_t *struc, void *handler)
 {

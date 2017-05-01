@@ -253,7 +253,7 @@ static const char *importNative(ptrs_stackframe_t *frame, ptrs_ast_t *node, char
 }
 void ptrs_import(ptrs_stackframe_t *frame, ptrs_ast_t *node, ptrs_val_t fromVal, ptrs_meta_t fromMeta)
 {
-	char *path;
+	char *path = NULL;
 	if(fromMeta.type != PTRS_TYPE_UNDEFINED)
 	{
 		char *from = NULL;
@@ -297,7 +297,12 @@ void ptrs_import(ptrs_stackframe_t *frame, ptrs_ast_t *node, ptrs_val_t fromVal,
 			ptrs_error(node, "Error resolving path '%s'", from);
 	}
 
-	char *ending = strrchr(path, '.');
+	char *ending;
+	if(path == NULL)
+	 	ending = NULL;
+	else
+		ending = strrchr(path, '.');
+
 	if(ending != NULL && strcmp(ending, ".ptrs") == 0)
 		importScript(frame, node, path);
 	else
@@ -312,7 +317,18 @@ unsigned ptrs_handle_import(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *sc
 	//R(2) = output ptr
 
 	long ptr = R(scope->usedRegCount++);
-	unsigned from = stmt->from->handler(stmt->from, jit, scope);
+
+	unsigned from;
+	if(stmt->from != NULL)
+	{
+		from = stmt->from->handler(stmt->from, jit, scope);
+	}
+	else
+	{
+		from = scope->usedRegCount;
+		jit_movi(jit, R(from), 0);
+		jit_movi(jit, R(from + 1), ptrs_const_meta(PTRS_TYPE_UNDEFINED));
+	}
 
 	jit_addi(jit, ptr, R_FP, scope->fpOffset);
 
@@ -322,6 +338,8 @@ unsigned ptrs_handle_import(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *sc
 	jit_putargr(jit, R(from));
 	jit_putargr(jit, R(from + 1));
 	jit_call(jit, ptrs_import);
+
+	scope->usedRegCount--;
 }
 
 unsigned ptrs_handle_return(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)

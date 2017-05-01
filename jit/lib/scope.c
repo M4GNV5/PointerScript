@@ -78,12 +78,12 @@ ptrs_var_t *ptrs_stack_get(ptrs_stackframe_t *frame, ptrs_symbol_t symbol)
 	while(symbol.scope-- > 0)
 		frame = frame->outer;
 
-	return (ptrs_var_t *)((uint8_t *)&frame->variables + symbol.offset);
+	return (ptrs_var_t *)((uint8_t *)frame + symbol.offset);
 }
 void ptrs_stack_set(ptrs_stackframe_t *frame, ptrs_symbol_t symbol, ptrs_var_t *val)
 {
 	while(symbol.scope-- > 0)
 		frame = frame->outer;
 
-	memcpy((uint8_t *)&frame->variables + symbol.offset, val, sizeof(ptrs_var_t));
+	memcpy((uint8_t *)frame + symbol.offset, val, sizeof(ptrs_var_t));
 }
