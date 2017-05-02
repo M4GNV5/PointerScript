@@ -167,12 +167,32 @@ unsigned ptrs_handle_slice(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *sco
 
 unsigned ptrs_handle_as(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
-	//TODO
+	struct ptrs_ast_cast *expr = &node->arg.cast;
+	unsigned val = expr->value->handler(expr->value, jit, scope);
+
+	jit_movi(jit, R(val + 1), ptrs_const_meta(expr->builtinType));
+	return val;
 }
 
 unsigned ptrs_handle_cast_builtin(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
-	//TODO
+	struct ptrs_ast_cast *expr = &node->arg.cast;
+	unsigned val = expr->value->handler(expr->value, jit, scope);
+
+	switch(expr->builtinType)
+	{
+		case PTRS_TYPE_INT:
+			ptrs_jit_convert(jit, ptrs_vartoi, R(val), R(val), R(val + 1));
+			break;
+		case PTRS_TYPE_FLOAT:
+			ptrs_jit_convert(jit, ptrs_vartof, R(val), R(val), R(val + 1));
+			break;
+		default:
+			ptrs_error(node, "Cannot convert to type %s", ptrs_typetoa(expr->builtinType));
+	}
+
+	jit_movi(jit, R(val + 1), ptrs_const_meta(expr->builtinType));
+	return val;
 }
 
 unsigned ptrs_handle_tostring(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
@@ -225,7 +245,11 @@ unsigned ptrs_handle_lazy(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scop
 
 unsigned ptrs_handle_prefix_typeof(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
-	//TODO
+	node = node->arg.astval;
+	unsigned val = node->handler(node, jit, scope);
+
+	ptrs_jit_get_type(jit, R(val), R(val + 1));
+	jit_movi(jit, R(val + 1), ptrs_const_meta(PTRS_TYPE_INT));
 }
 
 unsigned ptrs_handle_op_ternary(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
