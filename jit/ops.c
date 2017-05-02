@@ -66,6 +66,7 @@
 		extra \
 		\
 		jit_movi(jit, R(left + 1), ptrs_const_meta(PTRS_TYPE_INT)); \
+		scope->usedRegCount -= 2; \
 		return left; \
 	}
 
@@ -77,7 +78,7 @@
 		/*evaluate the left-side expression*/ \
 		unsigned left = expr->left->handler(expr->left, jit, scope); \
 		assert(scope->usedRegCount == left); \
-		scope->usedRegCount = left + 2; \
+		scope->usedRegCount += 2; \
 		\
 		/*convert the left-side expression to a boolean*/ \
 		long tmpVal = R(scope->usedRegCount); \

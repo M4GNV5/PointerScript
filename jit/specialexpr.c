@@ -68,6 +68,8 @@ unsigned ptrs_handle_call(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scop
 
 	jit_patch(jit, done);
 	//TODO handle return value
+
+	scope->usedRegCount -= i * 2 + 2;
 }
 
 unsigned ptrs_handle_stringformat(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
