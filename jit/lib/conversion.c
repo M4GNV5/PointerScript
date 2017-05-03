@@ -148,20 +148,25 @@ const char *ptrs_vartoa(ptrs_val_t val, ptrs_meta_t meta, char *buff, size_t max
 	return buff;
 }
 
-const char *typeofStrings[] = {
-	"undefined",
-	"int",
-	"float",
-	"native",
-	"pointer",
-	"function",
-	"struct"
-};
-int numTypes = sizeof(typeofStrings) / sizeof(char *);
-
 const char *ptrs_typetoa(ptrs_vartype_t type)
 {
-	if(type < 0 || type >= numTypes)
-		return "unknown";
-	return typeofStrings[type];
+	switch(type)
+	{
+		case PTRS_TYPE_UNDEFINED:
+			return "undefined";
+		case PTRS_TYPE_INT:
+			return "int";
+		case PTRS_TYPE_FLOAT:
+			return "float";
+		case PTRS_TYPE_NATIVE:
+			return "native";
+		case PTRS_TYPE_POINTER:
+			return "pointer";
+		case PTRS_TYPE_FUNCTION:
+			return "function";
+		case PTRS_TYPE_STRUCT:
+			return "struct";
+		default:
+			return "unknown";
+	}
 }
