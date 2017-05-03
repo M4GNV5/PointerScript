@@ -188,7 +188,8 @@ void ptrs_handle_signals(jit_state_t *jit)
 void ptrs_error(ptrs_ast_t *ast, const char *msg, ...)
 {
 	//TODO allow catching errors
-	//TODO implement special printf formats
+
+	//special printf formats:
 	//		%t for printing a type
 	//		%mt for printing the type stored in a ptrs_meta_t
 	//		%ms for printing the array size stored in a ptrs_meta_t
@@ -196,7 +197,50 @@ void ptrs_error(ptrs_ast_t *ast, const char *msg, ...)
 
 	va_list ap;
 	va_start(ap, msg);
-	vfprintf(ptrs_errorfile, msg, ap);
+
+	int start = 0;
+	for(int i = 0; msg[i] != 0; i++)
+	{
+		if(msg[i] == '%')
+		{
+			uintptr_t val;
+			char buff[32];
+			const char *str;
+			switch(msg[++i])
+			{
+				case 't':
+					str = ptrs_typetoa(va_arg(ap, long));
+					break;
+				case 'm':
+					val = va_arg(ap, uintptr_t);
+					switch(msg[++i])
+					{
+						case 't':
+							str = ptrs_typetoa((*(ptrs_meta_t *)&val).type);
+							break;
+						case 's':
+							sprintf(buff, "%d", (*(ptrs_meta_t *)&val).array.size);
+							str = buff;
+							break;
+					}
+					break;
+				case 'v':
+					val = va_arg(ap, uintptr_t);
+					uintptr_t meta = va_arg(ap, uintptr_t);
+					str = ptrs_vartoa(*(ptrs_val_t *)&val, *(ptrs_meta_t *)&meta, buff, 32);
+				default:
+					;
+					char format[3] = {'%', msg[i - 1], 0};
+					snprintf(buff, 32, format, va_arg(ap, long));
+			}
+
+			fwrite(str, 1, strlen(str), ptrs_errorfile);
+		}
+		else
+		{
+			fputc(msg[i], ptrs_errorfile);
+		}
+	}
 
 	if(ast != NULL)
 		ptrs_showpos(ptrs_errorfile, ast);
@@ -248,6 +292,7 @@ void ptrs_jit_compileErrors(jit_state_t *jit, ptrs_scope_t *scope)
 		jit_prepare(jit);
 
 		jit_putargi(jit, (uintptr_t)curr->ast);
+		jit_putargi(jit, curr->text);
 		for(size_t i = 0; i < curr->argCount; i++)
 			jit_putargr(jit, curr->args[i]);
 
