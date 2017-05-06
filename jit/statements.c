@@ -502,7 +502,32 @@ unsigned ptrs_handle_dowhile(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *s
 
 unsigned ptrs_handle_for(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
 {
-	//TODO
+	struct ptrs_ast_for *stmt = &node->arg.forstatement;
+
+	stmt->init->handler(stmt->init, jit, scope);
+
+	ptrs_patchstore_t store;
+	ptrs_scope_storePatches(&store, scope);
+
+	jit_label *check = jit_get_label(jit);
+
+	//evaluate the condition
+	unsigned condition = stmt->condition->handler(stmt->condition, jit, scope);
+	ptrs_jit_vartob(jit, R(condition), R(condition + 1));
+	jit_op *isFalse = jit_beqi(jit, JIT_FORWARD, R(condition), 0);
+
+	//run the while body, jumping back th 'check' at the end
+	stmt->body->handler(stmt->body, jit, scope);
+
+	ptrs_scope_patch(jit, scope->continuePatches);
+	stmt->step->handler(stmt->step, jit, scope);
+
+	jit_jmpi(jit, check);
+
+	//after the loop - patch the end and breaks
+	jit_patch(jit, isFalse);
+	ptrs_scope_patch(jit, scope->breakPatches);
+	ptrs_scope_restorePatches(&store, scope);
 }
 
 unsigned ptrs_handle_forin(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
@@ -516,7 +541,7 @@ unsigned ptrs_handle_file(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scop
 
 	scope->fpOffset = jit_allocai(jit, node->arg.scopestatement.stackOffset);
 	unsigned ret = body->handler(body, jit, scope);
-	jit_retr(jit, R(ret));
+	jit_reti(jit, 0);
 
 	ptrs_jit_compileErrors(jit, scope);
 }
