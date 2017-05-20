@@ -918,15 +918,26 @@ new_stack array[] ["hi", 1337, PI, 9.11];
 Creates a map of key->values in the form of a struct instance. This is a short form for
 defining a struct, useful when defining constant data.
 ```js
-//MapExpression     := 'map' '{' MapEntryList '}'
-//MapEntryList      := Identifier ':' Expression [ ',' MapEntryList ]
-//                  |  StringLiteral ':' Expression [ ',' MapEntryList ]
+//MapExpression		:=	'map' '{' MapEntryList '}'
+//MapEntryList		:=	Identifier MapEntryValue [ ',' MapEntryList ]
+//					|	StringLiteral MapEntryValue [ ',' MapEntryList ]
+//MapEntryValue 	:=	':' Expression
+//					|	'(' ArgumentDefinitionList ')' '->' Expression
+//					|	'(' ArgumentDefinitionList ')' '->' '{' StatementList '}'
 
 var escapes = map {
 	n: '\n',
 	"?": '\?',
 	r: '\r',
 	"\\": '\\'
+	doAddition(x, y) -> x + y,
+	"do-something-else"(a) -> a * a,
+	someAction(foo = 3, bar) -> {
+		//complex code
+	},
+	"some-other-action"(x, y, z) -> {
+		//more complex code
+	}
 };
 ```
 
@@ -937,7 +948,7 @@ Same as [MapExpression](#mapexpression) but memory for the map is allocated on t
 
 map_stack {
 	foo: 3,
-	bar: function(a, b) { return a + b; }
+	bar(a, b) -> a + b,
 	foobar: "1337",
 }
 ```
