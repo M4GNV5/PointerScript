@@ -72,6 +72,22 @@ Valid options are:
 | `--asmdump` | - | Dump the generated assembly instructions | `false` |
 | `--error` | `file` | Set where error messages are written to | `/dev/stderr` |
 
+The script options will be passed to the script in a global variable called `arguments`:
+```js
+//simple program that deletes a file
+import remove, perror;
+
+if(sizeof arguments != 1)
+	throw "Usage: ptrs rm.ptrs <file>";
+
+if(remove(arguments[0]) != 0)
+	perror("Failed deleting file");
+```
+
+You can then run `ptrs rm.ptrs foo.txt` which will delete a file called `foo.txt` if it exists.
+Please note that `ptrs foo.txt rm.ptrs` will not work, as script options must be provided
+after the PointerScript source file.
+
 ## Types
 
 ### Type Usage
@@ -919,25 +935,14 @@ Creates a map of key->values in the form of a struct instance. This is a short f
 defining a struct, useful when defining constant data.
 ```js
 //MapExpression		:=	'map' '{' MapEntryList '}'
-//MapEntryList		:=	Identifier MapEntryValue [ ',' MapEntryList ]
-//					|	StringLiteral MapEntryValue [ ',' MapEntryList ]
-//MapEntryValue 	:=	':' Expression
-//					|	'(' ArgumentDefinitionList ')' '->' Expression
-//					|	'(' ArgumentDefinitionList ')' '->' '{' StatementList '}'
+//MapEntryList		:=	Identifier ':' Expression [ ',' MapEntryList ]
+//					|	StringLiteral ':' Expression [ ',' MapEntryList ]
 
 var escapes = map {
 	n: '\n',
 	"?": '\?',
 	r: '\r',
 	"\\": '\\'
-	doAddition(x, y) -> x + y,
-	"do-something-else"(a) -> a * a,
-	someAction(foo = 3, bar) -> {
-		//complex code
-	},
-	"some-other-action"(x, y, z) -> {
-		//more complex code
-	}
 };
 ```
 
@@ -948,7 +953,7 @@ Same as [MapExpression](#mapexpression) but memory for the map is allocated on t
 
 map_stack {
 	foo: 3,
-	bar(a, b) -> a + b,
+	bar: function(a, b) { return a + b; }
 	foobar: "1337",
 }
 ```
