@@ -7,7 +7,42 @@
 #include <string.h>
 #include <math.h>
 
+#include <jit/jit.h>
+
 #include "../../parser/common.h"
+#include "../include/conversion.h"
+
+jit_value_t ptrs_jit_vartob(jit_function_t func, jit_value_t val, jit_value_t meta)
+{
+	jit_value_t tmp1 = ptrs_jit_get_type(func, meta);
+	tmp1 = jit_insn_eq(func, tmp1, ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED));
+	jit_value_t tmp2 = jit_insn_eq(func, val, ptrs_jit_const_val(func, 0));
+	return jit_insn_and(func, tmp1, tmp2);
+}
+
+jit_value_t ptrs_jit_vartoi(jit_function_t func, jit_value_t val, jit_value_t meta)
+{
+	jit_intrinsic_descr_t descr = {
+		.return_type = jit_type_long,
+		.ptr_result_type = NULL,
+		.arg1_type = jit_type_long,
+		.arg2_type = jit_type_ulong
+	};
+
+	return jit_insn_call_intrinsic(func, NULL, ptrs_vartoi, &descr, val, meta);
+}
+
+jit_value_t ptrs_jit_vartof(jit_function_t func, jit_value_t val, jit_value_t meta)
+{
+	jit_intrinsic_descr_t descr = {
+		.return_type = jit_type_float64,
+		.ptr_result_type = NULL,
+		.arg1_type = jit_type_long,
+		.arg2_type = jit_type_ulong
+	};
+
+	return jit_insn_call_intrinsic(func, NULL, ptrs_vartof, &descr, val, meta);
+}
 
 bool ptrs_vartob(ptrs_val_t val, ptrs_meta_t meta)
 {
@@ -40,21 +75,28 @@ int64_t strntol(const char *str, uint32_t len)
 
 	return strtoimax(str2, NULL, 0);
 }
-int64_t ptrs_vartoi(ptrs_val_t val, ptrs_meta_t meta)
+void ptrs_vartoi(int64_t *result, ptrs_val_t val, ptrs_meta_t meta)
 {
 	switch(meta.type)
 	{
 		case PTRS_TYPE_UNDEFINED:
-			return 0;
+			*result = 0;
+			break;
 		case PTRS_TYPE_INT:
-			return val.intval;
+			*result = val.intval;
+			break;
 		case PTRS_TYPE_FLOAT:
-			return val.floatval;
+			*result = val.floatval;
+			break;
 		case PTRS_TYPE_NATIVE:
 			if(meta.array.size > 0)
-				return strntol(val.strval, meta.array.size);
+			{
+				*result = strntol(val.strval, meta.array.size);
+				break;
+			}
 		default: //pointer type
-			return (intptr_t)val.nativeval;
+			*result = (intptr_t)val.nativeval;
+			break;
 	}
 }
 
@@ -74,21 +116,28 @@ double strntod(const char *str, uint32_t len)
 
 	return atof(str2);
 }
-double ptrs_vartof(ptrs_val_t val, ptrs_meta_t meta)
+void ptrs_vartof(double *result, ptrs_val_t val, ptrs_meta_t meta)
 {
 	switch(meta.type)
 	{
 		case PTRS_TYPE_UNDEFINED:
-			return NAN;
+			*result = 0;
+			break;
 		case PTRS_TYPE_INT:
-			return val.intval;
+			*result = val.intval;
+			break;
 		case PTRS_TYPE_FLOAT:
-			return val.floatval;
+			*result = val.floatval;
+			break;
 		case PTRS_TYPE_NATIVE:
 			if(meta.array.size > 0)
-				return strntod(val.strval, meta.array.size);
+			{
+				*result = strntod(val.strval, meta.array.size);
+				break;
+			}
 		default: //pointer type
-			return (intptr_t)val.nativeval;
+			*result = (intptr_t)val.nativeval;
+			break;
 	}
 }
 
@@ -148,25 +197,33 @@ const char *ptrs_vartoa(ptrs_val_t val, ptrs_meta_t meta, char *buff, size_t max
 	return buff;
 }
 
-const char *ptrs_typetoa(ptrs_vartype_t type)
+void ptrs_typetoa(const char **result, ptrs_vartype_t type)
 {
 	switch(type)
 	{
 		case PTRS_TYPE_UNDEFINED:
-			return "undefined";
+			*result = "undefined";
+			break;
 		case PTRS_TYPE_INT:
-			return "int";
+			*result = "int";
+			break;
 		case PTRS_TYPE_FLOAT:
-			return "float";
+			*result = "float";
+			break;
 		case PTRS_TYPE_NATIVE:
-			return "native";
+			*result = "native";
+			break;
 		case PTRS_TYPE_POINTER:
-			return "pointer";
+			*result = "pointer";
+			break;
 		case PTRS_TYPE_FUNCTION:
-			return "function";
+			*result = "function";
+			break;
 		case PTRS_TYPE_STRUCT:
-			return "struct";
+			*result = "struct";
+			break;
 		default:
-			return "unknown";
+			*result = "unknown";
+			break;
 	}
 }

@@ -3,32 +3,17 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <jitlib.h>
+#include <jit/jit.h>
 
 #include "../../parser/common.h"
 
-bool ptrs_vartob(ptrs_val_t val, ptrs_meta_t meta);
-int64_t ptrs_vartoi(ptrs_val_t val, ptrs_meta_t meta);
-double ptrs_vartof(ptrs_val_t val, ptrs_meta_t meta);
+void ptrs_typetoa(const char **result, ptrs_vartype_t type);
+void ptrs_vartoi(int64_t *result, ptrs_val_t val, ptrs_meta_t meta);
+void ptrs_vartof(double *result, ptrs_val_t val, ptrs_meta_t meta);
 const char *ptrs_vartoa(ptrs_val_t val, ptrs_meta_t meta, char *buff, size_t maxlen);
 
-#define ptrs_jit_vartob(jit, val, meta) \
-	do { \
-		ptrs_jit_get_type(jit, meta, meta); \
-		jit_nei(jit, meta, meta, PTRS_TYPE_UNDEFINED); \
-		jit_nei(jit, val, val, 0); \
-		jit_andr(jit, val, val, meta); \
-	} while(0)
-#define ptrs_jit_convert(jit, method, result, val, meta) \
-	do { \
-		jit_prepare(jit); \
-		jit_putargr(jit, val); \
-		jit_putargr(jit, meta); \
-		jit_call(jit, method); \
-		jit_retval(jit, result); \
-	} while(0)
-
-
-const char *ptrs_typetoa(ptrs_vartype_t type);
+jit_value_t ptrs_jit_vartob(jit_function_t func, jit_value_t val, jit_value_t meta);
+jit_value_t ptrs_jit_vartoi(jit_function_t func, jit_value_t val, jit_value_t meta);
+jit_value_t ptrs_jit_vartof(jit_function_t func, jit_value_t val, jit_value_t meta);
 
 #endif
