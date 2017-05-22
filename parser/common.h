@@ -22,13 +22,13 @@ typedef struct ptrs_symbol
 
 typedef enum type
 {
-	PTRS_TYPE_UNDEFINED = 0,
-	PTRS_TYPE_INT = 1,
-	PTRS_TYPE_FLOAT = 2,
-	PTRS_TYPE_NATIVE = 4,
-	PTRS_TYPE_POINTER = 8,
-	PTRS_TYPE_FUNCTION = 16,
-	PTRS_TYPE_STRUCT = 32,
+	PTRS_TYPE_UNDEFINED,
+	PTRS_TYPE_INT,
+	PTRS_TYPE_FLOAT,
+	PTRS_TYPE_NATIVE,
+	PTRS_TYPE_POINTER,
+	PTRS_TYPE_FUNCTION,
+	PTRS_TYPE_STRUCT,
 } ptrs_vartype_t;
 
 struct ptrs_error;
@@ -169,6 +169,12 @@ typedef struct ptrs_var
 	ptrs_meta_t meta;
 } ptrs_var_t;
 
+typedef struct
+{
+	jit_value_t val;
+	jit_value_t meta;
+} ptrs_jit_var_t;
+
 typedef struct ptrs_stackframe
 {
 	struct ptrs_stackframe *outer;
@@ -176,38 +182,16 @@ typedef struct ptrs_stackframe
 	ptrs_var_t variables[];
 } ptrs_stackframe_t;
 
-
+#define jit_const_int(func, type, val) (jit_value_create_nint_constant(func, jit_type_##type, val))
+#define jit_const_long(func, type, val) (jit_value_create_long_constant(func, jit_type_##type, val))
 
 #define ptrs_const_meta(type) ((uintptr_t)(type) << 56)
 #define ptrs_const_arraymeta(type, readOnly, size) ((uint8_t)(type) << 56 | (bool)(readOnly) << 48 | (size))
 
-#define ptrs_jit_get_type(jit, result, meta) (jit_rshi_u(jit, result, meta, 54))
-#define ptrs_jit_get_arraysize(jit, result, meta) (jit_andi(jit, result, meta, 0xFFFFFFFF))
+#define ptrs_jit_const_meta(func, type) (jit_value_create_long_constant(func, jit_type_ulong, ptrs_const_meta(type)))
+#define ptrs_jit_const_val(func, val) (jit_value_create_long_constant(func, jit_type_long, val))
 
-#define ptrs_jit_clear_type(jit, meta) (jit_andi(jit, meta, meta, ~(0xFF << 54)))
-#define ptrs_jit_clear_arraysize(jit, meta) (jit_andi(jit, meta, meta, ~0xFFFFFFFF))
-
-#define ptrs_jit_seti_type(jit, meta, type) (jit_ori(jit, meta, meta, (uint64_t)(type) << 54))
-#define ptrs_jit_seti_arraysize(jit, meta, size) (jit_ori(jit, meta, meta, size))
-
-#define ptrs_jit_setr_type(jit, meta, type) do \
-	{ \
-		jit_lshi(jit, type, type, 54); \
-		jit_orr(jit, meta, meta, type); \
-	} while(0)
-#define ptrs_jit_setr_arraysize(jit, meta, size) (jit_orr(jit, meta, meta, size))
-
-#define ptrs_jit_load_val(jit, result, offset) (jit_ldxi(jit, result, R_FP, scope->fpOffset + offset, 8))
-#define ptrs_jit_load_meta(jit, result, offset) (jit_ldxi(jit, result, R_FP, scope->fpOffset + offset + 8, 8))
-#define ptrs_jit_load_type(jit, result, offset) (jit_ldxi(jit, result, R_FP, scope->fpOffset + offset + 8, 1))
-#define ptrs_jit_load_arrayreadonly(jit, result, offset) (jit_ldxi(jit, result, R_FP, scope->fpOffset + offset + 9, 1))
-#define ptrs_jit_load_arraysize(jit, result, offset) (jit_ldxi(jit, result, R_FP, scope->fpOffset + offset + 12, 4))
-
-//TODO dont use + 8/8/12 here, instead ouse sizeof and offsetof
-#define ptrs_jit_store_val(jit, offset, val) (jit_stxi(jit, R_FP, scope->fpOffset + offset, val, 8))
-#define ptrs_jit_store_meta(jit, offset, val) (jit_stxi(jit, R_FP, scope->fpOffset + offset + 8, val, 8))
-#define ptrs_jit_store_type(jit, offset, val) (jit_stxi(jit, R_FP, scope->fpOffset + offset + 8, val, 1))
-#define ptrs_jit_store_arrayreadonly(jit, offset, val) (jit_stxi(jit, R_FP, scope->fpOffset + offset + 9, val, 1))
-#define ptrs_jit_store_arraysize(jit, offset, val) (jit_stxi(jit, R_FP, scope->fpOffset + offset + 12, val, 4))
+#define ptrs_jit_get_type(func, meta) (jit_insn_ushr(func, meta, jit_const_int(func, ubyte, 54)))
+#define ptrs_jit_get_arraysize(func, meta) (jit_insn_and(func, meta, jit_const_long(func, ulong, 0xFFFFFFFF)))
 
 #endif
