@@ -44,6 +44,23 @@ jit_value_t ptrs_jit_vartof(jit_function_t func, jit_value_t val, jit_value_t me
 	return jit_insn_call_intrinsic(func, NULL, ptrs_vartof, &descr, val, meta);
 }
 
+jit_value_t ptrs_jit_vartoa(jit_function_t func, jit_value_t val, jit_value_t meta, jit_value_t buff, jit_value_t maxlen)
+{
+	jit_type_t paramDef[] = {
+		jit_type_long, //ptrs_val_t
+		jit_type_ulong, //ptrs_meta_t
+		jit_type_void_ptr,
+		jit_type_ulong
+	};
+
+	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, jit_type_void_ptr, paramDef, 4, 0);
+	jit_value_t params[] = {val, meta, buff, maxlen};
+
+	jit_value_t ret = jit_insn_call_native(func, NULL, ptrs_vartoa, signature, params, 4, JIT_CALL_NOTHROW);
+	jit_type_free(signature);
+	return ret;
+}
+
 bool ptrs_vartob(ptrs_val_t val, ptrs_meta_t meta)
 {
 	switch(meta.type)

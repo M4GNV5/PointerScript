@@ -189,7 +189,6 @@ typedef struct ptrs_stackframe
 #define ptrs_const_arraymeta(type, readOnly, size) ((uint8_t)(type) << 56 | (bool)(readOnly) << 48 | (size))
 
 #define ptrs_jit_const_meta(func, type) (jit_value_create_long_constant(func, jit_type_ulong, ptrs_const_meta(type)))
-#define ptrs_jit_const_val(func, val) (jit_value_create_long_constant(func, jit_type_long, val))
 
 #define ptrs_jit_get_type(func, meta) (jit_insn_ushr(func, meta, jit_const_int(func, ubyte, 54)))
 #define ptrs_jit_get_arraysize(func, meta) (jit_insn_and(func, meta, jit_const_long(func, ulong, 0xFFFFFFFF)))
