@@ -92,28 +92,21 @@ int64_t strntol(const char *str, uint32_t len)
 
 	return strtoimax(str2, NULL, 0);
 }
-void ptrs_vartoi(int64_t *result, ptrs_val_t val, ptrs_meta_t meta)
+int64_t ptrs_vartoi(ptrs_val_t val, ptrs_meta_t meta)
 {
 	switch(meta.type)
 	{
 		case PTRS_TYPE_UNDEFINED:
-			*result = 0;
-			break;
+			return 0;
 		case PTRS_TYPE_INT:
-			*result = val.intval;
-			break;
+			return val.intval;
 		case PTRS_TYPE_FLOAT:
-			*result = val.floatval;
-			break;
+			return val.floatval;
 		case PTRS_TYPE_NATIVE:
 			if(meta.array.size > 0)
-			{
-				*result = strntol(val.strval, meta.array.size);
-				break;
-			}
+				return strntol(val.strval, meta.array.size);
 		default: //pointer type
-			*result = (intptr_t)val.nativeval;
-			break;
+			return (intptr_t)val.nativeval;
 	}
 }
 
@@ -133,28 +126,21 @@ double strntod(const char *str, uint32_t len)
 
 	return atof(str2);
 }
-void ptrs_vartof(double *result, ptrs_val_t val, ptrs_meta_t meta)
+double ptrs_vartof(ptrs_val_t val, ptrs_meta_t meta)
 {
 	switch(meta.type)
 	{
 		case PTRS_TYPE_UNDEFINED:
-			*result = 0;
-			break;
+			return NAN;
 		case PTRS_TYPE_INT:
-			*result = val.intval;
-			break;
+			return val.intval;
 		case PTRS_TYPE_FLOAT:
-			*result = val.floatval;
-			break;
+			return val.floatval;
 		case PTRS_TYPE_NATIVE:
 			if(meta.array.size > 0)
-			{
-				*result = strntod(val.strval, meta.array.size);
-				break;
-			}
+				return strntod(val.strval, meta.array.size);
 		default: //pointer type
-			*result = (intptr_t)val.nativeval;
-			break;
+			return (intptr_t)val.nativeval;
 	}
 }
 
