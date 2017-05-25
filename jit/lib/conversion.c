@@ -200,33 +200,26 @@ const char *ptrs_vartoa(ptrs_val_t val, ptrs_meta_t meta, char *buff, size_t max
 	return buff;
 }
 
-void ptrs_typetoa(const char **result, ptrs_vartype_t type)
+const char *ptrs_typetoa(ptrs_vartype_t type)
 {
 	switch(type)
 	{
 		case PTRS_TYPE_UNDEFINED:
-			*result = "undefined";
-			break;
+			return "undefined";
 		case PTRS_TYPE_INT:
-			*result = "int";
+			return "int";
 			break;
 		case PTRS_TYPE_FLOAT:
-			*result = "float";
-			break;
+			return "float";
 		case PTRS_TYPE_NATIVE:
-			*result = "native";
-			break;
+			return "native";
 		case PTRS_TYPE_POINTER:
-			*result = "pointer";
-			break;
+			return "pointer";
 		case PTRS_TYPE_FUNCTION:
-			*result = "function";
-			break;
+			return "function";
 		case PTRS_TYPE_STRUCT:
-			*result = "struct";
-			break;
+			return "struct";
 		default:
-			*result = "unknown";
-			break;
+			return "unknown";
 	}
 }
