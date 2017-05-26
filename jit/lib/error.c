@@ -22,7 +22,6 @@ typedef struct
 	int column;
 } codepos_t;
 
-ptrs_positionlist_t *ptrs_positions = NULL;
 FILE *ptrs_errorfile = NULL;
 
 void ptrs_getpos(codepos_t *pos, ptrs_ast_t *ast)
@@ -48,51 +47,6 @@ void ptrs_getpos(codepos_t *pos, ptrs_ast_t *ast)
 	pos->line = line;
 	pos->column = column;
 }
-void ptrs_showpos(FILE *fd, ptrs_ast_t *ast)
-{
-	codepos_t pos;
-	ptrs_getpos(&pos, ast);
-
-	fprintf(fd, " at %s:%d:%d\n", ast->file, pos.line, pos.column);
-
-	int linelen = strchr(pos.currLine, '\n') - pos.currLine;
-	fprintf(fd, "%.*s\n", linelen, pos.currLine);
-
-	int linePos = (ast->code + ast->codepos) - pos.currLine;
-	for(int i = 0; i < linePos; i++)
-	{
-		fprintf(fd, pos.currLine[i] == '\t' ? "\t" : " ");
-	}
-	fprintf(fd, "^\n\n");
-}
-
-ptrs_ast_t *ptrs_retrieveast(void *mem, const char **funcName)
-{
-	ptrs_positionlist_t *curr = ptrs_positions;
-	while(curr != NULL)
-	{
-		if(curr->start < mem && mem < curr->end)
-			break;
-
-		curr = curr->next;
-	}
-
-	if(curr == NULL)
-		return NULL;
-
-	if(funcName != NULL)
-		*funcName = curr->funcName;
-
-	void *ptr = curr->start;
-	for(int i = 0; ptr < curr->end; i++)
-	{
-		if(ptr >= mem)
-			return curr->positions[i].ast;
-		else
-			ptr += curr->positions[i].size;
-	}
-	return NULL;
-}
 
 char *ptrs_backtrace()
 {
@@ -100,9 +54,8 @@ char *ptrs_backtrace()
 	char *buff = malloc(bufflen);
 	char *buffptr = buff;
 
-#ifdef _GNU_SOURCE
-	uint8_t *trace[32];
-	int count = backtrace((void **)trace, 32);
+	jit_stack_trace_t trace = jit_exception_get_stack_trace();
+	int count = jit_stack_trace_get_size(trace);
 
 	for(int i = 0; i < count; i++)
 	{
@@ -114,19 +67,18 @@ char *ptrs_backtrace()
 			buffptr = buff + diff;
 		}
 
-		const char *func;
-		ptrs_ast_t *ast = ptrs_retrieveast(trace[i], &func);
-		if(ast != NULL)
+		jit_function_t func = jit_stack_trace_get_function(ptrs_jit_context, trace, i);
+		if(func)
 		{
-			codepos_t pos;
-			ptrs_getpos(&pos, ast);
-
-			buffptr += sprintf(buffptr, "    at %s (%s:%d:%d)\n", func, ast->file, pos.line, pos.column);
+			//TODO
 		}
 		else
 		{
+#ifdef _GNU_SOURCE
+			void *ptr = jit_stack_trace_get_pc(trace, i);
 			Dl_info info;
-			if(dladdr(trace[i], &info) == 0)
+
+			if(dladdr(ptr, &info) == 0)
 			{
 				info.dli_sname = NULL;
 				info.dli_fname = NULL;
@@ -135,18 +87,89 @@ char *ptrs_backtrace()
 			if(info.dli_sname != NULL)
 				buffptr += sprintf(buffptr, "    at %s ", info.dli_sname);
 			else
-				buffptr += sprintf(buffptr, "    at %p ", trace[i]);
+				buffptr += sprintf(buffptr, "    at %p ", ptr);
 
 			if(info.dli_fname != NULL)
 				buffptr += sprintf(buffptr, "(%s)\n", info.dli_fname);
 			else
 				buffptr += sprintf(buffptr, "(unknown)\n");
+#else
+			buffptr += sprintf(buffptr, "    at %p (unknown)\n", jit_stack_trace_get_pc(trace, i));
+#endif
+		}
+	}
+
+	return buff;
+}
+
+void *ptrs_formatErrorMsg(const char *msg, va_list ap)
+{
+	//special printf formats:
+	//		%t for printing a type
+	//		%mt for printing the type stored in a ptrs_meta_t
+	//		%ms for printing the array size stored in a ptrs_meta_t
+	//		%v for printing a variable
+
+	int bufflen = 1024;
+	char *buff = malloc(bufflen);
+	char *buffptr = buff;
+
+	while(*msg != 0)
+	{
+		if(*msg == '%')
+		{
+			uintptr_t val;
+			char valbuff[32];
+
+			const char *str;
+			switch(*++msg)
+			{
+				case 't':
+					str = ptrs_typetoa(va_arg(ap, long));
+					break;
+				case 'm':
+					val = va_arg(ap, uintptr_t);
+					switch(*++msg)
+					{
+						case 't':
+							str = ptrs_typetoa((*(ptrs_meta_t *)&val).type);
+							break;
+						case 's':
+							sprintf(valbuff, "%d", (*(ptrs_meta_t *)&val).array.size);
+							str = valbuff;
+							break;
+					}
+					break;
+				case 'v':
+					val = va_arg(ap, uintptr_t);
+					uintptr_t meta = va_arg(ap, uintptr_t);
+					str = ptrs_vartoa(*(ptrs_val_t *)&val, *(ptrs_meta_t *)&meta, buff, 32);
+				default:
+					;
+					char format[3] = {'%', *(msg - 1), 0};
+					snprintf(valbuff, 32, format, va_arg(ap, long));
+					str = valbuff;
+			}
+
+			int len = strlen(str);
+			while(buffptr + len > buff + bufflen)
+			{
+				ptrdiff_t diff = buffptr - buff;
+				bufflen *= 2;
+				buff = realloc(buff, bufflen);
+				buffptr = buff + diff;
+			}
+
+			memcpy(buffptr, str, len + 1);
+			buffptr += len;
+		}
+		else
+		{
+			*buffptr += *msg;
 		}
 
+		msg++;
 	}
-#else
-	sprintf(buff, "Backtraces are only available on GNU systems\n");
-#endif
 
 	return buff;
 }
@@ -155,19 +178,21 @@ void ptrs_handle_sig(int sig, siginfo_t *info, void *data)
 {
 	//TODO allow catching errors
 
-	fprintf(ptrs_errorfile, "Received signal: %s", strsignal(sig));
-	ptrs_ast_t *ast = ptrs_retrieveast(info->si_addr, NULL);
+	ptrs_error_t *error = malloc(sizeof(ptrs_error_t));
 
-	if(ast != NULL)
-		ptrs_showpos(ptrs_errorfile, ast);
-	else
-		fprintf(ptrs_errorfile, "\n");
+	int len = snprintf(NULL, 0, "Received signal: %s", strsignal(sig));
+	error->message = malloc(len + 1);
+	sprintf(error->message, "Received signal: %s", strsignal(sig));
 
-	fprintf(ptrs_errorfile, "%s", ptrs_backtrace());
-	exit(EXIT_FAILURE);
+	error->backtrace = ptrs_backtrace();
+
+	error->file = NULL;
+	error->line = -1;
+	error->column = -1;
+	jit_exception_throw(error);
 }
 
-void ptrs_handle_signals(jit_state_t *jit)
+void ptrs_handle_signals(jit_function_t func)
 {
 	struct sigaction action;
 	action.sa_sigaction = ptrs_handle_sig;
@@ -185,121 +210,45 @@ void ptrs_handle_signals(jit_state_t *jit)
 	sigaction(SIGPIPE, &action, NULL);
 }
 
-void ptrs_error(ptrs_ast_t *ast, const char *msg, ...)
+void ptrs_handle_error(ptrs_ast_t *ast, const char *msg, ...)
 {
-	//TODO allow catching errors
-
-	//special printf formats:
-	//		%t for printing a type
-	//		%mt for printing the type stored in a ptrs_meta_t
-	//		%ms for printing the array size stored in a ptrs_meta_t
-	//		%v for printing a variable
-
 	va_list ap;
 	va_start(ap, msg);
 
-	int start = 0;
-	for(int i = 0; msg[i] != 0; i++)
-	{
-		if(msg[i] == '%')
-		{
-			uintptr_t val;
-			char buff[32];
-			const char *str;
-			switch(msg[++i])
-			{
-				case 't':
-					str = ptrs_typetoa(va_arg(ap, long));
-					break;
-				case 'm':
-					val = va_arg(ap, uintptr_t);
-					switch(msg[++i])
-					{
-						case 't':
-							str = ptrs_typetoa((*(ptrs_meta_t *)&val).type);
-							break;
-						case 's':
-							sprintf(buff, "%d", (*(ptrs_meta_t *)&val).array.size);
-							str = buff;
-							break;
-					}
-					break;
-				case 'v':
-					val = va_arg(ap, uintptr_t);
-					uintptr_t meta = va_arg(ap, uintptr_t);
-					str = ptrs_vartoa(*(ptrs_val_t *)&val, *(ptrs_meta_t *)&meta, buff, 32);
-				default:
-					;
-					char format[3] = {'%', msg[i - 1], 0};
-					snprintf(buff, 32, format, va_arg(ap, long));
-			}
+	ptrs_error_t *error = malloc(sizeof(ptrs_error_t));
+	error->message = ptrs_formatErrorMsg(msg, ap);
+	error->backtrace = ptrs_backtrace();
+	error->file = ast->file;
 
-			fwrite(str, 1, strlen(str), ptrs_errorfile);
-		}
-		else
-		{
-			fputc(msg[i], ptrs_errorfile);
-		}
-	}
-
-	if(ast != NULL)
-		ptrs_showpos(ptrs_errorfile, ast);
-
-	fprintf(ptrs_errorfile, "%s", ptrs_backtrace());
-	exit(EXIT_FAILURE);
+	codepos_t pos;
+	ptrs_getpos(&pos, ast);
+	error->line = pos.line;
+	error->column = pos.column;
 }
 
-ptrs_error_t *ptrs_jit_addError(ptrs_ast_t *ast, ptrs_scope_t *scope, jit_op *jump,
+void ptrs_jit_assert(ptrs_ast_t *ast, jit_function_t func, jit_value_t condition,
 	size_t argCount, const char *text, ...)
 {
-	long *args;
-	if(argCount > 0)
-	{
-		va_list ap;
-		va_start(ap, text);
+	va_list ap;
+	va_start(ap, text);
 
-		args = malloc(sizeof(long) * argCount);
-		for(size_t i = 0; i < argCount; i++)
-			args[i] = va_arg(ap, long);
+	argCount += 2;
+	jit_value_t args[argCount];
+	args[0] = jit_const_int(func, void_ptr, (uintptr_t)ast);
+	args[1] = jit_const_int(func, void_ptr, (uintptr_t)text);
 
-		va_end(ap);
-	}
-	else
-	{
-		args = NULL;
-	}
+	for(size_t i = 2; i < argCount; i++)
+		args[i] = va_arg(ap, jit_value_t);
 
-	ptrs_error_t *error = malloc(sizeof(ptrs_error_t));
-	error->ast = ast;
-	error->jump = jump;
-	error->text = text;
-	error->argCount = argCount;
-	error->args = args;
+	va_end(ap);
 
-	error->next = scope->errors;
-	scope->errors = error;
-	return error;
-}
+	jit_label_t label = jit_label_undefined;
+	jit_insn_branch_if(func, condition, &label);
 
-void ptrs_jit_compileErrors(jit_state_t *jit, ptrs_scope_t *scope)
-{
-	ptrs_error_t *curr = scope->errors;
-	scope->errors = NULL;
+	jit_type_t params[2] = {jit_type_void_ptr, jit_type_void_ptr};
+	jit_type_t signature = jit_type_create_signature(jit_abi_vararg, jit_type_void, params, 2, 1);
+	jit_insn_call_native(func, "ptrs_handle_error", ptrs_handle_error, signature, args, argCount, JIT_CALL_NORETURN);
+	jit_type_free(signature);
 
-	while(curr != NULL)
-	{
-		jit_patch(jit, curr->jump);
-		jit_prepare(jit);
-
-		jit_putargi(jit, (uintptr_t)curr->ast);
-		jit_putargi(jit, curr->text);
-		for(size_t i = 0; i < curr->argCount; i++)
-			jit_putargr(jit, curr->args[i]);
-
-		jit_call(jit, ptrs_error);
-
-		ptrs_error_t *next = curr->next;
-		free(curr);
-		curr = next;
-	}
+	jit_insn_label(func, &label);
 }

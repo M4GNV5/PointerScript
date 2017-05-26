@@ -8,36 +8,18 @@
 
 extern FILE *ptrs_errorfile;
 
-struct ptrs_knownpos
-{
-	size_t size;
-	ptrs_ast_t *ast;
-};
-typedef struct ptrs_positionlist
-{
-	void *start;
-	void *end;
-	const char *funcName;
-	struct ptrs_knownpos *positions;
-	struct ptrs_positionlist *next;
-} ptrs_positionlist_t;
-
-void ptrs_error(ptrs_ast_t *ast, const char *msg, ...);
-void ptrs_handle_signals();
-
 typedef struct ptrs_error
 {
-	ptrs_ast_t *ast;
-	jit_op *jump;
-	struct ptrs_error *next;
-
-	const char *text;
-	size_t argCount;
-	long *args;
+	char *message;
+	char *backtrace;
+	const char *file;
+	int line;
+	int column;
 } ptrs_error_t;
 
-ptrs_error_t *ptrs_jit_addError(ptrs_ast_t *ast, ptrs_scope_t *scope, jit_op *jump,
+void ptrs_handle_signals();
+
+void ptrs_jit_assert(ptrs_ast_t *ast, jit_function_t func, jit_value_t condition,
 	size_t argCount, const char *text, ...);
-void ptrs_jit_compileErrors(jit_state_t *jit, ptrs_scope_t *scope);
 
 #endif
