@@ -7,9 +7,9 @@
 
 #include "../../parser/common.h"
 
-void ptrs_typetoa(const char **result, ptrs_vartype_t type);
-void ptrs_vartoi(int64_t *result, ptrs_val_t val, ptrs_meta_t meta);
-void ptrs_vartof(double *result, ptrs_val_t val, ptrs_meta_t meta);
+const char *ptrs_typetoa(ptrs_vartype_t type);
+int64_t ptrs_vartoi(ptrs_val_t val, ptrs_meta_t meta);
+double ptrs_vartof(ptrs_val_t val, ptrs_meta_t meta);
 const char *ptrs_vartoa(ptrs_val_t val, ptrs_meta_t meta, char *buff, size_t maxlen);
 
 jit_value_t ptrs_jit_vartob(jit_function_t func, jit_value_t val, jit_value_t meta);
