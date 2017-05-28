@@ -52,7 +52,7 @@ jit_value_t ptrs_jit_vartoa(jit_function_t func, jit_value_t val, jit_value_t me
 		jit_type_ulong
 	};
 
-	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, jit_type_void_ptr, paramDef, 4, 0);
+	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, jit_type_void_ptr, paramDef, 4, 1);
 	jit_value_t params[] = {val, meta, buff, maxlen};
 
 	jit_value_t ret = jit_insn_call_native(func, NULL, ptrs_vartoa, signature, params, 4, JIT_CALL_NOTHROW);
