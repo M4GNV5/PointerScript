@@ -1,61 +1,15 @@
 #include <string.h>
-#include <assert.h>
+#include <jit/jit.h>
 
-#include "../include/error.h"
 #include "../include/conversion.h"
 #include "../../parser/common.h"
 #include "../../parser/ast.h"
 
-void ptrs_astlist_handle(struct ptrs_astlist *list, long valReg, long sizeReg, jit_state_t *jit, ptrs_scope_t *scope)
+void ptrs_astlist_handle(struct ptrs_astlist *list, jit_function_t func, ptrs_scope_t *scope, jit_value_t val, jit_value_t size)
 {
 	int i;
-	unsigned result;
-
-	for(i = 0; list != NULL; i += 16)
-	{
-		//if(list->expand) //TODO
-
-		if(list->entry == NULL)
-		{
-			result = scope->usedRegCount;
-			jit_movi(jit, R(result), 0);
-			jit_movi(jit, R(result + 1), 0);
-		}
-		else
-		{
-			result = list->entry->handler(list->entry, jit, scope);
-		}
-
-		jit_stxi(jit, i, valReg, R(result), sizeof(ptrs_val_t));
-		jit_stxi(jit, i + 8, valReg, R(result + 1), sizeof(ptrs_meta_t));
-
-		list = list->next;
-	}
-
-	assert(result == scope->usedRegCount);
-	scope->usedRegCount += 2;
-
-	long iReg = R(scope->usedRegCount++);
-	jit_movi(jit, iReg, i);
-
-	jit_label *check = jit_get_label(jit);
-	jit_op *done = jit_bger_u(jit, JIT_FORWARD, iReg, sizeReg); //while(i < array.size)
-
-	jit_stxr(jit, valReg, iReg, R(result), 8); //array[i] = default.value
-	jit_addi(jit, iReg, iReg, 8);         //i += 8
-	jit_stxr(jit, valReg, iReg, R(result + 1), 8); //array[i] = default.meta
-	jit_addi(jit, iReg, iReg, 8);         //i += 8
-
-	jit_jmpi(jit, check);
-	jit_patch(jit, done);
-
-	scope->usedRegCount -= 3;
-}
-
-void ptrs_astlist_handleByte(struct ptrs_astlist *list, long valReg, long sizeReg, jit_state_t *jit, ptrs_scope_t *scope)
-{
-	int i;
-	unsigned result;
+	jit_value_t zero = jit_const_long(func, ulong, 0);
+	ptrs_jit_var_t result;
 
 	for(i = 0; list != NULL; i++)
 	{
@@ -63,26 +17,63 @@ void ptrs_astlist_handleByte(struct ptrs_astlist *list, long valReg, long sizeRe
 
 		if(list->entry == NULL)
 		{
-			result = scope->usedRegCount;
-			jit_movi(jit, R(result), 0);
+			result.val = zero;
+			result.meta = zero;
 		}
 		else
 		{
-			result = list->entry->handler(list->entry, jit, scope);
-			ptrs_jit_convert(jit, ptrs_vartoi, R(result), R(result), R(result + 1));
+			result = list->entry->handler(list->entry, func, scope);
 		}
 
-		jit_stxi(jit, i, valReg, R(result), 1);
+		jit_insn_store_relative(func, val, i * sizeof(ptrs_var_t), result.val);
+		jit_insn_store_relative(func, val, i * sizeof(ptrs_var_t) + sizeof(ptrs_val_t), result.meta);
 
 		list = list->next;
 	}
 
-	long tmp = R(scope->usedRegCount);
-	jit_subi(jit, tmp, sizeReg, i);
+	jit_value_t index = jit_value_create(func, jit_type_nuint);
+	jit_insn_store(func, index, jit_const_int(func, nuint, i));
 
-	jit_prepare(jit);
-	jit_putargr(jit, valReg);
-	jit_putargr(jit, R(result));
-	jit_putargr(jit, tmp);
-	jit_call(jit, memset);
+	jit_label_t check = jit_label_undefined;
+	jit_label_t done = jit_label_undefined;
+
+	jit_insn_label(func, &check);
+	jit_insn_branch_if(func, jit_insn_ge(func, index, size), &done); //while(i < array.size)
+
+	jit_insn_store_elem(func, val, index, result.val); //array[index] = lastElement.value
+	jit_value_t _index = jit_insn_add(func, index, jit_const_int(func, nuint, 1)); //i++
+	jit_insn_store_elem(func, val, _index, result.meta); //array[index] = lastElement.meta
+	_index = jit_insn_add(func, _index, jit_const_int(func, nuint, 1)); //i++
+
+	jit_insn_store(func, index, _index);
+	jit_insn_branch(func, &check);
+	jit_insn_label(func, &done);
+}
+
+void ptrs_astlist_handleByte(struct ptrs_astlist *list, jit_function_t func, ptrs_scope_t *scope, jit_value_t val, jit_value_t size)
+{
+	int i;
+	jit_value_t zero = jit_const_long(func, ubyte, 0);
+	jit_value_t result;
+
+	for(i = 0; list != NULL; i++)
+	{
+		//if(list->expand) //TODO
+
+		if(list->entry == NULL)
+		{
+			result = zero;
+		}
+		else
+		{
+			ptrs_jit_var_t _result = list->entry->handler(list->entry, func, scope);
+			result = ptrs_jit_vartoi(func, _result.val, _result.meta);
+		}
+
+		jit_insn_store_relative(func, val, i, result);
+		list = list->next;
+	}
+
+	jit_value_t index = jit_const_int(func, nuint, i);
+	jit_insn_memset(func, jit_insn_add(func, val, index), zero, jit_insn_sub(func, size, index));
 }
