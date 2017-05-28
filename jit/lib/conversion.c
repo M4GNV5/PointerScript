@@ -14,10 +14,9 @@
 
 jit_value_t ptrs_jit_vartob(jit_function_t func, jit_value_t val, jit_value_t meta)
 {
-	jit_value_t tmp1 = ptrs_jit_get_type(func, meta);
-	tmp1 = jit_insn_eq(func, tmp1, ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED));
-	jit_value_t tmp2 = jit_insn_eq(func, val, ptrs_jit_const_val(func, 0));
-	return jit_insn_and(func, tmp1, tmp2);
+	jit_value_t isUndefined = ptrs_jit_hasType(func, meta, PTRS_TYPE_UNDEFINED);
+	jit_value_t isZero = jit_insn_eq(func, val, jit_const_long(func, ulong, 0));
+	return jit_insn_or(func, isUndefined, isZero);
 }
 
 jit_value_t ptrs_jit_vartoi(jit_function_t func, jit_value_t val, jit_value_t meta)

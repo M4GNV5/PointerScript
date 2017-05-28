@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <setjmp.h>
 #include <stdbool.h>
+#include <jit/jit.h>
 
 #ifndef _GNU_SOURCE
 #include <alloca.h>
@@ -184,6 +185,8 @@ typedef struct ptrs_stackframe
 
 #define jit_const_int(func, type, val) (jit_value_create_nint_constant(func, jit_type_##type, val))
 #define jit_const_long(func, type, val) (jit_value_create_long_constant(func, jit_type_##type, val))
+
+#define ptrs_jit_hasType(func, val, type) (jit_insn_eq((func), jit_insn_and((func), val, jit_const_long((func), ulong, (uint64_t)(type) << 54)), (type)))
 
 #define ptrs_const_meta(type) ((uintptr_t)(type) << 56)
 #define ptrs_const_arraymeta(type, readOnly, size) ((uint8_t)(type) << 56 | (bool)(readOnly) << 48 | (size))
