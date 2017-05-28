@@ -1,7 +1,9 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <dlfcn.h>
 #include <libgen.h>
+#include <jit/jit.h>
 
 #include "../parser/ast.h"
 #include "../parser/common.h"
@@ -10,64 +12,56 @@
 #include "include/error.h"
 #include "include/scope.h"
 
-//see alloca.s
-//TODO find a more portable way (myjit should provide jit_allocar)
-void *ptrs_alloca(uintptr_t size);
-
-unsigned ptrs_handle_body(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_body(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_astlist *list = node->arg.astlist;
-	unsigned result = -1;
+	ptrs_jit_var_t result;
 
 	while(list != NULL)
 	{
-		result = list->entry->handler(list->entry, jit, scope);
+		result = list->entry->handler(list->entry, func, scope);
 		list = list->next;
 	}
 
 	return result;
 }
 
-unsigned ptrs_handle_define(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_define(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_define *stmt = &node->arg.define;
-	unsigned val;
+	ptrs_jit_var_t val;
 
 	if(stmt->value != NULL)
 	{
-		val = stmt->value->handler(stmt->value, jit, scope);
-		assert(val == scope->usedRegCount);
+		val = stmt->value->handler(stmt->value, func, scope);
 	}
 	else
 	{
-		val = scope->usedRegCount;
-
-		jit_movi(jit, R(val), 0);
-		ptrs_jit_seti_type(jit, R(val + 1), PTRS_TYPE_UNDEFINED);
+		val.val = jit_value_create_long_constant(func, jit_type_long, 0);
+		val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
 	}
 
-	scope->usedRegCount += 2;
-	ptrs_scope_store(jit, scope, stmt->symbol, R(val), R(val + 1));
-	scope->usedRegCount -= 2;
-	return val;
+	jit_insn_store(func, stmt->location.val, val.val);
+	jit_insn_store(func, stmt->location.meta, val.meta);
+	return stmt->location;
 }
 
-unsigned ptrs_handle_lazyinit(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_lazyinit(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
 size_t ptrs_arraymax = UINT32_MAX;
-unsigned ptrs_handle_array(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_define *stmt = &node->arg.define;
-	long val = R(scope->usedRegCount++);
-	long meta = R(scope->usedRegCount++);
+	ptrs_jit_var_t val;
+	jit_value_t size;
 
 	if(stmt->value != NULL)
 	{
-		unsigned size = stmt->value->handler(stmt->value, jit, scope);
-		ptrs_jit_convert(jit, ptrs_vartoi, meta, R(size), R(size + 1));
+		val = stmt->value->handler(stmt->value, func, scope);
+		size = ptrs_jit_vartoi(func, val.val, val.meta);
 	}
 	else
 	{
@@ -75,94 +69,101 @@ unsigned ptrs_handle_array(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *sco
 	}
 
 	//make sure array is not too big
-	ptrs_jit_addError(node, scope,
-		jit_bgti_u(jit, (uintptr_t)JIT_FORWARD, meta, ptrs_arraymax),
-		1, "Cannot create array of size %d", meta);
+	ptrs_jit_assert(node, func, jit_insn_le(func, size, jit_const_int(func, nuint, ptrs_arraymax)),
+		1, "Cannot create array of size %d", size);
 
 	//allocate memory
-	jit_prepare(jit);
-	jit_putargr(jit, meta);
-	jit_call(jit, stmt->onStack ? ptrs_alloca : malloc);
-	jit_retval(jit, val);
-
-	//store the array
-	ptrs_jit_seti_type(jit, meta, PTRS_TYPE_NATIVE);
-	ptrs_scope_store(jit, scope, stmt->symbol, val, meta);
-
-	if(stmt->isInitExpr)
+	if(stmt->onStack)
 	{
-		long init = stmt->initExpr->handler(stmt->initExpr, jit, scope);
-		long initMeta = R(init + 1);
-		init = R(init);
-
-		//check type of initExpr
-		ptrs_jit_addError(node, scope,
-			jit_bmci(jit, (uintptr_t)JIT_FORWARD, initMeta, ptrs_const_meta(PTRS_TYPE_NATIVE)),
-			1, "Array init expression must be of type native not %mt", initMeta);
-
-		//check initExpr.size <= array.size
-		ptrs_jit_get_arraysize(jit, initMeta, initMeta);
-		ptrs_jit_get_arraysize(jit, meta, meta);
-		ptrs_jit_addError(node, scope,
-			jit_bgtr_u(jit, (uintptr_t)JIT_FORWARD, meta, initMeta),
-			2, "Init expression size of %d is too big for array of size %d", initMeta, meta);
-
-		//copy initExpr memory to array
-		jit_prepare(jit);
-		jit_putargr(jit, val); //dst
-		jit_putargr(jit, init); //src
-		jit_putargr(jit, initMeta); //length
-		jit_call(jit, memcpy);
+		val.val = jit_insn_alloca(func, size);
 	}
 	else
 	{
-		ptrs_astlist_handleByte(stmt->initVal, val, meta, jit, scope);
+		jit_type_t params[] = {jit_type_nuint};
+		jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, jit_type_void_ptr, params, 1, 1);
+
+		val.val = jit_insn_call_native(func, "malloc", malloc, signature, &size, 1, JIT_CALL_NOTHROW);
+		jit_type_free(signature);
 	}
 
-	scope->usedRegCount -= 2;
-	return scope->usedRegCount;
+	val.meta = ptrs_jit_arraymeta(func, jit_const_long(func, ulong, PTRS_TYPE_NATIVE), jit_const_long(func, ulong, false), size);
+
+	//store the array
+	jit_insn_store(func, stmt->location.val, val.val);
+	jit_insn_store(func, stmt->location.meta, val.meta);
+
+	if(stmt->isInitExpr)
+	{
+		ptrs_jit_var_t init = stmt->initExpr->handler(stmt->initExpr, func, scope);
+
+		//check type of initExpr
+		ptrs_jit_assert(node, func, ptrs_jit_hasType(func, init.meta, PTRS_TYPE_NATIVE),
+			1, "Array init expression must be of type native not %mt", init.meta);
+
+		//check initExpr.size <= array.size
+		jit_value_t initSize = ptrs_jit_get_arraysize(func, init.meta);
+		ptrs_jit_assert(node, func, jit_insn_le(func, initSize, size),
+			2, "Init expression size of %d is too big for array of size %d", initSize, size);
+
+		//copy initExpr memory to array and zero the rest
+		jit_insn_memcpy(func, val.val, init.val, initSize);
+		jit_insn_memset(func, jit_insn_add(func, val.val, initSize), jit_const_int(func, ubyte, 0), jit_insn_sub(func, size, initSize));
+	}
+	else
+	{
+		ptrs_astlist_handleByte(stmt->initVal, func, scope, val.val, size);
+	}
+
+	return val;
 }
 
-unsigned ptrs_handle_vararray(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_vararray(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_define *stmt = &node->arg.define;
-	long val = R(scope->usedRegCount++);
-	long size = R(scope->usedRegCount++);
+	ptrs_jit_var_t val;
+	jit_value_t size;
+	jit_value_t byteSize;
 
 	if(stmt->value != NULL)
 	{
-		unsigned sizeVal = stmt->value->handler(stmt->value, jit, scope);
-		ptrs_jit_convert(jit, ptrs_vartoi, size, R(sizeVal), R(sizeVal + 1));
+		val = stmt->value->handler(stmt->value, func, scope);
+		size = ptrs_jit_vartoi(func, val.val, val.meta);
+		byteSize = jit_insn_mul(func, size, jit_const_int(func, nuint, sizeof(ptrs_var_t)));
 	}
 	else
 	{
 		//TODO
 	}
 
-	//calculate array size in bytes and make sure its not too much
-	jit_muli(jit, size, size, 16); //TODO use sizeof(ptrs_var_t) instead?
-	ptrs_jit_addError(node, scope,
-		jit_bgti_u(jit, (uintptr_t)JIT_FORWARD, size, ptrs_arraymax),
+	//make sure array is not too big
+	ptrs_jit_assert(node, func, jit_insn_le(func, byteSize, jit_const_int(func, nuint, ptrs_arraymax)),
 		1, "Cannot create array of size %d", size);
 
 	//allocate memory
-	jit_prepare(jit);
-	jit_putargr(jit, size);
-	jit_call(jit, stmt->onStack ? ptrs_alloca : malloc);
-	jit_retval(jit, val);
+	if(stmt->onStack)
+	{
+		val.val = jit_insn_alloca(func, byteSize);
+	}
+	else
+	{
+		jit_type_t params[] = {jit_type_nuint};
+		jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, jit_type_void_ptr, params, 1, 1);
 
-	ptrs_astlist_handle(stmt->initVal, val, size, jit, scope);
+		val.val = jit_insn_call_native(func, "malloc", malloc, signature, &byteSize, 1, JIT_CALL_NOTHROW);
+		jit_type_free(signature);
+	}
+
+	val.meta = ptrs_jit_arraymeta(func, jit_const_long(func, ulong, PTRS_TYPE_POINTER), jit_const_long(func, ulong, false), size);
 
 	//store the array
-	jit_divi(jit, size, size, 16);
-	ptrs_jit_seti_type(jit, size, PTRS_TYPE_POINTER);
-	ptrs_scope_store(jit, scope, stmt->symbol, val, size);
+	jit_insn_store(func, stmt->location.val, val.val);
+	jit_insn_store(func, stmt->location.meta, val.meta);
 
-	scope->usedRegCount -= 2;
-	return scope->usedRegCount;
+	ptrs_astlist_handle(stmt->initVal, func, scope, val.val, size);
+	return val;
 }
 
-unsigned ptrs_handle_structvar(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_structvar(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
