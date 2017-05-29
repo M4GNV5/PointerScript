@@ -210,7 +210,7 @@ void ptrs_handle_signals(jit_function_t func)
 	sigaction(SIGPIPE, &action, NULL);
 }
 
-void ptrs_handle_error(ptrs_ast_t *ast, const char *msg, ...)
+void ptrs_error(ptrs_ast_t *ast, const char *msg, ...)
 {
 	va_list ap;
 	va_start(ap, msg);
@@ -247,7 +247,7 @@ void ptrs_jit_assert(ptrs_ast_t *ast, jit_function_t func, jit_value_t condition
 
 	jit_type_t params[2] = {jit_type_void_ptr, jit_type_void_ptr};
 	jit_type_t signature = jit_type_create_signature(jit_abi_vararg, jit_type_void, params, 2, 1);
-	jit_insn_call_native(func, "ptrs_handle_error", ptrs_handle_error, signature, args, argCount, JIT_CALL_NORETURN);
+	jit_insn_call_native(func, "ptrs_handle_error", ptrs_error, signature, args, argCount, JIT_CALL_NORETURN);
 	jit_type_free(signature);
 
 	jit_insn_label(func, &label);
