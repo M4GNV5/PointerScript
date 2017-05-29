@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 #include <dlfcn.h>
 #include <libgen.h>
@@ -10,7 +11,6 @@
 #include "include/conversion.h"
 #include "include/astlist.h"
 #include "include/error.h"
-#include "include/scope.h"
 
 ptrs_jit_var_t ptrs_handle_body(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
@@ -212,13 +212,12 @@ ptrs_cache_t *importCachedScript(char *path, ptrs_ast_t *node, ptrs_scope_t *sco
 }
 */
 
-static void importScript(ptrs_stackframe_t *frame, ptrs_ast_t *node, char *from)
+static void importScript(ptrs_var_t **results, ptrs_ast_t *node, char *from)
 {
 	//TODO
 }
-static const char *importNative(ptrs_stackframe_t *frame, ptrs_ast_t *node, char *from)
+static void importNative(ptrs_var_t **results, ptrs_ast_t *node, char *from)
 {
-	struct ptrs_ast_import *stmt = &node->arg.import;
 	const char *error;
 
 	dlerror();
@@ -237,11 +236,9 @@ static const char *importNative(ptrs_stackframe_t *frame, ptrs_ast_t *node, char
 	struct ptrs_importlist *curr = node->arg.import.imports;
 	for(int i = 0; curr != NULL; i++)
 	{
-		ptrs_var_t *val = ptrs_stack_get(frame, curr->symbol);
-		val->meta.type = PTRS_TYPE_NATIVE;
-		val->meta.array.size = 0;
-		val->value.nativeval = dlsym(handle, curr->name);
-		ptrs_stack_set(frame, curr->symbol, val);
+		results[i]->meta.type = PTRS_TYPE_NATIVE;
+		results[i]->meta.array.size = 0;
+		results[i]->value.nativeval = dlsym(handle, curr->name);
 
 		//TODO do wildcards need special care?
 
@@ -252,7 +249,7 @@ static const char *importNative(ptrs_stackframe_t *frame, ptrs_ast_t *node, char
 		curr = curr->next;
 	}
 }
-void ptrs_import(ptrs_stackframe_t *frame, ptrs_ast_t *node, ptrs_val_t fromVal, ptrs_meta_t fromMeta)
+void ptrs_import(ptrs_var_t **results, ptrs_ast_t *node, ptrs_val_t fromVal, ptrs_meta_t fromMeta)
 {
 	char *path = NULL;
 	if(fromMeta.type != PTRS_TYPE_UNDEFINED)
@@ -305,42 +302,14 @@ void ptrs_import(ptrs_stackframe_t *frame, ptrs_ast_t *node, ptrs_val_t fromVal,
 		ending = strrchr(path, '.');
 
 	if(ending != NULL && strcmp(ending, ".ptrs") == 0)
-		importScript(frame, node, path);
+		importScript(results, node, path);
 	else
-		importNative(frame, node, path);
+		importNative(results, node, path);
 }
 
-unsigned ptrs_handle_import(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_import(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_import *stmt = &node->arg.import;
-	//R(0) = from.value
-	//R(1) = from.meta
-	//R(2) = output ptr
-
-	long ptr = R(scope->usedRegCount++);
-
-	unsigned from;
-	if(stmt->from != NULL)
-	{
-		from = stmt->from->handler(stmt->from, jit, scope);
-	}
-	else
-	{
-		from = scope->usedRegCount;
-		jit_movi(jit, R(from), 0);
-		jit_movi(jit, R(from + 1), ptrs_const_meta(PTRS_TYPE_UNDEFINED));
-	}
-
-	jit_addi(jit, ptr, R_FP, scope->fpOffset);
-
-	jit_prepare(jit);
-	jit_putargr(jit, ptr);
-	jit_putargi(jit, node);
-	jit_putargr(jit, R(from));
-	jit_putargr(jit, R(from + 1));
-	jit_call(jit, ptrs_import);
-
-	scope->usedRegCount--;
+	//TODO
 }
 
 unsigned ptrs_handle_return(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
