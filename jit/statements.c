@@ -312,50 +312,23 @@ ptrs_jit_var_t ptrs_handle_import(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	//TODO
 }
 
-unsigned ptrs_handle_return(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_return(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	if(node->arg.astval == NULL)
-	{
-		jit_reti(jit, 0);
-	}
-	else
-	{
-		unsigned val = node->arg.astval->handler(node->arg.astval, jit, scope);
-		//TODO how to return multiple values?
-		jit_retr(jit, R(0));
-	}
+	//TODO
 }
 
-unsigned ptrs_handle_break(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_break(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	if(scope->breakLabel == 0)
-	{
-		ptrs_patchlist_t *entry = malloc(sizeof(ptrs_patchlist_t));
-		entry->patch = jit_jmpi(jit, JIT_FORWARD);
-		entry->next = scope->breakPatches;
-		scope->breakPatches = entry;
-	}
-	else
-	{
-		jit_jmpi(jit, scope->breakLabel);
-	}
-	return -1;
+	jit_insn_branch(func, &scope->breakLabel);
+	ptrs_jit_var_t ret = {NULL, NULL};
+	return ret;
 }
 
-unsigned ptrs_handle_continue(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_continue(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	if(scope->continueLabel == 0)
-	{
-		ptrs_patchlist_t *entry = malloc(sizeof(ptrs_patchlist_t));
-		entry->patch = jit_jmpi(jit, JIT_FORWARD);
-		entry->next = scope->continuePatches;
-		scope->continuePatches = entry;
-	}
-	else
-	{
-		jit_jmpi(jit, scope->continueLabel);
-	}
-	return -1;
+	jit_insn_branch(func, &scope->continueLabel);
+	ptrs_jit_var_t ret = {NULL, NULL};
+	return ret;
 }
 
 unsigned ptrs_handle_delete(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)

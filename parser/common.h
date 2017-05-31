@@ -41,12 +41,8 @@ typedef struct ptrs_patchlist
 } ptrs_patchlist_t;
 typedef struct ptrs_scope
 {
-	intptr_t fpOffset;
-	unsigned usedRegCount;
-	uintptr_t continueLabel;
-	uintptr_t breakLabel;
-	ptrs_patchlist_t *continuePatches;
-	ptrs_patchlist_t *breakPatches;
+	jit_label_t continueLabel;
+	jit_label_t breakLabel;
 	struct ptrs_error *errors;
 } ptrs_scope_t;
 
@@ -175,13 +171,6 @@ typedef struct
 	jit_value_t val;
 	jit_value_t meta;
 } ptrs_jit_var_t;
-
-typedef struct ptrs_stackframe
-{
-	struct ptrs_stackframe *outer;
-	ptrs_struct_t *self;
-	ptrs_var_t variables[];
-} ptrs_stackframe_t;
 
 #define jit_const_int(func, type, val) (jit_value_create_nint_constant(func, jit_type_##type, val))
 #define jit_const_long(func, type, val) (jit_value_create_long_constant(func, jit_type_##type, val))
