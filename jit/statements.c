@@ -331,116 +331,140 @@ ptrs_jit_var_t ptrs_handle_continue(ptrs_ast_t *node, jit_function_t func, ptrs_
 	return ret;
 }
 
-unsigned ptrs_handle_delete(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_delete(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-unsigned ptrs_handle_throw(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_throw(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-unsigned ptrs_handle_trycatch(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_trycatch(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
 #ifndef _PTRS_PORTABLE
-unsigned ptrs_handle_asm(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_asm(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
 #endif
 
-unsigned ptrs_handle_function(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-unsigned ptrs_handle_struct(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-unsigned ptrs_handle_if(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_if(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_ifelse *stmt = &node->arg.ifelse;
 
-	unsigned condition = stmt->condition->handler(stmt->condition, jit, scope);
-	ptrs_jit_vartob(jit, R(condition), R(condition + 1));
-	jit_op *isFalse = jit_beqi(jit, JIT_FORWARD, R(condition), 0);
+	ptrs_jit_var_t condition = stmt->condition->handler(stmt->condition, func, scope);
+	jit_value_t conditionBool = ptrs_jit_vartob(func, condition.val, condition.meta);
 
-	stmt->ifBody->handler(stmt->ifBody, jit, scope);
+	jit_label_t isFalse = jit_label_undefined;
+	jit_insn_branch_if_not(func, conditionBool, &isFalse);
+
+	stmt->ifBody->handler(stmt->ifBody, func, scope);
 
 	if(stmt->elseBody != NULL)
 	{
-		//let the end of the true body jump over the else body
-		jit_op *end = jit_jmpi(jit, JIT_FORWARD);
+		jit_label_t end = jit_label_undefined;
+		jit_insn_branch(func, &end);
 
-		//patch the jumps to the else body
-		jit_patch(jit, isFalse);
-		stmt->elseBody->handler(stmt->elseBody, jit, scope);
+		jit_insn_label(func, &isFalse);
+		stmt->elseBody->handler(stmt->elseBody, func, scope);
 
-		jit_patch(jit, end);
+		jit_insn_label(func, &end);
 	}
 	else
 	{
-		jit_patch(jit, isFalse);
+		jit_insn_label(func, &isFalse);
 	}
 
-	return -1;
+	return condition;
 }
 
-unsigned ptrs_handle_switch(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_switch(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-unsigned ptrs_handle_while(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_while(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_control *stmt = &node->arg.control;
-	ptrs_patchstore_t store;
-	ptrs_scope_storePatches(&store, scope);
+	ptrs_jit_var_t val;
 
-	jit_label *check = jit_get_label(jit);
-	scope->continueLabel = (uintptr_t)check;
+	jit_label_t oldContinue = scope->continueLabel;
+	jit_label_t oldBreak = scope->breakLabel;
+	scope->continueLabel = jit_label_undefined;
+	scope->breakLabel = jit_label_undefined;
+
+	jit_insn_label(func, &scope->continueLabel);
+
+	jit_label_t check = jit_label_undefined;
+	jit_insn_label(func, &check);
 
 	//evaluate the condition
-	unsigned condition = stmt->condition->handler(stmt->condition, jit, scope);
-	ptrs_jit_vartob(jit, R(condition), R(condition + 1));
-	jit_op *isFalse = jit_beqi(jit, JIT_FORWARD, R(condition), 0);
+	val = stmt->condition->handler(stmt->condition, func, scope);
+	jit_value_t conditionBool = ptrs_jit_vartob(func, val.val, val.meta);
+
+	jit_label_t end = jit_label_undefined;
+	jit_insn_branch_if_not(func, conditionBool, &end);
 
 	//run the while body, jumping back th 'check' at the end
-	stmt->body->handler(stmt->body, jit, scope);
-	jit_jmpi(jit, check);
+	val = stmt->body->handler(stmt->body, func, scope);
+	jit_insn_branch(func, &check);
 
 	//after the loop - patch the end and breaks
-	jit_patch(jit, isFalse);
-	ptrs_scope_patch(jit, scope->breakPatches);
-	ptrs_scope_restorePatches(&store, scope);
+	jit_insn_label(func, &end);
+	jit_insn_label(func, &scope->breakLabel);
+
+	scope->continueLabel = oldContinue;
+	scope->breakLabel = oldBreak;
+
+	return val;
 }
 
-unsigned ptrs_handle_dowhile(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_dowhile(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_control *stmt = &node->arg.control;
-	ptrs_patchstore_t store;
-	ptrs_scope_storePatches(&store, scope);
+
+	jit_label_t oldContinue = scope->continueLabel;
+	jit_label_t oldBreak = scope->breakLabel;
+	scope->continueLabel = jit_label_undefined;
+	scope->breakLabel = jit_label_undefined;
+
+	jit_label_t start = jit_label_undefined;
+	jit_insn_label(func, &start);
 
 	//run the while body
-	jit_label *body = jit_get_label(jit);
-	stmt->body->handler(stmt->body, jit, scope);
+	ptrs_jit_var_t val = stmt->body->handler(stmt->body, func, scope);
 
 	//patch all continues to after the body & before the condition check
-	ptrs_scope_patch(jit, scope->continuePatches);
+	jit_insn_label(func, &scope->continueLabel);
 
 	//evaluate the condition
-	unsigned condition = stmt->condition->handler(stmt->condition, jit, scope);
-	ptrs_jit_vartob(jit, R(condition), R(condition + 1));
-	jit_bnei(jit, (uintptr_t)body, R(condition), 0);
+	ptrs_jit_var_t condition = stmt->condition->handler(stmt->condition, func, scope);
+	jit_value_t conditionBool = ptrs_jit_vartob(func, condition.val, condition.meta);
 
-	ptrs_scope_patch(jit, scope->breakPatches);
-	ptrs_scope_restorePatches(&store, scope);
+	jit_insn_branch_if(func, conditionBool, &start);
+
+	//after the loop - patch the breaks
+	jit_insn_label(func, &scope->breakLabel);
+
+	scope->continueLabel = oldContinue;
+	scope->breakLabel = oldBreak;
+
+	return val;
 }
 
 unsigned ptrs_handle_for(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
