@@ -410,9 +410,6 @@ ptrs_jit_var_t ptrs_handle_while(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 
 	jit_insn_label(func, &scope->continueLabel);
 
-	jit_label_t check = jit_label_undefined;
-	jit_insn_label(func, &check);
-
 	//evaluate the condition
 	val = stmt->condition->handler(stmt->condition, func, scope);
 	jit_value_t conditionBool = ptrs_jit_vartob(func, val.val, val.meta);
@@ -420,9 +417,9 @@ ptrs_jit_var_t ptrs_handle_while(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	jit_label_t end = jit_label_undefined;
 	jit_insn_branch_if_not(func, conditionBool, &end);
 
-	//run the while body, jumping back th 'check' at the end
+	//run the while body, jumping back the condition check afterwords
 	val = stmt->body->handler(stmt->body, func, scope);
-	jit_insn_branch(func, &check);
+	jit_insn_branch(func, &scope->continueLabel);
 
 	//after the loop - patch the end and breaks
 	jit_insn_label(func, &end);
