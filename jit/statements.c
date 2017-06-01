@@ -464,37 +464,46 @@ ptrs_jit_var_t ptrs_handle_dowhile(ptrs_ast_t *node, jit_function_t func, ptrs_s
 	return val;
 }
 
-unsigned ptrs_handle_for(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_for(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_for *stmt = &node->arg.forstatement;
+	ptrs_jit_var_t val;
 
-	stmt->init->handler(stmt->init, jit, scope);
+	stmt->init->handler(stmt->init, func, scope);
 
-	ptrs_patchstore_t store;
-	ptrs_scope_storePatches(&store, scope);
+	jit_label_t oldContinue = scope->continueLabel;
+	jit_label_t oldBreak = scope->breakLabel;
+	scope->continueLabel = jit_label_undefined;
+	scope->breakLabel = jit_label_undefined;
 
-	jit_label *check = jit_get_label(jit);
+	jit_insn_label(func, &scope->continueLabel);
 
 	//evaluate the condition
-	unsigned condition = stmt->condition->handler(stmt->condition, jit, scope);
-	ptrs_jit_vartob(jit, R(condition), R(condition + 1));
-	jit_op *isFalse = jit_beqi(jit, JIT_FORWARD, R(condition), 0);
+	val = stmt->condition->handler(stmt->condition, func, scope);
+	jit_value_t conditionBool = ptrs_jit_vartob(func, val.val, val.meta);
 
-	//run the while body, jumping back th 'check' at the end
-	stmt->body->handler(stmt->body, jit, scope);
+	jit_label_t end = jit_label_undefined;
+	jit_insn_branch_if_not(func, conditionBool, &end);
 
-	ptrs_scope_patch(jit, scope->continuePatches);
-	stmt->step->handler(stmt->step, jit, scope);
+	//run the while body, jumping back the condition check afterwords
+	val = stmt->body->handler(stmt->body, func, scope);
 
-	jit_jmpi(jit, check);
+	//run the step expression
+	stmt->step->handler(stmt->step, func, scope);
+
+	jit_insn_branch(func, &scope->continueLabel);
 
 	//after the loop - patch the end and breaks
-	jit_patch(jit, isFalse);
-	ptrs_scope_patch(jit, scope->breakPatches);
-	ptrs_scope_restorePatches(&store, scope);
+	jit_insn_label(func, &end);
+	jit_insn_label(func, &scope->breakLabel);
+
+	scope->continueLabel = oldContinue;
+	scope->breakLabel = oldBreak;
+
+	return val;
 }
 
-unsigned ptrs_handle_forin(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
