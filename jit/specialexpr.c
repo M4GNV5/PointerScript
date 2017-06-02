@@ -1,96 +1,35 @@
 #include <stdint.h>
 #include <assert.h>
-#include <jitlib.h>
 
 #include "../parser/ast.h"
 #include "../parser/common.h"
 #include "include/error.h"
 #include "include/conversion.h"
-#include "include/scope.h"
 
-unsigned ptrs_handle_call(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
-{
-	struct ptrs_ast_call *expr = &node->arg.call;
-
-	unsigned func = expr->value->handler(expr->value, jit, scope);
-	assert(func == scope->usedRegCount);
-	scope->usedRegCount += 2;
-
-	int i;
-	struct ptrs_astlist *list = expr->arguments;
-	for(i = 0; list != NULL; i++)
-	{
-		unsigned val;
-		//if(list->expand) //TODO
-
-		if(list->entry == NULL)
-		{
-			val = scope->usedRegCount;
-			jit_movi(jit, R(val), 0);
-			jit_movi(jit, R(val + 1), 0);
-		}
-		else
-		{
-			val = list->entry->handler(list->entry, jit, scope);
-			assert(val == scope->usedRegCount);
-		}
-
-		scope->usedRegCount += 2;
-		list = list->next;
-	}
-
-
-
-	jit_op *isFunc = jit_bmsi(jit, (uintptr_t)JIT_FORWARD, R(func + 1), ptrs_const_meta(PTRS_TYPE_FUNCTION));
-	ptrs_jit_addError(node, scope, jit_bmci(jit, (uintptr_t)JIT_FORWARD, R(func + 1), ptrs_const_meta(PTRS_TYPE_NATIVE)),
-		1, "Cannot call value of type %mt", R(func + 1));
-
-	//calling a native value
-	jit_prepare(jit);
-	for(int j = 0; j < i; j++)
-	{
-		unsigned val = scope->usedRegCount - i * 2 + j * 2;
-		jit_putargr(jit, R(val));
-	}
-	jit_callr(jit, R(func));
-	jit_op *done = jit_jmpi(jit, JIT_FORWARD);
-
-	//calling a pointerscript function
-	jit_patch(jit, isFunc);
-	jit_prepare(jit);
-	for(int j = 0; j < i; j++)
-	{
-		unsigned val = scope->usedRegCount - i * 2 + j * 2;
-		jit_putargr(jit, R(val));
-		jit_putargr(jit, R(val + 1));
-	}
-	jit_callr(jit, R(func));
-
-	jit_patch(jit, done);
-	//TODO handle return value
-
-	scope->usedRegCount -= i * 2 + 2;
-}
-
-unsigned ptrs_handle_stringformat(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-unsigned ptrs_handle_new(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_stringformat(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-unsigned ptrs_handle_member(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_new(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
-unsigned ptrs_handle_assign_member(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope, long val, long meta)
+
+ptrs_jit_var_t ptrs_handle_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
-unsigned ptrs_handle_addressof_member(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_assign_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
+{
+	//TODO
+}
+ptrs_jit_var_t ptrs_handle_addressof_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
@@ -100,15 +39,15 @@ ptrs_var_t *ptrs_handle_call_member(ptrs_ast_t *node, ptrs_var_t *result, ptrs_s
 	//TODO
 }
 
-unsigned ptrs_handle_thismember(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_thismember(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
-void ptrs_handle_assign_thismember(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope, long val, long meta)
+void ptrs_handle_assign_thismember(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
 {
 	//TODO
 }
-unsigned ptrs_handle_addressof_thismember(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_addressof_thismember(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
@@ -118,39 +57,39 @@ ptrs_var_t *ptrs_handle_call_thismember(ptrs_ast_t *node, ptrs_var_t *result, pt
 	//TODO
 }
 
-unsigned ptrs_handle_prefix_length(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_prefix_length(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-unsigned ptrs_handle_prefix_address(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_prefix_address(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-unsigned ptrs_handle_prefix_dereference(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_prefix_dereference(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
-void ptrs_handle_assign_dereference(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope, long val, long meta)
-{
-	//TODO
-}
-
-unsigned ptrs_handle_indexlength(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+void ptrs_handle_assign_dereference(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
 {
 	//TODO
 }
 
-unsigned ptrs_handle_index(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_indexlength(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
-void ptrs_handle_assign_index(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope, long val, long meta)
+
+ptrs_jit_var_t ptrs_handle_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
-unsigned ptrs_handle_addressof_index(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+void ptrs_handle_assign_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
+{
+	//TODO
+}
+ptrs_jit_var_t ptrs_handle_addressof_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
@@ -160,114 +99,117 @@ ptrs_var_t *ptrs_handle_call_index(ptrs_ast_t *node, ptrs_var_t *result, ptrs_sc
 	//TODO
 }
 
-unsigned ptrs_handle_slice(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_slice(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-unsigned ptrs_handle_as(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_as(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_cast *expr = &node->arg.cast;
-	unsigned val = expr->value->handler(expr->value, jit, scope);
 
-	jit_movi(jit, R(val + 1), ptrs_const_meta(expr->builtinType));
+	ptrs_jit_var_t val = expr->value->handler(expr->value, func, scope);
+
+	val.meta = ptrs_jit_const_meta(func, expr->builtinType);
 	return val;
 }
 
-unsigned ptrs_handle_cast_builtin(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_cast_builtin(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_cast *expr = &node->arg.cast;
-	unsigned val = expr->value->handler(expr->value, jit, scope);
+	ptrs_jit_var_t val = expr->value->handler(expr->value, func, scope);
 
 	switch(expr->builtinType)
 	{
 		case PTRS_TYPE_INT:
-			ptrs_jit_convert(jit, ptrs_vartoi, R(val), R(val), R(val + 1));
+			val.val = ptrs_jit_vartoi(func, val.val, val.meta);
+			val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
 			break;
 		case PTRS_TYPE_FLOAT:
-			ptrs_jit_convert(jit, ptrs_vartof, R(val), R(val), R(val + 1));
+			val.val = ptrs_jit_vartof(func, val.val, val.meta);
+			val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_FLOAT);
 			break;
 		default:
 			ptrs_error(node, "Cannot convert to type %s", ptrs_typetoa(expr->builtinType));
 	}
 
-	jit_movi(jit, R(val + 1), ptrs_const_meta(expr->builtinType));
 	return val;
 }
 
-unsigned ptrs_handle_tostring(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_tostring(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-unsigned ptrs_handle_cast(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_cast(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-unsigned ptrs_handle_wildcardsymbol(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_wildcardsymbol(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-unsigned ptrs_handle_identifier(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	unsigned val = scope->usedRegCount;
-	ptrs_scope_load(jit, scope, node->arg.varval, R(val), R(val + 1));
+	return *node->arg.varval;
+}
+void ptrs_handle_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
+{
+	ptrs_jit_var_t *target = node->arg.varval;
+	jit_insn_store(func, val.val, target->val);
+	jit_insn_store(func, val.meta, target->meta);
+}
+
+ptrs_jit_var_t ptrs_handle_typed(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+{
+	//TODO
+}
+void ptrs_handle_assign_typed(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
+{
+	//TODO
+}
+
+ptrs_jit_var_t ptrs_handle_constant(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+{
+	ptrs_jit_var_t val;
+	val.val = jit_const_long(func, long, node->arg.constval.value.intval);
+	val.meta = jit_const_long(func, ulong, *(uint64_t *)&node->arg.constval.meta);
 	return val;
 }
-void ptrs_handle_assign_identifier(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope, long val, long meta)
-{
-	ptrs_scope_store(jit, scope, node->arg.varval, val, meta);
-}
 
-unsigned ptrs_handle_typed(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
-{
-	//TODO
-}
-void ptrs_handle_assign_typed(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope, long val, long meta)
+ptrs_jit_var_t ptrs_handle_lazy(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-unsigned ptrs_handle_constant(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
-{
-	unsigned val = scope->usedRegCount;
-	jit_movi(jit, R(val), *(uintptr_t *)&node->arg.constval.value);
-	jit_movi(jit, R(val + 1), *(uintptr_t *)&node->arg.constval.meta);
-	return val;
-}
-
-unsigned ptrs_handle_lazy(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
-{
-	//TODO
-}
-
-unsigned ptrs_handle_prefix_typeof(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_prefix_typeof(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	node = node->arg.astval;
-	unsigned val = node->handler(node, jit, scope);
+	ptrs_jit_var_t val = node->handler(node, func, scope);
 
-	ptrs_jit_get_type(jit, R(val), R(val + 1));
-	jit_movi(jit, R(val + 1), ptrs_const_meta(PTRS_TYPE_INT));
+	val.val = ptrs_jit_get_type(func, val.meta);
+	val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
+	return val;
 }
 
-unsigned ptrs_handle_op_ternary(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_op_ternary(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-unsigned ptrs_handle_op_instanceof(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_op_instanceof(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-unsigned ptrs_handle_op_in(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_op_in(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-unsigned ptrs_handle_yield(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_yield(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
