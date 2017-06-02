@@ -508,26 +508,25 @@ ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	//TODO
 }
 
-unsigned ptrs_handle_file(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_file(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	ptrs_ast_t *body = node->arg.scopestatement.body;
 
-	scope->fpOffset = jit_allocai(jit, node->arg.scopestatement.stackOffset);
-	unsigned ret = body->handler(body, jit, scope);
-	jit_reti(jit, 0);
+	ptrs_jit_var_t val = body->handler(body, func, scope);
 
-	ptrs_jit_compileErrors(jit, scope);
+	//TODO return val via jit_insn_return
+	return val;
 }
 
-unsigned ptrs_handle_scopestatement(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_scopestatement(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO
 }
 
-unsigned ptrs_handle_exprstatement(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_exprstatement(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	ptrs_ast_t *expr = node->arg.astval;
 
 	if(expr != NULL)
-		expr->handler(expr, jit, scope);
+		return expr->handler(expr, func, scope);
 }
