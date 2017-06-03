@@ -158,8 +158,8 @@ ptrs_jit_var_t ptrs_handle_identifier(ptrs_ast_t *node, jit_function_t func, ptr
 void ptrs_handle_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
 {
 	ptrs_jit_var_t *target = node->arg.varval;
-	jit_insn_store(func, val.val, target->val);
-	jit_insn_store(func, val.meta, target->meta);
+	jit_insn_store(func, target->val, val.val);
+	jit_insn_store(func, target->meta, val.meta);
 }
 
 ptrs_jit_var_t ptrs_handle_typed(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
