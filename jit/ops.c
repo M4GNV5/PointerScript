@@ -9,95 +9,80 @@
 #include "include/conversion.h"
 
 #define handle_binary(name, operator) \
-	unsigned ptrs_handle_op_##name(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope) \
+	ptrs_jit_var_t ptrs_handle_op_##name(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope) \
 	{ \
 		struct ptrs_ast_binary *expr = &node->arg.binary; \
 		\
-		unsigned left = expr->left->handler(expr->left, jit, scope); \
-		assert(scope->usedRegCount == left); \
-		scope->usedRegCount += 2; \
+		ptrs_jit_var_t left = expr->left->handler(expr->left, func, scope); \
+		ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope); \
 		\
-		unsigned right = expr->right->handler(expr->right, jit, scope); \
-		\
-		/* TODO floats */ \
-		jit_##operator##r(jit, R(left), R(left), R(right)); \
-		scope->usedRegCount -= 2; \
-		return left; \
+		/* TODO floats & correct meta type & correct meta array size */ \
+		right.val = jit_insn_##operator(func, left.val, right.val); \
+		return right; \
 	}
 
 #define handle_binary_assign(name, operator) \
-	unsigned ptrs_handle_op_##name(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope) \
+	ptrs_jit_var_t ptrs_handle_op_##name(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope) \
 	{ \
 		struct ptrs_ast_binary *expr = &node->arg.binary; \
 		\
-		unsigned right = expr->right->handler(expr->right, jit, scope); \
-		assert(scope->usedRegCount == right); \
-		scope->usedRegCount += 2; \
+		ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope); \
+		ptrs_jit_var_t left = expr->left->handler(expr->left, func, scope); \
 		\
-		unsigned left = expr->left->handler(expr->left, jit, scope); \
+		/* TODO floats & correct meta type & correct meta array size */ \
+		left.val = jit_insn_##operator(func, left.val, right.val); \
+		expr->left->setHandler(expr->left, func, scope, left); \
 		\
-		/* TODO floats */ \
-		jit_##operator##r(jit, R(left), R(left), R(right)); \
-		expr->left->setHandler(expr->left, jit, scope, R(right), R(right + 1)); \
-		\
-		scope->usedRegCount -= 2; \
 		return left; \
 	}
 
 #define handle_binary_typecompare(comparer) \
-	ptrs_jit_get_type(jit, R(left + 1), R(left + 1)); \
-	ptrs_jit_get_type(jit, R(right + 1), R(right + 1)); \
-	jit_##comparer##r(jit, R(left + 1), R(left + 1), R(right + 1)); \
-	jit_andr(jit, R(left), R(left), R(left + 1));
+	right.val = jit_insn_and(func, left.val, \
+		jit_insn_##comparer(func, \
+			ptrs_jit_get_type(func, left.meta), \
+			ptrs_jit_get_type(func, right.meta)) \
+	);
+
 #define handle_binary_compare(name, comparer, extra) \
-	unsigned ptrs_handle_op_##name(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope) \
+	ptrs_jit_var_t ptrs_handle_op_##name(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope) \
 	{ \
 		struct ptrs_ast_binary *expr = &node->arg.binary; \
 		\
-		unsigned left = expr->left->handler(expr->left, jit, scope); \
-		assert(scope->usedRegCount == left); \
-		scope->usedRegCount += 2; \
-		\
-		unsigned right = expr->right->handler(expr->right, jit, scope); \
+		ptrs_jit_var_t left = expr->left->handler(expr->left, func, scope); \
+		ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope); \
 		\
 		/* TODO floats */ \
-		jit_##comparer##r(jit, R(left), R(left), R(right)); \
+		right.val = jit_insn_##comparer(func, left.val, right.val); \
 		\
 		extra \
 		\
-		jit_movi(jit, R(left + 1), ptrs_const_meta(PTRS_TYPE_INT)); \
-		scope->usedRegCount -= 2; \
-		return left; \
+		right.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT); \
+		return right; \
 	}
 
 #define handle_binary_logic(name, comparer) \
-	unsigned ptrs_handle_op_##name(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope) \
+	ptrs_jit_var_t ptrs_handle_op_##name(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope) \
 	{ \
 		struct ptrs_ast_binary *expr = &node->arg.binary; \
+		ptrs_jit_var_t tmp = {jit_value_create(func, jit_type_long), jit_value_create(func, jit_type_ulong)}; \
 		\
 		/*evaluate the left-side expression*/ \
-		unsigned left = expr->left->handler(expr->left, jit, scope); \
-		assert(scope->usedRegCount == left); \
-		scope->usedRegCount += 2; \
-		\
-		/*convert the left-side expression to a boolean*/ \
-		long tmpVal = R(scope->usedRegCount); \
-		long tmpMeta = R(scope->usedRegCount + 1); \
-		jit_movr(jit, tmpVal, R(left)); \
-		jit_movr(jit, tmpMeta, R(left + 1)); \
-		ptrs_jit_vartob(jit, tmpVal, tmpMeta); \
+		ptrs_jit_var_t left = expr->left->handler(expr->left, func, scope); \
+		jit_insn_store(func, left.val, tmp.val); \
+		jit_insn_store(func, left.meta, tmp.meta); \
 		\
 		/*conditionally jump over the evaluation of the right-side expression*/ \
-		jit_op *skip = jit_##comparer##i(jit, (uintptr_t)JIT_FORWARD, tmpVal, 0); \
+		jit_label_t skip = jit_label_undefined; \
+		jit_value_t leftBool = ptrs_jit_vartob(func, left.val, left.meta); \
+		jit_insn_branch_##comparer(func, leftBool, &skip); \
 		\
 		/*overwrite the return value with the right-side expression*/ \
-		unsigned right = expr->right->handler(expr->right, jit, scope); \
-		jit_movr(jit, R(left), R(right)); \
-		jit_movr(jit, R(left + 1), R(right + 1)); \
+		ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope); \
+		jit_insn_store(func, right.val, tmp.val);\
+		jit_insn_store(func, right.meta, tmp.meta);\
 		\
-		jit_patch(jit, skip); \
-		scope->usedRegCount -= 2; \
-		return left; \
+		jit_insn_label(func, &skip); \
+		return tmp; \
 	}
 
 handle_binary_compare(typeequal, eq, handle_binary_typecompare(eq))
@@ -111,92 +96,85 @@ handle_binary_compare(greater, gt, ) //>
 handle_binary(or, or) //|
 handle_binary(xor, xor) //^
 handle_binary(and, and) //&
-handle_binary(shr, rsh) //>>
-handle_binary(shl, lsh) //<<
+handle_binary(shr, sshr) //>>
+handle_binary(shl, shl) //<<
 handle_binary(add, add) //+
 handle_binary(sub, sub) //-
 handle_binary(mul, mul) //*
 handle_binary(div, div) ///
-handle_binary(mod, mod) //%
+handle_binary(mod, rem) //%
 handle_binary_assign(addassign, add) //+=
 handle_binary_assign(subassign, sub) //-=
 handle_binary_assign(mulassign, mul) //*=
 handle_binary_assign(divassign, div) ///=
-handle_binary_assign(modassign, mod) //%=
-handle_binary_assign(shrassign, rsh) //>>=
-handle_binary_assign(shlassign, lsh) //<<=
+handle_binary_assign(modassign, rem) //%=
+handle_binary_assign(shrassign, sshr) //>>=
+handle_binary_assign(shlassign, shl) //<<=
 handle_binary_assign(andassign, and) //&=
 handle_binary_assign(xorassign, xor) //^=
 handle_binary_assign(orassign, or) //|=
-handle_binary_logic(logicor, bne) //||
-handle_binary_logic(logicand, beq) //&&
+handle_binary_logic(logicor, if) //||
+handle_binary_logic(logicand, if_not) //&&
 
-unsigned ptrs_handle_op_logicxor(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_op_logicxor(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_binary *expr = &node->arg.binary;
 
-	unsigned left = expr->left->handler(expr->left, jit, scope);
-	assert(scope->usedRegCount == left);
-	scope->usedRegCount += 2;
+	ptrs_jit_var_t left = expr->left->handler(expr->left, func, scope);
+	ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope);
 
-	unsigned right = expr->right->handler(expr->right, jit, scope);
+	left.val = ptrs_jit_vartob(func, left.val, left.meta);
+	right.val = ptrs_jit_vartob(func, left.val, left.meta);
 
-	ptrs_jit_vartob(jit, R(left), R(left + 1));
-	ptrs_jit_vartob(jit, R(right), R(right + 1));
-	jit_xorr(jit, R(left), R(left), R(right));
+	right.val = jit_insn_xor(func, left.val, right.val);
+	right.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
 
-	scope->usedRegCount -= 2;
-	return left;
-}
-
-unsigned ptrs_handle_prefix_logicnot(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
-{
-	ptrs_ast_t *expr = node->arg.astval;
-
-	unsigned left = expr->handler(expr, jit, scope);
-	ptrs_jit_vartob(jit, R(left), R(left + 1));
-	jit_xori(jit, R(left), R(left), 1);
-
-	return left;
-}
-
-unsigned ptrs_handle_op_assign(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
-{
-	struct ptrs_ast_binary *expr = &node->arg.binary;
-
-	unsigned right = expr->right->handler(expr->right, jit, scope);
-	assert(scope->usedRegCount == right); \
-	scope->usedRegCount += 2;
-
-	expr->left->setHandler(expr->left, jit, scope, right, right + 1);
-
-	scope->usedRegCount -= 2;
 	return right;
 }
 
-unsigned ptrs_handle_prefix_plus(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_prefix_logicnot(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	ptrs_ast_t *expr = node->arg.astval;
- 	return expr->handler(expr, jit, scope);
+
+	ptrs_jit_var_t val = expr->handler(expr, func, scope);
+	val.val = ptrs_jit_vartob(func, val.val, val.meta);
+
+	val.val = jit_insn_xor(func, val.val, jit_const_long(func, long, 1));
+	val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
+
+	return val;
 }
 
-#define jit_incr(jit, a, b) (jit_addi(jit, a, b, 1))
-#define jit_decr(jit, a, b) (jit_subi(jit, a, b, 1))
+ptrs_jit_var_t ptrs_handle_op_assign(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_binary *expr = &node->arg.binary;
+
+	ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope);
+	expr->left->setHandler(expr->left, func, scope, right);
+
+	return right;
+}
+
+ptrs_jit_var_t ptrs_handle_prefix_plus(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+{
+	ptrs_ast_t *expr = node->arg.astval;
+ 	return expr->handler(expr, func, scope);
+}
+
+#define jit_insn_inc(func, val) (jit_insn_add(func, val, jit_const_long(func, long, 1)))
+#define jit_insn_dec(func, val) (jit_insn_sub(func, val, jit_const_long(func, long, 1)))
 
 #define handle_prefix(name, operator, isAssign) \
-	unsigned ptrs_handle_prefix_##name(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope) \
+	ptrs_jit_var_t ptrs_handle_prefix_##name(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope) \
 	{ \
 		ptrs_ast_t *expr = node->arg.astval; \
-		unsigned val = expr->handler(expr, jit, scope); \
-		assert(scope->usedRegCount == val); \
-		scope->usedRegCount += 2; \
+		ptrs_jit_var_t val = expr->handler(expr, func, scope); \
 		\
 		/* TODO floats */ \
-		jit_##operator##r(jit, R(val), R(val)); \
+		val.val = jit_insn_##operator(func, val.val); \
 		if(isAssign) \
-			expr->setHandler(expr, jit, scope, R(val), R(val + 1)); \
+			expr->setHandler(expr, func, scope, val); \
 		\
-		scope->usedRegCount -= 2; \
 		return val; \
 	}
 
@@ -206,18 +184,16 @@ handle_prefix(not, not, false)
 handle_prefix(minus, neg, false)
 
 #define handle_suffix(name, operator) \
-	unsigned ptrs_handle_suffix_##name(ptrs_ast_t *node, jit_state_t *jit, ptrs_scope_t *scope) \
+	ptrs_jit_var_t ptrs_handle_suffix_##name(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope) \
 	{ \
 		ptrs_ast_t *expr = node->arg.astval; \
-		unsigned val = expr->handler(expr, jit, scope); \
-		assert(scope->usedRegCount == val); \
-		scope->usedRegCount += 3; \
+		ptrs_jit_var_t val = expr->handler(expr, func, scope); \
+		ptrs_jit_var_t writeback = val; \
 		\
 		/* TODO floats */ \
-		jit_##operator##r(jit, R(val + 2), R(val)); \
-		expr->setHandler(expr, jit, scope, R(val + 2), R(val + 1)); \
+		writeback.val = jit_insn_##operator(func, val.val); \
+		expr->setHandler(expr, func, scope, writeback); \
 		\
-		scope->usedRegCount -= 3; \
 		return val; \
 	}
 
