@@ -15,11 +15,11 @@
 struct ptrs_var;
 struct ptrs_ast;
 
-typedef struct ptrs_symbol
+typedef struct
 {
-	unsigned scope;
-	unsigned offset;
-} ptrs_symbol_t;
+	jit_value_t val;
+	jit_value_t meta;
+} ptrs_jit_var_t;
 
 typedef enum type
 {
@@ -60,8 +60,8 @@ typedef struct function
 	char *name;
 	int argc;
 	unsigned stackOffset;
-	ptrs_symbol_t vararg;
-	ptrs_symbol_t *args;
+	ptrs_jit_var_t vararg;
+	ptrs_jit_var_t *args;
 	struct ptrs_ast **argv;
 	struct ptrs_ast *body;
 	ptrs_scope_t *scope;
@@ -108,7 +108,7 @@ struct ptrs_opoverload
 typedef struct ptrs_struct
 {
 	char *name;
-	ptrs_symbol_t symbol;
+	ptrs_jit_var_t *location;
 	struct ptrs_structmember *member;
 	struct ptrs_opoverload *overloads;
 	ptrs_scope_t *scope;
@@ -165,12 +165,6 @@ typedef struct ptrs_var
 	ptrs_val_t value;
 	ptrs_meta_t meta;
 } ptrs_var_t;
-
-typedef struct
-{
-	jit_value_t val;
-	jit_value_t meta;
-} ptrs_jit_var_t;
 
 #define jit_const_int(func, type, val) (jit_value_create_nint_constant(func, jit_type_##type, val))
 #define jit_const_long(func, type, val) (jit_value_create_long_constant(func, jit_type_##type, val))

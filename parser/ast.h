@@ -25,13 +25,13 @@ struct ptrs_ast_define
 
 struct ptrs_ast_typed
 {
-	ptrs_symbol_t symbol;
+	ptrs_jit_var_t *location;
 	ptrs_nativetype_info_t *type;
 };
 
 struct ptrs_ast_lazy
 {
-	ptrs_symbol_t symbol;
+	ptrs_jit_var_t *location;
 	struct ptrs_ast *value;
 };
 
@@ -44,13 +44,13 @@ struct ptrs_ast_member
 
 struct ptrs_ast_thismember
 {
-	ptrs_symbol_t base;
+	ptrs_jit_var_t *base;
 	const char *name;
 };
 
 struct ptrs_ast_import
 {
-	ptrs_symbol_t wildcards;
+	ptrs_jit_var_t wildcards;
 	int wildcardCount;
 	struct ptrs_importlist *imports;
 	struct ptrs_ast *from;
@@ -58,7 +58,7 @@ struct ptrs_ast_import
 
 struct ptrs_ast_wildcard
 {
-	ptrs_symbol_t symbol;
+	ptrs_jit_var_t *location;
 	int index;
 };
 
@@ -69,8 +69,8 @@ struct ptrs_ast_trycatch
 	struct ptrs_ast *finallyBody;
 	unsigned catchStackOffset;
 	int argc;
-	ptrs_symbol_t *args;
-	ptrs_symbol_t retVal;
+	ptrs_jit_var_t *args;
+	ptrs_jit_var_t retVal;
 };
 
 struct ptrs_ast_asm
@@ -82,7 +82,7 @@ struct ptrs_ast_asm
 	struct ptrs_ast **importAsts;
 
 	void **exports;
-	ptrs_symbol_t *exportSymbols;
+	ptrs_jit_var_t **exportSymbols;
 
 	intptr_t (*asmFunc)();
 	struct jitas_context *context;
@@ -90,7 +90,7 @@ struct ptrs_ast_asm
 
 struct ptrs_ast_function
 {
-	ptrs_symbol_t symbol;
+	ptrs_jit_var_t *symbol;
 	bool isAnonymous;
 	ptrs_function_t func;
 };
@@ -170,7 +170,7 @@ struct ptrs_ast_with
 {
 	struct ptrs_ast *base;
 	struct ptrs_ast *body;
-	ptrs_symbol_t symbol;
+	ptrs_jit_var_t *symbol;
 	int count;
 	unsigned memberBuff;
 };
@@ -178,7 +178,7 @@ struct ptrs_ast_with
 struct ptrs_ast_withmember
 {
 	const char *name;
-	ptrs_symbol_t base;
+	ptrs_jit_var_t *base;
 	int index;
 };
 
@@ -206,7 +206,7 @@ struct ptrs_ast_for
 struct ptrs_ast_forin
 {
 	int varcount;
-	ptrs_symbol_t *varsymbols;
+	ptrs_jit_var_t *varsymbols;
 	struct ptrs_ast *value;
 	struct ptrs_ast *body;
 	unsigned stackOffset;
@@ -214,7 +214,7 @@ struct ptrs_ast_forin
 
 struct ptrs_ast_yield
 {
-	ptrs_symbol_t yieldVal;
+	ptrs_jit_var_t *yieldVal;
 	union
 	{
 		struct ptrs_astlist *values;
@@ -225,7 +225,7 @@ struct ptrs_ast_yield
 union ptrs_ast_arg
 {
 	char *strval;
-	ptrs_symbol_t varval;
+	ptrs_jit_var_t *varval;
 	ptrs_var_t constval;
 	ptrs_struct_t structval;
 
@@ -300,7 +300,7 @@ struct ptrs_importlist
 	char *name;
 	union
 	{
-		ptrs_symbol_t symbol;
+		ptrs_jit_var_t location;
 		int wildcardIndex;
 	};
 	struct ptrs_importlist *next;

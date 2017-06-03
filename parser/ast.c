@@ -29,22 +29,27 @@ struct symbollist
 {
 	union
 	{
-		unsigned offset;
 		void *data;
+		ptrs_jit_var_t *location;
 		struct
 		{
+			ptrs_jit_var_t *base;
+			const char *name;
+		} thismember;
+		struct
+		{
+			ptrs_jit_var_t *location;
 			unsigned index;
-			unsigned offset;
 		} wildcard;
 		struct
 		{
+			ptrs_jit_var_t *location;
 			ptrs_ast_t *value;
-			unsigned offset;
 		} lazy;
 		struct
 		{
+			ptrs_jit_var_t *location;
 			ptrs_nativetype_info_t *type;
-			unsigned offset;
 		} typed;
 	} arg;
 	ptrs_symboltype_t type;
@@ -58,15 +63,15 @@ struct wildcardsymbol
 	int startLen;
 	struct wildcardsymbol *next;
 };
+
 struct ptrs_symboltable
 {
-	unsigned offset;
-	unsigned maxOffset;
 	bool isInline;
 	struct symbollist *current;
 	struct wildcardsymbol *wildcards;
 	ptrs_symboltable_t *outer;
 };
+
 struct code
 {
 	const char *filename;
@@ -75,7 +80,8 @@ struct code
 	int pos;
 	ptrs_symboltable_t *symbols;
 	bool insideIndex;
-	ptrs_symbol_t yield;
+	ptrs_jit_var_t *thisVar;
+	ptrs_jit_var_t *yield;
 };
 
 static ptrs_ast_t *parseStmtList(code_t *code, char end);
@@ -103,8 +109,7 @@ static int64_t readInt(code_t *code, int base);
 static double readDouble(code_t *code);
 
 static void setSymbol(code_t *code, char *text, unsigned offset);
-static ptrs_symbol_t addSymbol(code_t *code, char *text);
-static ptrs_symbol_t addHiddenSymbol(code_t *code, size_t size);
+static void addSymbol(code_t *code, char *text, ptrs_jit_var_t *location);
 static struct symbollist *addSpecialSymbol(code_t *code, char *symbol, ptrs_symboltype_t type);
 static ptrs_ast_t *getSymbol(code_t *code, char *text);
 static void symbolScope_increase(code_t *code, int buildInCount, bool isInline);
@@ -133,7 +138,8 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 	code.curr = src[0];
 	code.pos = 0;
 	code.insideIndex = false;
-	code.yield.offset = (unsigned)-1;
+	code.thisVar = NULL;
+	code.yield = NULL;
 
 	if(symbols == NULL || *symbols == NULL)
 	{
@@ -162,10 +168,6 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 	ptrs_ast_t *ast = talloc(ptrs_ast_t);
 	ast->handler = ptrs_handle_file;
 	ast->arg.scopestatement.body = parseStmtList(&code, 0);
-	if(code.symbols->offset > code.symbols->maxOffset)
-		ast->arg.scopestatement.stackOffset = code.symbols->offset;
-	else
-		ast->arg.scopestatement.stackOffset = code.symbols->maxOffset;
 
 	ast->file = filename;
 	ast->code = src;
@@ -201,8 +203,7 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 						ast->addressHandler = NULL;
 						ast->callHandler = NULL;
 
-						ast->arg.varval.scope = level;
-						ast->arg.varval.offset = curr->arg.offset;
+						ast->arg.varval = curr->arg.location;
 						break;
 
 					case PTRS_SYMBOL_CONST:
@@ -214,8 +215,7 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 						*node = ast = talloc(ptrs_ast_t);
 						ast->handler = ptrs_handle_typed;
 						ast->setHandler = ptrs_handle_assign_typed;
-						ast->arg.typed.symbol.scope = level;
-						ast->arg.lazy.symbol.offset = curr->arg.typed.offset;
+						ast->arg.typed.location = curr->arg.typed.location;
 						ast->arg.typed.type = curr->arg.typed.type;
 						break;
 
@@ -225,8 +225,7 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 						ast->setHandler = NULL;
 						ast->addressHandler = NULL;
 						ast->callHandler = NULL;
-						ast->arg.lazy.symbol.scope = level;
-						ast->arg.lazy.symbol.offset = curr->arg.lazy.offset;
+						ast->arg.lazy.location = curr->arg.lazy.location;
 						ast->arg.lazy.value = curr->arg.lazy.value;
 						break;
 
@@ -237,9 +236,8 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 						ast->addressHandler = ptrs_handle_addressof_thismember;
 						ast->callHandler = ptrs_handle_call_thismember;
 
-						ast->arg.thismember.base.scope = level - 1;
-						ast->arg.thismember.base.offset = 0;
-						ast->arg.thismember.name = curr->arg.data;
+						ast->arg.thismember.base = curr->arg.thismember.base;
+						ast->arg.thismember.name = curr->arg.thismember.name;
 						break;
 
 					case PTRS_SYMBOL_WILDCARD:
@@ -249,9 +247,8 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 						ast->addressHandler = NULL;
 						ast->callHandler = NULL;
 
+						ast->arg.wildcard.location = curr->arg.wildcard.location;
 						ast->arg.wildcard.index = curr->arg.wildcard.index;
-						ast->arg.wildcard.symbol.scope = level;
-						ast->arg.wildcard.symbol.offset = curr->arg.wildcard.offset;
 						break;
 				}
 				return 0;
@@ -307,7 +304,7 @@ static ptrs_ast_t *parseStmtList(code_t *code, char end)
 	}
 }
 
-int parseIdentifierList(code_t *code, char *end, ptrs_symbol_t **symbols, char ***fields)
+int parseIdentifierList(code_t *code, char *end, ptrs_jit_var_t **symbols, char ***fields)
 {
 	int pos = code->pos;
 	int count = 1;
@@ -333,13 +330,14 @@ int parseIdentifierList(code_t *code, char *end, ptrs_symbol_t **symbols, char *
 	code->curr = code->src[pos];
 	if(fields != NULL)
 		*fields = malloc(sizeof(char *) * count);
-	*symbols = malloc(sizeof(ptrs_symbol_t) * count);
+	*symbols = malloc(sizeof(ptrs_jit_var_t) * count);
 
 	for(int i = 0; i < count; i++)
 	{
 		if(fields != NULL && lookahead(code, "_"))
 		{
-			(*symbols)[i].scope = (unsigned)-1;
+			(*symbols)[i].val = NULL;
+			(*symbols)[i].meta = NULL;
 		}
 		else
 		{
@@ -357,7 +355,7 @@ int parseIdentifierList(code_t *code, char *end, ptrs_symbol_t **symbols, char *
 				}
 			}
 
-			(*symbols)[i] = addSymbol(code, name);
+			addSymbol(code, name, *symbols + i);
 		}
 
 		if(i < count - 1)
@@ -369,19 +367,22 @@ int parseIdentifierList(code_t *code, char *end, ptrs_symbol_t **symbols, char *
 
 struct argdeflist
 {
-	ptrs_symbol_t symbol;
 	char *name;
+	bool isLazy;
 	ptrs_ast_t *value;
 	struct argdeflist *next;
 };
-static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_ast_t ***argv, ptrs_symbol_t *vararg)
+static int parseArgumentDefinitionList(code_t *code, ptrs_jit_var_t **args, ptrs_ast_t ***argv, ptrs_jit_var_t *vararg)
 {
 	bool hasArgv = false;
 	int argc = 0;
 	consumecm(code, '(', "Expected ( as the beginning of an argument definition");
 
 	if(vararg != NULL)
-		vararg->scope = (unsigned)-1;
+	{
+		vararg->val = NULL;
+		vararg->meta = NULL;
+	}
 
 	if(code->curr == ')')
 	{
@@ -397,37 +398,41 @@ static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_
 		struct argdeflist *list = &first;
 		for(;;)
 		{
-			ptrs_symbol_t curr;
+			char *name;
+			bool isLazy;
+
 			if(lookahead(code, "_"))
 			{
-				curr.scope = (unsigned)-1;
+				name = NULL;
 			}
 			else if(lookahead(code, "lazy"))
 			{
-				struct symbollist *symbol = addSpecialSymbol(code, readIdentifier(code), PTRS_SYMBOL_LAZY);
-				curr = addHiddenSymbol(code, sizeof(ptrs_var_t));
-				symbol->arg.lazy.offset = curr.offset;
-				symbol->arg.lazy.value = NULL;
+				name = readIdentifier(code);
+				isLazy = true;
 			}
 			else
 			{
-				curr = addSymbol(code, readIdentifier(code));
+				name = readIdentifier(code);
+				isLazy = false;
 
 				if(vararg != NULL && lookahead(code, "..."))
 				{
-					*vararg = curr;
 					consumecm(code, ')', "Vararg argument has to be the last argument");
+
+					addSymbol(code, name, vararg);
 					break;
 				}
 			}
 
 			list->next = talloc(struct argdeflist);
 			list = list->next;
-			list->symbol = curr;
+
+			list->name = name;
+			list->isLazy = isLazy;
 
 			if(argv != NULL)
 			{
-				if(curr.scope != (unsigned)-1 && lookahead(code, "="))
+				if(name != NULL && lookahead(code, "="))
 				{
 					list->value = parseExpression(code, true);
 					hasArgv = true;
@@ -448,7 +453,7 @@ static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_
 			consumecm(code, ',', "Expected , between two arguments");
 		}
 
-		*args = malloc(sizeof(ptrs_symbol_t) * argc);
+		*args = malloc(sizeof(ptrs_jit_var_t) * argc);
 		if(hasArgv)
 			*argv = malloc(sizeof(ptrs_ast_t *) * argc);
 		else if(argv != NULL)
@@ -457,7 +462,21 @@ static int parseArgumentDefinitionList(code_t *code, ptrs_symbol_t **args, ptrs_
 		list = first.next;
 		for(int i = 0; i < argc; i++)
 		{
-			(*args)[i] = list->symbol;
+			if(list->name == NULL)
+			{
+				//ignore
+			}
+			if(list->isLazy)
+			{
+				struct symbollist *symbol = addSpecialSymbol(code, readIdentifier(code), PTRS_SYMBOL_LAZY);
+				symbol->arg.lazy.location = *args + i;
+				symbol->arg.lazy.value = NULL;
+			}
+			else
+			{
+				addSymbol(code, list->name, *args + i);
+			}
+
 			if(hasArgv)
 				(*argv)[i] = list->value;
 
@@ -545,7 +564,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	if(lookahead(code, "var"))
 	{
 		stmt->handler = ptrs_handle_define;
-		stmt->arg.define.symbol = addSymbol(code, readIdentifier(code));
+		addSymbol(code, readIdentifier(code), &stmt->arg.define.location);
 		stmt->arg.define.onStack = true;
 
 		if(lookahead(code, "["))
@@ -625,12 +644,15 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	else if(lookahead(code, "lazy"))
 	{
 		stmt->handler = ptrs_handle_lazyinit;
-		stmt->arg.varval = addHiddenSymbol(code, sizeof(ptrs_var_t));
+		stmt->arg.varval = talloc(ptrs_jit_var_t);
 
 		struct symbollist *entry = addSpecialSymbol(code, readIdentifier(code), PTRS_SYMBOL_LAZY);
+
 		consumec(code, '=');
-		entry->arg.lazy.offset = stmt->arg.varval.offset;
+
+		entry->arg.lazy.location = stmt->arg.varval;
 		entry->arg.lazy.value = parseExpression(code, true);
+
 		consumec(code, ';');
 	}
 	else if(lookahead(code, "import"))
@@ -694,12 +716,13 @@ static ptrs_ast_t *parseStatement(code_t *code)
 			if(code->curr == '(')
 			{
 				consumec(code, '(');
-				stmt->arg.trycatch.retVal = addSymbol(code, readIdentifier(code));
+				addSymbol(code, readIdentifier(code), &stmt->arg.trycatch.retVal);
 				consumec(code, ')');
 			}
 			else
 			{
-				stmt->arg.trycatch.retVal.scope = (unsigned)-1;
+				stmt->arg.trycatch.retVal.val = NULL;
+				stmt->arg.trycatch.retVal.meta = NULL;
 			}
 
 			stmt->arg.trycatch.finallyBody = parseBody(code, NULL, true, false);
@@ -707,7 +730,8 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		}
 		else
 		{
-			stmt->arg.trycatch.retVal.scope = (unsigned)-1;
+			stmt->arg.trycatch.retVal.val = NULL;
+			stmt->arg.trycatch.retVal.meta = NULL;
 			stmt->arg.trycatch.finallyBody = NULL;
 		}
 	}
@@ -732,7 +756,8 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		}
 		else
 		{
-			stmt->arg.function.symbol = addSymbol(code, strdup(name));
+			stmt->arg.function.symbol = talloc(ptrs_jit_var_t);
+			addSymbol(code, strdup(name), stmt->arg.function.symbol);
 		}
 		func->name = name;
 
@@ -1164,7 +1189,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 	}
 	else if(lookahead(code, "yield"))
 	{
-		if(code->yield.offset != (unsigned)-1)
+		if(code->yield != NULL)
 		{
 			ast = talloc(ptrs_ast_t);
 			ast->handler = ptrs_handle_yield;
@@ -1384,7 +1409,8 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 	ast->file = code->filename;
 
 	ptrs_ast_t *old;
-	do {
+	do
+	{
 		old = ast;
 		ast = parseUnaryExtension(code, ast, ignoreCalls, ignoreAlgo);
 	} while(ast != old);
@@ -1599,7 +1625,6 @@ static void parseImport(code_t *code, ptrs_ast_t *stmt)
 {
 	stmt->handler = ptrs_handle_import;
 	stmt->arg.import.imports = NULL;
-	stmt->arg.import.wildcards = addHiddenSymbol(code, sizeof(ptrs_var_t));
 	stmt->arg.import.wildcardCount = 0;
 
 	for(;;)
@@ -1623,12 +1648,11 @@ static void parseImport(code_t *code, ptrs_ast_t *stmt)
 
 			struct ptrs_importlist *curr = talloc(struct ptrs_importlist);
 			curr->name = name;
-			curr->symbol = addHiddenSymbol(code, sizeof(ptrs_var_t)); //TODO use type's size here? or keep alignment?
 			curr->next = stmt->arg.import.imports;
 			stmt->arg.import.imports = curr;
 
 			struct symbollist *symbol = addSpecialSymbol(code, strdup(name), PTRS_SYMBOL_TYPED);
-			symbol->arg.typed.offset = curr->symbol.offset;
+			symbol->arg.typed.location = &curr->location;
 			symbol->arg.typed.type = readNativeType(code);
 
 			if(symbol->arg.typed.type == NULL)
@@ -1642,9 +1666,9 @@ static void parseImport(code_t *code, ptrs_ast_t *stmt)
 
 			curr->name = name;
 			if(lookahead(code, "as"))
-				curr->symbol = addSymbol(code, readIdentifier(code));
+				addSymbol(code, readIdentifier(code), &curr->location);
 			else
-				curr->symbol = addSymbol(code, strdup(curr->name));
+				addSymbol(code, strdup(curr->name), &curr->location);
 		}
 
 		if(code->curr == ';')
@@ -1782,7 +1806,8 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 
 	if(lookahead(code, "array"))
 	{
-		ast->arg.define.symbol.scope = -1;
+		ast->arg.define.location.val = NULL;
+		ast->arg.define.location.meta = NULL;
 		ast->arg.define.initExpr = NULL;
 		ast->arg.define.isInitExpr = true;
 		ast->arg.define.onStack = onStack;
@@ -1900,7 +1925,7 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 
 	structExpr->handler = ptrs_handle_struct;
 
-	struc->symbol.scope = (unsigned)-1;
+	struc->location = NULL;
 	struc->size = 0;
 	struc->name = "(map)";
 	struc->overloads = NULL;
@@ -2001,12 +2026,13 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 		if(oldAst->handler != ptrs_handle_identifier)
 			PTRS_HANDLE_ASTERROR(NULL, "Cannot redefine special symbol %s as a struct", structName);
 
-		struc->symbol = oldAst->arg.varval;
+		struc->location = oldAst->arg.varval;
 		free(oldAst);
 	}
 	else
 	{
-		struc->symbol = addSymbol(code, strdup(structName));
+		struc->location = talloc(ptrs_jit_var_t);
+		addSymbol(code, strdup(structName), struc->location);
 	}
 
 	struc->name = structName;
@@ -2034,14 +2060,15 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			symbolScope_increase(code, 1, false);
 			setSymbol(code, strdup("this"), 0);
 
-			ptrs_symbol_t oldYield = code->yield;
+			ptrs_jit_var_t *oldYield = code->yield;
 			const char *nameFormat = NULL;
 			const char *opLabel = NULL;
 			char *otherName = NULL;
 			ptrs_function_t *func = talloc(ptrs_function_t);
 			func->argc = 0;
 			func->argv = NULL;
-			func->vararg.scope = (unsigned)-1;
+			func->vararg.val = NULL;
+			func->vararg.meta = NULL;
 
 			struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
 			overload->isStatic = isStatic;
@@ -2074,8 +2101,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 					if(isAddressOf)
 					{
-						func->args = talloc(ptrs_symbol_t);
-						func->args[0] = addSymbol(code, otherName);
+						func->args = talloc(ptrs_jit_var_t);
+						addSymbol(code, otherName, func->args);
 
 						nameFormat = curr == '.' ? "%1$s.op &this.%3$s" : "%1$s.op &this[%3$s]";
 						overload->op = curr == '.' ? ptrs_handle_addressof_member : ptrs_handle_addressof_index;
@@ -2083,9 +2110,9 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					else if(lookahead(code, "="))
 					{
 						func->argc = 2;
-						func->args = malloc(sizeof(ptrs_symbol_t) * 2);
-						func->args[0] = addSymbol(code, otherName);
-						func->args[1] = addSymbol(code, readIdentifier(code));
+						func->args = malloc(sizeof(ptrs_jit_var_t) * 2);
+						addSymbol(code, otherName, &func->args[0]);
+						addSymbol(code, readIdentifier(code), &func->args[1]);
 
 						opLabel = " = value";
 						overload->op = curr == '.' ? ptrs_handle_assign_member : ptrs_handle_assign_index;
@@ -2100,28 +2127,28 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 						overload->op = curr == '.' ? ptrs_handle_call_member : ptrs_handle_call_index;
 
 
-						ptrs_symbol_t *newArgs = malloc(sizeof(ptrs_symbol_t) * func->argc);
-						newArgs[0] = addSymbol(code, otherName);
+						ptrs_jit_var_t *newArgs = malloc(sizeof(ptrs_jit_var_t) * func->argc);
+						addSymbol(code, otherName, &newArgs[0]);
 
-						memcpy(newArgs + 1, func->args, sizeof(ptrs_symbol_t) * (func->argc - 1));
+						memcpy(newArgs + 1, func->args, sizeof(ptrs_jit_var_t) * (func->argc - 1));
 						free(func->args);
 						func->args = newArgs;
 
 
 						if(func->argv != NULL)
 						{
-							ptrs_ast_t **newArgv = malloc(sizeof(ptrs_symbol_t) * func->argc);
+							ptrs_ast_t **newArgv = malloc(sizeof(ptrs_jit_var_t) * func->argc);
 							newArgv[0] = NULL;
 
-							memcpy(newArgv + 1, func->argv, sizeof(ptrs_symbol_t) * (func->argc - 1));
+							memcpy(newArgv + 1, func->argv, sizeof(ptrs_jit_var_t) * (func->argc - 1));
 							free(func->argv);
 							func->argv = newArgv;
 						}
 					}
 					else
 					{
-						func->args = talloc(ptrs_symbol_t);
-						func->args[0] = addSymbol(code, otherName);
+						func->args = talloc(ptrs_jit_var_t);
+						addSymbol(code, otherName, func->args);
 
 						opLabel = "";
 						overload->op = curr == '.' ? ptrs_handle_member : ptrs_handle_index;
@@ -2159,11 +2186,10 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				nameFormat = "%1$s.op foreach in this";
 				overload->op = ptrs_handle_forin;
 
-				code->yield = addHiddenSymbol(code, sizeof(ptrs_var_t));
+				code->yield = talloc(ptrs_jit_var_t);
 
 				func->argc = 1;
-				func->args = talloc(ptrs_symbol_t);
-				func->args[0] = code->yield;
+				func->args = code->yield;
 			}
 			else if(lookahead(code, "cast"))
 			{
@@ -2185,8 +2211,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					overload->op = ptrs_handle_cast_builtin;
 
 					func->argc = 1;
-					func->args = talloc(ptrs_symbol_t);
-					func->args[0] = addSymbol(code, otherName);
+					func->args = talloc(ptrs_jit_var_t);
+					addSymbol(code, otherName, func->args);
 				}
 
 				consumec(code, '>');
@@ -2292,7 +2318,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 			ptrs_function_t *func = talloc(ptrs_function_t);
 			func->name = malloc(structNameLen + strlen(name) + 6);
-			func->vararg.scope = (unsigned)-1;
+			func->vararg.val = NULL;
+			func->vararg.meta = NULL;
 
 			if(isProperty == 1)
 			{
@@ -2308,8 +2335,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				curr->type = PTRS_STRUCTMEMBER_SETTER;
 
 				func->argc = 1;
-				func->args = talloc(ptrs_symbol_t);
-				func->args[0] = addSymbol(code, strdup("value"));
+				func->args = talloc(ptrs_jit_var_t);
+				addSymbol(code, strdup("value"), func->args);
 				sprintf(func->name, "%s.set %s", structName, name);
 			}
 
@@ -2776,35 +2803,19 @@ static void setSymbol(code_t *code, char *text, unsigned offset)
 	ptrs_symboltable_t *curr = code->symbols;
 	struct symbollist *entry = talloc(struct symbollist);
 
-	entry->type = PTRS_SYMBOL_DEFAULT;
-	entry->text = text;
-	entry->arg.offset = offset;
-	entry->next = curr->current;
-	curr->current = entry;
+	//TODO remove
 }
 
-static ptrs_symbol_t addSymbol(code_t *code, char *symbol)
+static void addSymbol(code_t *code, char *symbol, ptrs_jit_var_t *location)
 {
 	ptrs_symboltable_t *curr = code->symbols;
 	struct symbollist *entry = talloc(struct symbollist);
 
 	entry->type = PTRS_SYMBOL_DEFAULT;
 	entry->text = symbol;
+	entry->arg.location = location;
 	entry->next = curr->current;
-	entry->arg.offset = curr->offset;
-	curr->offset += sizeof(ptrs_var_t);
 	curr->current = entry;
-
-	ptrs_symbol_t result = {0, entry->arg.offset};
-	return result;
-}
-
-static ptrs_symbol_t addHiddenSymbol(code_t *code, size_t size)
-{
-	ptrs_symbol_t result = {0, code->symbols->offset};
-	code->symbols->offset += size;
-
-	return result;
 }
 
 static struct symbollist *addSpecialSymbol(code_t *code, char *symbol, ptrs_symboltype_t type) //0x656590
@@ -2844,15 +2855,14 @@ static ptrs_ast_t *getSymbolFromWildcard(code_t *code, char *text)
 				ast->setHandler = NULL;
 				ast->callHandler = NULL;
 				ast->addressHandler = NULL;
-				ast->arg.wildcard.symbol.scope = stmt->wildcards.scope + level;
-				ast->arg.wildcard.symbol.offset = stmt->wildcards.offset;
+				ast->arg.wildcard.location = &stmt->wildcards;
 				ast->arg.wildcard.index = import->wildcardIndex;
 
 				struct symbollist *entry = talloc(struct symbollist);
 				entry->text = strdup(text);
 				entry->type = PTRS_SYMBOL_WILDCARD;
+				entry->arg.wildcard.location = &stmt->wildcards;
 				entry->arg.wildcard.index = import->wildcardIndex;
-				entry->arg.wildcard.offset = stmt->wildcards.offset;
 				entry->next = symbols->current;
 				symbols->current = entry;
 
@@ -2889,18 +2899,12 @@ static ptrs_ast_t *getSymbol(code_t *code, char *text)
 static void symbolScope_increase(code_t *code, int buildInCount, bool isInline)
 {
 	ptrs_symboltable_t *new = talloc(ptrs_symboltable_t);
-	new->offset = buildInCount * sizeof(ptrs_var_t);
-	new->maxOffset = 0;
 	new->isInline = isInline;
 	new->outer = code->symbols;
 	new->current = NULL;
 	new->wildcards = NULL;
 
 	code->symbols = new;
-	if(isInline)
-		new->offset += new->outer->offset;
-	else
-		code->yield.scope++;
 }
 
 static unsigned symbolScope_decrease(code_t *code)
@@ -2926,15 +2930,8 @@ static unsigned symbolScope_decrease(code_t *code)
 		free(old);
 	}
 
-	unsigned val = scope->offset > scope->maxOffset ? scope->offset : scope->maxOffset;
-	if(code->symbols != NULL && val > code->symbols->maxOffset)
-		code->symbols->maxOffset = val;
-
-	if(!scope->isInline)
-		code->yield.scope--;
-
 	free(scope);
-	return val;
+	return 0;
 }
 
 static bool lookahead(code_t *code, const char *str)

@@ -29,6 +29,9 @@ ptrs_jit_var_t ptrs_handle_body(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 ptrs_jit_var_t ptrs_handle_define(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_define *stmt = &node->arg.define;
+	stmt->location.val = jit_value_create(func, jit_type_long);
+	stmt->location.meta = jit_value_create(func, jit_type_ulong);
+
 	ptrs_jit_var_t val;
 
 	if(stmt->value != NULL)
