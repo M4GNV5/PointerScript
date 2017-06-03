@@ -8,25 +8,32 @@
 #include "../../parser/common.h"
 #include "../include/run.h"
 
+jit_context_t ptrs_jit_context = NULL;
+
 ptrs_result_t *ptrs_compile(char *src, const char *filename)
 {
 	ptrs_scope_t scope;
+	scope.continueLabel = jit_label_undefined;
+	scope.breakLabel = jit_label_undefined;
 	scope.errors = NULL;
-	scope.usedRegCount = 0;
+
+	if(ptrs_jit_context == NULL)
+		ptrs_jit_context = jit_context_create();
 
 	ptrs_result_t *result = malloc(sizeof(ptrs_result_t));
 
 	result->symbols = NULL;
 	result->ast = ptrs_parse(src, filename, &result->symbols);
-	result->jit = jit_init();
 
-	jit_prolog(result->jit, &result->code);
-	result->ast->handler(result->ast, result->jit, &scope);
+	jit_context_build_start(ptrs_jit_context);
 
-	jit_enable_optimization(result->jit, JIT_OPT_OMIT_UNUSED_ASSIGNEMENTS);
-	jit_enable_optimization(result->jit, JIT_OPT_JOIN_ADDMUL);
-	jit_enable_optimization(result->jit, JIT_OPT_OMIT_FRAME_PTR);
-	jit_generate_code(result->jit);
+	jit_type_t params[1] = {jit_type_void_ptr};
+	result->signature = jit_type_create_signature(jit_abi_cdecl, jit_type_ulong, params, 1, 1);
+
+	result->func = jit_function_create(ptrs_jit_context, result->signature);
+	result->ast->handler(result->ast, result->func, &scope);
+
+	jit_context_build_end(ptrs_jit_context);
 
 	return result;
 }

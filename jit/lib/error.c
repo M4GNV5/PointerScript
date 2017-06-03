@@ -24,6 +24,8 @@ typedef struct
 
 FILE *ptrs_errorfile = NULL;
 
+extern jit_context_t ptrs_jit_context;
+
 void ptrs_getpos(codepos_t *pos, ptrs_ast_t *ast)
 {
 	int line = 1;
