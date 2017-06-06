@@ -11,6 +11,7 @@ PARSER_OBJECTS += $(BIN)/ast.o
 RUN_LIB_OBJECTS += $(BIN)/conversion.o
 RUN_LIB_OBJECTS += $(BIN)/error.o
 RUN_LIB_OBJECTS += $(BIN)/astlist.o
+RUN_LIB_OBJECTS += $(BIN)/call.o
 RUN_LIB_OBJECTS += $(BIN)/run.o
 RUN_LIB_OBJECTS += $(BIN)/nativetypes.o
 RUN_LIB_OBJECTS += $(BIN)/struct.o
