@@ -39,8 +39,8 @@
 #define handle_binary_typecompare(comparer) \
 	right.val = jit_insn_and(func, left.val, \
 		jit_insn_##comparer(func, \
-			ptrs_jit_get_type(func, left.meta), \
-			ptrs_jit_get_type(func, right.meta)) \
+			ptrs_jit_getType(func, left.meta), \
+			ptrs_jit_getType(func, right.meta)) \
 	);
 
 #define handle_binary_compare(name, comparer, extra) \

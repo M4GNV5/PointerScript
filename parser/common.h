@@ -170,10 +170,10 @@ typedef struct ptrs_var
 #define jit_const_long(func, type, val) (jit_value_create_long_constant(func, jit_type_##type, val))
 
 #define ptrs_const_meta(type) ((uintptr_t)(type) << 56)
-#define ptrs_const_arraymeta(type, readOnly, size) ((uint8_t)(type) << 56 | (bool)(readOnly) << 48 | (size))
+#define ptrs_const_arrayMeta(type, readOnly, size) ((uint8_t)(type) << 56 | (bool)(readOnly) << 48 | (size))
 
 #define ptrs_jit_const_meta(func, type) (jit_value_create_long_constant(func, jit_type_ulong, ptrs_const_meta(type)))
-#define ptrs_jit_arraymeta(func, type, readOnly, size) \
+#define ptrs_jit_arrayMeta(func, type, readOnly, size) \
 	(jit_insn_or(func, \
 		jit_insn_or(func, \
 			jit_insn_shl(func, (type), jit_const_long(func, ulong, 56)), \
@@ -182,9 +182,9 @@ typedef struct ptrs_var
 		(size) \
 	))
 
-#define ptrs_jit_get_type(func, meta) (jit_insn_ushr(func, meta, jit_const_int(func, ubyte, 54)))
-#define ptrs_jit_get_arraysize(func, meta) (jit_insn_and(func, meta, jit_const_long(func, ulong, 0xFFFFFFFF)))
+#define ptrs_jit_getType(func, meta) (jit_insn_ushr(func, meta, jit_const_int(func, ubyte, 54)))
+#define ptrs_jit_getArraySize(func, meta) (jit_insn_and(func, meta, jit_const_long(func, ulong, 0xFFFFFFFF)))
 
-#define ptrs_jit_hasType(func, meta, type) (jit_insn_eq((func), ptrs_jit_get_type(func, meta), jit_const_long(func, ulong, (type))))
+#define ptrs_jit_hasType(func, meta, type) (jit_insn_eq((func), ptrs_jit_getType(func, meta), jit_const_long(func, ulong, (type))))
 
 #endif

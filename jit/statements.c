@@ -89,7 +89,7 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 		jit_type_free(signature);
 	}
 
-	val.meta = ptrs_jit_arraymeta(func, jit_const_long(func, ulong, PTRS_TYPE_NATIVE), jit_const_long(func, ulong, false), size);
+	val.meta = ptrs_jit_arrayMeta(func, jit_const_long(func, ulong, PTRS_TYPE_NATIVE), jit_const_long(func, ulong, false), size);
 
 	//store the array
 	jit_insn_store(func, stmt->location.val, val.val);
@@ -104,7 +104,7 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 			1, "Array init expression must be of type native not %mt", init.meta);
 
 		//check initExpr.size <= array.size
-		jit_value_t initSize = ptrs_jit_get_arraysize(func, init.meta);
+		jit_value_t initSize = ptrs_jit_getArraySize(func, init.meta);
 		ptrs_jit_assert(node, func, jit_insn_le(func, initSize, size),
 			2, "Init expression size of %d is too big for array of size %d", initSize, size);
 
@@ -156,7 +156,7 @@ ptrs_jit_var_t ptrs_handle_vararray(ptrs_ast_t *node, jit_function_t func, ptrs_
 		jit_type_free(signature);
 	}
 
-	val.meta = ptrs_jit_arraymeta(func, jit_const_long(func, ulong, PTRS_TYPE_POINTER), jit_const_long(func, ulong, false), size);
+	val.meta = ptrs_jit_arrayMeta(func, jit_const_long(func, ulong, PTRS_TYPE_POINTER), jit_const_long(func, ulong, false), size);
 
 	//store the array
 	jit_insn_store(func, stmt->location.val, val.val);
