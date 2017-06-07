@@ -47,11 +47,11 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func,
 		1, "Cannot call value of type %t", type);
 
 	//calling a pointerscript function
-	ptrs_callfunc(func, val, narg, args);
+	ptrs_jit_callfunc(func, val, narg, args);
 
 	//calling a native function
 	jit_insn_label(func, &isNative);
-	ptrs_callnative(func, val, narg, args);
+	ptrs_jit_callnative(func, val, narg, args);
 }
 
 ptrs_jit_var_t ptrs_jit_vcall(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
@@ -78,5 +78,5 @@ ptrs_jit_var_t ptrs_jit_vcall(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 		curr = curr->next;
 	}
 
-	ptrs_call(node, func, val, meta, len, _args);
+	ptrs_jit_call(node, func, val, meta, len, _args);
 }
