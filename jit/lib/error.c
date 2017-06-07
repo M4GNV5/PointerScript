@@ -247,8 +247,11 @@ void ptrs_jit_assert(ptrs_ast_t *ast, jit_function_t func, jit_value_t condition
 	jit_label_t label = jit_label_undefined;
 	jit_insn_branch_if_not(func, condition, &label);
 
-	jit_type_t params[2] = {jit_type_void_ptr, jit_type_void_ptr};
-	jit_type_t signature = jit_type_create_signature(jit_abi_vararg, jit_type_void, params, 2, 1);
+	jit_type_t params[argCount];
+	for(int i = 0; i < argCount; i++)
+		params[i] = jit_type_void_ptr;
+
+	jit_type_t signature = jit_type_create_signature(jit_abi_vararg, jit_type_void, params, argCount, 1);
 	jit_insn_call_native(func, "ptrs_handle_error", ptrs_error, signature, args, argCount, JIT_CALL_NORETURN);
 	jit_type_free(signature);
 
