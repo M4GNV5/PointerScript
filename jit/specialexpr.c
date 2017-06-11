@@ -66,7 +66,13 @@ ptrs_jit_var_t ptrs_handle_call_thismember(ptrs_ast_t *node, jit_function_t func
 
 ptrs_jit_var_t ptrs_handle_prefix_length(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	//TODO
+	node = node->arg.astval;
+
+	ptrs_jit_var_t val = node->handler(node, func, scope);
+	val.val = ptrs_jit_getArraySize(func, val.meta);
+	val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
+
+	return val;
 }
 
 ptrs_jit_var_t ptrs_handle_prefix_address(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
