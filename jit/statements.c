@@ -371,10 +371,9 @@ ptrs_jit_var_t ptrs_handle_if(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 	struct ptrs_ast_ifelse *stmt = &node->arg.ifelse;
 
 	ptrs_jit_var_t condition = stmt->condition->handler(stmt->condition, func, scope);
-	jit_value_t conditionBool = ptrs_jit_vartob(func, condition.val, condition.meta);
 
 	jit_label_t isFalse = jit_label_undefined;
-	jit_insn_branch_if_not(func, conditionBool, &isFalse);
+	ptrs_jit_branch_if_not(func, &isFalse, condition.val, condition.meta);
 
 	stmt->ifBody->handler(stmt->ifBody, func, scope);
 
@@ -415,10 +414,9 @@ ptrs_jit_var_t ptrs_handle_while(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 
 	//evaluate the condition
 	val = stmt->condition->handler(stmt->condition, func, scope);
-	jit_value_t conditionBool = ptrs_jit_vartob(func, val.val, val.meta);
 
 	jit_label_t end = jit_label_undefined;
-	jit_insn_branch_if_not(func, conditionBool, &end);
+	ptrs_jit_branch_if_not(func, &end, val.val, val.meta);
 
 	//run the while body, jumping back the condition check afterwords
 	val = stmt->body->handler(stmt->body, func, scope);
@@ -454,9 +452,7 @@ ptrs_jit_var_t ptrs_handle_dowhile(ptrs_ast_t *node, jit_function_t func, ptrs_s
 
 	//evaluate the condition
 	ptrs_jit_var_t condition = stmt->condition->handler(stmt->condition, func, scope);
-	jit_value_t conditionBool = ptrs_jit_vartob(func, condition.val, condition.meta);
-
-	jit_insn_branch_if(func, conditionBool, &start);
+	ptrs_jit_branch_if(func, &start, condition.val, condition.meta);
 
 	//after the loop - patch the breaks
 	jit_insn_label(func, &scope->breakLabel);
@@ -483,10 +479,9 @@ ptrs_jit_var_t ptrs_handle_for(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 
 	//evaluate the condition
 	val = stmt->condition->handler(stmt->condition, func, scope);
-	jit_value_t conditionBool = ptrs_jit_vartob(func, val.val, val.meta);
 
 	jit_label_t end = jit_label_undefined;
-	jit_insn_branch_if_not(func, conditionBool, &end);
+	ptrs_jit_branch_if_not(func, &end, val.val, val.meta);
 
 	//run the while body, jumping back the condition check afterwords
 	val = stmt->body->handler(stmt->body, func, scope);

@@ -16,4 +16,7 @@ jit_value_t ptrs_jit_vartob(jit_function_t func, jit_value_t val, jit_value_t me
 jit_value_t ptrs_jit_vartoi(jit_function_t func, jit_value_t val, jit_value_t meta);
 jit_value_t ptrs_jit_vartof(jit_function_t func, jit_value_t val, jit_value_t meta);
 
+void ptrs_jit_branch_if(jit_function_t func, jit_label_t *target, jit_value_t val, jit_value_t meta);
+void ptrs_jit_branch_if_not(jit_function_t func, jit_label_t *target, jit_value_t val, jit_value_t meta);
+
 #endif

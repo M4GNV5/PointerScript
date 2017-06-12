@@ -12,6 +12,24 @@
 #include "../../parser/common.h"
 #include "../include/conversion.h"
 
+void ptrs_jit_branch_if(jit_function_t func, jit_label_t *target, jit_value_t val, jit_value_t meta)
+{
+	jit_value_t isUndefined = ptrs_jit_hasType(func, meta, PTRS_TYPE_UNDEFINED);
+	jit_insn_branch_if_not(func, isUndefined, target);
+
+	jit_value_t isZero = jit_insn_eq(func, val, jit_const_long(func, ulong, 0));
+	jit_insn_branch_if_not(func, isZero, target);
+}
+
+void ptrs_jit_branch_if_not(jit_function_t func, jit_label_t *target, jit_value_t val, jit_value_t meta)
+{
+	jit_value_t isUndefined = ptrs_jit_hasType(func, meta, PTRS_TYPE_UNDEFINED);
+	jit_insn_branch_if(func, isUndefined, target);
+	
+	jit_value_t isZero = jit_insn_eq(func, val, jit_const_long(func, ulong, 0));
+	jit_insn_branch_if(func, isZero, target);
+}
+
 jit_value_t ptrs_jit_vartob(jit_function_t func, jit_value_t val, jit_value_t meta)
 {
 	jit_value_t isUndefined = ptrs_jit_hasType(func, meta, PTRS_TYPE_UNDEFINED);
