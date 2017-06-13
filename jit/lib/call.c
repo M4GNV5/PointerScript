@@ -39,6 +39,7 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func,
 	jit_value_t val, jit_value_t meta, size_t narg, ptrs_jit_var_t *args)
 {
 	jit_label_t isNative = jit_label_undefined;
+	jit_label_t end = jit_label_undefined;
 
 	jit_value_t type = ptrs_jit_getType(func, meta);
 	jit_insn_branch_if(func, jit_insn_eq(func, type, jit_const_long(func, ulong, PTRS_TYPE_NATIVE)), &isNative);
@@ -48,10 +49,13 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func,
 
 	//calling a pointerscript function
 	ptrs_jit_callfunc(func, val, narg, args);
+	jit_insn_branch(func, &end);
 
 	//calling a native function
 	jit_insn_label(func, &isNative);
 	ptrs_jit_callnative(func, val, narg, args);
+
+	jit_insn_label(func, &end);
 }
 
 ptrs_jit_var_t ptrs_jit_vcall(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
