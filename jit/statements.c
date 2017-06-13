@@ -215,11 +215,11 @@ ptrs_cache_t *importCachedScript(char *path, ptrs_ast_t *node, ptrs_scope_t *sco
 }
 */
 
-static void importScript(ptrs_var_t **results, ptrs_ast_t *node, char *from)
+static void importScript(ptrs_ast_t *node, char *from, ptrs_val_t **values, ptrs_meta_t **metas)
 {
 	//TODO
 }
-static void importNative(ptrs_var_t **results, ptrs_ast_t *node, char *from)
+static void importNative(ptrs_ast_t *node, char *from, ptrs_val_t **values, ptrs_meta_t **metas)
 {
 	const char *error;
 
@@ -239,9 +239,10 @@ static void importNative(ptrs_var_t **results, ptrs_ast_t *node, char *from)
 	struct ptrs_importlist *curr = node->arg.import.imports;
 	for(int i = 0; curr != NULL; i++)
 	{
-		results[i]->meta.type = PTRS_TYPE_NATIVE;
-		results[i]->meta.array.size = 0;
-		results[i]->value.nativeval = dlsym(handle, curr->name);
+		metas[i]->type = PTRS_TYPE_NATIVE;
+		metas[i]->array.size = 0;
+		metas[i]->array.readOnly = true;
+		values[i]->nativeval = dlsym(handle, curr->name);
 
 		//TODO do wildcards need special care?
 
@@ -252,7 +253,7 @@ static void importNative(ptrs_var_t **results, ptrs_ast_t *node, char *from)
 		curr = curr->next;
 	}
 }
-void ptrs_import(ptrs_var_t **results, ptrs_ast_t *node, ptrs_val_t fromVal, ptrs_meta_t fromMeta)
+void ptrs_import(ptrs_ast_t *node, ptrs_val_t fromVal, ptrs_meta_t fromMeta, ptrs_val_t **values, ptrs_meta_t **metas)
 {
 	char *path = NULL;
 	if(fromMeta.type != PTRS_TYPE_UNDEFINED)
@@ -305,14 +306,73 @@ void ptrs_import(ptrs_var_t **results, ptrs_ast_t *node, ptrs_val_t fromVal, ptr
 		ending = strrchr(path, '.');
 
 	if(ending != NULL && strcmp(ending, ".ptrs") == 0)
-		importScript(results, node, path);
+		importScript(node, path, values, metas);
 	else
-		importNative(results, node, path);
+		importNative(node, path, values, metas);
 }
 
 ptrs_jit_var_t ptrs_handle_import(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	//TODO
+	struct ptrs_ast_import *stmt = &node->arg.import;
+
+	ptrs_jit_var_t from;
+	if(stmt->from)
+	{
+		from = stmt->from->handler(stmt->from, func, scope);
+	}
+	else
+	{
+		from.val = jit_const_long(func, long, 0);
+		from.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
+	}
+
+	int len = 0;
+	struct ptrs_importlist *curr;
+
+	curr = stmt->imports;
+	while(curr != NULL)
+	{
+		len++;
+		curr = curr->next;
+	}
+
+	jit_value_t values = jit_insn_alloca(func, jit_const_int(func, nuint, len * (sizeof(ptrs_val_t) + sizeof(ptrs_meta_t))));
+	jit_value_t metas = jit_insn_add(func, values, jit_const_int(func, nuint, len * sizeof(ptrs_val_t)));
+
+	curr = stmt->imports;
+	for(int i = 0; i < len; i++)
+	{
+		jit_value_t index = jit_const_int(func, nuint, i);
+		curr->location.val = jit_value_create(func, jit_type_long);
+		curr->location.meta = jit_value_create(func, jit_type_ulong);
+
+		jit_insn_store_elem(func, values, index, jit_insn_address_of(func, curr->location.val));
+		jit_insn_store_elem(func, metas, index, jit_insn_address_of(func, curr->location.meta));
+
+		curr = curr->next;
+	}
+
+	jit_value_t params[] = {
+		jit_const_int(func, void_ptr, (uintptr_t)node),
+		from.val,
+		from.meta,
+		values,
+		metas
+	};
+
+	jit_type_t paramDef[] = {
+		jit_type_void_ptr,
+		jit_type_long,
+		jit_type_ulong,
+		jit_type_void_ptr,
+		jit_type_void_ptr,
+	};
+	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, jit_type_void, paramDef, 5, 1);
+
+	jit_insn_call_native(func, "import", ptrs_import, signature, params, 5, 0);
+	jit_type_free(signature);
+
+	return from; //doh
 }
 
 ptrs_jit_var_t ptrs_handle_return(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
