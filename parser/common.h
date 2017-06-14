@@ -182,7 +182,7 @@ typedef struct ptrs_var
 		(size) \
 	))
 
-#define ptrs_jit_getType(func, meta) (jit_insn_ushr(func, meta, jit_const_int(func, ubyte, 54)))
+#define ptrs_jit_getType(func, meta) (jit_insn_ushr(func, meta, jit_const_int(func, ubyte, 56)))
 #define ptrs_jit_getArraySize(func, meta) (jit_insn_and(func, meta, jit_const_long(func, ulong, 0xFFFFFFFF)))
 
 #define ptrs_jit_hasType(func, meta, type) (jit_insn_eq((func), ptrs_jit_getType(func, meta), jit_const_long(func, ulong, (type))))
