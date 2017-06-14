@@ -97,9 +97,10 @@ int main(int argc, char **argv)
 	ptrs_result_t *result = ptrs_compilefile(file);
 
 
+	jit_compile(result->func);
+
 	if(dumpOps)
 	{
-		jit_compile(result->func);
 		jit_dump_function(stdout, result->func, "main");
 		return EXIT_SUCCESS;
 	}
