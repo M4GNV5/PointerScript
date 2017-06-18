@@ -54,7 +54,9 @@ char *ptrs_backtrace()
 {
 	int bufflen = 1024;
 	char *buff = malloc(bufflen);
+
 	char *buffptr = buff;
+	buff[0] = 0;
 
 	jit_stack_trace_t trace = jit_exception_get_stack_trace();
 	int count = jit_stack_trace_get_size(trace);
@@ -194,6 +196,23 @@ void ptrs_handle_sig(int sig, siginfo_t *info, void *data)
 	jit_exception_throw(error);
 }
 
+void *ptrs_handle_exception(int type)
+{
+	ptrs_error_t *error = malloc(sizeof(ptrs_error_t));
+
+	int len = snprintf(NULL, 0, "JIT Exception: %d", type);
+	error->message = malloc(len + 1);
+	sprintf(error->message, "JIT Exception: %d", type);
+
+	error->backtrace = ptrs_backtrace();
+
+	error->file = NULL;
+	error->line = -1;
+	error->column = -1;
+
+	return error;
+}
+
 void ptrs_handle_signals(jit_function_t func)
 {
 	struct sigaction action;
@@ -210,6 +229,8 @@ void ptrs_handle_signals(jit_function_t func)
 	sigaction(SIGFPE, &action, NULL);
 	sigaction(SIGSEGV, &action, NULL);
 	sigaction(SIGPIPE, &action, NULL);
+
+	jit_exception_set_handler(ptrs_handle_exception);
 }
 
 void ptrs_error(ptrs_ast_t *ast, const char *msg, ...)
