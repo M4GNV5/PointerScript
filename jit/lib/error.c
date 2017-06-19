@@ -266,7 +266,7 @@ void ptrs_jit_assert(ptrs_ast_t *ast, jit_function_t func, jit_value_t condition
 	va_end(ap);
 
 	jit_label_t label = jit_label_undefined;
-	jit_insn_branch_if_not(func, condition, &label);
+	jit_insn_branch_if(func, condition, &label);
 
 	jit_type_t params[argCount];
 	for(int i = 0; i < argCount; i++)
