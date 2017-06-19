@@ -96,12 +96,16 @@ int main(int argc, char **argv)
 	//TODO pass the arguments to the main function
 	ptrs_result_t *result = ptrs_compilefile(file);
 
-
-	jit_compile(result->func);
-
 	if(dumpOps)
 	{
-		jit_dump_function(stdout, result->func, "main");
+		jit_function_t curr = jit_function_next(ptrs_jit_context, NULL);
+		while(curr != NULL)
+		{
+			const char *name = jit_function_get_meta(curr, PTRS_JIT_FUNCTIONMETA_NAME);
+			jit_dump_function(stdout, curr, name);
+			curr = jit_function_next(ptrs_jit_context, curr);
+		}
+
 		return EXIT_SUCCESS;
 	}
 	else

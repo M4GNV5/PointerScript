@@ -55,6 +55,10 @@ typedef struct ptrs_nativetype_info
 	ptrs_nativetype_handler_t setHandler;
 } ptrs_nativetype_info_t;
 
+typedef enum
+{
+	PTRS_JIT_FUNCTIONMETA_NAME,
+} ptrs_jit_functionmeta_t;
 typedef struct function
 {
 	char *name;

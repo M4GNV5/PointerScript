@@ -31,7 +31,11 @@ ptrs_result_t *ptrs_compile(char *src, const char *filename)
 	result->signature = jit_type_create_signature(jit_abi_cdecl, jit_type_ulong, params, 1, 1);
 
 	result->func = jit_function_create(ptrs_jit_context, result->signature);
+	jit_function_set_meta(result->func, PTRS_JIT_FUNCTIONMETA_NAME, "(root)", NULL, 0);
+
 	result->ast->handler(result->ast, result->func, &scope);
+
+	jit_function_compile(result->func);
 
 	jit_context_build_end(ptrs_jit_context);
 
