@@ -59,13 +59,10 @@ typedef struct function
 {
 	char *name;
 	int argc;
-	unsigned stackOffset;
 	ptrs_jit_var_t vararg;
 	ptrs_jit_var_t *args;
 	struct ptrs_ast **argv;
 	struct ptrs_ast *body;
-	ptrs_scope_t *scope;
-	void *nativeCb;
 } ptrs_function_t;
 
 enum ptrs_structmembertype

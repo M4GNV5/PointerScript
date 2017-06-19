@@ -11,6 +11,7 @@
 #include "include/conversion.h"
 #include "include/astlist.h"
 #include "include/error.h"
+#include "include/run.h"
 
 ptrs_jit_var_t ptrs_handle_body(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
@@ -346,6 +347,9 @@ ptrs_jit_var_t ptrs_handle_import(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 		curr->location.val = jit_value_create(func, jit_type_long);
 		curr->location.meta = jit_value_create(func, jit_type_ulong);
 
+		jit_value_set_addressable(curr->location.val);
+		jit_value_set_addressable(curr->location.meta);
+
 		jit_insn_store_elem(func, values, index, jit_insn_address_of(func, curr->location.val));
 		jit_insn_store_elem(func, metas, index, jit_insn_address_of(func, curr->location.meta));
 
@@ -418,7 +422,73 @@ ptrs_jit_var_t ptrs_handle_asm(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 
 ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	//TODO
+	struct ptrs_ast_function *ast = &node->arg.function;
+	ptrs_function_t *funcAst = &ast->func;
+
+	if(!ast->isAnonymous && ast->symbol->val == NULL)
+	{
+		ast->symbol->val = jit_value_create(func, jit_type_long);
+		ast->symbol->meta = jit_value_create(func, jit_type_ulong);
+	}
+
+	jit_type_t argDef[funcAst->argc * 2];
+	for(int i = 0; i < funcAst->argc; i++)
+	{
+		argDef[i * 2] = jit_type_long;
+		argDef[i * 2 + 1] = jit_type_ulong;
+	}
+
+	//TODO variadic functions
+
+	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, jit_type_long, argDef, funcAst->argc, 1);
+
+	jit_function_t self = jit_function_create(ptrs_jit_context, signature);
+
+	jit_type_free(signature);
+
+	ptrs_scope_t selfScope;
+	selfScope.continueLabel = jit_label_undefined;
+	selfScope.breakLabel = jit_label_undefined;
+	selfScope.errors = NULL;
+
+	for(int i = 0; i < funcAst->argc; i++)
+	{
+		funcAst->args[i].val = jit_value_create(func, jit_type_long);
+		funcAst->args[i].meta = jit_value_create(func, jit_type_ulong);
+
+		jit_insn_store(func, funcAst->args[i].val, jit_value_get_param(self, i * 2));
+		jit_insn_store(func, funcAst->args[i].meta, jit_value_get_param(self, i * 2 + 1));
+
+		if(funcAst->argv != NULL && funcAst->argv[i] != NULL)
+		{
+			jit_label_t given = jit_label_undefined;
+			jit_insn_branch_if_not(self, ptrs_jit_hasType(self, funcAst->args[i].meta, PTRS_TYPE_UNDEFINED), &given);
+
+			ptrs_jit_var_t val = funcAst->argv[i]->handler(funcAst->argv[i], self, &selfScope);
+			jit_insn_store(func, funcAst->args[i].val, val.val);
+			jit_insn_store(func, funcAst->args[i].meta, val.meta);
+
+			jit_insn_label(self, &given);
+		}
+	}
+
+	funcAst->body->handler(funcAst->body, self, &selfScope);
+
+	jit_function_compile(self);
+
+	void *closure = jit_function_to_closure(self);
+
+	ptrs_jit_var_t ret;
+	ret.val = jit_const_int(func, void_ptr, (uintptr_t)closure);
+	ret.meta = ptrs_jit_const_meta(func, PTRS_TYPE_FUNCTION);
+
+	if(!ast->isAnonymous)
+	{
+		jit_insn_store(func, ast->symbol->val, ret.val);
+		jit_insn_store(func, ast->symbol->meta, ret.meta);
+	}
+
+	return ret;
 }
 
 ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)

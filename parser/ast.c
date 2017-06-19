@@ -113,7 +113,7 @@ static void addSymbol(code_t *code, char *text, ptrs_jit_var_t *location);
 static struct symbollist *addSpecialSymbol(code_t *code, char *symbol, ptrs_symboltype_t type);
 static ptrs_ast_t *getSymbol(code_t *code, char *text);
 static void symbolScope_increase(code_t *code, int buildInCount, bool isInline);
-static unsigned symbolScope_decrease(code_t *code);
+static void symbolScope_decrease(code_t *code);
 
 static bool lookahead(code_t *code, const char *str);
 static void consume(code_t *code, const char *str);
@@ -505,16 +505,14 @@ static ptrs_ast_t *parseScopelessBody(code_t *code, bool allowStmt)
 	return result;
 }
 
-static ptrs_ast_t *parseBody(code_t *code, unsigned *stackOffset, bool allowStmt, bool isFunction)
+static ptrs_ast_t *parseBody(code_t *code, bool allowStmt, bool isFunction)
 {
 	if(!isFunction)
 		symbolScope_increase(code, 0, true);
 
 	ptrs_ast_t *result = parseScopelessBody(code, allowStmt);
 
-	int offset = symbolScope_decrease(code);
-	if(stackOffset != NULL)
-		*stackOffset = offset;
+	symbolScope_decrease(code);
 
 	return result;
 }
@@ -528,7 +526,7 @@ static ptrs_function_t *parseFunction(code_t *code, char *name)
 	func->name = name;
 
 	func->argc = parseArgumentDefinitionList(code, &func->args, &func->argv, &func->vararg);
-	func->body = parseBody(code, &func->stackOffset, false, true);
+	func->body = parseBody(code, false, true);
 
 	return func;
 }
@@ -537,7 +535,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 {
 	if(code->curr == '{')
 	{
-		return parseBody(code, NULL, false, false);
+		return parseBody(code, false, false);
 	}
 	else if(lookahead(code, "const"))
 	{
@@ -691,19 +689,19 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	{
 		stmt->handler = ptrs_handle_scopestatement;
 		symbolScope_increase(code, 0, false);
-		stmt->arg.scopestatement.body = parseBody(code, &stmt->arg.scopestatement.stackOffset, true, true);
+		stmt->arg.scopestatement.body = parseBody(code, true, true);
 	}
 	else if(lookahead(code, "try"))
 	{
 		stmt->handler = ptrs_handle_trycatch;
-		stmt->arg.trycatch.tryBody = parseBody(code, NULL, true, false);
+		stmt->arg.trycatch.tryBody = parseBody(code, true, false);
 
 		if(lookahead(code, "catch"))
 		{
 			symbolScope_increase(code, 0, false);
 			stmt->arg.trycatch.argc = parseArgumentDefinitionList(code, &stmt->arg.trycatch.args, NULL, NULL);
 			stmt->arg.trycatch.catchBody = parseScopelessBody(code, true);
-			stmt->arg.trycatch.catchStackOffset = symbolScope_decrease(code);
+			symbolScope_decrease(code);
 		}
 		else
 		{
@@ -725,7 +723,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 				stmt->arg.trycatch.retVal.meta = NULL;
 			}
 
-			stmt->arg.trycatch.finallyBody = parseBody(code, NULL, true, false);
+			stmt->arg.trycatch.finallyBody = parseBody(code, true, false);
 			symbolScope_decrease(code);
 		}
 		else
@@ -741,8 +739,6 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		stmt->arg.function.isAnonymous = false;
 
 		ptrs_function_t *func = &stmt->arg.function.func;
-		func->scope = NULL;
-		func->nativeCb = NULL;
 
 		char *name = readIdentifier(code);
 		ptrs_ast_t *oldAst;
@@ -759,13 +755,16 @@ static ptrs_ast_t *parseStatement(code_t *code)
 			stmt->arg.function.symbol = talloc(ptrs_jit_var_t);
 			addSymbol(code, strdup(name), stmt->arg.function.symbol);
 		}
+
 		func->name = name;
+		stmt->arg.function.symbol->val = NULL;
+		stmt->arg.function.symbol->meta = NULL;
 
 		symbolScope_increase(code, 1, false);
 		setSymbol(code, strdup("this"), 0);
 
 		func->argc = parseArgumentDefinitionList(code, &func->args, &func->argv, &func->vararg);
-		func->body = parseBody(code, &func->stackOffset, false, true);
+		func->body = parseBody(code, false, true);
 	}
 	else if(lookahead(code, "struct"))
 	{
@@ -779,10 +778,10 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		consumec(code, '(');
 		stmt->arg.ifelse.condition = parseExpression(code, true);
 		consumec(code, ')');
-		stmt->arg.ifelse.ifBody = parseBody(code, NULL, true, false);
+		stmt->arg.ifelse.ifBody = parseBody(code, true, false);
 
 		if(lookahead(code, "else"))
-			stmt->arg.ifelse.elseBody = parseBody(code, NULL, true, false);
+			stmt->arg.ifelse.elseBody = parseBody(code, true, false);
 		else
 			stmt->arg.ifelse.elseBody = NULL;
 	}
@@ -797,7 +796,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		consumec(code, '(');
 		stmt->arg.control.condition = parseExpression(code, true);
 		consumec(code, ')');
-		stmt->arg.control.body = parseBody(code, NULL, true, false);
+		stmt->arg.control.body = parseBody(code, true, false);
 	}
 	else if(lookahead(code, "do"))
 	{
@@ -824,7 +823,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		consumec(code, ')');
 
 		stmt->arg.forin.body = parseScopelessBody(code, true);
-		stmt->arg.forin.stackOffset = symbolScope_decrease(code);
+		symbolScope_decrease(code);
 	}
 	else if(lookahead(code, "for"))
 	{
@@ -1209,14 +1208,12 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 
 		ptrs_function_t *func = &ast->arg.function.func;
 		func->name = "(anonymous function)";
-		func->scope = NULL;
-		func->nativeCb = NULL;
 
 		symbolScope_increase(code, 1, false);
 		setSymbol(code, strdup("this"), 0);
 
 		func->argc = parseArgumentDefinitionList(code, &func->args, &func->argv, &func->vararg);
-		func->body = parseBody(code, &func->stackOffset, false, true);
+		func->body = parseBody(code, false, true);
 	}
 	else if(lookahead(code, "map_stack"))
 	{
@@ -1359,8 +1356,6 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 
 				ptrs_function_t *func = &ast->arg.function.func;
 				func->name = "(lambda expression)";
-				func->scope = NULL;
-				func->nativeCb = NULL;
 				func->argv = NULL;
 				func->argc = parseArgumentDefinitionList(code, &func->args, NULL, &func->vararg);
 
@@ -1378,7 +1373,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 					func->body = retStmt;
 				}
 
-				func->stackOffset = symbolScope_decrease(code);
+				symbolScope_decrease(code);
 			}
 			else
 			{
@@ -1969,8 +1964,6 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 
 			ptrs_function_t *func = curr->member.value.function = talloc(ptrs_function_t);
 			func->name = "(map function member)";
-			func->scope = NULL;
-			func->nativeCb = NULL;
 			func->argc = parseArgumentDefinitionList(code, &func->args, &func->argv, &func->vararg);
 
 			consume(code, "->");
@@ -1986,8 +1979,6 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 				retStmt->arg.astval = parseExpression(code, true);
 				func->body = retStmt;
 			}
-
-			func->stackOffset = symbolScope_decrease(code);
 		}
 		else
 		{
@@ -2225,7 +2216,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			func->name = malloc(snprintf(NULL, 0, nameFormat, structName, opLabel, otherName) + 1);
 			sprintf(func->name, nameFormat, structName, opLabel, otherName);
 
-			func->body = parseBody(code, &func->stackOffset, false, true);
+			func->body = parseBody(code, false, true);
 			code->yield = oldYield;
 
 			overload->handler = func;
@@ -2340,7 +2331,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				sprintf(func->name, "%s.set %s", structName, name);
 			}
 
-			func->body = parseBody(code, &func->stackOffset, false, true);
+			func->body = parseBody(code, false, true);
 			curr->value.function = func;
 		}
 		else if(code->curr == '(')
@@ -2907,7 +2898,7 @@ static void symbolScope_increase(code_t *code, int buildInCount, bool isInline)
 	code->symbols = new;
 }
 
-static unsigned symbolScope_decrease(code_t *code)
+static void symbolScope_decrease(code_t *code)
 {
 	ptrs_symboltable_t *scope = code->symbols;
 	code->symbols = scope->outer;
@@ -2931,7 +2922,6 @@ static unsigned symbolScope_decrease(code_t *code)
 	}
 
 	free(scope);
-	return 0;
 }
 
 static bool lookahead(code_t *code, const char *str)
