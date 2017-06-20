@@ -58,6 +58,7 @@ typedef struct ptrs_nativetype_info
 typedef enum
 {
 	PTRS_JIT_FUNCTIONMETA_NAME,
+	PTRS_JIT_FUNCTIONMETA_FILE,
 } ptrs_jit_functionmeta_t;
 typedef struct function
 {

@@ -32,6 +32,7 @@ ptrs_result_t *ptrs_compile(char *src, const char *filename)
 
 	result->func = jit_function_create(ptrs_jit_context, result->signature);
 	jit_function_set_meta(result->func, PTRS_JIT_FUNCTIONMETA_NAME, "(root)", NULL, 0);
+	jit_function_set_meta(result->func, PTRS_JIT_FUNCTIONMETA_FILE, filename, NULL, 0);
 
 	result->ast->handler(result->ast, result->func, &scope);
 

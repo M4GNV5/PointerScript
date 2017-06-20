@@ -14,6 +14,7 @@
 #include "../../parser/ast.h"
 #include "../include/error.h"
 #include "../include/conversion.h"
+#include "../include/run.h"
 
 typedef struct
 {
@@ -74,7 +75,9 @@ char *ptrs_backtrace()
 		jit_function_t func = jit_stack_trace_get_function(ptrs_jit_context, trace, i);
 		if(func)
 		{
-			//TODO
+			const char *name = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_NAME);
+			const char *file = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_FILE);
+			buffptr += sprintf(buffptr, "    at %s (%s)", name, file);
 		}
 		else
 		{
@@ -193,6 +196,7 @@ void ptrs_handle_sig(int sig, siginfo_t *info, void *data)
 	error->file = NULL;
 	error->line = -1;
 	error->column = -1;
+	
 	jit_exception_throw(error);
 }
 
@@ -247,6 +251,8 @@ void ptrs_error(ptrs_ast_t *ast, const char *msg, ...)
 	ptrs_getpos(&pos, ast);
 	error->line = pos.line;
 	error->column = pos.column;
+
+	jit_exception_throw(error);
 }
 
 void ptrs_jit_assert(ptrs_ast_t *ast, jit_function_t func, jit_value_t condition,
