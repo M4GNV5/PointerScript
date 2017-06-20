@@ -172,7 +172,7 @@ void *ptrs_formatErrorMsg(const char *msg, va_list ap)
 		}
 		else
 		{
-			*buffptr += *msg;
+			*buffptr++ = *msg;
 		}
 
 		msg++;
@@ -196,7 +196,7 @@ void ptrs_handle_sig(int sig, siginfo_t *info, void *data)
 	error->file = NULL;
 	error->line = -1;
 	error->column = -1;
-	
+
 	jit_exception_throw(error);
 }
 
