@@ -114,6 +114,13 @@ int main(int argc, char **argv)
 		void *arg = arguments;
 		jit_function_apply(result->func, &arg, &retval);
 
+		ptrs_error_t *error = jit_exception_get_last();
+		if(error != NULL)
+		{
+			fprintf(stderr, "%s at %s:%d:%d\n%s", error->message, error->file, error->line, error->column, error->backtrace);
+			return EXIT_FAILURE;
+		}
+
 		return retval;
 	}
 
