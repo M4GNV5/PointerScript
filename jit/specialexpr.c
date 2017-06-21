@@ -77,16 +77,72 @@ ptrs_jit_var_t ptrs_handle_prefix_length(ptrs_ast_t *node, jit_function_t func, 
 
 ptrs_jit_var_t ptrs_handle_prefix_address(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	//TODO
+	node = node->arg.astval;
+
+	if(node->addressHandler == NULL)
+		ptrs_error(node, "Cannot get address of temporary or constant value");
+
+	return node->addressHandler(node, func, scope);
 }
 
 ptrs_jit_var_t ptrs_handle_prefix_dereference(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	//TODO
+	node = node->arg.astval;
+	ptrs_jit_var_t val = node->handler(node, func, scope);
+
+	ptrs_jit_var_t ret = {
+		jit_value_create(func, jit_type_long),
+		jit_value_create(func, jit_type_ulong),
+	};
+
+	jit_label_t isNative = jit_label_undefined;
+	jit_label_t end = jit_label_undefined;
+
+	jit_value_t type = ptrs_jit_getType(func, val.meta);
+	jit_insn_branch_if(func, jit_insn_eq(func, type, jit_const_long(func, ulong, PTRS_TYPE_NATIVE)), &isNative);
+
+	ptrs_jit_assert(node, func, jit_insn_eq(func, type, jit_const_long(func, ulong, PTRS_TYPE_POINTER)),
+		1, "Cannot dereference variable of type %t", type);
+
+	//PTRS_TYPE_POINTER
+	jit_insn_store(func, ret.val, jit_insn_load_relative(func, val.val, 0, jit_type_long));
+	jit_insn_store(func, ret.meta, jit_insn_load_relative(func, val.val, sizeof(ptrs_val_t), jit_type_ulong));
+	jit_insn_branch(func, &end);
+
+	//PTRS_TYPE_NATIVE
+	jit_insn_label(func, &isNative);
+	jit_insn_store(func, ret.val, jit_insn_load_relative(func, val.val, 0, jit_type_ubyte));
+	jit_insn_store(func, ret.meta, ptrs_jit_const_meta(func, PTRS_TYPE_INT));
+
+	jit_insn_label(func, &end);
+
+	return ret;
 }
 void ptrs_handle_assign_dereference(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
 {
-	//TODO
+	node = node->arg.astval;
+	ptrs_jit_var_t base = node->handler(node, func, scope);
+
+	jit_label_t isNative = jit_label_undefined;
+	jit_label_t end = jit_label_undefined;
+
+	jit_value_t type = ptrs_jit_getType(func, base.meta);
+	jit_insn_branch_if(func, jit_insn_eq(func, type, jit_const_long(func, ulong, PTRS_TYPE_NATIVE)), &isNative);
+
+	ptrs_jit_assert(node, func, jit_insn_eq(func, type, jit_const_long(func, ulong, PTRS_TYPE_POINTER)),
+		1, "Cannot dereference variable of type %t", type);
+
+	//PTRS_TYPE_POINTER
+	jit_insn_store_relative(func, base.val, 0, val.val);
+	jit_insn_store_relative(func, base.val, sizeof(ptrs_val_t), val.meta);
+	jit_insn_branch(func, &end);
+
+	//PTRS_TYPE_NATIVE
+	jit_insn_label(func, &isNative);
+	jit_value_t byteVal = jit_insn_convert(func, ptrs_jit_vartoi(func, val.val, val.meta), jit_type_ubyte, 0);
+	jit_insn_store_relative(func, base.val, 0, byteVal);
+
+	jit_insn_label(func, &end);
 }
 
 ptrs_jit_var_t ptrs_handle_indexlength(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
