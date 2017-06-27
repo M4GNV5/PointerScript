@@ -482,7 +482,7 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 
 	ptrs_jit_var_t ret;
 	ret.val = jit_const_int(func, void_ptr, (uintptr_t)closure);
-	ret.meta = ptrs_jit_const_meta(func, PTRS_TYPE_FUNCTION);
+	ret.meta = ptrs_jit_const_meta(func, PTRS_TYPE_NATIVE);
 
 	if(!ast->isAnonymous)
 	{

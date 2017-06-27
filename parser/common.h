@@ -28,7 +28,6 @@ typedef enum type
 	PTRS_TYPE_FLOAT,
 	PTRS_TYPE_NATIVE,
 	PTRS_TYPE_POINTER,
-	PTRS_TYPE_FUNCTION,
 	PTRS_TYPE_STRUCT,
 } ptrs_vartype_t;
 

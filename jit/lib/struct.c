@@ -106,15 +106,15 @@ ptrs_var_t *ptrs_struct_getMember(ptrs_struct_t *struc, ptrs_var_t *result,
 		case PTRS_STRUCTMEMBER_VAR:
 			return data + member->offset;
 		case PTRS_STRUCTMEMBER_GETTER:
-			func.meta.type = PTRS_TYPE_FUNCTION;
-			func.value.funcval = member->value.function;
+			//func.meta.type = PTRS_TYPE_FUNCTION;
+			//func.value.funcval = member->value.function;
 			//TODO
 			//return ptrs_callfunc(ast, result, scope, struc, &func, 0, NULL);
 			return NULL;
 		case PTRS_STRUCTMEMBER_SETTER:
 			return NULL;
 		case PTRS_STRUCTMEMBER_FUNCTION:
-			result->meta.type = PTRS_TYPE_FUNCTION;
+			result->meta.type = PTRS_TYPE_NATIVE;
 			result->value.funcval = member->value.function;
 			return result;
 		case PTRS_STRUCTMEMBER_ARRAY:
@@ -156,8 +156,8 @@ void ptrs_struct_setMember(ptrs_struct_t *struc, ptrs_var_t *value,
 	{
 		ptrs_var_t func;
 		ptrs_var_t result;
-		func.meta.type = PTRS_TYPE_FUNCTION;
-		func.value.funcval = member->value.function;
+		//func.meta.type = PTRS_TYPE_FUNCTION;
+		//func.value.funcval = member->value.function;
 		//TODO
 		//ptrs_callfunc(ast, &result, scope, struc, &func, 1, value);
 	}

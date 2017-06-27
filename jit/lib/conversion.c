@@ -25,7 +25,7 @@ void ptrs_jit_branch_if_not(jit_function_t func, jit_label_t *target, jit_value_
 {
 	jit_value_t isUndefined = ptrs_jit_hasType(func, meta, PTRS_TYPE_UNDEFINED);
 	jit_insn_branch_if(func, isUndefined, target);
-	
+
 	jit_value_t isZero = jit_insn_eq(func, val, jit_const_long(func, ulong, 0));
 	jit_insn_branch_if(func, isZero, target);
 }
@@ -206,9 +206,6 @@ const char *ptrs_vartoa(ptrs_val_t val, ptrs_meta_t meta, char *buff, size_t max
 		case PTRS_TYPE_POINTER:
 			snprintf(buff, maxlen, "pointer:%p", val.ptrval);
 			break;
-		case PTRS_TYPE_FUNCTION:
-			snprintf(buff, maxlen, "function:%p", val.funcval);
-			break;
 		case PTRS_TYPE_STRUCT:
 			snprintf(buff, maxlen, "%s:%p", val.structval->name, val.structval);
 			break;
@@ -232,8 +229,6 @@ const char *ptrs_typetoa(ptrs_vartype_t type)
 			return "native";
 		case PTRS_TYPE_POINTER:
 			return "pointer";
-		case PTRS_TYPE_FUNCTION:
-			return "function";
 		case PTRS_TYPE_STRUCT:
 			return "struct";
 		default:

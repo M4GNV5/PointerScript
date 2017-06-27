@@ -2476,7 +2476,6 @@ struct typeName typeNames[] = {
 	{"float", PTRS_TYPE_FLOAT},
 	{"native", PTRS_TYPE_NATIVE},
 	{"pointer", PTRS_TYPE_POINTER},
-	{"function", PTRS_TYPE_FUNCTION},
 	{"struct", PTRS_TYPE_STRUCT}
 };
 static int typeNameCount = sizeof(typeNames) / sizeof(struct typeName);
