@@ -2465,28 +2465,23 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 	consumec(code, ';');
 }
 
-struct typeName
-{
-	const char *name;
-	ptrs_vartype_t type;
+const char * const typeNames[] = {
+	[PTRS_TYPE_UNDEFINED] = "undefined",
+	[PTRS_TYPE_INT] = "int",
+	[PTRS_TYPE_FLOAT] = "float",
+	[PTRS_TYPE_NATIVE] = "native",
+	[PTRS_TYPE_POINTER] = "pointer",
+	[PTRS_TYPE_STRUCT] = "struct",
 };
-struct typeName typeNames[] = {
-	{"undefined", PTRS_TYPE_UNDEFINED},
-	{"int", PTRS_TYPE_INT},
-	{"float", PTRS_TYPE_FLOAT},
-	{"native", PTRS_TYPE_NATIVE},
-	{"pointer", PTRS_TYPE_POINTER},
-	{"struct", PTRS_TYPE_STRUCT}
-};
-static int typeNameCount = sizeof(typeNames) / sizeof(struct typeName);
+static int typeNameCount = sizeof(typeNames) / sizeof(const char *);
 
 static ptrs_vartype_t readTypeName(code_t *code)
 {
 	for(int i = 0; i < typeNameCount; i++)
 	{
-		if(lookahead(code, typeNames[i].name))
+		if(lookahead(code, typeNames[i]))
 		{
-			return typeNames[i].type;
+			return i;
 		}
 	}
 

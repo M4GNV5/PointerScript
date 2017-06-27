@@ -214,24 +214,15 @@ const char *ptrs_vartoa(ptrs_val_t val, ptrs_meta_t meta, char *buff, size_t max
 	return buff;
 }
 
+const char * const ptrs_typeStrings[] = {
+	[PTRS_TYPE_UNDEFINED] = "undefined",
+	[PTRS_TYPE_INT] = "int",
+	[PTRS_TYPE_FLOAT] = "float",
+	[PTRS_TYPE_NATIVE] = "native",
+	[PTRS_TYPE_POINTER] = "pointer",
+	[PTRS_TYPE_STRUCT] = "struct",
+};
 const char *ptrs_typetoa(ptrs_vartype_t type)
 {
-	switch(type)
-	{
-		case PTRS_TYPE_UNDEFINED:
-			return "undefined";
-		case PTRS_TYPE_INT:
-			return "int";
-			break;
-		case PTRS_TYPE_FLOAT:
-			return "float";
-		case PTRS_TYPE_NATIVE:
-			return "native";
-		case PTRS_TYPE_POINTER:
-			return "pointer";
-		case PTRS_TYPE_STRUCT:
-			return "struct";
-		default:
-			return "unknown";
-	}
+	return ptrs_typeStrings[type];
 }
