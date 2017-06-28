@@ -5,7 +5,6 @@
 #include <string.h>
 #include <math.h>
 
-#include <ffi.h>
 #include "common.h"
 #include JIT_INCLUDE
 #include "ast.h"
