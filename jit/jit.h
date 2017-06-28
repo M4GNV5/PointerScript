@@ -40,7 +40,6 @@ ptrs_jit_var_t ptrs_handle_call(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 ptrs_jit_var_t ptrs_handle_stringformat(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_new(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
-ptrs_jit_var_t ptrs_handle_thismember(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_indexlength(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_slice(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
@@ -59,17 +58,13 @@ void ptrs_handle_assign_typed(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 void ptrs_handle_assign_dereference(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val);
 void ptrs_handle_assign_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val);
 void ptrs_handle_assign_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val);
-void ptrs_handle_assign_thismember(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val);
 
 ptrs_jit_var_t ptrs_handle_addressof_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_addressof_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
-ptrs_jit_var_t ptrs_handle_addressof_thismember(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 
 ptrs_jit_var_t ptrs_handle_call_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_ast_t *caller, struct ptrs_astlist *arguments);
 ptrs_jit_var_t ptrs_handle_call_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
-	ptrs_ast_t *caller, struct ptrs_astlist *arguments);
-ptrs_jit_var_t ptrs_handle_call_thismember(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_ast_t *caller, struct ptrs_astlist *arguments);
 
 ptrs_jit_var_t ptrs_handle_op_ternary(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);

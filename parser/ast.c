@@ -21,7 +21,6 @@ typedef enum
 	PTRS_SYMBOL_CONST,
 	PTRS_SYMBOL_TYPED,
 	PTRS_SYMBOL_LAZY,
-	PTRS_SYMBOL_THISMEMBER,
 	PTRS_SYMBOL_WILDCARD,
 } ptrs_symboltype_t;
 
@@ -31,11 +30,6 @@ struct symbollist
 	{
 		void *data;
 		ptrs_jit_var_t *location;
-		struct
-		{
-			ptrs_jit_var_t *base;
-			const char *name;
-		} thismember;
 		struct
 		{
 			ptrs_jit_var_t *location;
@@ -227,17 +221,6 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 						ast->callHandler = NULL;
 						ast->arg.lazy.location = curr->arg.lazy.location;
 						ast->arg.lazy.value = curr->arg.lazy.value;
-						break;
-
-					case PTRS_SYMBOL_THISMEMBER:
-						*node = ast = talloc(ptrs_ast_t);
-						ast->handler = ptrs_handle_thismember;
-						ast->setHandler = ptrs_handle_assign_thismember;
-						ast->addressHandler = ptrs_handle_addressof_thismember;
-						ast->callHandler = ptrs_handle_call_thismember;
-
-						ast->arg.thismember.base = curr->arg.thismember.base;
-						ast->arg.thismember.name = curr->arg.thismember.name;
 						break;
 
 					case PTRS_SYMBOL_WILDCARD:
@@ -2298,9 +2281,6 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 		name = curr->name = readIdentifier(code);
 		curr->namelen = strlen(name);
-
-		struct symbollist *symbol = addSpecialSymbol(code, strdup(curr->name), PTRS_SYMBOL_THISMEMBER);
-		symbol->arg.data = curr->name;
 
 		if(isProperty > 0)
 		{

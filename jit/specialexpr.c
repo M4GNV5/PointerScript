@@ -46,24 +46,6 @@ ptrs_jit_var_t ptrs_handle_call_member(ptrs_ast_t *node, jit_function_t func, pt
 	//TODO
 }
 
-ptrs_jit_var_t ptrs_handle_thismember(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
-{
-	//TODO
-}
-void ptrs_handle_assign_thismember(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
-{
-	//TODO
-}
-ptrs_jit_var_t ptrs_handle_addressof_thismember(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
-{
-	//TODO
-}
-ptrs_jit_var_t ptrs_handle_call_thismember(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
-	ptrs_ast_t *caller, struct ptrs_astlist *arguments)
-{
-	//TODO
-}
-
 ptrs_jit_var_t ptrs_handle_prefix_length(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	node = node->arg.astval;

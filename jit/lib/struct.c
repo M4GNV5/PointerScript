@@ -35,12 +35,7 @@ bool ptrs_struct_canAccess(ptrs_struct_t *struc, struct ptrs_structmember *membe
 
 			//fallthrough
 		default:
-			//TODO make thismember expressions great again
-			if(node->handler == (void *)ptrs_handle_thismember
-				|| node->handler == (void *)ptrs_handle_assign_thismember
-				|| node->handler == (void *)ptrs_handle_addressof_thismember
-				|| node->handler == (void *)ptrs_handle_call_thismember)
-				return true;
+			//TODO
 
 			if(node != NULL)
 				ptrs_error(node, "Cannot access property %s of struct %s\n", member->name, struc->name);

@@ -42,12 +42,6 @@ struct ptrs_ast_member
 	int namelen;
 };
 
-struct ptrs_ast_thismember
-{
-	ptrs_jit_var_t *base;
-	const char *name;
-};
-
 struct ptrs_ast_import
 {
 	ptrs_jit_var_t wildcards;
@@ -237,7 +231,6 @@ union ptrs_ast_arg
 	struct ptrs_ast_lazy lazy;
 	struct ptrs_ast_typed typed;
 	struct ptrs_ast_member member;
-	struct ptrs_ast_thismember thismember;
 	struct ptrs_ast_import import;
 	struct ptrs_ast_wildcard wildcard;
 	struct ptrs_ast_trycatch trycatch;
