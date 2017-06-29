@@ -2,7 +2,8 @@
 #include "../../parser/ast.h"
 #include "../include/error.h"
 
-ptrs_jit_var_t ptrs_jit_call(jit_function_t func, jit_value_t val, size_t narg, ptrs_jit_var_t *args)
+jit_value_t ptrs_jit_call(jit_function_t func,
+	jit_type_t retType, jit_value_t val, size_t narg, ptrs_jit_var_t *args)
 {
 	jit_type_t paramDef[narg];
 	jit_value_t _args[narg];
@@ -12,15 +13,15 @@ ptrs_jit_var_t ptrs_jit_call(jit_function_t func, jit_value_t val, size_t narg, 
 		_args[i] = args[i].val;
 	}
 
-	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, jit_type_void_ptr, paramDef, narg, 1);
-	jit_insn_call_indirect(func, val, signature, _args, narg, 0);
+	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, retType, paramDef, narg, 1);
+	jit_value_t ret = jit_insn_call_indirect(func, val, signature, _args, narg, 0);
 	jit_type_free(signature);
 
-	//TODO return value
+	return ret;
 }
 
-ptrs_jit_var_t ptrs_jit_vcall(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
-	jit_value_t val, jit_value_t meta, struct ptrs_astlist *args)
+jit_value_t ptrs_jit_vcall(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+	jit_type_t retType, jit_value_t val, jit_value_t meta, struct ptrs_astlist *args)
 {
 	int len = 0;
 	struct ptrs_astlist *curr = args;
@@ -43,5 +44,5 @@ ptrs_jit_var_t ptrs_jit_vcall(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 		curr = curr->next;
 	}
 
-	return ptrs_jit_call(func, val, len, _args);
+	return ptrs_jit_call(func, retType, val, len, _args);
 }

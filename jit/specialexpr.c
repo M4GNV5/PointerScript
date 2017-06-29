@@ -15,7 +15,12 @@ ptrs_jit_var_t ptrs_handle_call(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 		return expr->value->callHandler(expr->value, func, scope, node, expr->arguments);
 
 	ptrs_jit_var_t val = expr->value->handler(expr->value, func, scope);
-	return ptrs_jit_vcall(node, func, scope, val.val, val.meta, expr->arguments);
+
+	ptrs_jit_var_t ret;
+	ret.val = ptrs_jit_vcall(node, func, scope, /* TODO */ jit_type_long, val.val, val.meta, expr->arguments);
+	ret.meta = ptrs_jit_const_meta(func, /* TODO */ PTRS_TYPE_INT);
+
+	return ret;
 }
 
 ptrs_jit_var_t ptrs_handle_stringformat(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
