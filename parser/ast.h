@@ -84,7 +84,7 @@ struct ptrs_ast_asm
 
 struct ptrs_ast_function
 {
-	ptrs_jit_var_t *symbol;
+	jit_function_t *symbol;
 	bool isAnonymous;
 	ptrs_function_t func;
 };
@@ -222,6 +222,7 @@ union ptrs_ast_arg
 	ptrs_jit_var_t *varval;
 	ptrs_var_t constval;
 	ptrs_struct_t structval;
+	jit_function_t *funcval;
 
 	struct ptrs_ast *astval;
 	struct ptrs_astlist *astlist;

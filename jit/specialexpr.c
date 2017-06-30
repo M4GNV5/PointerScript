@@ -218,6 +218,22 @@ void ptrs_handle_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_s
 	jit_insn_store(func, target->meta, val.meta);
 }
 
+ptrs_jit_var_t ptrs_handle_functionidentifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+{
+	void *closure = jit_function_to_closure(*node->arg.funcval);
+
+	ptrs_jit_var_t ret = {
+		.val = jit_const_int(func, nuint, (uintptr_t)closure),
+		.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_NATIVE, true, 0)
+	};
+	return ret;
+}
+ptrs_jit_var_t ptrs_handle_call_functionidentifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+	ptrs_ast_t *caller, struct ptrs_astlist *arguments)
+{
+	return ptrs_jit_vcallnested(func, scope, *node->arg.funcval, arguments);
+}
+
 ptrs_jit_var_t ptrs_handle_typed(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	//TODO

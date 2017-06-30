@@ -425,12 +425,6 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 	struct ptrs_ast_function *ast = &node->arg.function;
 	ptrs_function_t *funcAst = &ast->func;
 
-	if(!ast->isAnonymous && ast->symbol->val == NULL)
-	{
-		ast->symbol->val = jit_value_create(func, jit_type_long);
-		ast->symbol->meta = jit_value_create(func, jit_type_ulong);
-	}
-
 	jit_type_t argDef[funcAst->argc * 2];
 	for(int i = 0; i < funcAst->argc; i++)
 	{
@@ -445,6 +439,8 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 	jit_function_t self = jit_function_create(ptrs_jit_context, signature);
 	jit_function_set_meta(self, PTRS_JIT_FUNCTIONMETA_NAME, funcAst->name, NULL, 0);
 	jit_function_set_meta(self, PTRS_JIT_FUNCTIONMETA_FILE, (char *)node->file, NULL, 0);
+
+	*ast->symbol = self;
 
 	jit_type_free(signature);
 
@@ -483,12 +479,6 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 	ptrs_jit_var_t ret;
 	ret.val = jit_const_int(func, void_ptr, (uintptr_t)closure);
 	ret.meta = ptrs_jit_const_meta(func, PTRS_TYPE_NATIVE);
-
-	if(!ast->isAnonymous)
-	{
-		jit_insn_store(func, ast->symbol->val, ret.val);
-		jit_insn_store(func, ast->symbol->meta, ret.meta);
-	}
 
 	return ret;
 }

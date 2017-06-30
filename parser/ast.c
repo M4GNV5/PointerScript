@@ -17,6 +17,7 @@ struct symbollist;
 typedef enum
 {
 	PTRS_SYMBOL_DEFAULT,
+	PTRS_SYMBOL_FUNCTION,
 	PTRS_SYMBOL_CONST,
 	PTRS_SYMBOL_TYPED,
 	PTRS_SYMBOL_LAZY,
@@ -29,6 +30,7 @@ struct symbollist
 	{
 		void *data;
 		ptrs_jit_var_t *location;
+		jit_function_t *function;
 		struct
 		{
 			ptrs_jit_var_t *location;
@@ -199,6 +201,16 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 						ast->arg.varval = curr->arg.location;
 						break;
 
+					case PTRS_SYMBOL_FUNCTION:
+						*node = ast = talloc(ptrs_ast_t);
+						ast->handler = ptrs_handle_functionidentifier;
+						ast->setHandler = NULL;
+						ast->addressHandler = NULL;
+						ast->callHandler = ptrs_handle_call_functionidentifier;
+
+						ast->arg.funcval = curr->arg.function;
+						break;
+
 					case PTRS_SYMBOL_CONST:
 						*node = ast = talloc(ptrs_ast_t);
 						memcpy(ast, curr->arg.data, sizeof(ptrs_ast_t));
@@ -208,6 +220,9 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 						*node = ast = talloc(ptrs_ast_t);
 						ast->handler = ptrs_handle_typed;
 						ast->setHandler = ptrs_handle_assign_typed;
+						ast->addressHandler = NULL;
+						ast->callHandler = NULL;
+
 						ast->arg.typed.location = curr->arg.typed.location;
 						ast->arg.typed.type = curr->arg.typed.type;
 						break;
@@ -721,26 +736,13 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		stmt->arg.function.isAnonymous = false;
 
 		ptrs_function_t *func = &stmt->arg.function.func;
+		func->name = readIdentifier(code);
 
-		char *name = readIdentifier(code);
-		ptrs_ast_t *oldAst;
-		if(ptrs_ast_getSymbol(code->symbols, name, &oldAst) == 0)
-		{
-			if(oldAst->handler != ptrs_handle_identifier)
-				PTRS_HANDLE_ASTERROR(stmt, "Cannot redefine special symbol %s as a function", name);
+		stmt->arg.function.symbol = talloc(jit_function_t);
+		*stmt->arg.function.symbol = NULL;
 
-			stmt->arg.function.symbol = oldAst->arg.varval;
-			free(oldAst);
-		}
-		else
-		{
-			stmt->arg.function.symbol = talloc(ptrs_jit_var_t);
-			addSymbol(code, strdup(name), stmt->arg.function.symbol);
-		}
-
-		func->name = name;
-		stmt->arg.function.symbol->val = NULL;
-		stmt->arg.function.symbol->meta = NULL;
+		struct symbollist *symbol = addSpecialSymbol(code, strdup(func->name), PTRS_SYMBOL_FUNCTION);
+		symbol->arg.function = stmt->arg.function.symbol;
 
 		symbolScope_increase(code, 1, false);
 		setSymbol(code, strdup("this"), 0);

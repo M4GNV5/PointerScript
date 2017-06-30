@@ -171,9 +171,11 @@ typedef struct ptrs_var
 #define jit_const_long(func, type, val) (jit_value_create_long_constant(func, jit_type_##type, val))
 
 #define ptrs_const_meta(type) ((uintptr_t)(type) << 56)
-#define ptrs_const_arrayMeta(type, readOnly, size) ((uint8_t)(type) << 56 | (bool)(readOnly) << 48 | (size))
+#define ptrs_const_arrayMeta(type, readOnly, size) ((uint64_t)(type) << 56 | (uint64_t)(readOnly) << 48 | (uint64_t)(size))
 
 #define ptrs_jit_const_meta(func, type) (jit_value_create_long_constant(func, jit_type_ulong, ptrs_const_meta(type)))
+#define ptrs_jit_const_arrayMeta(func, type, readOnly, size) (jit_const_long(func, ulong, ptrs_const_arrayMeta(type, readOnly, size)))
+
 #define ptrs_jit_arrayMeta(func, type, readOnly, size) \
 	(jit_insn_or(func, \
 		jit_insn_or(func, \
