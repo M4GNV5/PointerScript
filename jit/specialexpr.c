@@ -220,7 +220,7 @@ void ptrs_handle_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_s
 
 ptrs_jit_var_t ptrs_handle_functionidentifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	void *closure = jit_function_to_closure(*node->arg.funcval);
+	void *closure = jit_function_to_closure(jit_function_get_meta(*node->arg.funcval, PTRS_JIT_FUNCTIONMETA_CLOSURE));
 
 	ptrs_jit_var_t ret = {
 		.val = jit_const_int(func, nuint, (uintptr_t)closure),

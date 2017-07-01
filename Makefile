@@ -15,6 +15,7 @@ RUN_LIB_OBJECTS += $(BIN)/call.o
 RUN_LIB_OBJECTS += $(BIN)/run.o
 RUN_LIB_OBJECTS += $(BIN)/nativetypes.o
 RUN_LIB_OBJECTS += $(BIN)/struct.o
+RUN_LIB_OBJECTS += $(BIN)/function.o
 
 RUN_OBJECTS += $(BIN)/statements.o
 RUN_OBJECTS += $(BIN)/specialexpr.o
@@ -43,7 +44,7 @@ endif
 all: CFLAGS += -O2 -g
 all: $(RUN)
 
-debug: CFLAGS += -Wall -g
+debug: CFLAGS += -g
 debug: $(RUN)
 
 release: CFLAGS += -O2
