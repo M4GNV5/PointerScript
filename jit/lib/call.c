@@ -1,6 +1,7 @@
 #include "../../parser/common.h"
 #include "../../parser/ast.h"
 #include "../include/error.h"
+#include "../include/function.h"
 
 static int ptrs_astlist_length(struct ptrs_astlist *curr)
 {
@@ -68,15 +69,14 @@ ptrs_jit_var_t ptrs_jit_callnested(jit_function_t func, jit_function_t callee, s
 		_args[i * 2 + 1] = args[i].meta;
 	}
 
-	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, /* TODO */ jit_type_void, paramDef, narg * 2, 1);
+	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, ptrs_jit_getVarType(), paramDef, narg * 2, 1);
 	const char *name = jit_function_get_meta(callee, PTRS_JIT_FUNCTIONMETA_NAME);
 
-	jit_insn_call(func, name, callee, signature, _args, narg * 2, 0);
+	jit_value_t ret = jit_insn_call(func, name, callee, signature, _args, narg * 2, 0);
 
 	jit_type_free(signature);
 
-	ptrs_jit_var_t ret;
-	return ret;
+	return ptrs_jit_valToVar(func, ret);
 }
 
 ptrs_jit_var_t ptrs_jit_vcallnested(jit_function_t func, ptrs_scope_t *scope,

@@ -382,7 +382,13 @@ ptrs_jit_var_t ptrs_handle_import(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 
 ptrs_jit_var_t ptrs_handle_return(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	//TODO
+	node = node->arg.astval;
+	ptrs_jit_var_t ret = node->handler(node, func, scope);
+
+	jit_value_t val = ptrs_jit_varToVal(func, ret);
+	jit_insn_return(func, val);
+
+	return ret;
 }
 
 ptrs_jit_var_t ptrs_handle_break(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
@@ -435,7 +441,7 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 
 	//TODO variadic functions
 
-	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, jit_type_long, argDef, funcAst->argc * 2, 1);
+	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, ptrs_jit_getVarType(), argDef, funcAst->argc * 2, 1);
 	jit_function_t self = jit_function_create(ptrs_jit_context, signature);
 	jit_type_free(signature);
 
