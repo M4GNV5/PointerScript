@@ -481,6 +481,9 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 
 	funcAst->body->handler(funcAst->body, self, &selfScope);
 
+	if(jit_function_compile(self) == 0 || jit_function_compile(closure) == 0)
+		ptrs_error(node, "Failed compiling function %s", funcAst->name);
+
 	void *closurePtr = jit_function_to_closure(closure);
 
 	ptrs_jit_var_t ret;

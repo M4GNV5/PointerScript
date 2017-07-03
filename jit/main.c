@@ -69,6 +69,16 @@ static int parseOptions(int argc, char **argv)
 	}
 }
 
+void exitOnError()
+{
+	ptrs_error_t *error = jit_exception_get_last();
+	if(error != NULL)
+	{
+		fprintf(stderr, "%s at %s:%d:%d\n%s", error->message, error->file, error->line, error->column, error->backtrace);
+		exit(EXIT_FAILURE);
+	}
+}
+
 int main(int argc, char **argv)
 {
 	ptrs_errorfile = stderr;
@@ -95,6 +105,7 @@ int main(int argc, char **argv)
 
 	//TODO pass the arguments to the main function
 	ptrs_result_t *result = ptrs_compilefile(file);
+	exitOnError();
 
 	if(dumpOps)
 	{
@@ -114,12 +125,7 @@ int main(int argc, char **argv)
 		void *arg = arguments;
 		jit_function_apply(result->func, &arg, &retval);
 
-		ptrs_error_t *error = jit_exception_get_last();
-		if(error != NULL)
-		{
-			fprintf(stderr, "%s at %s:%d:%d\n%s", error->message, error->file, error->line, error->column, error->backtrace);
-			return EXIT_FAILURE;
-		}
+		exitOnError();
 
 		return retval;
 	}

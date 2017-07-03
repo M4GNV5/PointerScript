@@ -36,7 +36,9 @@ ptrs_result_t *ptrs_compile(char *src, const char *filename)
 
 	result->ast->handler(result->ast, result->func, &scope);
 
-	jit_function_compile(result->func);
+	int res = jit_function_compile(result->func);
+	if(res == 0)
+		ptrs_error(result->ast, "Failed compiling the root function");
 
 	jit_context_build_end(ptrs_jit_context);
 
