@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <getopt.h>
+#include <jit/jit-dump.h>
 
 #include "../parser/ast.h"
 #include "../parser/common.h"

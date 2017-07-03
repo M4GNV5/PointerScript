@@ -7,6 +7,7 @@
 #include "../../parser/ast.h"
 #include "../../parser/common.h"
 #include "../include/run.h"
+#include "../include/error.h"
 
 jit_context_t ptrs_jit_context = NULL;
 
