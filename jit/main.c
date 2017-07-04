@@ -104,7 +104,7 @@ int main(int argc, char **argv)
 		arguments[j].meta.array.readOnly = false;
 	}
 
-	//TODO pass the arguments to the main function
+	jit_init();
 	ptrs_result_t *result = ptrs_compilefile(file);
 	exitOnError();
 

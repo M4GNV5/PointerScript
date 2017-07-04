@@ -24,6 +24,7 @@ jit_type_t ptrs_jit_getVarType()
 ptrs_jit_var_t ptrs_jit_valToVar(jit_function_t func, jit_value_t val)
 {
 	assert(jit_value_get_type(val) == ptrs_jit_getVarType());
+	jit_value_set_addressable(val);
 
 	jit_value_t addr = jit_insn_address_of(func, val);
 
@@ -38,6 +39,8 @@ ptrs_jit_var_t ptrs_jit_valToVar(jit_function_t func, jit_value_t val)
 jit_value_t ptrs_jit_varToVal(jit_function_t func, ptrs_jit_var_t var)
 {
 	jit_value_t val = jit_value_create(func, ptrs_jit_getVarType());
+	jit_value_set_addressable(val);
+
 	jit_value_t addr = jit_insn_address_of(func, val);
 
 	jit_insn_store_relative(func, addr, 0, var.val);

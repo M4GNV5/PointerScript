@@ -463,8 +463,8 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 		funcAst->args[i].val = jit_value_create(func, jit_type_long);
 		funcAst->args[i].meta = jit_value_create(func, jit_type_ulong);
 
-		jit_insn_store(func, funcAst->args[i].val, jit_value_get_param(self, i * 2));
-		jit_insn_store(func, funcAst->args[i].meta, jit_value_get_param(self, i * 2 + 1));
+		jit_insn_store(self, funcAst->args[i].val, jit_value_get_param(self, i * 2));
+		jit_insn_store(self, funcAst->args[i].meta, jit_value_get_param(self, i * 2 + 1));
 
 		if(funcAst->argv != NULL && funcAst->argv[i] != NULL)
 		{
@@ -472,8 +472,8 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 			jit_insn_branch_if_not(self, ptrs_jit_hasType(self, funcAst->args[i].meta, PTRS_TYPE_UNDEFINED), &given);
 
 			ptrs_jit_var_t val = funcAst->argv[i]->handler(funcAst->argv[i], self, &selfScope);
-			jit_insn_store(func, funcAst->args[i].val, val.val);
-			jit_insn_store(func, funcAst->args[i].meta, val.meta);
+			jit_insn_store(self, funcAst->args[i].val, val.val);
+			jit_insn_store(self, funcAst->args[i].meta, val.meta);
 
 			jit_insn_label(self, &given);
 		}
