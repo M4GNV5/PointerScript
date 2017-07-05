@@ -8,6 +8,7 @@
 #include "../../parser/common.h"
 #include "../include/run.h"
 #include "../include/error.h"
+#include "../include/function.h"
 
 jit_context_t ptrs_jit_context = NULL;
 
@@ -29,7 +30,7 @@ ptrs_result_t *ptrs_compile(char *src, const char *filename)
 	jit_context_build_start(ptrs_jit_context);
 
 	jit_type_t params[1] = {jit_type_void_ptr};
-	result->signature = jit_type_create_signature(jit_abi_cdecl, jit_type_ulong, params, 1, 1);
+	result->signature = jit_type_create_signature(jit_abi_cdecl, ptrs_jit_getVarType(), params, 1, 1);
 
 	result->func = jit_function_create(ptrs_jit_context, result->signature);
 	jit_function_set_meta(result->func, PTRS_JIT_FUNCTIONMETA_NAME, "(root)", NULL, 0);

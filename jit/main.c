@@ -9,6 +9,7 @@
 #include "../parser/common.h"
 #include "include/run.h"
 #include "include/error.h"
+#include "include/conversion.h"
 
 static bool handleSignals = true;
 static bool interactive = false;
@@ -122,13 +123,13 @@ int main(int argc, char **argv)
 	}
 	else
 	{
-		jit_long retval;
+		ptrs_var_t ret;
 		void *arg = arguments;
-		jit_function_apply(result->func, &arg, &retval);
+		jit_function_apply(result->func, &arg, &ret);
 
 		exitOnError();
 
-		return retval;
+		return ptrs_vartoi(ret.value, ret.meta);
 	}
 
 }
