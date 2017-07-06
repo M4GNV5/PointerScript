@@ -4,6 +4,7 @@
 #include "../../parser/common.h"
 #include "../../parser/ast.h"
 #include "../include/run.h"
+#include "../include/conversion.h"
 
 jit_type_t ptrs_jit_getVarType()
 {
@@ -78,8 +79,11 @@ jit_function_t ptrs_jit_createTrampoline(ptrs_function_t *funcAst, jit_function_
 	}
 
 	signature = jit_type_create_signature(jit_abi_cdecl, ptrs_jit_getVarType(), argDef, funcAst->argc * 2, 1);
-	jit_insn_return(closure, jit_insn_call(closure, funcAst->name, func, signature, args, funcAst->argc * 2, JIT_CALL_TAIL));
+	jit_value_t retVal = jit_insn_call(closure, funcAst->name, func, signature, args, funcAst->argc * 2, 0);
 	jit_type_free(signature);
+
+	ptrs_jit_var_t ret = ptrs_jit_valToVar(closure, retVal);
+	jit_insn_return(closure, ptrs_jit_vartoi(closure, ret.val, ret.meta));
 
 	return closure;
 }
