@@ -3,7 +3,7 @@
 #include "../include/error.h"
 #include "../include/function.h"
 
-static int ptrs_astlist_length(struct ptrs_astlist *curr)
+static int ptrs_arglist_length(struct ptrs_astlist *curr)
 {
 	int len = 0;
 	while(curr != NULL)
@@ -15,7 +15,7 @@ static int ptrs_astlist_length(struct ptrs_astlist *curr)
 	return len;
 }
 
-static void ptrs_astlist_handle(jit_function_t func, ptrs_scope_t *scope, struct ptrs_astlist *curr, ptrs_jit_var_t *buff)
+static void ptrs_arglist_handle(jit_function_t func, ptrs_scope_t *scope, struct ptrs_astlist *curr, ptrs_jit_var_t *buff)
 {
 	for(int i = 0; curr != NULL; i++)
 	{
@@ -49,9 +49,9 @@ jit_value_t ptrs_jit_call(jit_function_t func,
 jit_value_t ptrs_jit_vcall(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	jit_type_t retType, jit_value_t val, jit_value_t meta, struct ptrs_astlist *args)
 {
-	int len = ptrs_astlist_length(args);
+	int len = ptrs_arglist_length(args);
 	ptrs_jit_var_t buff[len];
-	ptrs_astlist_handle(func, scope, args, buff);
+	ptrs_arglist_handle(func, scope, args, buff);
 
 	return ptrs_jit_call(func, retType, val, len, buff);
 }
@@ -82,9 +82,9 @@ ptrs_jit_var_t ptrs_jit_callnested(jit_function_t func, jit_function_t callee, s
 ptrs_jit_var_t ptrs_jit_vcallnested(jit_function_t func, ptrs_scope_t *scope,
 	jit_function_t callee, struct ptrs_astlist *args)
 {
-	int len = ptrs_astlist_length(args);
+	int len = ptrs_arglist_length(args);
 	ptrs_jit_var_t buff[len];
-	ptrs_astlist_handle(func, scope, args, buff);
+	ptrs_arglist_handle(func, scope, args, buff);
 
 	return ptrs_jit_callnested(func, callee, len, buff);
 }

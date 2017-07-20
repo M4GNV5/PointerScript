@@ -17,8 +17,8 @@ ptrs_jit_var_t ptrs_handle_call(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 	ptrs_jit_var_t val = expr->value->handler(expr->value, func, scope);
 
 	ptrs_jit_var_t ret;
-	ret.val = ptrs_jit_vcall(node, func, scope, /* TODO */ jit_type_long, val.val, val.meta, expr->arguments);
-	ret.meta = ptrs_jit_const_meta(func, /* TODO */ PTRS_TYPE_INT);
+	ret.val = ptrs_jit_vcall(node, func, scope, jit_type_long, val.val, val.meta, expr->arguments);
+	ret.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
 
 	return ret;
 }
@@ -223,7 +223,7 @@ ptrs_jit_var_t ptrs_handle_functionidentifier(ptrs_ast_t *node, jit_function_t f
 	void *closure = jit_function_to_closure(jit_function_get_meta(*node->arg.funcval, PTRS_JIT_FUNCTIONMETA_CLOSURE));
 
 	ptrs_jit_var_t ret = {
-		.val = jit_const_int(func, nuint, (uintptr_t)closure),
+		.val = jit_const_int(func, void_ptr, (uintptr_t)closure),
 		.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_NATIVE, true, 0)
 	};
 	return ret;

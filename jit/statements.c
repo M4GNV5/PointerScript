@@ -445,7 +445,7 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 	jit_function_t self = jit_function_create(ptrs_jit_context, signature);
 	jit_type_free(signature);
 
-	jit_function_t closure = ptrs_jit_createTrampoline(funcAst, func);
+	jit_function_t closure = ptrs_jit_createTrampoline(funcAst, func, argDef);
 
 	jit_function_set_meta(self, PTRS_JIT_FUNCTIONMETA_NAME, funcAst->name, NULL, 0);
 	jit_function_set_meta(self, PTRS_JIT_FUNCTIONMETA_FILE, (char *)node->file, NULL, 0);
@@ -460,8 +460,8 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 
 	for(int i = 0; i < funcAst->argc; i++)
 	{
-		funcAst->args[i].val = jit_value_create(func, jit_type_long);
-		funcAst->args[i].meta = jit_value_create(func, jit_type_ulong);
+		funcAst->args[i].val = jit_value_create(self, jit_type_long);
+		funcAst->args[i].meta = jit_value_create(self, jit_type_ulong);
 
 		jit_insn_store(self, funcAst->args[i].val, jit_value_get_param(self, i * 2));
 		jit_insn_store(self, funcAst->args[i].meta, jit_value_get_param(self, i * 2 + 1));

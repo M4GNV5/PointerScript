@@ -50,9 +50,9 @@ jit_value_t ptrs_jit_varToVal(jit_function_t func, ptrs_jit_var_t var)
 	return val;
 }
 
-jit_function_t ptrs_jit_createTrampoline(ptrs_function_t *funcAst, jit_function_t func)
+jit_function_t ptrs_jit_createTrampoline(ptrs_function_t *funcAst, jit_function_t func, jit_type_t *funcArgDef)
 {
-	jit_type_t argDef[funcAst->argc * 2];
+	jit_type_t argDef[funcAst->argc];
 	for(int i = 0; i < funcAst->argc; i++)
 	{
 		argDef[i] = jit_type_long;
@@ -71,14 +71,11 @@ jit_function_t ptrs_jit_createTrampoline(ptrs_function_t *funcAst, jit_function_
 
 	for(int i = 0; i < funcAst->argc; i++)
 	{
-		argDef[i * 2] = jit_type_long;
-		argDef[i * 2 + 1] = jit_type_ulong;
-
 		args[i * 2] = jit_value_get_param(closure, i);
 		args[i * 2 + 1] = meta;
 	}
 
-	signature = jit_type_create_signature(jit_abi_cdecl, ptrs_jit_getVarType(), argDef, funcAst->argc * 2, 1);
+	signature = jit_type_create_signature(jit_abi_cdecl, ptrs_jit_getVarType(), funcArgDef, funcAst->argc * 2, 1);
 	jit_value_t retVal = jit_insn_call(closure, funcAst->name, func, signature, args, funcAst->argc * 2, 0);
 	jit_type_free(signature);
 
