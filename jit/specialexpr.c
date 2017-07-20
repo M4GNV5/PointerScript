@@ -6,6 +6,7 @@
 #include "include/error.h"
 #include "include/conversion.h"
 #include "include/call.h"
+#include "include/function.h"
 
 ptrs_jit_var_t ptrs_handle_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
@@ -220,10 +221,24 @@ void ptrs_handle_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_s
 
 ptrs_jit_var_t ptrs_handle_functionidentifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	void *closure = jit_function_to_closure(jit_function_get_meta(*node->arg.funcval, PTRS_JIT_FUNCTIONMETA_CLOSURE));
+	jit_function_t target = *node->arg.funcval;
+	jit_function_t closure = jit_function_get_meta(target, PTRS_JIT_FUNCTIONMETA_CLOSURE);
+
+	if(closure == NULL)
+	{
+		ptrs_function_t *funcAst = jit_function_get_meta(target, PTRS_JIT_FUNCTIONMETA_AST);
+
+		closure = ptrs_jit_createTrampoline(funcAst, target);
+		jit_function_set_meta(target, PTRS_JIT_FUNCTIONMETA_CLOSURE, closure, NULL, 0);
+
+		if(jit_function_compile(closure) == 0)
+			ptrs_error(node, "Failed compiling closure of function %s", funcAst->name);
+	}
+
+	void *closurePtr = jit_function_to_closure(closure);
 
 	ptrs_jit_var_t ret = {
-		.val = jit_const_int(func, void_ptr, (uintptr_t)closure),
+		.val = jit_const_int(func, void_ptr, (uintptr_t)closurePtr),
 		.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_NATIVE, true, 0)
 	};
 	return ret;
