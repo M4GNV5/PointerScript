@@ -42,7 +42,8 @@ typedef struct ptrs_scope
 {
 	jit_label_t continueLabel;
 	jit_label_t breakLabel;
-	struct ptrs_error *errors;
+	struct ptrs_assertion *firstAssertion;
+	struct ptrs_assertion *lastAssertion;
 } ptrs_scope_t;
 
 typedef void (*ptrs_nativetype_handler_t)(void *target, size_t typeSize, struct ptrs_var *value);

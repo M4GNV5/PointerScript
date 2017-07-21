@@ -89,7 +89,7 @@ ptrs_jit_var_t ptrs_handle_prefix_dereference(ptrs_ast_t *node, jit_function_t f
 	jit_value_t type = ptrs_jit_getType(func, val.meta);
 	jit_insn_branch_if(func, jit_insn_eq(func, type, jit_const_long(func, ulong, PTRS_TYPE_NATIVE)), &isNative);
 
-	ptrs_jit_assert(node, func, jit_insn_eq(func, type, jit_const_long(func, ulong, PTRS_TYPE_POINTER)),
+	ptrs_jit_assert(node, func, scope, jit_insn_eq(func, type, jit_const_long(func, ulong, PTRS_TYPE_POINTER)),
 		1, "Cannot dereference variable of type %t", type);
 
 	//PTRS_TYPE_POINTER
@@ -117,7 +117,7 @@ void ptrs_handle_assign_dereference(ptrs_ast_t *node, jit_function_t func, ptrs_
 	jit_value_t type = ptrs_jit_getType(func, base.meta);
 	jit_insn_branch_if(func, jit_insn_eq(func, type, jit_const_long(func, ulong, PTRS_TYPE_NATIVE)), &isNative);
 
-	ptrs_jit_assert(node, func, jit_insn_eq(func, type, jit_const_long(func, ulong, PTRS_TYPE_POINTER)),
+	ptrs_jit_assert(node, func, scope, jit_insn_eq(func, type, jit_const_long(func, ulong, PTRS_TYPE_POINTER)),
 		1, "Cannot dereference variable of type %t", type);
 
 	//PTRS_TYPE_POINTER

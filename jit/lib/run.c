@@ -17,7 +17,8 @@ ptrs_result_t *ptrs_compile(char *src, const char *filename)
 	ptrs_scope_t scope;
 	scope.continueLabel = jit_label_undefined;
 	scope.breakLabel = jit_label_undefined;
-	scope.errors = NULL;
+	scope.firstAssertion = NULL;
+	scope.lastAssertion = NULL;
 
 	if(ptrs_jit_context == NULL)
 		ptrs_jit_context = jit_context_create();

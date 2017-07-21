@@ -20,7 +20,8 @@ typedef struct ptrs_error
 void ptrs_handle_signals();
 void ptrs_error(ptrs_ast_t *ast, const char *msg, ...);
 
-void ptrs_jit_assert(ptrs_ast_t *ast, jit_function_t func, jit_value_t condition,
-	size_t argCount, const char *text, ...);
+void ptrs_jit_assert(ptrs_ast_t *ast, jit_function_t func, ptrs_scope_t *scope,
+	jit_value_t condition, size_t argCount, const char *text, ...);
+void ptrs_jit_placeAssertions(jit_function_t func, ptrs_scope_t *scope);
 
 #endif

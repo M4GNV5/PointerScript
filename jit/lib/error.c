@@ -23,6 +23,14 @@ typedef struct
 	int column;
 } codepos_t;
 
+struct ptrs_assertion
+{
+	struct ptrs_assertion *next;
+	jit_label_t label;
+	size_t argCount;
+	jit_value_t args[];
+};
+
 FILE *ptrs_errorfile = NULL;
 
 extern jit_context_t ptrs_jit_context;
@@ -255,32 +263,63 @@ void ptrs_error(ptrs_ast_t *ast, const char *msg, ...)
 	jit_exception_throw(error);
 }
 
-void ptrs_jit_assert(ptrs_ast_t *ast, jit_function_t func, jit_value_t condition,
-	size_t argCount, const char *text, ...)
+void ptrs_jit_assert(ptrs_ast_t *ast, jit_function_t func, ptrs_scope_t *scope,
+	jit_value_t condition, size_t argCount, const char *text, ...)
 {
 	va_list ap;
 	va_start(ap, text);
 
 	argCount += 2;
-	jit_value_t args[argCount];
-	args[0] = jit_const_int(func, void_ptr, (uintptr_t)ast);
-	args[1] = jit_const_int(func, void_ptr, (uintptr_t)text);
+
+	struct ptrs_assertion *assertion = malloc(sizeof(struct ptrs_assertion) + argCount * sizeof(jit_value_t));
+
+	assertion->argCount = argCount;
+	assertion->args[0] = jit_const_int(func, void_ptr, (uintptr_t)ast);
+	assertion->args[1] = jit_const_int(func, void_ptr, (uintptr_t)text);
 
 	for(size_t i = 2; i < argCount; i++)
-		args[i] = va_arg(ap, jit_value_t);
+		assertion->args[i] = va_arg(ap, jit_value_t);
 
 	va_end(ap);
 
-	jit_label_t label = jit_label_undefined;
-	jit_insn_branch_if(func, condition, &label);
+	assertion->label = jit_label_undefined;
+	jit_insn_branch_if_not(func, condition, &assertion->label);
 
-	jit_type_t params[argCount];
-	for(int i = 0; i < argCount; i++)
-		params[i] = jit_type_void_ptr;
+	assertion->next = NULL;
+	if(scope->lastAssertion == NULL)
+	{
+		scope->firstAssertion = assertion;
+		scope->lastAssertion = assertion;
+	}
+	else
+	{
+		scope->lastAssertion->next = assertion;
+		scope->lastAssertion = assertion;
+	}
+}
 
-	jit_type_t signature = jit_type_create_signature(jit_abi_vararg, jit_type_void, params, argCount, 1);
-	jit_insn_call_native(func, "ptrs_handle_error", ptrs_error, signature, args, argCount, JIT_CALL_NORETURN);
-	jit_type_free(signature);
+void ptrs_jit_placeAssertions(jit_function_t func, ptrs_scope_t *scope)
+{
+	struct ptrs_assertion *curr = scope->firstAssertion;
+	while(curr != NULL)
+	{
+		jit_insn_label(func, &curr->label);
 
-	jit_insn_label(func, &label);
+		jit_type_t *argDef = malloc(curr->argCount * sizeof(jit_type_t));
+		for(int i = 0; i < curr->argCount; i++)
+			argDef[i] = jit_type_void_ptr;
+
+		jit_type_t signature = jit_type_create_signature(jit_abi_vararg, jit_type_void, argDef, curr->argCount, 1);
+		jit_insn_call_native(func, "ptrs_error", ptrs_error, signature, curr->args, curr->argCount, JIT_CALL_NORETURN);
+
+		struct ptrs_assertion *old = curr;
+		curr = curr->next;
+
+		jit_type_free(signature);
+		free(argDef);
+		free(old);
+	}
+
+	scope->firstAssertion = NULL;
+	scope->lastAssertion = NULL;
 }

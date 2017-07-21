@@ -74,7 +74,7 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	}
 
 	//make sure array is not too big
-	ptrs_jit_assert(node, func, jit_insn_le(func, size, jit_const_int(func, nuint, ptrs_arraymax)),
+	ptrs_jit_assert(node, func, scope, jit_insn_le(func, size, jit_const_int(func, nuint, ptrs_arraymax)),
 		1, "Cannot create array of size %d", size);
 
 	//allocate memory
@@ -102,12 +102,12 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 		ptrs_jit_var_t init = stmt->initExpr->handler(stmt->initExpr, func, scope);
 
 		//check type of initExpr
-		ptrs_jit_assert(node, func, ptrs_jit_hasType(func, init.meta, PTRS_TYPE_NATIVE),
+		ptrs_jit_assert(node, func, scope, ptrs_jit_hasType(func, init.meta, PTRS_TYPE_NATIVE),
 			1, "Array init expression must be of type native not %mt", init.meta);
 
 		//check initExpr.size <= array.size
 		jit_value_t initSize = ptrs_jit_getArraySize(func, init.meta);
-		ptrs_jit_assert(node, func, jit_insn_le(func, initSize, size),
+		ptrs_jit_assert(node, func, scope, jit_insn_le(func, initSize, size),
 			2, "Init expression size of %d is too big for array of size %d", initSize, size);
 
 		//copy initExpr memory to array and zero the rest
@@ -141,7 +141,7 @@ ptrs_jit_var_t ptrs_handle_vararray(ptrs_ast_t *node, jit_function_t func, ptrs_
 	}
 
 	//make sure array is not too big
-	ptrs_jit_assert(node, func, jit_insn_le(func, byteSize, jit_const_int(func, nuint, ptrs_arraymax)),
+	ptrs_jit_assert(node, func, scope, jit_insn_le(func, byteSize, jit_const_int(func, nuint, ptrs_arraymax)),
 		1, "Cannot create array of size %d", size);
 
 	//allocate memory
@@ -455,7 +455,8 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 	ptrs_scope_t selfScope;
 	selfScope.continueLabel = jit_label_undefined;
 	selfScope.breakLabel = jit_label_undefined;
-	selfScope.errors = NULL;
+	selfScope.firstAssertion = NULL;
+	selfScope.lastAssertion = NULL;
 
 	for(int i = 0; i < funcAst->argc; i++)
 	{
@@ -479,6 +480,8 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 	}
 
 	funcAst->body->handler(funcAst->body, self, &selfScope);
+
+	ptrs_jit_placeAssertions(self, &selfScope);
 
 	if(jit_function_compile(self) == 0)
 		ptrs_error(node, "Failed compiling function %s", funcAst->name);
@@ -658,7 +661,9 @@ ptrs_jit_var_t ptrs_handle_file(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 
 	ptrs_jit_var_t val = body->handler(body, func, scope);
 
-	//TODO return val via jit_insn_return
+	jit_insn_default_return(func);
+	ptrs_jit_placeAssertions(func, scope);
+
 	return val;
 }
 
