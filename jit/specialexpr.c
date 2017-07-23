@@ -198,10 +198,7 @@ ptrs_jit_var_t ptrs_handle_tostring(ptrs_ast_t *node, jit_function_t func, ptrs_
 	struct ptrs_ast_cast *expr = &node->arg.cast;
 	ptrs_jit_var_t val = expr->value->handler(expr->value, func, scope);
 
-	val.val = ptrs_jit_vartoa(func, val.val, val.meta);
-	val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_NATIVE);
-
-	return val;
+	return ptrs_jit_vartoa(func, val.val, val.meta);
 }
 
 ptrs_jit_var_t ptrs_handle_cast(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
