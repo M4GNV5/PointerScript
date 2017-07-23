@@ -61,8 +61,29 @@ jit_value_t ptrs_jit_vartof(jit_function_t func, jit_value_t val, jit_value_t me
 	return jit_insn_call_intrinsic(func, NULL, ptrs_vartof, &descr, val, meta);
 }
 
-jit_value_t ptrs_jit_vartoa(jit_function_t func, jit_value_t val, jit_value_t meta, jit_value_t buff, jit_value_t maxlen)
+jit_value_t ptrs_jit_vartoa(jit_function_t func, jit_value_t val, jit_value_t meta)
 {
+	jit_value_t buff = jit_value_create(func, jit_type_void_ptr);
+	jit_value_t size;
+
+	jit_label_t genericConversion = jit_label_undefined;
+
+	jit_value_t notNative = ptrs_jit_hasType(func, meta, PTRS_TYPE_NATIVE);
+	jit_insn_branch_if(func, notNative, &genericConversion);
+
+	size = ptrs_jit_getArraySize(func, meta);
+	jit_value_t zeroLength = jit_insn_eq(func, size, jit_const_long(func, ulong, 0));
+	jit_insn_branch_if(func, zeroLength, &genericConversion);
+
+	//sized variable of type native (i.e. already a (sized) string)
+	jit_insn_store(func, buff, jit_insn_alloca(func, size));
+	jit_insn_memcpy(func, buff, val, size);
+
+	//other type that needs to be converted
+	jit_insn_label(func, &genericConversion);
+	size = jit_const_int(func, nuint, 32);
+	jit_insn_store(func, buff, jit_insn_alloca(func, size));
+
 	jit_type_t paramDef[] = {
 		jit_type_long, //ptrs_val_t
 		jit_type_ulong, //ptrs_meta_t
@@ -71,11 +92,12 @@ jit_value_t ptrs_jit_vartoa(jit_function_t func, jit_value_t val, jit_value_t me
 	};
 
 	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, jit_type_void_ptr, paramDef, 4, 1);
-	jit_value_t params[] = {val, meta, buff, maxlen};
+	jit_value_t params[] = {val, meta, buff, size};
 
-	jit_value_t ret = jit_insn_call_native(func, NULL, ptrs_vartoa, signature, params, 4, JIT_CALL_NOTHROW);
+	jit_insn_call_native(func, NULL, ptrs_vartoa, signature, params, 4, JIT_CALL_NOTHROW);
 	jit_type_free(signature);
-	return ret;
+
+	return buff;
 }
 
 bool ptrs_vartob(ptrs_val_t val, ptrs_meta_t meta)
