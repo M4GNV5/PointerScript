@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <inttypes.h>
 #include <assert.h>
 
 #include "../parser/ast.h"
@@ -158,7 +159,47 @@ ptrs_jit_var_t ptrs_handle_call_index(ptrs_ast_t *node, jit_function_t func, ptr
 
 ptrs_jit_var_t ptrs_handle_slice(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	//TODO
+	struct ptrs_ast_slice *expr = &node->arg.slice;
+
+	ptrs_jit_var_t val = expr->base->handler(expr->base, func, scope);
+	jit_value_t type = ptrs_jit_getType(func, val.meta);
+
+	jit_value_t oldSize = scope->indexSize;
+	scope->indexSize = ptrs_jit_getArraySize(func, val.meta);
+
+	ptrs_jit_var_t _start = expr->start->handler(expr->start, func, scope);
+	jit_value_t start = ptrs_jit_vartoi(func, _start.val, _start.meta);
+
+	ptrs_jit_var_t _end = expr->end->handler(expr->end, func, scope);
+	jit_value_t end = ptrs_jit_vartoi(func, _end.val, _end.meta);
+
+	jit_value_t newSize = jit_insn_sub(func, end, start);
+	jit_value_t newPtr = jit_value_create(func, jit_type_void_ptr);
+
+	jit_label_t done = jit_label_undefined;
+	jit_insn_store(func, newPtr, jit_insn_load_elem_address(func, val.val, start, jit_type_ubyte));
+	jit_insn_branch_if(func, jit_insn_eq(func, type, jit_const_int(func, ulong, PTRS_TYPE_NATIVE)), &done);
+
+	ptrs_jit_assert(node, func, scope, jit_insn_eq(func, type, jit_const_int(func, ulong, PTRS_TYPE_POINTER)),
+		1, "Cannot slice variable of type %t", type);
+	jit_insn_store(func, newPtr, jit_insn_load_elem_address(func, val.val, start, jit_type_ubyte));
+
+	jit_insn_label(func, &done);
+
+	ptrs_jit_assert(node, func, scope, jit_insn_le(func, end, scope->indexSize),
+		2, "Canot end a slice at %d for an array of size %d", end, scope->indexSize);
+	ptrs_jit_assert(node, func, scope, jit_insn_ge(func, start, jit_const_long(func, ulong, 0)),
+		1, "Canot start a slice at %d", start);
+	ptrs_jit_assert(node, func, scope, jit_insn_lt(func, start, end),
+		2, "Slice start (%d) is bigger than slice end (%d)", start, end);
+
+	scope->indexSize = oldSize;
+
+	ptrs_jit_var_t ret;
+	ret.val = newPtr;
+	ret.meta = ptrs_jit_setArraySize(func, val.meta, newSize);
+
+	return ret;
 }
 
 ptrs_jit_var_t ptrs_handle_as(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)

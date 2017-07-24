@@ -44,6 +44,7 @@ typedef struct ptrs_scope
 	jit_label_t breakLabel;
 	struct ptrs_assertion *firstAssertion;
 	struct ptrs_assertion *lastAssertion;
+	jit_value_t indexSize;
 } ptrs_scope_t;
 
 typedef void (*ptrs_nativetype_handler_t)(void *target, size_t typeSize, struct ptrs_var *value);
@@ -190,6 +191,12 @@ typedef struct ptrs_var
 
 #define ptrs_jit_getType(func, meta) (jit_insn_ushr(func, meta, jit_const_int(func, ubyte, 56)))
 #define ptrs_jit_getArraySize(func, meta) (jit_insn_and(func, meta, jit_const_long(func, ulong, 0xFFFFFFFF)))
+
+#define ptrs_jit_setArraySize(func, meta, size) \
+	(jit_insn_or(func, \
+		jit_insn_and(func, (meta), jit_const_long(func, ulong, 0xFFFFFFFF00000000)), \
+		(size) \
+	))
 
 #define ptrs_jit_hasType(func, meta, type) (jit_insn_eq((func), ptrs_jit_getType(func, meta), jit_const_long(func, ulong, (type))))
 
