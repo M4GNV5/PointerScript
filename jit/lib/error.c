@@ -161,7 +161,7 @@ void *ptrs_formatErrorMsg(const char *msg, va_list ap)
 					str = ptrs_vartoa(*(ptrs_val_t *)&val, *(ptrs_meta_t *)&meta, buff, 32);
 				default:
 					;
-					char format[3] = {'%', *(msg - 1), 0};
+					char format[3] = {'%', *msg, 0};
 					snprintf(valbuff, 32, format, va_arg(ap, long));
 					str = valbuff;
 			}
