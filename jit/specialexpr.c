@@ -304,12 +304,17 @@ ptrs_jit_var_t ptrs_handle_slice(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 
 	jit_insn_label(func, &done);
 
+	/*
+	disabled so we can slice arrays receives from native functions.
+	TODO: should there be a seperate syntax for that?
+
 	ptrs_jit_assert(node, func, scope, jit_insn_le(func, end, scope->indexSize),
 		2, "Canot end a slice at %d for an array of size %d", end, scope->indexSize);
 	ptrs_jit_assert(node, func, scope, jit_insn_ge(func, start, jit_const_long(func, ulong, 0)),
 		1, "Canot start a slice at %d", start);
 	ptrs_jit_assert(node, func, scope, jit_insn_lt(func, start, end),
 		2, "Slice start (%d) is bigger than slice end (%d)", start, end);
+	*/
 
 	scope->indexSize = oldSize;
 
