@@ -144,7 +144,7 @@ ptrs_jit_var_t ptrs_handle_indexlength(ptrs_ast_t *node, jit_function_t func, pt
 }
 
 static void ptrs_handle_index_common(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
-	ptrs_jit_var_t *base, jit_value_t *type, jit_value_t *index)
+	ptrs_jit_var_t *base, jit_value_t *type, jit_value_t *size, jit_value_t *index)
 {
 	struct ptrs_ast_binary *expr = &node->arg.binary;
 
@@ -164,6 +164,8 @@ static void ptrs_handle_index_common(ptrs_ast_t *node, jit_function_t func, ptrs
 		2, "Index %d is out of range of array of size %d", *index, scope->indexSize);
 	ptrs_jit_appendAssert(func, assertion, jit_insn_ge(func, *index, jit_const_long(func, long, 0)));
 
+	if(size != NULL)
+		*size = scope->indexSize;
 	scope->indexSize = oldSize;
 }
 
@@ -172,7 +174,7 @@ ptrs_jit_var_t ptrs_handle_index(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	ptrs_jit_var_t base;
 	jit_value_t index;
 	jit_value_t type;
-	ptrs_handle_index_common(node, func, scope, &base, &type, &index);
+	ptrs_handle_index_common(node, func, scope, &base, &type, NULL, &index);
 
 	ptrs_jit_var_t result = {
 		.val = jit_value_create(func, jit_type_long),
@@ -208,7 +210,7 @@ void ptrs_handle_assign_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 	ptrs_jit_var_t base;
 	jit_value_t index;
 	jit_value_t type;
-	ptrs_handle_index_common(node, func, scope, &base, &type, &index);
+	ptrs_handle_index_common(node, func, scope, &base, &type, NULL, &index);
 
 	jit_label_t isPointer = jit_label_undefined;
 	jit_label_t done = jit_label_undefined;
@@ -235,7 +237,37 @@ void ptrs_handle_assign_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 }
 ptrs_jit_var_t ptrs_handle_addressof_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	//TODO
+	ptrs_jit_var_t base;
+	jit_value_t index;
+	jit_value_t type;
+	jit_value_t size;
+	ptrs_handle_index_common(node, func, scope, &base, &type, &size, &index);
+
+	ptrs_jit_var_t result = {
+		.val = jit_value_create(func, jit_type_long),
+		.meta = ptrs_jit_setArraySize(func, base.meta, jit_insn_sub(func, size, index))
+	};
+
+	jit_label_t isPointer = jit_label_undefined;
+	jit_label_t done = jit_label_undefined;
+
+	jit_insn_branch_if_not(func, jit_insn_eq(func, type, jit_const_int(func, ulong, PTRS_TYPE_NATIVE)), &isPointer);
+
+	//native
+	jit_insn_store(func, result.val, jit_insn_load_elem_address(func, base.val, index, jit_type_ubyte));
+	jit_insn_branch(func, &done);
+
+	//pointer
+	jit_insn_label(func, &isPointer);
+
+	jit_value_t valIndex = jit_insn_shl(func, index, jit_const_int(func, nint, 1));
+	jit_insn_store(func, result.val, jit_insn_load_elem_address(func, base.val, valIndex, jit_type_long));
+
+	//TODO struct
+
+	jit_insn_label(func, &done);
+
+	return result;
 }
 ptrs_jit_var_t ptrs_handle_call_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_ast_t *caller, struct ptrs_astlist *arguments)
