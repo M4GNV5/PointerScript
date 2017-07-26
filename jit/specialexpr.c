@@ -136,7 +136,11 @@ void ptrs_handle_assign_dereference(ptrs_ast_t *node, jit_function_t func, ptrs_
 
 ptrs_jit_var_t ptrs_handle_indexlength(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	//TODO
+	ptrs_jit_var_t ret;
+	ret.val = scope->indexSize;
+	ret.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
+
+	return ret;
 }
 
 ptrs_jit_var_t ptrs_handle_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
