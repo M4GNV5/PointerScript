@@ -1227,7 +1227,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		ast->arg.constval.meta.type = PTRS_TYPE_INT;
 		ast->arg.constval.value.intval = readInt(code, 0);
 
-		if(code->curr == '.' || code->curr == 'e')
+		if((code->curr == '.' || code->curr == 'e') && isdigit(code->src[code->pos]))
 		{
 			code->pos = startPos;
 			code->curr = code->src[code->pos];
