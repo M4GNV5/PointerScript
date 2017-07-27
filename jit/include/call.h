@@ -10,4 +10,6 @@ ptrs_jit_var_t ptrs_jit_callnested(jit_function_t func, jit_function_t callee, s
 ptrs_jit_var_t ptrs_jit_vcallnested(jit_function_t func, ptrs_scope_t *scope,
 	jit_function_t callee, struct ptrs_astlist *args);
 
+jit_function_t ptrs_jit_createTrampoline(ptrs_function_t *funcAst, jit_function_t func);
+
 #endif
