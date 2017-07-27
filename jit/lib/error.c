@@ -32,6 +32,7 @@ struct ptrs_assertion
 };
 
 FILE *ptrs_errorfile = NULL;
+bool ptrs_enableExceptions = false;
 
 extern jit_context_t ptrs_jit_context;
 
@@ -57,6 +58,13 @@ void ptrs_getpos(codepos_t *pos, ptrs_ast_t *ast)
 	pos->currLine = currLine;
 	pos->line = line;
 	pos->column = column;
+}
+
+void ptrs_printErrorAndExit(ptrs_error_t *error)
+{
+	fprintf(ptrs_errorfile, "%s at %s:%d:%d\n%s",
+		error->message, error->file, error->line, error->column, error->backtrace);
+	exit(EXIT_FAILURE);
 }
 
 char *ptrs_backtrace()
@@ -85,7 +93,7 @@ char *ptrs_backtrace()
 		{
 			const char *name = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_NAME);
 			const char *file = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_FILE);
-			buffptr += sprintf(buffptr, "    at %s (%s)", name, file);
+			buffptr += sprintf(buffptr, "    at %s (%s)\n", name, file);
 		}
 		else
 		{
@@ -205,7 +213,10 @@ void ptrs_handle_sig(int sig, siginfo_t *info, void *data)
 	error->line = -1;
 	error->column = -1;
 
-	jit_exception_throw(error);
+	if(ptrs_enableExceptions)
+		jit_exception_throw(error);
+	else
+		ptrs_printErrorAndExit(error);
 }
 
 void *ptrs_handle_exception(int type)
@@ -222,7 +233,11 @@ void *ptrs_handle_exception(int type)
 	error->line = -1;
 	error->column = -1;
 
-	return error;
+	if(ptrs_enableExceptions)
+		return error;
+
+	ptrs_printErrorAndExit(error);
+	return NULL; //doh
 }
 
 void ptrs_handle_signals(jit_function_t func)
@@ -260,7 +275,10 @@ void ptrs_error(ptrs_ast_t *ast, const char *msg, ...)
 	error->line = pos.line;
 	error->column = pos.column;
 
-	jit_exception_throw(error);
+	if(ptrs_enableExceptions)
+		jit_exception_throw(error);
+	else
+		ptrs_printErrorAndExit(error);
 }
 
 struct ptrs_assertion *ptrs_jit_assert(ptrs_ast_t *ast, jit_function_t func, ptrs_scope_t *scope,

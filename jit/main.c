@@ -75,10 +75,7 @@ void exitOnError()
 {
 	ptrs_error_t *error = jit_exception_get_last();
 	if(error != NULL)
-	{
-		fprintf(stderr, "%s at %s:%d:%d\n%s", error->message, error->file, error->line, error->column, error->backtrace);
-		exit(EXIT_FAILURE);
-	}
+		ptrs_printErrorAndExit(error);
 }
 
 int main(int argc, char **argv)
@@ -123,6 +120,8 @@ int main(int argc, char **argv)
 	}
 	else
 	{
+		ptrs_enableExceptions = true;
+
 		ptrs_var_t ret;
 		void *arg = arguments;
 		jit_function_apply(result->func, &arg, &ret);

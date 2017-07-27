@@ -7,6 +7,7 @@
 #include "../../parser/common.h"
 
 extern FILE *ptrs_errorfile;
+extern bool ptrs_enableExceptions;
 
 typedef struct ptrs_error
 {
@@ -18,6 +19,7 @@ typedef struct ptrs_error
 } ptrs_error_t;
 
 void ptrs_handle_signals();
+void ptrs_printErrorAndExit(ptrs_error_t *error);
 void ptrs_error(ptrs_ast_t *ast, const char *msg, ...);
 
 struct ptrs_assertion *ptrs_jit_assert(ptrs_ast_t *ast, jit_function_t func, ptrs_scope_t *scope,
