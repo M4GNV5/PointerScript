@@ -11,34 +11,135 @@
 
 #include "../../parser/common.h"
 #include "../include/conversion.h"
+#include "../include/util.h"
 
 void ptrs_jit_branch_if(jit_function_t func, jit_label_t *target, jit_value_t val, jit_value_t meta)
 {
-	jit_value_t isUndefined = ptrs_jit_hasType(func, meta, PTRS_TYPE_UNDEFINED);
-	jit_insn_branch_if_not(func, isUndefined, target);
+	bool placeIsUndefined = true;
+	bool placeIsZero = true;
 
-	jit_value_t isZero = jit_insn_eq(func, val, jit_const_long(func, ulong, 0));
-	jit_insn_branch_if_not(func, isZero, target);
+	if(jit_value_is_constant(meta))
+	{
+		placeIsUndefined = false;
+
+		if(ptrs_jit_value_getMetaConstant(meta).type == PTRS_TYPE_UNDEFINED)
+			return;
+	}
+	if(jit_value_is_constant(val))
+	{
+		placeIsZero = false;
+
+		if(ptrs_jit_value_getValConstant(val).intval == 0)
+			return;
+	}
+
+	if(placeIsUndefined)
+	{
+		jit_value_t isUndefined = ptrs_jit_hasType(func, meta, PTRS_TYPE_UNDEFINED);
+		jit_insn_branch_if_not(func, isUndefined, target);
+	}
+
+	if(placeIsZero)
+	{
+		jit_value_t isZero = jit_insn_eq(func, val, jit_const_long(func, ulong, 0));
+		jit_insn_branch_if_not(func, isZero, target);
+	}
 }
 
 void ptrs_jit_branch_if_not(jit_function_t func, jit_label_t *target, jit_value_t val, jit_value_t meta)
 {
-	jit_value_t isUndefined = ptrs_jit_hasType(func, meta, PTRS_TYPE_UNDEFINED);
-	jit_insn_branch_if(func, isUndefined, target);
+	bool placeIsUndefined = true;
+	bool placeIsZero = true;
 
-	jit_value_t isZero = jit_insn_eq(func, val, jit_const_long(func, ulong, 0));
-	jit_insn_branch_if(func, isZero, target);
+	if(jit_value_is_constant(meta))
+	{
+		placeIsUndefined = false;
+
+		if(ptrs_jit_value_getMetaConstant(meta).type == PTRS_TYPE_UNDEFINED)
+		{
+			jit_insn_branch(func, target);
+			return;
+		}
+	}
+	if(jit_value_is_constant(val))
+	{
+		jit_long _constVal = jit_value_get_long_constant(val);
+		ptrs_val_t constVal = *(ptrs_val_t *)&_constVal;
+
+		placeIsZero = false;
+
+		if(ptrs_jit_value_getValConstant(val).intval == 0)
+		{
+			jit_insn_branch(func, target);
+			return;
+		}
+	}
+
+	if(placeIsUndefined)
+	{
+		jit_value_t isUndefined = ptrs_jit_hasType(func, meta, PTRS_TYPE_UNDEFINED);
+		jit_insn_branch_if(func, isUndefined, target);
+	}
+
+	if(placeIsZero)
+	{
+		jit_value_t isZero = jit_insn_eq(func, val, jit_const_long(func, ulong, 0));
+		jit_insn_branch_if(func, isZero, target);
+	}
 }
 
 jit_value_t ptrs_jit_vartob(jit_function_t func, jit_value_t val, jit_value_t meta)
 {
-	jit_value_t isUndefined = ptrs_jit_hasType(func, meta, PTRS_TYPE_UNDEFINED);
-	jit_value_t isZero = jit_insn_eq(func, val, jit_const_long(func, ulong, 0));
-	return jit_insn_or(func, isUndefined, isZero);
+	if(jit_value_is_constant(meta) && jit_value_is_constant(val))
+	{
+		if(ptrs_jit_value_getMetaConstant(meta).type == PTRS_TYPE_UNDEFINED
+			|| ptrs_jit_value_getValConstant(val).intval == 0)
+			return jit_const_long(func, long, 0);
+		else
+			return jit_const_long(func, long, 1);
+	}
+	else if(jit_value_is_constant(meta))
+	{
+		if(ptrs_jit_value_getMetaConstant(meta).type == PTRS_TYPE_UNDEFINED)
+			return jit_const_long(func, long, 0);
+		else
+			return jit_insn_eq(func, val, jit_const_long(func, long, 0));
+	}
+	else if(jit_value_is_constant(val))
+	{
+		if(ptrs_jit_value_getValConstant(val).intval == 0)
+			return jit_const_long(func, long, 0);
+		else
+			return ptrs_jit_hasType(func, meta, PTRS_TYPE_UNDEFINED);
+	}
+	else
+	{
+		jit_value_t isUndefined = ptrs_jit_hasType(func, meta, PTRS_TYPE_UNDEFINED);
+		jit_value_t isZero = jit_insn_eq(func, val, jit_const_long(func, long, 0));
+		return jit_insn_or(func, isUndefined, isZero);
+	}
 }
 
 jit_value_t ptrs_jit_vartoi(jit_function_t func, jit_value_t val, jit_value_t meta)
 {
+	if(jit_value_is_constant(meta))
+	{
+		ptrs_meta_t constMeta = ptrs_jit_value_getMetaConstant(meta);
+		switch(constMeta.type)
+		{
+			case PTRS_TYPE_UNDEFINED:
+				return jit_const_long(func, long, 0);
+			case PTRS_TYPE_FLOAT:
+				return jit_insn_convert(func, ptrs_jit_reinterpretCast(func, val, jit_type_float64), jit_type_long, 0);
+			case PTRS_TYPE_NATIVE:
+				if(constMeta.array.size > 0)
+					break; //use default conversion
+				//fallthrough
+			default:
+				return val;
+		}
+	}
+
 	jit_intrinsic_descr_t descr = {
 		.return_type = jit_type_long,
 		.ptr_result_type = NULL,
@@ -51,6 +152,24 @@ jit_value_t ptrs_jit_vartoi(jit_function_t func, jit_value_t val, jit_value_t me
 
 jit_value_t ptrs_jit_vartof(jit_function_t func, jit_value_t val, jit_value_t meta)
 {
+	if(jit_value_is_constant(meta))
+	{
+		ptrs_meta_t constMeta = ptrs_jit_value_getMetaConstant(meta);
+		switch(constMeta.type)
+		{
+			case PTRS_TYPE_UNDEFINED:
+				return jit_const_long(func, long, 0);
+			case PTRS_TYPE_FLOAT:
+				return val;
+			case PTRS_TYPE_NATIVE:
+				if(constMeta.array.size > 0)
+					break; //use default conversion
+				//fallthrough
+			default:
+				return jit_insn_convert(func, val, jit_type_float64, 0);
+		}
+	}
+
 	jit_intrinsic_descr_t descr = {
 		.return_type = jit_type_float64,
 		.ptr_result_type = NULL,
