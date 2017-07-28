@@ -52,41 +52,58 @@
 		ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope); \
 		\
 		/* TODO floats */ \
-		right.val = jit_insn_##comparer(func, left.val, right.val); \
+		left.val = jit_insn_##comparer(func, left.val, right.val); \
 		\
 		extra \
 		\
-		right.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT); \
-		return right; \
+		left.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT); \
+		return left; \
 	}
 
 #define handle_binary_logic(name, comparer) \
 	ptrs_jit_var_t ptrs_handle_op_##name(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope) \
 	{ \
 		struct ptrs_ast_binary *expr = &node->arg.binary; \
-		ptrs_jit_var_t tmp = {jit_value_create(func, jit_type_long), jit_value_create(func, jit_type_ulong)}; \
+		ptrs_jit_var_t tmp; \
 		\
 		/*evaluate the left-side expression*/ \
 		ptrs_jit_var_t left = expr->left->handler(expr->left, func, scope); \
-		jit_insn_store(func, left.val, tmp.val); \
-		jit_insn_store(func, left.meta, tmp.meta); \
+		\
+		if(jit_value_is_constant(left.val)) \
+		{ \
+			tmp.val = jit_value_create(func, jit_type_long); \
+			jit_insn_store(func, tmp.val, left.val); \
+		} \
+		else \
+		{ \
+			tmp.val = left.val; \
+		} \
+		\
+		if(jit_value_is_constant(left.meta)) \
+		{ \
+			tmp.meta = jit_value_create(func, jit_type_ulong); \
+			jit_insn_store(func, tmp.meta, left.meta); \
+		} \
+		else \
+		{ \
+			tmp.val = left.meta; \
+		} \
 		\
 		/*conditionally jump over the evaluation of the right-side expression*/ \
 		jit_label_t skip = jit_label_undefined; \
-		jit_value_t leftBool = ptrs_jit_vartob(func, left.val, left.meta); \
-		jit_insn_branch_##comparer(func, leftBool, &skip); \
+		ptrs_jit_branch_##comparer(func, &skip, left.val, left.meta); \
 		\
 		/*overwrite the return value with the right-side expression*/ \
 		ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope); \
-		jit_insn_store(func, right.val, tmp.val);\
-		jit_insn_store(func, right.meta, tmp.meta);\
+		jit_insn_store(func, tmp.val, right.val);\
+		jit_insn_store(func, tmp.meta, right.meta);\
 		\
 		jit_insn_label(func, &skip); \
 		return tmp; \
 	}
 
-handle_binary_compare(typeequal, eq, handle_binary_typecompare(eq))
-handle_binary_compare(typeinequal, ne, handle_binary_typecompare(ne))
+handle_binary_compare(typeequal, eq, handle_binary_typecompare(eq)) //===
+handle_binary_compare(typeinequal, ne, handle_binary_typecompare(ne)) //!==
 handle_binary_compare(equal, eq, ) //==
 handle_binary_compare(inequal, ne, ) //!=
 handle_binary_compare(lessequal, le, ) //<=

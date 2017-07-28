@@ -33,6 +33,12 @@ void ptrs_jit_branch_if(jit_function_t func, jit_label_t *target, jit_value_t va
 			return;
 	}
 
+	if(!placeIsUndefined && !placeIsZero)
+	{
+		jit_insn_branch(func, target);
+		return;
+	}
+
 	if(placeIsUndefined)
 	{
 		jit_value_t isUndefined = ptrs_jit_hasType(func, meta, PTRS_TYPE_UNDEFINED);
@@ -41,8 +47,8 @@ void ptrs_jit_branch_if(jit_function_t func, jit_label_t *target, jit_value_t va
 
 	if(placeIsZero)
 	{
-		jit_value_t isZero = jit_insn_eq(func, val, jit_const_long(func, ulong, 0));
-		jit_insn_branch_if_not(func, isZero, target);
+		jit_value_t isZero = jit_insn_to_bool(func, val);
+		jit_insn_branch_if(func, isZero, target);
 	}
 }
 
@@ -63,9 +69,6 @@ void ptrs_jit_branch_if_not(jit_function_t func, jit_label_t *target, jit_value_
 	}
 	if(jit_value_is_constant(val))
 	{
-		jit_long _constVal = jit_value_get_long_constant(val);
-		ptrs_val_t constVal = *(ptrs_val_t *)&_constVal;
-
 		placeIsZero = false;
 
 		if(ptrs_jit_value_getValConstant(val).intval == 0)
@@ -83,7 +86,7 @@ void ptrs_jit_branch_if_not(jit_function_t func, jit_label_t *target, jit_value_
 
 	if(placeIsZero)
 	{
-		jit_value_t isZero = jit_insn_eq(func, val, jit_const_long(func, ulong, 0));
+		jit_value_t isZero = jit_insn_to_not_bool(func, val);
 		jit_insn_branch_if(func, isZero, target);
 	}
 }
@@ -103,20 +106,20 @@ jit_value_t ptrs_jit_vartob(jit_function_t func, jit_value_t val, jit_value_t me
 		if(ptrs_jit_value_getMetaConstant(meta).type == PTRS_TYPE_UNDEFINED)
 			return jit_const_long(func, long, 0);
 		else
-			return jit_insn_eq(func, val, jit_const_long(func, long, 0));
+			return jit_insn_to_bool(func, val);
 	}
 	else if(jit_value_is_constant(val))
 	{
 		if(ptrs_jit_value_getValConstant(val).intval == 0)
 			return jit_const_long(func, long, 0);
 		else
-			return ptrs_jit_hasType(func, meta, PTRS_TYPE_UNDEFINED);
+			return ptrs_jit_doesntHaveType(func, meta, PTRS_TYPE_UNDEFINED);
 	}
 	else
 	{
-		jit_value_t isUndefined = ptrs_jit_hasType(func, meta, PTRS_TYPE_UNDEFINED);
-		jit_value_t isZero = jit_insn_eq(func, val, jit_const_long(func, long, 0));
-		return jit_insn_or(func, isUndefined, isZero);
+		jit_value_t definedType = ptrs_jit_doesntHaveType(func, meta, PTRS_TYPE_UNDEFINED);
+		jit_value_t isTrue = jit_insn_to_bool(func, val);
+		return jit_insn_and(func, definedType, isTrue);
 	}
 }
 
