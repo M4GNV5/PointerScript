@@ -140,7 +140,7 @@ ptrs_jit_var_t ptrs_handle_op_logicxor(ptrs_ast_t *node, jit_function_t func, pt
 	ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope);
 
 	left.val = ptrs_jit_vartob(func, left.val, left.meta);
-	right.val = ptrs_jit_vartob(func, left.val, left.meta);
+	right.val = ptrs_jit_vartob(func, right.val, right.meta);
 
 	right.val = jit_insn_xor(func, left.val, right.val);
 	right.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
