@@ -7,6 +7,7 @@
 #include "../parser/common.h"
 #include "../parser/ast.h"
 #include "include/conversion.h"
+#include "include/util.h"
 
 #define handle_binary(name, operator) \
 	ptrs_jit_var_t ptrs_handle_op_##name(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope) \
@@ -60,34 +61,32 @@
 		return left; \
 	}
 
-#define handle_binary_logic(name, comparer) \
+#define handle_binary_logic(name, comparer, constComparer) \
 	ptrs_jit_var_t ptrs_handle_op_##name(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope) \
 	{ \
 		struct ptrs_ast_binary *expr = &node->arg.binary; \
-		ptrs_jit_var_t tmp; \
 		\
 		/*evaluate the left-side expression*/ \
 		ptrs_jit_var_t left = expr->left->handler(expr->left, func, scope); \
+		if(jit_value_is_constant(left.val) && jit_value_is_constant(left.meta)) \
+		{ \
+			jit_long constVal = jit_value_get_long_constant(ptrs_jit_vartob(func, left.val, left.meta)); \
+			if(constVal constComparer true) \
+				return expr->right->handler(expr->right, func, scope); \
+			\
+			ptrs_jit_var_t ret = { \
+				.val = jit_const_long(func, long, 0), \
+				.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT) \
+			}; \
+			return ret; \
+		} \
 		\
-		if(jit_value_is_constant(left.val)) \
-		{ \
-			tmp.val = jit_value_create(func, jit_type_long); \
-			jit_insn_store(func, tmp.val, left.val); \
-		} \
-		else \
-		{ \
-			tmp.val = left.val; \
-		} \
-		\
-		if(jit_value_is_constant(left.meta)) \
-		{ \
-			tmp.meta = jit_value_create(func, jit_type_ulong); \
-			jit_insn_store(func, tmp.meta, left.meta); \
-		} \
-		else \
-		{ \
-			tmp.val = left.meta; \
-		} \
+		ptrs_jit_var_t tmp = { \
+			.val = jit_value_create(func, jit_type_long), \
+			.meta = jit_value_create(func, jit_type_ulong), \
+		}; \
+		jit_insn_store(func, tmp.val, left.val); \
+		jit_insn_store(func, tmp.meta, left.meta); \
 		\
 		/*conditionally jump over the evaluation of the right-side expression*/ \
 		jit_label_t skip = jit_label_undefined; \
@@ -95,8 +94,8 @@
 		\
 		/*overwrite the return value with the right-side expression*/ \
 		ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope); \
-		jit_insn_store(func, tmp.val, right.val);\
-		jit_insn_store(func, tmp.meta, right.meta);\
+		jit_insn_store(func, tmp.val, right.val); \
+		jit_insn_store(func, tmp.meta, right.meta); \
 		\
 		jit_insn_label(func, &skip); \
 		return tmp; \
@@ -130,8 +129,8 @@ handle_binary_assign(shlassign, shl) //<<=
 handle_binary_assign(andassign, and) //&=
 handle_binary_assign(xorassign, xor) //^=
 handle_binary_assign(orassign, or) //|=
-handle_binary_logic(logicor, if) //||
-handle_binary_logic(logicand, if_not) //&&
+handle_binary_logic(logicor, if, !=) //||
+handle_binary_logic(logicand, if_not, ==) //&&
 
 ptrs_jit_var_t ptrs_handle_op_logicxor(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
