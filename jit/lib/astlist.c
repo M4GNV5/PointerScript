@@ -32,13 +32,15 @@ void ptrs_astlist_handle(struct ptrs_astlist *list, jit_function_t func, ptrs_sc
 	}
 
 	jit_value_t index = jit_value_create(func, jit_type_nuint);
-	jit_insn_store(func, index, jit_const_int(func, nuint, i));
+	jit_insn_store(func, index, jit_const_int(func, nuint, i * 2));
+
+	jit_value_t endIndex = jit_insn_shl(func, size, jit_const_int(func, nuint, 1)); //mul 2
 
 	jit_label_t check = jit_label_undefined;
 	jit_label_t done = jit_label_undefined;
 
 	jit_insn_label(func, &check);
-	jit_insn_branch_if(func, jit_insn_ge(func, index, size), &done); //while(i < array.size)
+	jit_insn_branch_if_not(func, jit_insn_lt(func, index, endIndex), &done); //while(i < array.size)
 
 	jit_insn_store_elem(func, val, index, result.val); //array[index] = lastElement.value
 	jit_value_t _index = jit_insn_add(func, index, jit_const_int(func, nuint, 1)); //i++
