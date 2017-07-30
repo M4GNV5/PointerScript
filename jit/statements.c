@@ -408,7 +408,23 @@ ptrs_jit_var_t ptrs_handle_continue(ptrs_ast_t *node, jit_function_t func, ptrs_
 
 ptrs_jit_var_t ptrs_handle_delete(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	//TODO
+	ptrs_ast_t *ast = node->arg.astval;
+	ptrs_jit_var_t val = ast->handler(ast, func, scope);
+
+	jit_value_t type = ptrs_jit_getType(func, val.meta);
+	ptrs_jit_assert(node, func, scope, jit_insn_ge(func, type, jit_const_long(func, ulong, PTRS_TYPE_NATIVE)),
+		1, "Cannot delete value of type %t", type);
+
+	//TODO structs
+
+	static jit_type_t freeSignature = NULL;
+	if(freeSignature == NULL)
+	{
+		jit_type_t arg = jit_type_void_ptr;
+		freeSignature = jit_type_create_signature(jit_abi_cdecl, jit_type_void, &arg, 1, 0);
+	}
+
+	jit_insn_call_native(func, "free", free, freeSignature, &val.val, 1, 0);
 }
 
 ptrs_jit_var_t ptrs_handle_throw(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
