@@ -1037,9 +1037,9 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		if(lookahead(code, constants[i].text))
 		{
 			ast = talloc(ptrs_ast_t);
+			memset(&ast->arg.constval.meta, 0, sizeof(ptrs_meta_t));
 			ast->arg.constval.meta.type = constants[i].type;
 			ast->arg.constval.value = constants[i].value;
-			memset(&ast->arg.constval.meta, 0, sizeof(ptrs_meta_t));
 			ast->handler = ptrs_handle_constant;
 			ast->setHandler = NULL;
 			ast->addressHandler = NULL;
