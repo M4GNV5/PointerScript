@@ -61,7 +61,6 @@ struct ptrs_ast_trycatch
 	struct ptrs_ast *tryBody;
 	struct ptrs_ast *catchBody;
 	struct ptrs_ast *finallyBody;
-	unsigned catchStackOffset;
 	int argc;
 	ptrs_jit_var_t *args;
 	ptrs_jit_var_t retVal;
@@ -87,12 +86,6 @@ struct ptrs_ast_function
 	jit_function_t *symbol;
 	bool isAnonymous;
 	ptrs_function_t func;
-};
-
-struct ptrs_ast_scopestmt
-{
-	struct ptrs_ast *body;
-	unsigned stackOffset;
 };
 
 struct ptrs_ast_strformat
@@ -187,7 +180,6 @@ struct ptrs_ast_forin
 	ptrs_jit_var_t *varsymbols;
 	struct ptrs_ast *value;
 	struct ptrs_ast *body;
-	unsigned stackOffset;
 };
 
 struct ptrs_ast_yield
@@ -221,7 +213,6 @@ union ptrs_ast_arg
 	struct ptrs_ast_trycatch trycatch;
 	struct ptrs_ast_asm asmstmt;
 	struct ptrs_ast_function function;
-	struct ptrs_ast_scopestmt scopestatement;
 	struct ptrs_ast_strformat strformat;
 	struct ptrs_ast_cast cast;
 	struct ptrs_ast_binary binary;

@@ -162,7 +162,7 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 
 	ptrs_ast_t *ast = talloc(ptrs_ast_t);
 	ast->handler = ptrs_handle_file;
-	ast->arg.scopestatement.body = parseStmtList(&code, 0);
+	ast->arg.astval = parseStmtList(&code, 0);
 
 	ast->file = filename;
 	ast->code = src;
@@ -686,7 +686,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	{
 		stmt->handler = ptrs_handle_scopestatement;
 		symbolScope_increase(code, 0, false);
-		stmt->arg.scopestatement.body = parseBody(code, true, true);
+		stmt->arg.astval = parseBody(code, true, true);
 	}
 	else if(lookahead(code, "try"))
 	{

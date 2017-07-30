@@ -674,7 +674,7 @@ ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 
 ptrs_jit_var_t ptrs_handle_file(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	ptrs_ast_t *body = node->arg.scopestatement.body;
+	ptrs_ast_t *body = node->arg.astval;
 
 	ptrs_jit_var_t val = body->handler(body, func, scope);
 
