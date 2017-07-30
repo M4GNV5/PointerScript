@@ -324,7 +324,8 @@ const char *ptrs_vartoa(ptrs_val_t val, ptrs_meta_t meta, char *buff, size_t max
 	switch(meta.type)
 	{
 		case PTRS_TYPE_UNDEFINED:
-			return "undefined";
+			strcpy(buff, "undefined");
+			break;
 		case PTRS_TYPE_INT:
 			snprintf(buff, maxlen, "%"PRId64, val.intval);
 			break;
