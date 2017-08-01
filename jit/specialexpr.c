@@ -450,7 +450,33 @@ ptrs_jit_var_t ptrs_handle_prefix_typeof(ptrs_ast_t *node, jit_function_t func, 
 
 ptrs_jit_var_t ptrs_handle_op_ternary(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	//TODO
+	struct ptrs_ast_ternary *expr = &node->arg.ternary;
+	jit_label_t isFalse = jit_label_undefined;
+	jit_label_t done = jit_label_undefined;
+
+	ptrs_jit_var_t condition = expr->condition->handler(expr->condition, func, scope);
+
+	ptrs_jit_var_t ret = {
+		.val = jit_value_create(func, jit_type_long),
+		.meta = jit_value_create(func, jit_type_ulong)
+	};
+
+	ptrs_jit_branch_if_not(func, &isFalse, condition.val, condition.meta);
+
+	//is true
+	ptrs_jit_var_t trueVal = expr->trueVal->handler(expr->trueVal, func, scope);
+	jit_insn_store(func, ret.val, trueVal.val);
+	jit_insn_store(func, ret.meta, trueVal.meta);
+	jit_insn_branch(func, &done);
+
+	//is false
+	jit_insn_label(func, &isFalse);
+	ptrs_jit_var_t falseVal = expr->falseVal->handler(expr->falseVal, func, scope);
+	jit_insn_store(func, ret.val, falseVal.val);
+	jit_insn_store(func, ret.meta, falseVal.meta);
+
+	jit_insn_label(func, &done);
+	return ret;
 }
 
 ptrs_jit_var_t ptrs_handle_op_instanceof(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
