@@ -27,7 +27,52 @@ ptrs_jit_var_t ptrs_handle_call(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 
 ptrs_jit_var_t ptrs_handle_stringformat(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	//TODO
+	struct ptrs_ast_strformat *expr = &node->arg.strformat;
+
+	size_t argCount = expr->insertionCount + 3;
+	jit_type_t argDef[argCount];
+	jit_value_t args[argCount];
+
+	argDef[0] = jit_type_void_ptr;
+	argDef[1] = jit_type_nuint;
+	argDef[2] = jit_type_void_ptr;
+	args[2] = jit_const_int(func, void_ptr, (uintptr_t)expr->str);
+
+	struct ptrs_stringformat *curr = expr->insertions;
+	for(int i = 3; i < argCount; i++)
+	{
+		argDef[i] = jit_type_void_ptr;
+
+		ptrs_jit_var_t val = curr->entry->handler(curr->entry, func, scope);
+
+		if(curr->convert)
+			val = ptrs_jit_vartoa(func, val.val, val.meta);
+
+		args[i] = val.val;
+		curr = curr->next;
+	}
+
+	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, jit_type_sys_int, argDef, argCount, 0);
+
+	args[0] = jit_const_int(func, void_ptr, 0);
+	args[1] = jit_const_int(func, nuint, 0);
+	jit_value_t len = jit_insn_call_native(func, "snprintf", snprintf, signature, args, argCount, 0);
+
+	len = jit_insn_add(func, len, jit_const_int(func, sys_int, 1));
+	jit_value_t buff = jit_insn_alloca(func, len);
+
+	args[0] = buff;
+	args[1] = len;
+	jit_insn_call_native(func, "snprintf", snprintf, signature, args, argCount, 0);
+
+	ptrs_jit_var_t ret = {
+		.val = buff,
+		.meta = ptrs_jit_arrayMeta(func,
+			jit_const_long(func, ulong, PTRS_TYPE_NATIVE),
+			jit_const_long(func, ulong, 0),
+			len)
+	};
+	return ret;
 }
 
 ptrs_jit_var_t ptrs_handle_new(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
