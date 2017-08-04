@@ -681,20 +681,18 @@ static void forinArray(struct ptrs_ast_forin *stmt, jit_function_t func, ptrs_ji
 	args[1] = index;
 	args[2] = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
 
-	jit_value_t nextIndex;
 	if(isNative)
 	{
 		jit_value_t curr = jit_insn_load_elem(func, val.val, index, jit_type_ubyte);
 		args[3] = curr;
 		args[4] = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
-		nextIndex = jit_insn_add(func, index, jit_const_int(func, nuint, 1));
 	}
 	else
 	{
-		args[3] = jit_insn_load_elem(func, val.val, index, jit_type_long);
-		nextIndex = jit_insn_add(func, index, jit_const_int(func, nuint, 1));
-		args[4] = jit_insn_load_elem(func, val.val, nextIndex, jit_type_ulong);
-		nextIndex = jit_insn_add(func, nextIndex, jit_const_int(func, nuint, 1));
+		jit_value_t actualIndex = jit_insn_shl(func, index, jit_const_int(func, ubyte, 1));
+		args[3] = jit_insn_load_elem(func, val.val, actualIndex, jit_type_long);
+		actualIndex = jit_insn_add(func, actualIndex, jit_const_int(func, nuint, 1));
+		args[4] = jit_insn_load_elem(func, val.val, actualIndex, jit_type_ulong);
 	}
 
 	for(int i = 5; i < totalArgCount; i++)
@@ -706,7 +704,7 @@ static void forinArray(struct ptrs_ast_forin *stmt, jit_function_t func, ptrs_ji
 	jit_insn_branch_if(func, jit_insn_eq(func, breaking, jit_const_int(func, ubyte, 2)), done); //break;
 	jit_insn_branch_if(func, jit_insn_eq(func, breaking, jit_const_int(func, ubyte, 3)), ret); //return;
 
-	jit_insn_store(func, index, nextIndex);
+	jit_insn_store(func, index, jit_insn_add(func, index, jit_const_int(func, nuint, 1)));
 	jit_insn_branch(func, &loop);
 }
 ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
