@@ -62,7 +62,7 @@ jit_value_t ptrs_jit_varToVal(jit_function_t func, ptrs_jit_var_t var)
 jit_value_t ptrs_jit_reinterpretCast(jit_function_t func, jit_value_t val, jit_type_t newType)
 {
 	jit_value_set_addressable(val);
-	return jit_insn_load_relative(func, jit_insn_address_of(func, val), 0, jit_type_float64);
+	return jit_insn_load_relative(func, jit_insn_address_of(func, val), 0, newType);
 }
 
 ptrs_val_t ptrs_jit_value_getValConstant(jit_value_t val)
