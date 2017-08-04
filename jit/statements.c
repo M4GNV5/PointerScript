@@ -470,10 +470,7 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 	*ast->symbol = self;
 
 	ptrs_scope_t selfScope;
-	selfScope.continueLabel = jit_label_undefined;
-	selfScope.breakLabel = jit_label_undefined;
-	selfScope.firstAssertion = NULL;
-	selfScope.lastAssertion = NULL;
+	ptrs_initScope(&selfScope);
 
 	for(int i = 0; i < funcAst->argc; i++)
 	{

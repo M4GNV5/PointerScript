@@ -6,6 +6,15 @@
 #include "../include/run.h"
 #include "../include/conversion.h"
 
+void ptrs_initScope(ptrs_scope_t *scope)
+{
+	scope->continueLabel = jit_label_undefined;
+	scope->breakLabel = jit_label_undefined;
+	scope->firstAssertion = NULL;
+	scope->lastAssertion = NULL;
+	scope->indexSize = NULL;
+}
+
 jit_type_t ptrs_jit_getVarType()
 {
 	static jit_type_t vartype = NULL;
