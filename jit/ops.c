@@ -113,6 +113,23 @@ static jit_type_t getIntrinsicSignature()
 		ptrs_jit_var_t left = expr->left->handler(expr->left, func, scope); \
 		ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope); \
 		\
+		if(jit_value_is_constant(left.meta) && jit_value_is_constant(right.meta) \
+			&& jit_value_is_constant(left.val) && jit_value_is_constant(right.val)) \
+		{ \
+			ptrs_var_t val = ptrs_intrinsic_##name(node, \
+				ptrs_jit_value_getValConstant(left.val), \
+				ptrs_jit_value_getMetaConstant(left.meta), \
+				ptrs_jit_value_getValConstant(right.val), \
+				ptrs_jit_value_getMetaConstant(right.meta) \
+			); \
+			\
+			ptrs_jit_var_t ret = { \
+				.val = jit_const_long(func, long, val.value.intval), \
+				.meta = jit_const_long(func, ulong, *(uint64_t *)&val.meta), \
+			}; \
+			return ret; \
+		} \
+		\
 		jit_value_t args[5] = { \
 			jit_const_int(func, void_ptr, (uintptr_t)node), \
 			left.val, \
@@ -127,7 +144,7 @@ static jit_type_t getIntrinsicSignature()
 		return ptrs_jit_valToVar(func, ret); \
 	}
 
-#define handle_binary_intonly(name, operator) \
+#define handle_binary_intonly(name, opName, operator) \
 	ptrs_jit_var_t ptrs_handle_op_##name(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope) \
 	{ \
 		struct ptrs_ast_binary *expr = &node->arg.binary; \
@@ -135,17 +152,31 @@ static jit_type_t getIntrinsicSignature()
 		ptrs_jit_var_t left = expr->left->handler(expr->left, func, scope); \
 		ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope); \
 		\
-		jit_value_t leftType = ptrs_jit_getType(func, left.meta); \
-		jit_value_t rightType = ptrs_jit_getType(func, right.meta); \
+		if(jit_value_is_constant(left.meta) && jit_value_is_constant(right.meta)) \
+		{ \
+			ptrs_meta_t leftMeta = ptrs_jit_value_getMetaConstant(left.meta); \
+			ptrs_meta_t rightMeta = ptrs_jit_value_getMetaConstant(right.meta); \
+			\
+			if(leftMeta.type != PTRS_TYPE_INT || rightMeta.type != PTRS_TYPE_INT) \
+			{ \
+				ptrs_error(node, "Cannot use operator " #operator " on variables of type %t and %t", \
+					leftMeta.type, rightMeta.type); \
+			} \
+		} \
+		else \
+		{ \
+			jit_value_t leftType = ptrs_jit_getType(func, left.meta); \
+			jit_value_t rightType = ptrs_jit_getType(func, right.meta); \
+			\
+			struct ptrs_assertion *assertion = ptrs_jit_assert(node, func, scope, \
+				jit_insn_eq(func, leftType, jit_const_int(func, nuint, PTRS_TYPE_INT)), \
+				2, "Cannot use operator " #operator " on variables of type %t and %t", leftType, rightType \
+			); \
+			ptrs_jit_appendAssert(func, assertion, \
+				jit_insn_eq(func, rightType, jit_const_int(func, nuint, PTRS_TYPE_INT))); \
+		} \
 		\
-		struct ptrs_assertion *assertion = ptrs_jit_assert(node, func, scope, \
-			jit_insn_eq(func, leftType, jit_const_int(func, nuint, PTRS_TYPE_INT)), \
-			2, "Cannot use operator " #operator " on variables of type %t and %t", leftType, rightType \
-		); \
-		ptrs_jit_appendAssert(func, assertion, \
-			jit_insn_eq(func, rightType, jit_const_int(func, nuint, PTRS_TYPE_INT))); \
-		\
-		right.val = jit_insn_##operator(func, left.val, right.val); \
+		right.val = jit_insn_##opName(func, left.val, right.val); \
 		return right; \
 	}
 
@@ -270,16 +301,16 @@ handle_binary_compare(lessequal, le, ) //<=
 handle_binary_compare(greaterequal, ge, ) //>=
 handle_binary_compare(less, lt, ) //<
 handle_binary_compare(greater, gt, ) //>
-handle_binary_intonly(or, or) //|
-handle_binary_intonly(xor, xor) //^
-handle_binary_intonly(and, and) //&
-handle_binary_intonly(shr, sshr) //>>
-handle_binary_intonly(shl, shl) //<<
+handle_binary_intonly(or, or, |) //|
+handle_binary_intonly(xor, xor, ^) //^
+handle_binary_intonly(and, and, &) //&
+handle_binary_intonly(shr, sshr, >>) //>>
+handle_binary_intonly(shl, shl, <<) //<<
 handle_binary_intrinsic(add, +, binary_add_cases) //+
 handle_binary_intrinsic(sub, -, binary_sub_cases) //-
 handle_binary_intrinsic(mul, *, ) //*
 handle_binary_intrinsic(div, /, ) ///
-handle_binary_intonly(mod, rem) //%
+handle_binary_intonly(mod, rem, %) //%
 handle_binary_intrinsic_assign(addassign, add) //+=
 handle_binary_intrinsic_assign(subassign, sub) //-=
 handle_binary_intrinsic_assign(mulassign, mul) //*=
