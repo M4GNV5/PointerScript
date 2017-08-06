@@ -636,20 +636,6 @@ static ptrs_ast_t *parseStatement(code_t *code)
 
 		consumec(code, ';');
 	}
-	else if(lookahead(code, "lazy"))
-	{
-		stmt->handler = ptrs_handle_lazyinit;
-		stmt->arg.varval = talloc(ptrs_jit_var_t);
-
-		struct symbollist *entry = addSpecialSymbol(code, readIdentifier(code), PTRS_SYMBOL_LAZY);
-
-		consumec(code, '=');
-
-		entry->arg.lazy.location = stmt->arg.varval;
-		entry->arg.lazy.value = parseExpression(code, true);
-
-		consumec(code, ';');
-	}
 	else if(lookahead(code, "import"))
 	{
 		parseImport(code, stmt);

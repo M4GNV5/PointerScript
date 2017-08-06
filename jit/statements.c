@@ -52,11 +52,6 @@ ptrs_jit_var_t ptrs_handle_define(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	return stmt->location;
 }
 
-ptrs_jit_var_t ptrs_handle_lazyinit(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
-{
-	//TODO
-}
-
 size_t ptrs_arraymax = UINT32_MAX;
 ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
