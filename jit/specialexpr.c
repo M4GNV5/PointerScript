@@ -8,6 +8,7 @@
 #include "include/conversion.h"
 #include "include/call.h"
 #include "include/util.h"
+#include "include/run.h"
 
 ptrs_jit_var_t ptrs_handle_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
@@ -443,7 +444,7 @@ ptrs_jit_var_t ptrs_handle_functionidentifier(ptrs_ast_t *node, jit_function_t f
 		closure = ptrs_jit_createTrampoline(funcAst, target);
 		jit_function_set_meta(target, PTRS_JIT_FUNCTIONMETA_CLOSURE, closure, NULL, 0);
 
-		if(jit_function_compile(closure) == 0)
+		if(ptrs_compileAot && jit_function_compile(closure) == 0)
 			ptrs_error(node, "Failed compiling closure of function %s", funcAst->name);
 	}
 

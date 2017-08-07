@@ -16,15 +16,15 @@ static bool interactive = false;
 static bool dumpOps = false;
 
 extern size_t ptrs_arraymax;
-extern bool ptrs_zeroMemory;
-extern int ptrs_asmSize;
+extern bool ptrs_compileAot;
 
 static struct option options[] = {
-	{"array-max", required_argument, 0, 1},
-	{"no-sig", no_argument, 0, 2},
-	{"asmdump", no_argument, 0, 3},
-	{"error", required_argument, 0, 4},
-	{"help", no_argument, 0, 5},
+	{"help", no_argument, 0, 1},
+	{"array-max", required_argument, 0, 2},
+	{"no-sig", no_argument, 0, 3},
+	{"no-aot", no_argument, 0, 4},
+	{"asmdump", no_argument, 0, 5},
+	{"error", required_argument, 0, 6},
 	{0, 0, 0, 0}
 };
 
@@ -39,23 +39,6 @@ static int parseOptions(int argc, char **argv)
 			case -1:
 				return optind;
 			case 1:
-				ptrs_arraymax = strtoul(optarg, NULL, 0);
-				break;
-			case 2:
-				handleSignals = false;
-				break;
-			case 3:
-				dumpOps = true;
-				break;
-			case 4:
-				ptrs_errorfile = fopen(optarg, "w");
-				if(ptrs_errorfile == NULL)
-				{
-					fprintf(stderr, "Could not open %s\n", optarg);
-					exit(EXIT_FAILURE);
-				}
-				break;
-			case 5:
 				printf("Usage: ptrs [options ...] <file> [script options ...]\n"
 					"Valid Options:\n"
 						"\t--help               Show this information\n"
@@ -64,6 +47,26 @@ static int parseOptions(int argc, char **argv)
 						"\t--no-sig             Do not listen to signals.\n"
 					"Source code can be found at https://github.com/M4GNV5/PointerScript\n", UINT32_MAX);
 				exit(EXIT_SUCCESS);
+			case 2:
+				ptrs_arraymax = strtoul(optarg, NULL, 0);
+				break;
+			case 3:
+				handleSignals = false;
+				break;
+			case 4:
+				ptrs_compileAot = false;
+				break;
+			case 5:
+				dumpOps = true;
+				break;
+			case 6:
+				ptrs_errorfile = fopen(optarg, "w");
+				if(ptrs_errorfile == NULL)
+				{
+					fprintf(stderr, "Could not open %s\n", optarg);
+					exit(EXIT_FAILURE);
+				}
+				break;
 			default:
 				fprintf(stderr, "Try '--help' for more information.\n");
 				exit(EXIT_FAILURE);

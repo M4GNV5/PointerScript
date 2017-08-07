@@ -12,6 +12,7 @@ typedef struct
 } ptrs_result_t;
 
 extern jit_context_t ptrs_jit_context;
+extern bool ptrs_compileAot;
 
 ptrs_result_t *ptrs_compile(char *src, const char *filename);
 ptrs_result_t *ptrs_compilefile(const char *file);

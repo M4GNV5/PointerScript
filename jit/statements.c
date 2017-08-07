@@ -492,7 +492,7 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 
 	ptrs_jit_placeAssertions(self, &selfScope);
 
-	if(jit_function_compile(self) == 0)
+	if(ptrs_compileAot && jit_function_compile(self) == 0)
 		ptrs_error(node, "Failed compiling function %s", funcAst->name);
 
 
@@ -503,7 +503,7 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 		jit_function_t closure = ptrs_jit_createTrampoline(funcAst, func);
 		jit_function_set_meta(self, PTRS_JIT_FUNCTIONMETA_CLOSURE, closure, NULL, 0);
 
-		if(jit_function_compile(closure) == 0)
+		if(ptrs_compileAot && jit_function_compile(closure) == 0)
 			ptrs_error(node, "Failed compiling closure of function %s", funcAst->name);
 
 		void *closurePtr = jit_function_to_closure(closure);
@@ -800,7 +800,7 @@ ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 
 	jit_insn_label(func, &done);
 
-	if(jit_function_compile(body) == 0)
+	if(ptrs_compileAot && jit_function_compile(body) == 0)
 		ptrs_error(node, "Failed compiling foreach body");
 
 	jit_type_free(bodySignature);

@@ -11,6 +11,7 @@
 #include "../include/util.h"
 
 jit_context_t ptrs_jit_context = NULL;
+bool ptrs_compileAot = true;
 
 ptrs_result_t *ptrs_compile(char *src, const char *filename)
 {
@@ -36,8 +37,7 @@ ptrs_result_t *ptrs_compile(char *src, const char *filename)
 
 	result->ast->handler(result->ast, result->func, &scope);
 
-	int res = jit_function_compile(result->func);
-	if(res == 0)
+	if(ptrs_compileAot && jit_function_compile(result->func) == 0)
 		ptrs_error(result->ast, "Failed compiling the root function");
 
 	jit_context_build_end(ptrs_jit_context);
