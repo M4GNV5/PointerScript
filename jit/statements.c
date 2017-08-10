@@ -676,18 +676,21 @@ static void forinArray(struct ptrs_ast_forin *stmt, jit_function_t func, ptrs_ji
 	args[1] = index;
 	args[2] = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
 
-	if(isNative)
+	if(totalArgCount > 3)
 	{
-		jit_value_t curr = jit_insn_load_elem(func, val.val, index, jit_type_ubyte);
-		args[3] = curr;
-		args[4] = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
-	}
-	else
-	{
-		jit_value_t actualIndex = jit_insn_shl(func, index, jit_const_int(func, ubyte, 1));
-		args[3] = jit_insn_load_elem(func, val.val, actualIndex, jit_type_long);
-		actualIndex = jit_insn_add(func, actualIndex, jit_const_int(func, nuint, 1));
-		args[4] = jit_insn_load_elem(func, val.val, actualIndex, jit_type_ulong);
+		if(isNative)
+		{
+			jit_value_t curr = jit_insn_load_elem(func, val.val, index, jit_type_ubyte);
+			args[3] = curr;
+			args[4] = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
+		}
+		else
+		{
+			jit_value_t actualIndex = jit_insn_shl(func, index, jit_const_int(func, ubyte, 1));
+			args[3] = jit_insn_load_elem(func, val.val, actualIndex, jit_type_long);
+			actualIndex = jit_insn_add(func, actualIndex, jit_const_int(func, nuint, 1));
+			args[4] = jit_insn_load_elem(func, val.val, actualIndex, jit_type_ulong);
+		}
 	}
 
 	for(int i = 5; i < totalArgCount; i++)
