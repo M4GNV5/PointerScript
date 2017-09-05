@@ -45,6 +45,8 @@ static int parseOptions(int argc, char **argv)
 						"\t--array-max <size>   Set maximal allowed array size to 'size' bytes. Default: 0x%X\n"
 						"\t--error <file>       Set where error messages are written to. Default: /dev/stderr\n"
 						"\t--no-sig             Do not listen to signals.\n"
+						"\t--no-aot             Disable AOT compilation\n"
+						"\t--asmdump            Output disassembly of generated instructions\n"
 					"Source code can be found at https://github.com/M4GNV5/PointerScript\n", UINT32_MAX);
 				exit(EXIT_SUCCESS);
 			case 2:
