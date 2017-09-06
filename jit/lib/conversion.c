@@ -233,6 +233,7 @@ ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, jit_value_t val, jit_value_t
 		jit_const_long(func, ulong, PTRS_TYPE_NATIVE),
 		jit_const_long(func, ulong, 0),
 		size);
+	ret.constType = PTRS_TYPE_NATIVE;
 	return ret;
 }
 

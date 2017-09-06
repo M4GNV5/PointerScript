@@ -335,6 +335,7 @@ int parseIdentifierList(code_t *code, char *end, ptrs_jit_var_t **symbols, char 
 		{
 			(*symbols)[i].val = NULL;
 			(*symbols)[i].meta = NULL;
+			(*symbols)[i].constType = -1;
 		}
 		else
 		{
@@ -704,6 +705,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 			{
 				stmt->arg.trycatch.retVal.val = NULL;
 				stmt->arg.trycatch.retVal.meta = NULL;
+				stmt->arg.trycatch.retVal.constType = -1;
 			}
 
 			stmt->arg.trycatch.finallyBody = parseBody(code, true, false);
@@ -713,6 +715,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		{
 			stmt->arg.trycatch.retVal.val = NULL;
 			stmt->arg.trycatch.retVal.meta = NULL;
+			stmt->arg.trycatch.retVal.constType = -1;
 			stmt->arg.trycatch.finallyBody = NULL;
 		}
 	}
@@ -1780,6 +1783,7 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 		if(lookahead(code, "["))
 		{
 			ast->handler = ptrs_handle_vararray;
+			ast->arg.define.location.constType = PTRS_TYPE_POINTER;
 			ast->arg.define.value = parseExpression(code, false);
 			consumec(code, ']');
 
@@ -1797,6 +1801,7 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 		else if(lookahead(code, "{"))
 		{
 			ast->handler = ptrs_handle_array;
+			ast->arg.define.location.constType = PTRS_TYPE_NATIVE;
 			ast->arg.define.value = parseExpression(code, false);
 			consumec(code, '}');
 
@@ -1819,6 +1824,7 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 	else
 	{
 		ast->handler = ptrs_handle_new;
+		ast->arg.define.location.constType = PTRS_TYPE_STRUCT;
 		ast->arg.newexpr.onStack = onStack;
 		ast->arg.newexpr.value = parseUnaryExpr(code, true, false);
 

@@ -41,6 +41,7 @@ ptrs_jit_var_t ptrs_jit_valToVar(jit_function_t func, jit_value_t val)
 	ptrs_jit_var_t ret = {
 		.val = jit_insn_load_relative(func, addr, 0, jit_type_long),
 		.meta = jit_insn_load_relative(func, addr, sizeof(ptrs_val_t), jit_type_ulong),
+		.constType = -1,
 	};
 
 	return ret;

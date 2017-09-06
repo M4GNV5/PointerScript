@@ -34,6 +34,7 @@ ptrs_jit_var_t ptrs_handle_define(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	struct ptrs_ast_define *stmt = &node->arg.define;
 	stmt->location.val = jit_value_create(func, jit_type_long);
 	stmt->location.meta = jit_value_create(func, jit_type_ulong);
+	stmt->location.constType = -1;
 
 	ptrs_jit_var_t val;
 
@@ -88,6 +89,7 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	}
 
 	val.meta = ptrs_jit_arrayMeta(func, jit_const_long(func, ulong, PTRS_TYPE_NATIVE), jit_const_long(func, ulong, false), size);
+	val.constType = PTRS_TYPE_NATIVE;
 
 	//store the array
 	jit_insn_store(func, stmt->location.val, val.val);
@@ -155,6 +157,7 @@ ptrs_jit_var_t ptrs_handle_vararray(ptrs_ast_t *node, jit_function_t func, ptrs_
 	}
 
 	val.meta = ptrs_jit_arrayMeta(func, jit_const_long(func, ulong, PTRS_TYPE_POINTER), jit_const_long(func, ulong, false), size);
+	val.constType = PTRS_TYPE_POINTER;
 
 	//store the array
 	jit_insn_store(func, stmt->location.val, val.val);
@@ -322,6 +325,7 @@ ptrs_jit_var_t ptrs_handle_import(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	{
 		from.val = jit_const_long(func, long, 0);
 		from.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
+		from.constType = PTRS_TYPE_UNDEFINED;
 	}
 
 	int len = 0;
@@ -343,6 +347,7 @@ ptrs_jit_var_t ptrs_handle_import(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 		jit_value_t index = jit_const_int(func, nuint, i);
 		curr->location.val = jit_value_create(func, jit_type_long);
 		curr->location.meta = jit_value_create(func, jit_type_ulong);
+		curr->location.constType = -1; //TODO
 
 		jit_value_set_addressable(curr->location.val);
 		jit_value_set_addressable(curr->location.meta);
@@ -471,6 +476,7 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 	{
 		funcAst->args[i].val = jit_value_create(self, jit_type_long);
 		funcAst->args[i].meta = jit_value_create(self, jit_type_ulong);
+		funcAst->args[i].constType = -1;
 
 		jit_insn_store(self, funcAst->args[i].val, jit_value_get_param(self, i * 2));
 		jit_insn_store(self, funcAst->args[i].meta, jit_value_get_param(self, i * 2 + 1));
@@ -509,11 +515,13 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 		void *closurePtr = jit_function_to_closure(closure);
 		ret.val = jit_const_int(func, void_ptr, (uintptr_t)closurePtr);
 		ret.meta = ptrs_jit_const_meta(func, PTRS_TYPE_NATIVE);
+		ret.constType = PTRS_TYPE_NATIVE;
 	}
 	else
 	{
 		ret.val = jit_const_long(func, long, 0);
 		ret.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
+		ret.constType = PTRS_TYPE_UNDEFINED;
 	}
 
 	return ret;
@@ -731,10 +739,13 @@ ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	{
 		stmt->varsymbols[i].val = jit_value_create(body, jit_type_long);
 		stmt->varsymbols[i].meta = jit_value_create(body, jit_type_ulong);
+		stmt->varsymbols[i].constType = -1;
 
 		jit_insn_store(body, stmt->varsymbols[i].val, jit_value_get_param(body, i * 2 + 1));
 		jit_insn_store(body, stmt->varsymbols[i].meta, jit_value_get_param(body, i * 2 + 2));
 	}
+
+	stmt->varsymbols[0].constType = PTRS_TYPE_INT; //TODO remove this when we can foreach over structs
 
 	ptrs_scope_t bodyScope;
 	ptrs_initScope(&bodyScope);

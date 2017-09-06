@@ -19,6 +19,7 @@ typedef struct
 {
 	jit_value_t val;
 	jit_value_t meta;
+	uint8_t constType;
 } ptrs_jit_var_t;
 
 typedef enum type

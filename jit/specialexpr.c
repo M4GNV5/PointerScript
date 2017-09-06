@@ -22,6 +22,7 @@ ptrs_jit_var_t ptrs_handle_call(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 	ptrs_jit_var_t ret;
 	ret.val = ptrs_jit_vcall(node, func, scope, jit_type_long, val.val, val.meta, expr->arguments);
 	ret.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
+	ret.constType = PTRS_TYPE_INT;
 
 	return ret;
 }
@@ -71,7 +72,8 @@ ptrs_jit_var_t ptrs_handle_stringformat(ptrs_ast_t *node, jit_function_t func, p
 		.meta = ptrs_jit_arrayMeta(func,
 			jit_const_long(func, ulong, PTRS_TYPE_NATIVE),
 			jit_const_long(func, ulong, 0),
-			len)
+			len),
+		.constType = PTRS_TYPE_NATIVE,
 	};
 	return ret;
 }
@@ -106,6 +108,7 @@ ptrs_jit_var_t ptrs_handle_prefix_length(ptrs_ast_t *node, jit_function_t func, 
 	ptrs_jit_var_t val = node->handler(node, func, scope);
 	val.val = ptrs_jit_getArraySize(func, val.meta);
 	val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
+	val.constType = PTRS_TYPE_INT;
 
 	return val;
 }
@@ -185,6 +188,7 @@ ptrs_jit_var_t ptrs_handle_indexlength(ptrs_ast_t *node, jit_function_t func, pt
 	ptrs_jit_var_t ret;
 	ret.val = scope->indexSize;
 	ret.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
+	ret.constType = PTRS_TYPE_INT;
 
 	return ret;
 }
@@ -224,7 +228,8 @@ ptrs_jit_var_t ptrs_handle_index(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 
 	ptrs_jit_var_t result = {
 		.val = jit_value_create(func, jit_type_long),
-		.meta = jit_value_create(func, jit_type_ulong)
+		.meta = jit_value_create(func, jit_type_ulong),
+		.constType = -1,
 	};
 
 	jit_label_t isPointer = jit_label_undefined;
@@ -291,7 +296,8 @@ ptrs_jit_var_t ptrs_handle_addressof_index(ptrs_ast_t *node, jit_function_t func
 
 	ptrs_jit_var_t result = {
 		.val = jit_value_create(func, jit_type_long),
-		.meta = ptrs_jit_setArraySize(func, base.meta, jit_insn_sub(func, size, index))
+		.meta = ptrs_jit_setArraySize(func, base.meta, jit_insn_sub(func, size, index)),
+		.constType = base.constType,
 	};
 
 	jit_label_t isPointer = jit_label_undefined;
@@ -351,7 +357,7 @@ ptrs_jit_var_t ptrs_handle_slice(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	jit_insn_label(func, &done);
 
 	/*
-	disabled so we can slice arrays receives from native functions.
+	disabled so we can slice arrays received from native functions.
 	TODO: should there be a seperate syntax for that?
 
 	ptrs_jit_assert(node, func, scope, jit_insn_le(func, end, scope->indexSize),
@@ -367,6 +373,7 @@ ptrs_jit_var_t ptrs_handle_slice(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	ptrs_jit_var_t ret;
 	ret.val = newPtr;
 	ret.meta = ptrs_jit_setArraySize(func, val.meta, newSize);
+	ret.constType = val.constType;
 
 	return ret;
 }
@@ -378,6 +385,7 @@ ptrs_jit_var_t ptrs_handle_as(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 	ptrs_jit_var_t val = expr->value->handler(expr->value, func, scope);
 
 	val.meta = ptrs_jit_const_meta(func, expr->builtinType);
+	val.constType = expr->builtinType;
 	return val;
 }
 
@@ -391,10 +399,12 @@ ptrs_jit_var_t ptrs_handle_cast_builtin(ptrs_ast_t *node, jit_function_t func, p
 		case PTRS_TYPE_INT:
 			val.val = ptrs_jit_vartoi(func, val.val, val.meta);
 			val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
+			val.constType = PTRS_TYPE_INT;
 			break;
 		case PTRS_TYPE_FLOAT:
 			val.val = ptrs_jit_vartof(func, val.val, val.meta);
 			val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_FLOAT);
+			val.constType = PTRS_TYPE_FLOAT;
 			break;
 		default:
 			ptrs_error(node, "Cannot convert to type %s", ptrs_typetoa(expr->builtinType));
@@ -452,7 +462,8 @@ ptrs_jit_var_t ptrs_handle_functionidentifier(ptrs_ast_t *node, jit_function_t f
 
 	ptrs_jit_var_t ret = {
 		.val = jit_const_int(func, void_ptr, (uintptr_t)closurePtr),
-		.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_NATIVE, true, 0)
+		.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_NATIVE, true, 0),
+		.constType = PTRS_TYPE_NATIVE,
 	};
 	return ret;
 }
@@ -476,6 +487,7 @@ ptrs_jit_var_t ptrs_handle_constant(ptrs_ast_t *node, jit_function_t func, ptrs_
 	ptrs_jit_var_t val;
 	val.val = jit_const_long(func, long, node->arg.constval.value.intval);
 	val.meta = jit_const_long(func, ulong, *(uint64_t *)&node->arg.constval.meta);
+	val.constType = node->arg.constval.meta.type;
 	return val;
 }
 
@@ -491,6 +503,7 @@ ptrs_jit_var_t ptrs_handle_prefix_typeof(ptrs_ast_t *node, jit_function_t func, 
 
 	val.val = ptrs_jit_getType(func, val.meta);
 	val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
+	val.constType = PTRS_TYPE_INT;
 	return val;
 }
 
@@ -504,7 +517,8 @@ ptrs_jit_var_t ptrs_handle_op_ternary(ptrs_ast_t *node, jit_function_t func, ptr
 
 	ptrs_jit_var_t ret = {
 		.val = jit_value_create(func, jit_type_long),
-		.meta = jit_value_create(func, jit_type_ulong)
+		.meta = jit_value_create(func, jit_type_ulong),
+		.constType = -1,
 	};
 
 	ptrs_jit_branch_if_not(func, &isFalse, condition.val, condition.meta);
@@ -522,6 +536,7 @@ ptrs_jit_var_t ptrs_handle_op_ternary(ptrs_ast_t *node, jit_function_t func, ptr
 	jit_insn_store(func, ret.meta, falseVal.meta);
 
 	jit_insn_label(func, &done);
+	ret.constType = trueVal.constType == falseVal.constType ? trueVal.constType : -1;
 	return ret;
 }
 

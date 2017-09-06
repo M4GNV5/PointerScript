@@ -126,6 +126,7 @@ static jit_type_t getIntrinsicSignature()
 			ptrs_jit_var_t ret = { \
 				.val = jit_const_long(func, long, val.value.intval), \
 				.meta = jit_const_long(func, ulong, *(uint64_t *)&val.meta), \
+				.constType = val.meta.type, \
 			}; \
 			return ret; \
 		} \
@@ -250,6 +251,7 @@ static jit_type_t getIntrinsicSignature()
 		extra \
 		\
 		left.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT); \
+		left.constType = PTRS_TYPE_INT; \
 		return left; \
 	}
 
@@ -268,7 +270,8 @@ static jit_type_t getIntrinsicSignature()
 			\
 			ptrs_jit_var_t ret = { \
 				.val = jit_const_long(func, long, 0), \
-				.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT) \
+				.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT), \
+				.constType = PTRS_TYPE_INT, \
 			}; \
 			return ret; \
 		} \
@@ -276,6 +279,7 @@ static jit_type_t getIntrinsicSignature()
 		ptrs_jit_var_t tmp = { \
 			.val = jit_value_create(func, jit_type_long), \
 			.meta = jit_value_create(func, jit_type_ulong), \
+			.constType = -1, \
 		}; \
 		jit_insn_store(func, tmp.val, left.val); \
 		jit_insn_store(func, tmp.meta, left.meta); \
@@ -336,6 +340,7 @@ ptrs_jit_var_t ptrs_handle_op_logicxor(ptrs_ast_t *node, jit_function_t func, pt
 
 	right.val = jit_insn_xor(func, left.val, right.val);
 	right.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
+	right.constType = PTRS_TYPE_INT;
 
 	return right;
 }
@@ -349,6 +354,7 @@ ptrs_jit_var_t ptrs_handle_prefix_logicnot(ptrs_ast_t *node, jit_function_t func
 
 	val.val = jit_insn_xor(func, val.val, jit_const_long(func, long, 1));
 	val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
+	val.constType = PTRS_TYPE_INT;
 
 	return val;
 }
