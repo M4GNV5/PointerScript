@@ -124,7 +124,7 @@ jit_function_t ptrs_jit_createTrampoline(ptrs_function_t *funcAst, jit_function_
 	jit_type_free(signature);
 
 	ptrs_jit_var_t ret = ptrs_jit_valToVar(closure, retVal);
-	jit_insn_return(closure, ptrs_jit_vartoi(closure, ret.val, ret.meta));
+	jit_insn_return(closure, ptrs_jit_vartoi(closure, ret));
 
 	return closure;
 }

@@ -69,7 +69,7 @@ void ptrs_astlist_handleByte(struct ptrs_astlist *list, jit_function_t func, ptr
 		else
 		{
 			ptrs_jit_var_t _result = list->entry->handler(list->entry, func, scope);
-			result = ptrs_jit_vartoi(func, _result.val, _result.meta);
+			result = ptrs_jit_vartoi(func, _result);
 		}
 
 		jit_insn_store_relative(func, val, i, result);

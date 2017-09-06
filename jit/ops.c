@@ -264,7 +264,7 @@ static jit_type_t getIntrinsicSignature()
 		ptrs_jit_var_t left = expr->left->handler(expr->left, func, scope); \
 		if(jit_value_is_constant(left.val) && jit_value_is_constant(left.meta)) \
 		{ \
-			jit_long constVal = jit_value_get_long_constant(ptrs_jit_vartob(func, left.val, left.meta)); \
+			jit_long constVal = jit_value_get_long_constant(ptrs_jit_vartob(func, left)); \
 			if(constVal constComparer true) \
 				return expr->right->handler(expr->right, func, scope); \
 			\
@@ -335,8 +335,8 @@ ptrs_jit_var_t ptrs_handle_op_logicxor(ptrs_ast_t *node, jit_function_t func, pt
 	ptrs_jit_var_t left = expr->left->handler(expr->left, func, scope);
 	ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope);
 
-	left.val = ptrs_jit_vartob(func, left.val, left.meta);
-	right.val = ptrs_jit_vartob(func, right.val, right.meta);
+	left.val = ptrs_jit_vartob(func, left);
+	right.val = ptrs_jit_vartob(func, right);
 
 	right.val = jit_insn_xor(func, left.val, right.val);
 	right.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
@@ -350,7 +350,7 @@ ptrs_jit_var_t ptrs_handle_prefix_logicnot(ptrs_ast_t *node, jit_function_t func
 	ptrs_ast_t *expr = node->arg.astval;
 
 	ptrs_jit_var_t val = expr->handler(expr, func, scope);
-	val.val = ptrs_jit_vartob(func, val.val, val.meta);
+	val.val = ptrs_jit_vartob(func, val);
 
 	val.val = jit_insn_xor(func, val.val, jit_const_long(func, long, 1));
 	val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);

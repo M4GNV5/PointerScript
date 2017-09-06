@@ -91,56 +91,50 @@ void ptrs_jit_branch_if_not(jit_function_t func, jit_label_t *target, jit_value_
 	}
 }
 
-jit_value_t ptrs_jit_vartob(jit_function_t func, jit_value_t val, jit_value_t meta)
+jit_value_t ptrs_jit_vartob(jit_function_t func, ptrs_jit_var_t val)
 {
-	if(jit_value_is_constant(meta) && jit_value_is_constant(val))
+	if(val.constType != -1 && jit_value_is_constant(val.val))
 	{
-		if(ptrs_jit_value_getMetaConstant(meta).type == PTRS_TYPE_UNDEFINED
-			|| ptrs_jit_value_getValConstant(val).intval == 0)
+		if(val.constType == PTRS_TYPE_UNDEFINED
+			|| ptrs_jit_value_getValConstant(val.val).intval == 0)
 			return jit_const_long(func, long, 0);
 		else
 			return jit_const_long(func, long, 1);
 	}
-	else if(jit_value_is_constant(meta))
+	else if(val.constType != -1)
 	{
-		if(ptrs_jit_value_getMetaConstant(meta).type == PTRS_TYPE_UNDEFINED)
+		if(val.constType == PTRS_TYPE_UNDEFINED)
 			return jit_const_long(func, long, 0);
 		else
-			return jit_insn_to_bool(func, val);
+			return jit_insn_to_bool(func, val.val);
 	}
-	else if(jit_value_is_constant(val))
+	else if(jit_value_is_constant(val.val))
 	{
-		if(ptrs_jit_value_getValConstant(val).intval == 0)
+		if(ptrs_jit_value_getValConstant(val.val).intval == 0)
 			return jit_const_long(func, long, 0);
 		else
-			return ptrs_jit_doesntHaveType(func, meta, PTRS_TYPE_UNDEFINED);
+			return ptrs_jit_doesntHaveType(func, val.meta, PTRS_TYPE_UNDEFINED);
 	}
 	else
 	{
-		jit_value_t definedType = ptrs_jit_doesntHaveType(func, meta, PTRS_TYPE_UNDEFINED);
-		jit_value_t isTrue = jit_insn_to_bool(func, val);
+		jit_value_t definedType = ptrs_jit_doesntHaveType(func, val.meta, PTRS_TYPE_UNDEFINED);
+		jit_value_t isTrue = jit_insn_to_bool(func, val.val);
 		return jit_insn_and(func, definedType, isTrue);
 	}
 }
 
-jit_value_t ptrs_jit_vartoi(jit_function_t func, jit_value_t val, jit_value_t meta)
+jit_value_t ptrs_jit_vartoi(jit_function_t func, ptrs_jit_var_t val)
 {
-	if(jit_value_is_constant(meta))
+	switch(val.constType)
 	{
-		ptrs_meta_t constMeta = ptrs_jit_value_getMetaConstant(meta);
-		switch(constMeta.type)
-		{
-			case PTRS_TYPE_UNDEFINED:
-				return jit_const_long(func, long, 0);
-			case PTRS_TYPE_FLOAT:
-				return jit_insn_convert(func, ptrs_jit_reinterpretCast(func, val, jit_type_float64), jit_type_long, 0);
-			case PTRS_TYPE_NATIVE:
-				if(constMeta.array.size > 0)
-					break; //use default conversion
-				//fallthrough
-			default:
-				return val;
-		}
+		case -1:
+			break; //use intrinsic
+		case PTRS_TYPE_UNDEFINED:
+			return jit_const_long(func, long, 0);
+		case PTRS_TYPE_INT:
+			return val.val;
+		case PTRS_TYPE_FLOAT:
+			return jit_insn_convert(func, ptrs_jit_reinterpretCast(func, val.val, jit_type_float64), jit_type_long, 0);
 	}
 
 	jit_intrinsic_descr_t descr = {
@@ -150,27 +144,21 @@ jit_value_t ptrs_jit_vartoi(jit_function_t func, jit_value_t val, jit_value_t me
 		.arg2_type = jit_type_ulong
 	};
 
-	return jit_insn_call_intrinsic(func, NULL, ptrs_vartoi, &descr, val, meta);
+	return jit_insn_call_intrinsic(func, NULL, ptrs_vartoi, &descr, val.val, val.meta);
 }
 
-jit_value_t ptrs_jit_vartof(jit_function_t func, jit_value_t val, jit_value_t meta)
+jit_value_t ptrs_jit_vartof(jit_function_t func, ptrs_jit_var_t val)
 {
-	if(jit_value_is_constant(meta))
+	switch(val.constType)
 	{
-		ptrs_meta_t constMeta = ptrs_jit_value_getMetaConstant(meta);
-		switch(constMeta.type)
-		{
-			case PTRS_TYPE_UNDEFINED:
-				return jit_const_long(func, long, 0);
-			case PTRS_TYPE_FLOAT:
-				return val;
-			case PTRS_TYPE_NATIVE:
-				if(constMeta.array.size > 0)
-					break; //use default conversion
-				//fallthrough
-			default:
-				return jit_insn_convert(func, val, jit_type_float64, 0);
-		}
+		case -1:
+			break; //use instrinsic
+		case PTRS_TYPE_UNDEFINED:
+			return jit_const_long(func, long, 0);
+		case PTRS_TYPE_INT:
+			return jit_insn_convert(func, val.val, jit_type_float64, 0);
+		case PTRS_TYPE_FLOAT:
+			return val.val;
 	}
 
 	jit_intrinsic_descr_t descr = {
@@ -180,10 +168,10 @@ jit_value_t ptrs_jit_vartof(jit_function_t func, jit_value_t val, jit_value_t me
 		.arg2_type = jit_type_ulong
 	};
 
-	return jit_insn_call_intrinsic(func, NULL, ptrs_vartof, &descr, val, meta);
+	return jit_insn_call_intrinsic(func, NULL, ptrs_vartof, &descr, val.val, val.meta);
 }
 
-ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, jit_value_t val, jit_value_t meta)
+ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, ptrs_jit_var_t val)
 {
 	jit_value_t buff = jit_value_create(func, jit_type_void_ptr);
 	jit_value_t size = jit_value_create(func, jit_type_ulong);
@@ -191,10 +179,10 @@ ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, jit_value_t val, jit_value_t
 	jit_label_t genericConversion = jit_label_undefined;
 	jit_label_t done = jit_label_undefined;
 
-	jit_value_t isNative = ptrs_jit_hasType(func, meta, PTRS_TYPE_NATIVE);
+	jit_value_t isNative = ptrs_jit_hasType(func, val.meta, PTRS_TYPE_NATIVE);
 	jit_insn_branch_if_not(func, isNative, &genericConversion);
 
-	jit_value_t _size = ptrs_jit_getArraySize(func, meta);
+	jit_value_t _size = ptrs_jit_getArraySize(func, val.meta);
 	jit_value_t zeroLength = jit_insn_eq(func, _size, jit_const_long(func, ulong, 0));
 	jit_insn_branch_if(func, zeroLength, &genericConversion);
 
@@ -202,7 +190,7 @@ ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, jit_value_t val, jit_value_t
 	jit_insn_store(func, size, jit_insn_add(func, _size, jit_const_int(func, nuint, 1)));
 	jit_insn_store(func, buff, jit_insn_alloca(func, size));
 
-	jit_insn_memcpy(func, buff, val, _size);
+	jit_insn_memcpy(func, buff, val.val, _size);
 	jit_insn_store_elem(func, buff, _size, jit_const_int(func, ubyte, 0));
 
 	jit_insn_branch(func, &done);
@@ -220,7 +208,7 @@ ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, jit_value_t val, jit_value_t
 	};
 
 	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, jit_type_void_ptr, paramDef, 4, 1);
-	jit_value_t params[] = {val, meta, buff, size};
+	jit_value_t params[] = {val.val, val.meta, buff, size};
 
 	jit_insn_call_native(func, NULL, ptrs_vartoa, signature, params, 4, JIT_CALL_NOTHROW);
 	jit_type_free(signature);

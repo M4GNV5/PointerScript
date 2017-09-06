@@ -48,7 +48,7 @@ ptrs_jit_var_t ptrs_handle_stringformat(ptrs_ast_t *node, jit_function_t func, p
 		ptrs_jit_var_t val = curr->entry->handler(curr->entry, func, scope);
 
 		if(curr->convert)
-			val = ptrs_jit_vartoa(func, val.val, val.meta);
+			val = ptrs_jit_vartoa(func, val);
 
 		args[i] = val.val;
 		curr = curr->next;
@@ -177,7 +177,7 @@ void ptrs_handle_assign_dereference(ptrs_ast_t *node, jit_function_t func, ptrs_
 
 	//PTRS_TYPE_NATIVE
 	jit_insn_label(func, &isNative);
-	jit_value_t byteVal = jit_insn_convert(func, ptrs_jit_vartoi(func, val.val, val.meta), jit_type_ubyte, 0);
+	jit_value_t byteVal = jit_insn_convert(func, ptrs_jit_vartoi(func, val), jit_type_ubyte, 0);
 	jit_insn_store_relative(func, base.val, 0, byteVal);
 
 	jit_insn_label(func, &end);
@@ -208,7 +208,7 @@ static void ptrs_handle_index_common(ptrs_ast_t *node, jit_function_t func, ptrs
 	scope->indexSize = ptrs_jit_getArraySize(func, base->meta);
 
 	ptrs_jit_var_t _index = expr->right->handler(expr->right, func, scope);
-	*index = ptrs_jit_vartoi(func, _index.val, _index.meta);
+	*index = ptrs_jit_vartoi(func, _index);
 
 	struct ptrs_assertion *assertion = ptrs_jit_assert(node, func, scope, jit_insn_lt(func, *index, scope->indexSize),
 		2, "Index %d is out of range of array of size %d", *index, scope->indexSize);
@@ -269,7 +269,7 @@ void ptrs_handle_assign_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 	jit_insn_branch_if_not(func, jit_insn_eq(func, type, jit_const_int(func, ulong, PTRS_TYPE_NATIVE)), &isPointer);
 
 	//native
-	jit_value_t intVal = ptrs_jit_vartoi(func, val.val, val.meta);
+	jit_value_t intVal = ptrs_jit_vartoi(func, val);
 	jit_value_t uByteVal = jit_insn_convert(func, intVal, jit_type_ubyte, 1);
 	jit_insn_store_elem(func, base.val, index, uByteVal);
 	jit_insn_branch(func, &done);
@@ -338,10 +338,10 @@ ptrs_jit_var_t ptrs_handle_slice(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	scope->indexSize = ptrs_jit_getArraySize(func, val.meta);
 
 	ptrs_jit_var_t _start = expr->start->handler(expr->start, func, scope);
-	jit_value_t start = ptrs_jit_vartoi(func, _start.val, _start.meta);
+	jit_value_t start = ptrs_jit_vartoi(func, _start);
 
 	ptrs_jit_var_t _end = expr->end->handler(expr->end, func, scope);
-	jit_value_t end = ptrs_jit_vartoi(func, _end.val, _end.meta);
+	jit_value_t end = ptrs_jit_vartoi(func, _end);
 
 	jit_value_t newSize = jit_insn_sub(func, end, start);
 	jit_value_t newPtr = jit_value_create(func, jit_type_void_ptr);
@@ -397,12 +397,12 @@ ptrs_jit_var_t ptrs_handle_cast_builtin(ptrs_ast_t *node, jit_function_t func, p
 	switch(expr->builtinType)
 	{
 		case PTRS_TYPE_INT:
-			val.val = ptrs_jit_vartoi(func, val.val, val.meta);
+			val.val = ptrs_jit_vartoi(func, val);
 			val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
 			val.constType = PTRS_TYPE_INT;
 			break;
 		case PTRS_TYPE_FLOAT:
-			val.val = ptrs_jit_vartof(func, val.val, val.meta);
+			val.val = ptrs_jit_reinterpretCast(func, ptrs_jit_vartof(func, val), jit_type_long);
 			val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_FLOAT);
 			val.constType = PTRS_TYPE_FLOAT;
 			break;
@@ -418,7 +418,7 @@ ptrs_jit_var_t ptrs_handle_tostring(ptrs_ast_t *node, jit_function_t func, ptrs_
 	struct ptrs_ast_cast *expr = &node->arg.cast;
 	ptrs_jit_var_t val = expr->value->handler(expr->value, func, scope);
 
-	return ptrs_jit_vartoa(func, val.val, val.meta);
+	return ptrs_jit_vartoa(func, val);
 }
 
 ptrs_jit_var_t ptrs_handle_cast(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)

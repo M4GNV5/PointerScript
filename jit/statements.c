@@ -63,7 +63,7 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	if(stmt->value != NULL)
 	{
 		val = stmt->value->handler(stmt->value, func, scope);
-		size = ptrs_jit_vartoi(func, val.val, val.meta);
+		size = ptrs_jit_vartoi(func, val);
 	}
 	else
 	{
@@ -130,7 +130,7 @@ ptrs_jit_var_t ptrs_handle_vararray(ptrs_ast_t *node, jit_function_t func, ptrs_
 	if(stmt->value != NULL)
 	{
 		val = stmt->value->handler(stmt->value, func, scope);
-		size = ptrs_jit_vartoi(func, val.val, val.meta);
+		size = ptrs_jit_vartoi(func, val);
 		byteSize = jit_insn_mul(func, size, jit_const_int(func, nuint, sizeof(ptrs_var_t)));
 	}
 	else
