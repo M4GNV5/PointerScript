@@ -60,12 +60,6 @@ jit_value_t ptrs_jit_varToVal(jit_function_t func, ptrs_jit_var_t var)
 	return val;
 }
 
-jit_value_t ptrs_jit_reinterpretCast(jit_function_t func, jit_value_t val, jit_type_t newType)
-{
-	jit_value_set_addressable(val);
-	return jit_insn_load_relative(func, jit_insn_address_of(func, val), 0, newType);
-}
-
 ptrs_val_t ptrs_jit_value_getValConstant(jit_value_t val)
 {
 	jit_long _constVal = jit_value_get_long_constant(val);
@@ -76,4 +70,33 @@ ptrs_meta_t ptrs_jit_value_getMetaConstant(jit_value_t meta)
 {
 	jit_ulong _constMeta = jit_value_get_long_constant(meta);
 	return *(ptrs_meta_t *)&_constMeta;
+}
+
+jit_value_t ptrs_jit_reinterpretCast(jit_function_t func, jit_value_t val, jit_type_t newType)
+{
+	if(jit_value_is_constant(val))
+	{
+		jit_constant_t constVal = jit_value_get_constant(val);
+		jit_type_t type = jit_type_normalize(jit_type_promote_int(newType));
+
+		if(type == jit_type_int || type == jit_type_uint)
+			return jit_value_create_nint_constant(func, newType, constVal.un.int_value);
+		else if(type == jit_type_long || type == jit_type_ulong)
+			return jit_value_create_long_constant(func, newType, constVal.un.long_value);
+		else if(type == jit_type_float64)
+			return jit_value_create_float64_constant(func, newType, constVal.un.float64_value);
+	}
+
+	jit_value_t ptr;
+	if(jit_value_is_addressable(val))
+	{
+		ptr = jit_insn_address_of(func, val);
+	}
+	else
+	{
+		ptr = jit_value_create(func, newType);
+		jit_value_set_addressable(ptr);
+		ptr = jit_insn_address_of(func, ptr);
+	}
+	return jit_insn_load_relative(func, ptr, 0, newType);
 }
