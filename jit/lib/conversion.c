@@ -13,23 +13,23 @@
 #include "../include/conversion.h"
 #include "../include/util.h"
 
-void ptrs_jit_branch_if(jit_function_t func, jit_label_t *target, jit_value_t val, jit_value_t meta)
+void ptrs_jit_branch_if(jit_function_t func, jit_label_t *target, ptrs_jit_var_t val)
 {
 	bool placeIsUndefined = true;
 	bool placeIsZero = true;
 
-	if(jit_value_is_constant(meta))
+	if(val.constType != -1)
 	{
 		placeIsUndefined = false;
 
-		if(ptrs_jit_value_getMetaConstant(meta).type == PTRS_TYPE_UNDEFINED)
+		if(val.constType == PTRS_TYPE_UNDEFINED)
 			return;
 	}
-	if(jit_value_is_constant(val))
+	if(jit_value_is_constant(val.val))
 	{
 		placeIsZero = false;
 
-		if(ptrs_jit_value_getValConstant(val).intval == 0)
+		if(ptrs_jit_value_getValConstant(val.val).intval == 0)
 			return;
 	}
 
@@ -41,37 +41,37 @@ void ptrs_jit_branch_if(jit_function_t func, jit_label_t *target, jit_value_t va
 
 	if(placeIsUndefined)
 	{
-		jit_value_t isUndefined = ptrs_jit_hasType(func, meta, PTRS_TYPE_UNDEFINED);
+		jit_value_t isUndefined = ptrs_jit_hasType(func, val.meta, PTRS_TYPE_UNDEFINED);
 		jit_insn_branch_if_not(func, isUndefined, target);
 	}
 
 	if(placeIsZero)
 	{
-		jit_value_t isZero = jit_insn_to_bool(func, val);
+		jit_value_t isZero = jit_insn_to_bool(func, val.val);
 		jit_insn_branch_if(func, isZero, target);
 	}
 }
 
-void ptrs_jit_branch_if_not(jit_function_t func, jit_label_t *target, jit_value_t val, jit_value_t meta)
+void ptrs_jit_branch_if_not(jit_function_t func, jit_label_t *target, ptrs_jit_var_t val)
 {
 	bool placeIsUndefined = true;
 	bool placeIsZero = true;
 
-	if(jit_value_is_constant(meta))
+	if(val.constType != -1)
 	{
 		placeIsUndefined = false;
 
-		if(ptrs_jit_value_getMetaConstant(meta).type == PTRS_TYPE_UNDEFINED)
+		if(val.constType == PTRS_TYPE_UNDEFINED)
 		{
 			jit_insn_branch(func, target);
 			return;
 		}
 	}
-	if(jit_value_is_constant(val))
+	if(jit_value_is_constant(val.val))
 	{
 		placeIsZero = false;
 
-		if(ptrs_jit_value_getValConstant(val).intval == 0)
+		if(ptrs_jit_value_getValConstant(val.val).intval == 0)
 		{
 			jit_insn_branch(func, target);
 			return;
@@ -80,13 +80,13 @@ void ptrs_jit_branch_if_not(jit_function_t func, jit_label_t *target, jit_value_
 
 	if(placeIsUndefined)
 	{
-		jit_value_t isUndefined = ptrs_jit_hasType(func, meta, PTRS_TYPE_UNDEFINED);
+		jit_value_t isUndefined = ptrs_jit_hasType(func, val.meta, PTRS_TYPE_UNDEFINED);
 		jit_insn_branch_if(func, isUndefined, target);
 	}
 
 	if(placeIsZero)
 	{
-		jit_value_t isZero = jit_insn_to_not_bool(func, val);
+		jit_value_t isZero = jit_insn_to_not_bool(func, val.val);
 		jit_insn_branch_if(func, isZero, target);
 	}
 }

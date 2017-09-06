@@ -286,7 +286,7 @@ static jit_type_t getIntrinsicSignature()
 		\
 		/*conditionally jump over the evaluation of the right-side expression*/ \
 		jit_label_t skip = jit_label_undefined; \
-		ptrs_jit_branch_##comparer(func, &skip, left.val, left.meta); \
+		ptrs_jit_branch_##comparer(func, &skip, left); \
 		\
 		/*overwrite the return value with the right-side expression*/ \
 		ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope); \

@@ -521,7 +521,7 @@ ptrs_jit_var_t ptrs_handle_op_ternary(ptrs_ast_t *node, jit_function_t func, ptr
 		.constType = -1,
 	};
 
-	ptrs_jit_branch_if_not(func, &isFalse, condition.val, condition.meta);
+	ptrs_jit_branch_if_not(func, &isFalse, condition);
 
 	//is true
 	ptrs_jit_var_t trueVal = expr->trueVal->handler(expr->trueVal, func, scope);

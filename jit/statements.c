@@ -539,7 +539,7 @@ ptrs_jit_var_t ptrs_handle_if(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 	ptrs_jit_var_t condition = stmt->condition->handler(stmt->condition, func, scope);
 
 	jit_label_t isFalse = jit_label_undefined;
-	ptrs_jit_branch_if_not(func, &isFalse, condition.val, condition.meta);
+	ptrs_jit_branch_if_not(func, &isFalse, condition);
 
 	stmt->ifBody->handler(stmt->ifBody, func, scope);
 
@@ -582,7 +582,7 @@ ptrs_jit_var_t ptrs_handle_while(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	val = stmt->condition->handler(stmt->condition, func, scope);
 
 	jit_label_t end = jit_label_undefined;
-	ptrs_jit_branch_if_not(func, &end, val.val, val.meta);
+	ptrs_jit_branch_if_not(func, &end, val);
 
 	//run the while body, jumping back the condition check afterwords
 	val = stmt->body->handler(stmt->body, func, scope);
@@ -618,7 +618,7 @@ ptrs_jit_var_t ptrs_handle_dowhile(ptrs_ast_t *node, jit_function_t func, ptrs_s
 
 	//evaluate the condition
 	ptrs_jit_var_t condition = stmt->condition->handler(stmt->condition, func, scope);
-	ptrs_jit_branch_if(func, &start, condition.val, condition.meta);
+	ptrs_jit_branch_if(func, &start, condition);
 
 	//after the loop - patch the breaks
 	jit_insn_label(func, &scope->breakLabel);
@@ -647,7 +647,7 @@ ptrs_jit_var_t ptrs_handle_for(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 	val = stmt->condition->handler(stmt->condition, func, scope);
 
 	jit_label_t end = jit_label_undefined;
-	ptrs_jit_branch_if_not(func, &end, val.val, val.meta);
+	ptrs_jit_branch_if_not(func, &end, val);
 
 	//run the while body, jumping back the condition check afterwords
 	val = stmt->body->handler(stmt->body, func, scope);
