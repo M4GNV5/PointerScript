@@ -1,14 +1,8 @@
-#include <stdio.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <string.h>
-#include <assert.h>
-
-#include "../parser/common.h"
-#include "../parser/ast.h"
-#include "include/conversion.h"
-#include "include/error.h"
-#include "include/util.h"
+#include "../../parser/common.h"
+#include "../../parser/ast.h"
+#include "../include/conversion.h"
+#include "../include/error.h"
+#include "../include/util.h"
 
 #define const_typecomp(a, b) ((PTRS_TYPE_##a << 3) | PTRS_TYPE_##b)
 #define typecomp(a, b) ((a << 3) | b)
@@ -74,7 +68,63 @@ static jit_type_t getIntrinsicSignature()
 		ret.value.intval = left.ptrval - right.ptrval; \
 		break;
 
-#define handle_binary_intrinsic(name, operator, cases) \
+#define binary_add_jit_cases \
+	case const_typecomp(NATIVE, INT): \
+		left.constType = PTRS_TYPE_NATIVE; \
+		left.meta = ptrs_jit_setArraySize(func, left.meta, \
+			jit_insn_sub(func, ptrs_jit_getArraySize(func, left.meta), right.val) \
+		); \
+		left.val = jit_insn_add(func, left.val, right.val); \
+		break; \
+	case const_typecomp(INT, NATIVE): \
+		left.constType = PTRS_TYPE_NATIVE; \
+		left.meta = ptrs_jit_setArraySize(func, right.meta, \
+			jit_insn_sub(func, ptrs_jit_getArraySize(func, right.meta), left.val) \
+		); \
+		left.val = jit_insn_add(func, left.val, right.val); \
+		break; \
+	case const_typecomp(POINTER, INT): \
+		left.constType = PTRS_TYPE_POINTER; \
+		left.meta = ptrs_jit_setArraySize(func, left.meta, \
+			jit_insn_sub(func, ptrs_jit_getArraySize(func, left.meta), right.val) \
+		); \
+		left.val = jit_insn_add(func, left.val, right.val); \
+		break; \
+	case const_typecomp(INT, POINTER): \
+		left.constType = PTRS_TYPE_POINTER; \
+		left.meta = ptrs_jit_setArraySize(func, right.meta, \
+			jit_insn_sub(func, ptrs_jit_getArraySize(func, right.meta), left.val) \
+		); \
+		left.val = jit_insn_add(func, left.val, right.val); \
+		break;
+
+#define binary_sub_jit_cases \
+	case const_typecomp(NATIVE, INT): \
+		left.constType = PTRS_TYPE_NATIVE; \
+		left.meta = ptrs_jit_setArraySize(func, left.meta, \
+			jit_insn_add(func, ptrs_jit_getArraySize(func, left.meta), right.val) \
+		); \
+		left.val = jit_insn_sub(func, left.val, right.val); \
+		break; \
+	case const_typecomp(NATIVE, NATIVE): \
+		left.constType = PTRS_TYPE_INT; \
+		left.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT); \
+		left.val = jit_insn_sub(func, left.val, right.val); \
+		break; \
+	case const_typecomp(POINTER, INT): \
+		left.constType = PTRS_TYPE_POINTER; \
+		left.meta = ptrs_jit_setArraySize(func, left.meta, \
+			jit_insn_add(func, ptrs_jit_getArraySize(func, left.meta), right.val) \
+		); \
+		left.val = jit_insn_sub(func, left.val, right.val); \
+		break; \
+	case const_typecomp(POINTER, POINTER): \
+		left.constType = PTRS_TYPE_INT; \
+		left.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT); \
+		left.val = jit_insn_sub(func, left.val, right.val); \
+		break;
+
+#define handle_binary_intrinsic(name, operator, jitOp, cases, jitCases) \
 	ptrs_var_t ptrs_intrinsic_##name(ptrs_ast_t *node, ptrs_val_t left, ptrs_meta_t leftMeta, \
 		ptrs_val_t right, ptrs_meta_t rightMeta) \
 	{ \
@@ -113,22 +163,68 @@ static jit_type_t getIntrinsicSignature()
 		ptrs_jit_var_t left = expr->left->handler(expr->left, func, scope); \
 		ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope); \
 		\
-		if(jit_value_is_constant(left.meta) && jit_value_is_constant(right.meta) \
-			&& jit_value_is_constant(left.val) && jit_value_is_constant(right.val)) \
+		if(left.constType != -1 && right.constType != -1) \
 		{ \
-			ptrs_var_t val = ptrs_intrinsic_##name(node, \
-				ptrs_jit_value_getValConstant(left.val), \
-				ptrs_jit_value_getMetaConstant(left.meta), \
-				ptrs_jit_value_getValConstant(right.val), \
-				ptrs_jit_value_getMetaConstant(right.meta) \
-			); \
-			\
-			ptrs_jit_var_t ret = { \
-				.val = jit_const_long(func, long, val.value.intval), \
-				.meta = jit_const_long(func, ulong, *(uint64_t *)&val.meta), \
-				.constType = val.meta.type, \
-			}; \
-			return ret; \
+			if(jit_value_is_constant(left.val) && jit_value_is_constant(right.val)) \
+			{ \
+				ptrs_var_t val = ptrs_intrinsic_##name(node, \
+					ptrs_jit_value_getValConstant(left.val), \
+					ptrs_jit_value_getMetaConstant(left.meta), \
+					ptrs_jit_value_getValConstant(right.val), \
+					ptrs_jit_value_getMetaConstant(right.meta) \
+				); \
+				\
+				ptrs_jit_var_t ret = { \
+					.val = jit_const_long(func, long, val.value.intval), \
+					.meta = jit_const_long(func, ulong, *(uint64_t *)&val.meta), \
+					.constType = val.meta.type, \
+				}; \
+				return ret; \
+			} \
+			else \
+			{ \
+				switch(typecomp(left.constType, right.constType)) \
+				{ \
+					case const_typecomp(INT, INT): \
+						left.constType = PTRS_TYPE_INT; \
+						left.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT); \
+						left.val = jit_insn_##jitOp(func, left.val, right.val); \
+						break; \
+					case const_typecomp(FLOAT, INT): \
+						left.constType = PTRS_TYPE_FLOAT; \
+						left.meta = ptrs_jit_const_meta(func, PTRS_TYPE_FLOAT); \
+						left.val = jit_insn_##jitOp(func, \
+							ptrs_jit_reinterpretCast(func, left.val, jit_type_float64), \
+							jit_insn_convert(func, right.val, jit_type_float64, 0) \
+						); \
+						left.val = ptrs_jit_reinterpretCast(func, left.val, jit_type_long); \
+						break; \
+					case const_typecomp(INT, FLOAT): \
+						left.constType = PTRS_TYPE_FLOAT; \
+						left.meta = ptrs_jit_const_meta(func, PTRS_TYPE_FLOAT); \
+						left.val = jit_insn_##jitOp(func, \
+							jit_insn_convert(func, left.val, jit_type_float64, 0), \
+							ptrs_jit_reinterpretCast(func, right.val, jit_type_float64) \
+						); \
+						left.val = ptrs_jit_reinterpretCast(func, left.val, jit_type_long); \
+						break; \
+					case const_typecomp(FLOAT, FLOAT): \
+						left.constType = PTRS_TYPE_FLOAT; \
+						left.meta = ptrs_jit_const_meta(func, PTRS_TYPE_FLOAT); \
+						left.val = jit_insn_##jitOp(func, \
+							ptrs_jit_reinterpretCast(func, left.val, jit_type_float64), \
+							ptrs_jit_reinterpretCast(func, right.val, jit_type_float64) \
+						); \
+						left.val = ptrs_jit_reinterpretCast(func, left.val, jit_type_long); \
+						break; \
+					jitCases \
+					default: \
+						ptrs_error(node, "Cannot use operator " #operator " on variables of type %t and %t", \
+							left.constType, right.constType); \
+						break; \
+				} \
+				return left; \
+			} \
 		} \
 		\
 		jit_value_t args[5] = { \
@@ -310,10 +406,10 @@ handle_binary_intonly(xor, xor, ^) //^
 handle_binary_intonly(and, and, &) //&
 handle_binary_intonly(shr, sshr, >>) //>>
 handle_binary_intonly(shl, shl, <<) //<<
-handle_binary_intrinsic(add, +, binary_add_cases) //+
-handle_binary_intrinsic(sub, -, binary_sub_cases) //-
-handle_binary_intrinsic(mul, *, ) //*
-handle_binary_intrinsic(div, /, ) ///
+handle_binary_intrinsic(add, +, add, binary_add_cases, binary_add_jit_cases) //+
+handle_binary_intrinsic(sub, -, sub, binary_sub_cases, binary_sub_jit_cases) //-
+handle_binary_intrinsic(mul, *, mul, , ) //*
+handle_binary_intrinsic(div, /, div, , ) ///
 handle_binary_intonly(mod, rem, %) //%
 handle_binary_intrinsic_assign(addassign, add) //+=
 handle_binary_intrinsic_assign(subassign, sub) //-=
@@ -327,89 +423,3 @@ handle_binary_intonly_assign(xorassign, xor) //^=
 handle_binary_intonly_assign(orassign, or) //|=
 handle_binary_logic(logicor, if, !=) //||
 handle_binary_logic(logicand, if_not, ==) //&&
-
-ptrs_jit_var_t ptrs_handle_op_logicxor(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
-{
-	struct ptrs_ast_binary *expr = &node->arg.binary;
-
-	ptrs_jit_var_t left = expr->left->handler(expr->left, func, scope);
-	ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope);
-
-	left.val = ptrs_jit_vartob(func, left);
-	right.val = ptrs_jit_vartob(func, right);
-
-	right.val = jit_insn_xor(func, left.val, right.val);
-	right.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
-	right.constType = PTRS_TYPE_INT;
-
-	return right;
-}
-
-ptrs_jit_var_t ptrs_handle_prefix_logicnot(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
-{
-	ptrs_ast_t *expr = node->arg.astval;
-
-	ptrs_jit_var_t val = expr->handler(expr, func, scope);
-	val.val = ptrs_jit_vartob(func, val);
-
-	val.val = jit_insn_xor(func, val.val, jit_const_long(func, long, 1));
-	val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
-	val.constType = PTRS_TYPE_INT;
-
-	return val;
-}
-
-ptrs_jit_var_t ptrs_handle_op_assign(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
-{
-	struct ptrs_ast_binary *expr = &node->arg.binary;
-
-	ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope);
-	expr->left->setHandler(expr->left, func, scope, right);
-
-	return right;
-}
-
-ptrs_jit_var_t ptrs_handle_prefix_plus(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
-{
-	ptrs_ast_t *expr = node->arg.astval;
- 	return expr->handler(expr, func, scope);
-}
-
-#define jit_insn_inc(func, val) (jit_insn_add(func, val, jit_const_long(func, long, 1)))
-#define jit_insn_dec(func, val) (jit_insn_sub(func, val, jit_const_long(func, long, 1)))
-
-#define handle_prefix(name, operator, isAssign) \
-	ptrs_jit_var_t ptrs_handle_prefix_##name(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope) \
-	{ \
-		ptrs_ast_t *expr = node->arg.astval; \
-		ptrs_jit_var_t val = expr->handler(expr, func, scope); \
-		\
-		/* TODO floats */ \
-		val.val = jit_insn_##operator(func, val.val); \
-		if(isAssign) \
-			expr->setHandler(expr, func, scope, val); \
-		\
-		return val; \
-	}
-
-handle_prefix(inc, inc, true)
-handle_prefix(dec, dec, true)
-handle_prefix(not, not, false)
-handle_prefix(minus, neg, false)
-
-#define handle_suffix(name, operator) \
-	ptrs_jit_var_t ptrs_handle_suffix_##name(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope) \
-	{ \
-		ptrs_ast_t *expr = node->arg.astval; \
-		ptrs_jit_var_t val = expr->handler(expr, func, scope); \
-		ptrs_jit_var_t writeback = val; \
-		\
-		/* TODO floats */ \
-		writeback.val = jit_insn_##operator(func, val.val); \
-		expr->setHandler(expr, func, scope, writeback); \
-		\
-		return val; \
-	}
-
-handle_suffix(inc, inc)
-handle_suffix(dec, dec)

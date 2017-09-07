@@ -8,19 +8,23 @@ RUN = $(BIN)/ptrs
 
 PARSER_OBJECTS += $(BIN)/ast.o
 
-RUN_LIB_OBJECTS += $(BIN)/conversion.o
-RUN_LIB_OBJECTS += $(BIN)/error.o
-RUN_LIB_OBJECTS += $(BIN)/astlist.o
-RUN_LIB_OBJECTS += $(BIN)/call.o
-RUN_LIB_OBJECTS += $(BIN)/run.o
-RUN_LIB_OBJECTS += $(BIN)/nativetypes.o
-RUN_LIB_OBJECTS += $(BIN)/struct.o
-RUN_LIB_OBJECTS += $(BIN)/util.o
-
 RUN_OBJECTS += $(BIN)/statements.o
 RUN_OBJECTS += $(BIN)/specialexpr.o
-RUN_OBJECTS += $(BIN)/ops.o
 RUN_OBJECTS += $(BIN)/main.o
+
+RUN_OBJECTS += $(BIN)/lib/conversion.o
+RUN_OBJECTS += $(BIN)/lib/error.o
+RUN_OBJECTS += $(BIN)/lib/astlist.o
+RUN_OBJECTS += $(BIN)/lib/call.o
+RUN_OBJECTS += $(BIN)/lib/run.o
+RUN_OBJECTS += $(BIN)/lib/nativetypes.o
+RUN_OBJECTS += $(BIN)/lib/struct.o
+RUN_OBJECTS += $(BIN)/lib/util.o
+
+RUN_OBJECTS += $(BIN)/ops/binary.o
+RUN_OBJECTS += $(BIN)/ops/typed_binary.o
+RUN_OBJECTS += $(BIN)/ops/unary.o
+RUN_OBJECTS += $(BIN)/ops/special.o
 
 EXTERN_LIBS += -lm
 EXTERN_LIBS += -ldl
@@ -62,11 +66,13 @@ clean:
 clean-deps:
 	$(MAKE) -C libjit clean
 
-$(RUN): $(MYJIT_BIN) $(BIN) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS)
-	$(CC) $(PARSER_OBJECTS) $(RUN_LIB_OBJECTS) $(RUN_OBJECTS) -o $(BIN)/ptrs -rdynamic $(EXTERN_LIBS)
+$(RUN): $(MYJIT_BIN) $(BIN) $(PARSER_OBJECTS) $(RUN_OBJECTS)
+	$(CC) $(PARSER_OBJECTS) $(RUN_OBJECTS) -o $(BIN)/ptrs -rdynamic $(EXTERN_LIBS)
 
 $(BIN):
 	mkdir $(BIN)
+	mkdir $(BIN)/lib
+	mkdir $(BIN)/ops
 
 $(LIBJIT_BIN):
 	cd myjit && ./bootstrap
@@ -74,9 +80,6 @@ $(LIBJIT_BIN):
 	$(MAKE) -C myjit
 
 $(BIN)/%.o: parser/%.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-$(BIN)/%.o: jit/lib/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BIN)/%.o: jit/%.c
