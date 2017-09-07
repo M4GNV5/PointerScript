@@ -87,16 +87,16 @@ jit_value_t ptrs_jit_reinterpretCast(jit_function_t func, jit_value_t val, jit_t
 			return jit_value_create_float64_constant(func, newType, constVal.un.float64_value);
 	}
 
-	jit_value_t ptr;
 	if(jit_value_is_addressable(val))
 	{
-		ptr = jit_insn_address_of(func, val);
+		return jit_insn_load_relative(func, jit_insn_address_of(func, val), 0, newType);
 	}
 	else
 	{
-		ptr = jit_value_create(func, newType);
-		jit_value_set_addressable(ptr);
-		ptr = jit_insn_address_of(func, ptr);
+
+		jit_value_t ret = jit_value_create(func, newType);
+		jit_value_set_addressable(ret);
+		jit_insn_store_relative(func, jit_insn_address_of(func, ret), 0, val);
+		return ret;
 	}
-	return jit_insn_load_relative(func, ptr, 0, newType);
 }
