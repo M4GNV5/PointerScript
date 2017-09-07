@@ -764,18 +764,15 @@ ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	jit_value_set_addressable(ret);
 	jit_value_t retAddr = jit_insn_address_of(func, ret);
 
-	if(jit_value_is_constant(val.meta))
+	if(val.constType != -1)
 	{
-		jit_ulong constMeta = jit_value_get_long_constant(val.meta);
-		ptrs_meta_t meta = *(ptrs_meta_t *)&constMeta;
-
-		if(meta.type == PTRS_TYPE_NATIVE)
+		if(val.constType == PTRS_TYPE_NATIVE)
 		{
 			forinArray(stmt, func, val,
 				body, bodySignature, totalArgCount,
 				retAddr, &returnVal, &done, true);
 		}
-		else if(meta.type == PTRS_TYPE_POINTER)
+		else if(val.constType == PTRS_TYPE_POINTER)
 		{
 			forinArray(stmt, func, val,
 				body, bodySignature, totalArgCount,
@@ -784,7 +781,7 @@ ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 		//TODO struct
 		else
 		{
-			ptrs_error(node, "Cannot iterate over value of type %t", meta.type);
+			ptrs_error(node, "Cannot iterate over value of type %t", val.constType);
 		}
 	}
 	else
