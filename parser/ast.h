@@ -18,9 +18,11 @@ struct ptrs_ast_define
 	{
 		struct ptrs_astlist *initVal;
 		struct ptrs_ast *initExpr;
+		ptrs_vartype_t type;
 	};
 	uint8_t isInitExpr : 1;
 	uint8_t onStack : 1;
+	uint8_t isTyped : 1;
 };
 
 struct ptrs_ast_typed

@@ -32,10 +32,6 @@ ptrs_jit_var_t ptrs_handle_body(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 ptrs_jit_var_t ptrs_handle_define(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_define *stmt = &node->arg.define;
-	stmt->location.val = jit_value_create(func, jit_type_long);
-	stmt->location.meta = jit_value_create(func, jit_type_ulong);
-	stmt->location.constType = -1;
-
 	ptrs_jit_var_t val;
 
 	if(stmt->value != NULL)
@@ -48,8 +44,53 @@ ptrs_jit_var_t ptrs_handle_define(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 		val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
 	}
 
+	stmt->location.val = jit_value_create(func, jit_type_long);
+	stmt->location.meta = jit_value_create(func, jit_type_ulong);
+	stmt->location.constType = -1;
+
 	jit_insn_store(func, stmt->location.val, val.val);
 	jit_insn_store(func, stmt->location.meta, val.meta);
+	return stmt->location;
+}
+
+ptrs_jit_var_t ptrs_handle_typeddefine(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_define *stmt = &node->arg.define;
+	ptrs_jit_var_t val;
+	if(stmt->value != NULL)
+	{
+		val = stmt->value->handler(stmt->value, func, scope);
+
+		if(val.constType == -1 && stmt->type > PTRS_TYPE_STRUCT)
+			ptrs_error(node, "Initializer of untyped let statement has a dynamic type");
+		else if(stmt->type > PTRS_TYPE_STRUCT)
+			stmt->location.constType = val.constType;
+		else if(val.constType == -1)
+			stmt->location.constType = stmt->type;
+		else if(val.constType != stmt->type)
+			ptrs_error(node, "Variable is defined as %t but initializer has type %t",
+				stmt->type, val.constType);
+	}
+	else
+	{
+		val.val = jit_value_create_long_constant(func, jit_type_long, 0);
+		val.meta = ptrs_jit_const_meta(func, stmt->type);
+		stmt->location.constType = stmt->type;
+	}
+
+	stmt->location.val = jit_value_create(func, jit_type_long);
+	jit_insn_store(func, stmt->location.val, val.val);
+
+	if(stmt->location.constType == PTRS_TYPE_NATIVE || stmt->location.constType == PTRS_TYPE_POINTER)
+	{
+		stmt->location.meta = jit_value_create(func, jit_type_long);
+		jit_insn_store(func, stmt->location.meta, val.meta);
+	}
+	else
+	{
+		stmt->location.meta = ptrs_jit_const_meta(func, stmt->location.constType);
+	}
+
 	return stmt->location;
 }
 

@@ -22,7 +22,6 @@ RUN_OBJECTS += $(BIN)/lib/struct.o
 RUN_OBJECTS += $(BIN)/lib/util.o
 
 RUN_OBJECTS += $(BIN)/ops/binary.o
-RUN_OBJECTS += $(BIN)/ops/typed_binary.o
 RUN_OBJECTS += $(BIN)/ops/unary.o
 RUN_OBJECTS += $(BIN)/ops/special.o
 

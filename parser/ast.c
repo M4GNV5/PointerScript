@@ -557,7 +557,31 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	stmt->code = code->src;
 	stmt->file = code->filename;
 
-	if(lookahead(code, "var"))
+	if(lookahead(code, "let"))
+	{
+		stmt->handler = ptrs_handle_typeddefine;
+		addSymbol(code, readIdentifier(code), &stmt->arg.define.location);
+
+		if(lookahead(code, ":"))
+		{
+			stmt->arg.define.type = readTypeName(code);
+
+			if(stmt->arg.define.type > PTRS_TYPE_STRUCT)
+				unexpected(code, "TypeName");
+		}
+		else
+		{
+			stmt->arg.define.type = PTRS_TYPE_STRUCT + 1;
+		}
+
+		if(lookahead(code, "="))
+			stmt->arg.define.value = parseExpression(code, true);
+		else if(stmt->arg.define.type > PTRS_TYPE_STRUCT)
+			unexpectedm(code, NULL, "A let statement must either have a type or an initializer");
+		else
+			stmt->arg.define.value = NULL;
+	}
+	else if(lookahead(code, "var"))
 	{
 		stmt->handler = ptrs_handle_define;
 		addSymbol(code, readIdentifier(code), &stmt->arg.define.location);
