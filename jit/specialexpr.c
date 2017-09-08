@@ -454,10 +454,22 @@ void ptrs_handle_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_s
 	ptrs_jit_var_t *target = node->arg.varval;
 	jit_insn_store(func, target->val, val.val);
 
-	if(val.constType != -1 && val.constType != target->constType)
-		ptrs_error(node, "Cannot assign value of type %t to variable of type %t",
-			val.constType, target->constType);
-	//TODO add a runtime check when val is dynamically typed?
+	if(target->constType != -1)
+	{
+		if(val.constType == -1)
+		{
+			jit_value_t type = ptrs_jit_getType(func, val.meta);
+			jit_value_t targetType = jit_const_long(func, ulong, target->constType);
+			ptrs_jit_assert(node, func, scope,
+				jit_insn_eq(func, type, targetType),
+				2, "Cannot assign value of type %mt to variable of type %t", type, targetType);
+		}
+		else if(val.constType != target->constType)
+		{
+			ptrs_error(node, "Cannot assign value of type %t to variable of type %t",
+				val.constType, target->constType);
+		}
+	}
 
 	if(!jit_value_is_constant(target->meta))
 		jit_insn_store(func, target->meta, val.meta);
