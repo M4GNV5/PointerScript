@@ -19,6 +19,49 @@ ptrs_jit_var_t ptrs_handle_op_logicxor(ptrs_ast_t *node, jit_function_t func, pt
 	return right;
 }
 
+ptrs_jit_var_t ptrs_handle_op_ternary(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_ternary *expr = &node->arg.ternary;
+	jit_label_t isFalse = jit_label_undefined;
+	jit_label_t done = jit_label_undefined;
+
+	ptrs_jit_var_t condition = expr->condition->handler(expr->condition, func, scope);
+
+	ptrs_jit_var_t ret = {
+		.val = jit_value_create(func, jit_type_long),
+		.meta = jit_value_create(func, jit_type_ulong),
+		.constType = -1,
+	};
+
+	ptrs_jit_branch_if_not(func, &isFalse, condition);
+
+	//is true
+	ptrs_jit_var_t trueVal = expr->trueVal->handler(expr->trueVal, func, scope);
+	jit_insn_store(func, ret.val, trueVal.val);
+	jit_insn_store(func, ret.meta, trueVal.meta);
+	jit_insn_branch(func, &done);
+
+	//is false
+	jit_insn_label(func, &isFalse);
+	ptrs_jit_var_t falseVal = expr->falseVal->handler(expr->falseVal, func, scope);
+	jit_insn_store(func, ret.val, falseVal.val);
+	jit_insn_store(func, ret.meta, falseVal.meta);
+
+	jit_insn_label(func, &done);
+	ret.constType = trueVal.constType == falseVal.constType ? trueVal.constType : -1;
+	return ret;
+}
+
+ptrs_jit_var_t ptrs_handle_op_assign(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_binary *expr = &node->arg.binary;
+
+	ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope);
+	expr->left->setHandler(expr->left, func, scope, right);
+
+	return right;
+}
+
 ptrs_jit_var_t ptrs_handle_prefix_logicnot(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	ptrs_ast_t *expr = node->arg.astval;
@@ -31,16 +74,6 @@ ptrs_jit_var_t ptrs_handle_prefix_logicnot(ptrs_ast_t *node, jit_function_t func
 	val.constType = PTRS_TYPE_INT;
 
 	return val;
-}
-
-ptrs_jit_var_t ptrs_handle_op_assign(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
-{
-	struct ptrs_ast_binary *expr = &node->arg.binary;
-
-	ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope);
-	expr->left->setHandler(expr->left, func, scope, right);
-
-	return right;
 }
 
 ptrs_jit_var_t ptrs_handle_prefix_plus(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
