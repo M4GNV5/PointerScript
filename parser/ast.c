@@ -1117,7 +1117,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 				code->curr = code->src[pos];
 			}
 
-			ast->handler = ptrs_handle_prefix_length;
+			ast->handler = ptrs_handle_prefix_sizeof;
 			ast->arg.astval = parseUnaryExpr(code, ignoreCalls, ignoreAlgo);
 		}
 	}
@@ -2164,7 +2164,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				consume(code, "this");
 
 				nameFormat = "%1$s.op sizeof this";
-				overload->op = ptrs_handle_prefix_length;
+				overload->op = ptrs_handle_prefix_sizeof;
 
 				func->argc = 0;
 				func->args = NULL;
