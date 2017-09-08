@@ -80,7 +80,10 @@ void exitOnError()
 {
 	ptrs_error_t *error = jit_exception_get_last();
 	if(error != NULL)
-		ptrs_printErrorAndExit(error);
+	{
+		ptrs_printError(error);
+		exit(EXIT_FAILURE);
+	}
 }
 
 int main(int argc, char **argv)

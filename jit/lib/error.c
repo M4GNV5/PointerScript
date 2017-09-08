@@ -16,13 +16,6 @@
 #include "../include/conversion.h"
 #include "../include/run.h"
 
-typedef struct
-{
-	char *currLine;
-	int line;
-	int column;
-} codepos_t;
-
 struct ptrs_assertion
 {
 	struct ptrs_assertion *next;
@@ -36,7 +29,7 @@ bool ptrs_enableExceptions = false;
 
 extern jit_context_t ptrs_jit_context;
 
-void ptrs_getpos(codepos_t *pos, ptrs_ast_t *ast)
+void ptrs_getpos(ptrs_codepos_t *pos, ptrs_ast_t *ast)
 {
 	int line = 1;
 	int column = 1;
@@ -60,11 +53,27 @@ void ptrs_getpos(codepos_t *pos, ptrs_ast_t *ast)
 	pos->column = column;
 }
 
-void ptrs_printErrorAndExit(ptrs_error_t *error)
+void ptrs_printError(ptrs_error_t *error)
 {
-	fprintf(ptrs_errorfile, "%s at %s:%d:%d\n%s",
-		error->message, error->file, error->line, error->column, error->backtrace);
-	exit(EXIT_FAILURE);
+	fprintf(ptrs_errorfile, "%s", error->message);
+
+	if(error->ast != NULL)
+	{
+		fprintf(ptrs_errorfile, " at %s:%d:%d\n\n", error->ast->file, error->pos.line, error->pos.column);
+
+		int linelen = strchr(error->pos.currLine, '\n') - error->pos.currLine;
+		fprintf(ptrs_errorfile, "%.*s\n", linelen, error->pos.currLine);
+
+		int linePos = (error->ast->code + error->ast->codepos) - error->pos.currLine;
+		for(int i = 0; i < linePos; i++)
+		{
+			fprintf(ptrs_errorfile, error->pos.currLine[i] == '\t' ? "\t" : " ");
+		}
+
+		fprintf(ptrs_errorfile, "^\n");
+	}
+
+	fprintf(ptrs_errorfile, "\n%s", error->backtrace);
 }
 
 char *ptrs_backtrace()
@@ -197,47 +206,42 @@ void *ptrs_formatErrorMsg(const char *msg, va_list ap)
 	return buff;
 }
 
-void ptrs_handle_sig(int sig, siginfo_t *info, void *data)
+void ptrs_error(ptrs_ast_t *ast, const char *msg, ...)
 {
-	//TODO allow catching errors
+	va_list ap;
+	va_start(ap, msg);
 
 	ptrs_error_t *error = malloc(sizeof(ptrs_error_t));
-
-	int len = snprintf(NULL, 0, "Received signal: %s", strsignal(sig));
-	error->message = malloc(len + 1);
-	sprintf(error->message, "Received signal: %s", strsignal(sig));
-
+	error->message = ptrs_formatErrorMsg(msg, ap);
 	error->backtrace = ptrs_backtrace();
 
-	error->file = NULL;
-	error->line = -1;
-	error->column = -1;
+	error->ast = ast;
+	if(ast == NULL)
+	{
+		error->pos.currLine = NULL;
+		error->pos.line = -1;
+		error->pos.column = -1;
+	}
+	else
+	{
+		ptrs_getpos(&error->pos, ast);
+	}
 
 	if(ptrs_enableExceptions)
 		jit_exception_throw(error);
-	else
-		ptrs_printErrorAndExit(error);
+
+	ptrs_printError(error);
+	exit(EXIT_FAILURE);
+}
+
+void ptrs_handle_sig(int sig, siginfo_t *info, void *data)
+{
+	ptrs_error(NULL, "Received signal: %s", strsignal(sig));
 }
 
 void *ptrs_handle_exception(int type)
 {
-	ptrs_error_t *error = malloc(sizeof(ptrs_error_t));
-
-	int len = snprintf(NULL, 0, "JIT Exception: %d", type);
-	error->message = malloc(len + 1);
-	sprintf(error->message, "JIT Exception: %d", type);
-
-	error->backtrace = ptrs_backtrace();
-
-	error->file = NULL;
-	error->line = -1;
-	error->column = -1;
-
-	if(ptrs_enableExceptions)
-		return error;
-
-	ptrs_printErrorAndExit(error);
-	return NULL; //doh
+	ptrs_error(NULL, "JIT Exception: %d", type);
 }
 
 void ptrs_handle_signals(jit_function_t func)
@@ -258,27 +262,6 @@ void ptrs_handle_signals(jit_function_t func)
 	sigaction(SIGPIPE, &action, NULL);
 
 	jit_exception_set_handler(ptrs_handle_exception);
-}
-
-void ptrs_error(ptrs_ast_t *ast, const char *msg, ...)
-{
-	va_list ap;
-	va_start(ap, msg);
-
-	ptrs_error_t *error = malloc(sizeof(ptrs_error_t));
-	error->message = ptrs_formatErrorMsg(msg, ap);
-	error->backtrace = ptrs_backtrace();
-	error->file = ast->file;
-
-	codepos_t pos;
-	ptrs_getpos(&pos, ast);
-	error->line = pos.line;
-	error->column = pos.column;
-
-	if(ptrs_enableExceptions)
-		jit_exception_throw(error);
-	else
-		ptrs_printErrorAndExit(error);
 }
 
 struct ptrs_assertion *ptrs_jit_assert(ptrs_ast_t *ast, jit_function_t func, ptrs_scope_t *scope,
