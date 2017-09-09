@@ -53,6 +53,8 @@ typedef struct ptrs_nativetype_info
 {
 	const char *name;
 	size_t size;
+	jit_type_t jitType;
+	ptrs_vartype_t varType;
 	ptrs_nativetype_handler_t getHandler;
 	ptrs_nativetype_handler_t setHandler;
 } ptrs_nativetype_info_t;

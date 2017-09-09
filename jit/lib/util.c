@@ -100,3 +100,38 @@ jit_value_t ptrs_jit_reinterpretCast(jit_function_t func, jit_value_t val, jit_t
 		return ret;
 	}
 }
+
+jit_value_t ptrs_jit_normalizeForVar(jit_function_t func, jit_value_t val)
+{
+	jit_type_t type = jit_value_get_type(val);
+	jit_type_t convertTo = jit_type_promote_int(jit_type_normalize(type));
+
+	switch(jit_type_get_kind(convertTo))
+	{
+		case JIT_TYPE_INT:
+			convertTo = jit_type_long;
+			break;
+		case JIT_TYPE_UINT:
+			convertTo = jit_type_ulong;
+			break;
+		case JIT_TYPE_FLOAT32:
+		case JIT_TYPE_FLOAT64:
+			convertTo = jit_type_float64;
+			break;
+		case JIT_TYPE_PTR:
+		case JIT_TYPE_LONG:
+		case JIT_TYPE_ULONG:
+			convertTo = NULL;
+			break;
+	}
+
+	if(convertTo != NULL)
+	{
+		val = jit_insn_convert(func, val, convertTo, 0);
+
+		if(convertTo != jit_type_long)
+			val = ptrs_jit_reinterpretCast(func, val, jit_type_long);
+	}
+
+	return val;
+}
