@@ -524,11 +524,29 @@ ptrs_jit_var_t ptrs_handle_call_functionidentifier(ptrs_ast_t *node, jit_functio
 
 ptrs_jit_var_t ptrs_handle_typed(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	//TODO
+	struct ptrs_ast_typed *expr = &node->arg.typed;
+
+	ptrs_jit_var_t ret;
+	ret.meta = ptrs_jit_const_meta(func, expr->type->varType);
+	ret.constType = expr->type->varType;
+
+	ret.val = jit_insn_load_relative(func, expr->location->val, 0, expr->type->jitType);
+	ret.val = ptrs_jit_normalizeForVar(func, ret.val);
+
+	return ret;
 }
 void ptrs_handle_assign_typed(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
 {
-	//TODO
+	struct ptrs_ast_typed *expr = &node->arg.typed;
+
+	if(val.constType == -1)
+		ptrs_jit_assert(node, func, scope,
+			ptrs_jit_hasType(func, val.meta, expr->type->varType),
+			2, "Cannot assign an extern of type %s from type %mt", expr->type->name, val.meta);
+	else if(val.constType != expr->type->varType)
+		ptrs_error(node, "Cannot assign an extern of type %s from type %t", expr->type->name, val.constType);
+
+	jit_insn_store_relative(func, expr->location->val, 0, val.val);
 }
 
 ptrs_jit_var_t ptrs_handle_constant(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
