@@ -76,7 +76,7 @@ void ptrs_printError(ptrs_error_t *error)
 	fprintf(ptrs_errorfile, "\n%s", error->backtrace);
 }
 
-char *ptrs_backtrace()
+char *ptrs_backtrace(int traceSkip)
 {
 	int bufflen = 1024;
 	char *buff = malloc(bufflen);
@@ -84,10 +84,16 @@ char *ptrs_backtrace()
 	char *buffptr = buff;
 	buff[0] = 0;
 
+#ifdef _GNU_SOURCE
+	void *trace[32];
+	int count = backtrace(trace, 32);
+#else
 	jit_stack_trace_t trace = jit_exception_get_stack_trace();
 	int count = jit_stack_trace_get_size(trace);
+	traceSkip = 0;
+#endif
 
-	for(int i = 0; i < count; i++)
+	for(int i = traceSkip; i < count; i++)
 	{
 		if(buffptr - buff > bufflen - 128)
 		{
@@ -97,7 +103,11 @@ char *ptrs_backtrace()
 			buffptr = buff + diff;
 		}
 
+#ifdef _GNU_SOURCE
+		jit_function_t func = jit_function_from_pc(ptrs_jit_context, trace[i], NULL);
+#else
 		jit_function_t func = jit_stack_trace_get_function(ptrs_jit_context, trace, i);
+#endif
 		if(func)
 		{
 			const char *name = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_NAME);
@@ -107,10 +117,8 @@ char *ptrs_backtrace()
 		else
 		{
 #ifdef _GNU_SOURCE
-			void *ptr = jit_stack_trace_get_pc(trace, i);
 			Dl_info info;
-
-			if(dladdr(ptr, &info) == 0)
+			if(dladdr(trace[i], &info) == 0)
 			{
 				info.dli_sname = NULL;
 				info.dli_fname = NULL;
@@ -119,7 +127,7 @@ char *ptrs_backtrace()
 			if(info.dli_sname != NULL)
 				buffptr += sprintf(buffptr, "    at %s ", info.dli_sname);
 			else
-				buffptr += sprintf(buffptr, "    at %p ", ptr);
+				buffptr += sprintf(buffptr, "    at %p ", trace[i]);
 
 			if(info.dli_fname != NULL)
 				buffptr += sprintf(buffptr, "(%s)\n", info.dli_fname);
@@ -206,14 +214,10 @@ void *ptrs_formatErrorMsg(const char *msg, va_list ap)
 	return buff;
 }
 
-void ptrs_error(ptrs_ast_t *ast, const char *msg, ...)
+static void _vptrs_error(ptrs_ast_t *ast, int skipTrace, const char *msg, va_list ap)
 {
-	va_list ap;
-	va_start(ap, msg);
-
 	ptrs_error_t *error = malloc(sizeof(ptrs_error_t));
 	error->message = ptrs_formatErrorMsg(msg, ap);
-	error->backtrace = ptrs_backtrace();
 
 	error->ast = ast;
 	if(ast == NULL)
@@ -228,20 +232,40 @@ void ptrs_error(ptrs_ast_t *ast, const char *msg, ...)
 	}
 
 	if(ptrs_enableExceptions)
+	{
+		error->backtrace = ptrs_backtrace(skipTrace);
 		jit_exception_throw(error);
+	}
+	else
+	{
+		error->backtrace = "";
+		ptrs_printError(error);
+		exit(EXIT_FAILURE);
+	}
 
-	ptrs_printError(error);
-	exit(EXIT_FAILURE);
+}
+static void _ptrs_error(ptrs_ast_t *ast, int skipTrace, const char *msg, ...)
+{
+	va_list ap;
+	va_start(ap, msg);
+	_vptrs_error(ast, skipTrace, msg, ap);
+}
+
+void ptrs_error(ptrs_ast_t *ast, const char *msg, ...)
+{
+	va_list ap;
+	va_start(ap, msg);
+	_vptrs_error(ast, 3, msg, ap);
 }
 
 void ptrs_handle_sig(int sig, siginfo_t *info, void *data)
 {
-	ptrs_error(NULL, "Received signal: %s", strsignal(sig));
+	_ptrs_error(NULL, 5, "Received signal: %s", strsignal(sig));
 }
 
 void *ptrs_handle_exception(int type)
 {
-	ptrs_error(NULL, "JIT Exception: %d", type);
+	_ptrs_error(NULL, 5, "JIT Exception: %d", type);
 }
 
 void ptrs_handle_signals(jit_function_t func)

@@ -505,7 +505,7 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 
 	jit_function_set_meta(self, PTRS_JIT_FUNCTIONMETA_NAME, funcAst->name, NULL, 0);
 	jit_function_set_meta(self, PTRS_JIT_FUNCTIONMETA_FILE, (char *)node->file, NULL, 0);
-	jit_function_set_meta(self, PTRS_JIT_FUNCTIONMETA_AST, funcAst, NULL, 0);
+	jit_function_set_meta(self, PTRS_JIT_FUNCTIONMETA_AST, node, NULL, 0);
 	jit_function_set_meta(self, PTRS_JIT_FUNCTIONMETA_CLOSURE, NULL, NULL, 0);
 
 	*ast->symbol = self;
