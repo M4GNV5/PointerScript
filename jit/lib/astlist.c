@@ -9,7 +9,7 @@ void ptrs_astlist_handle(struct ptrs_astlist *list, jit_function_t func, ptrs_sc
 {
 	int i;
 	jit_value_t zero = jit_const_long(func, ulong, 0);
-	ptrs_jit_var_t result;
+	ptrs_jit_var_t result = {zero, zero, PTRS_TYPE_UNDEFINED};
 
 	for(i = 0; list != NULL; i++)
 	{
@@ -56,7 +56,7 @@ void ptrs_astlist_handleByte(struct ptrs_astlist *list, jit_function_t func, ptr
 {
 	int i;
 	jit_value_t zero = jit_const_long(func, ubyte, 0);
-	jit_value_t result;
+	jit_value_t result = zero;
 
 	for(i = 0; list != NULL; i++)
 	{

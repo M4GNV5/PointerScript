@@ -133,6 +133,9 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	val.constType = PTRS_TYPE_NATIVE;
 
 	//store the array
+	stmt->location.val = jit_value_create(func, jit_type_long);
+	stmt->location.meta = jit_value_create(func, jit_type_ulong);
+	stmt->location.constType = PTRS_TYPE_NATIVE;
 	jit_insn_store(func, stmt->location.val, val.val);
 	jit_insn_store(func, stmt->location.meta, val.meta);
 
@@ -180,7 +183,8 @@ ptrs_jit_var_t ptrs_handle_vararray(ptrs_ast_t *node, jit_function_t func, ptrs_
 	}
 
 	//make sure array is not too big
-	ptrs_jit_assert(node, func, scope, jit_insn_le(func, byteSize, jit_const_int(func, nuint, ptrs_arraymax)),
+	ptrs_jit_assert(node, func, scope,
+		jit_insn_le(func, byteSize, jit_const_int(func, nuint, ptrs_arraymax)),
 		1, "Cannot create array of size %d", size);
 
 	//allocate memory
@@ -197,10 +201,17 @@ ptrs_jit_var_t ptrs_handle_vararray(ptrs_ast_t *node, jit_function_t func, ptrs_
 		jit_type_free(signature);
 	}
 
-	val.meta = ptrs_jit_arrayMeta(func, jit_const_long(func, ulong, PTRS_TYPE_POINTER), jit_const_long(func, ulong, false), size);
+	val.meta = ptrs_jit_arrayMeta(func,
+		jit_const_long(func, ulong, PTRS_TYPE_POINTER),
+		jit_const_long(func, ulong, false),
+		size
+	);
 	val.constType = PTRS_TYPE_POINTER;
 
 	//store the array
+	stmt->location.val = jit_value_create(func, jit_type_long);
+	stmt->location.meta = jit_value_create(func, jit_type_ulong);
+	stmt->location.constType = PTRS_TYPE_POINTER;
 	jit_insn_store(func, stmt->location.val, val.val);
 	jit_insn_store(func, stmt->location.meta, val.meta);
 
