@@ -141,8 +141,8 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 		ptrs_jit_var_t init = stmt->initExpr->handler(stmt->initExpr, func, scope);
 
 		//check type of initExpr
-		ptrs_jit_assert(node, func, scope, ptrs_jit_hasType(func, init.meta, PTRS_TYPE_NATIVE),
-			1, "Array init expression must be of type native not %mt", init.meta);
+		ptrs_jit_typeCheck(node, func, scope, init, PTRS_TYPE_NATIVE,
+			1, "Array init expression must be of type native not %mt", TYPECHECK_TYPE);
 
 		//check initExpr.size <= array.size
 		jit_value_t initSize = ptrs_jit_getArraySize(func, init.meta);

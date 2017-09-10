@@ -123,18 +123,8 @@ ptrs_jit_var_t ptrs_handle_prefix_sizeof(ptrs_ast_t *node, jit_function_t func, 
 
 	ptrs_jit_var_t val = node->handler(node, func, scope);
 
-	if(val.constType == -1)
-	{
-		jit_value_t type = ptrs_jit_getType(func, val.meta);
-		struct ptrs_assertion *assertion = ptrs_jit_assert(node, func, scope,
-			jit_insn_ge(func, type, jit_const_int(func, int, PTRS_TYPE_NATIVE)),
-			1, "Cannot get size of variable of type %t", type);
-		ptrs_jit_appendAssert(func, assertion, jit_insn_le(func, type, jit_const_int(func, int, PTRS_TYPE_POINTER)));
-	}
-	else if(val.constType != PTRS_TYPE_NATIVE && val.constType != PTRS_TYPE_POINTER)
-	{
-		ptrs_error(node, "Cannot get size of variable of type %t", val.constType);
-	}
+	ptrs_jit_typeRangeCheck(node, func, scope, val, PTRS_TYPE_NATIVE, PTRS_TYPE_POINTER,
+		1, "Cannot get size of variable of type %t", TYPECHECK_TYPE);
 
 	val.val = ptrs_jit_getArraySize(func, val.meta);
 	val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
@@ -539,12 +529,8 @@ void ptrs_handle_assign_typed(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 {
 	struct ptrs_ast_typed *expr = &node->arg.typed;
 
-	if(val.constType == -1)
-		ptrs_jit_assert(node, func, scope,
-			ptrs_jit_hasType(func, val.meta, expr->type->varType),
-			2, "Cannot assign an extern of type %s from type %mt", expr->type->name, val.meta);
-	else if(val.constType != expr->type->varType)
-		ptrs_error(node, "Cannot assign an extern of type %s from type %t", expr->type->name, val.constType);
+	ptrs_jit_typeCheck(node, func, scope, val, expr->type->varType,
+		2, "Cannot assign an extern of type %s from type %mt", expr->type->name, TYPECHECK_TYPE);
 
 	jit_insn_store_relative(func, expr->location->val, 0, val.val);
 }
