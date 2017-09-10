@@ -580,6 +580,8 @@ static ptrs_ast_t *parseStatement(code_t *code)
 			unexpectedm(code, NULL, "A let statement must either have a type or an initializer");
 		else
 			stmt->arg.define.value = NULL;
+
+		consumec(code, ';');
 	}
 	else if(lookahead(code, "var"))
 	{
