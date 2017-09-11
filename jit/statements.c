@@ -732,28 +732,29 @@ static void forinArray(struct ptrs_ast_forin *stmt, jit_function_t func, ptrs_ji
 	jit_insn_branch_if_not(func, jit_insn_lt(func, index, size), done);
 
 	jit_value_t args[totalArgCount];
-	args[0] = retAddr;
-	args[1] = index;
-	args[2] = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
+	args[0] = jit_insn_get_frame_pointer(func);
+	args[1] = retAddr;
+	args[2] = index;
+	args[3] = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
 
 	if(totalArgCount > 3)
 	{
 		if(isNative)
 		{
 			jit_value_t curr = jit_insn_load_elem(func, val.val, index, jit_type_ubyte);
-			args[3] = curr;
-			args[4] = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
+			args[4] = curr;
+			args[5] = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
 		}
 		else
 		{
 			jit_value_t actualIndex = jit_insn_shl(func, index, jit_const_int(func, ubyte, 1));
-			args[3] = jit_insn_load_elem(func, val.val, actualIndex, jit_type_long);
+			args[4] = jit_insn_load_elem(func, val.val, actualIndex, jit_type_long);
 			actualIndex = jit_insn_add(func, actualIndex, jit_const_int(func, nuint, 1));
-			args[4] = jit_insn_load_elem(func, val.val, actualIndex, jit_type_ulong);
+			args[5] = jit_insn_load_elem(func, val.val, actualIndex, jit_type_ulong);
 		}
 	}
 
-	for(int i = 5; i < totalArgCount; i++)
+	for(int i = 6; i < totalArgCount; i++)
 		args[i] = jit_const_long(func, ulong, 0);
 
 	jit_value_t breaking = jit_insn_call(func, "(foreach body)",
@@ -769,18 +770,19 @@ ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 {
 	struct ptrs_ast_forin *stmt = &node->arg.forin;
 
-	int totalArgCount = stmt->varcount * 2 + 1;
+	int totalArgCount = stmt->varcount * 2 + 2;
 	jit_type_t argDef[totalArgCount];
 	argDef[0] = jit_type_void_ptr;
+	argDef[1] = jit_type_void_ptr;
 
-	for(int i = 0; i < stmt->varcount; i++)
+	for(int i = 1; i < stmt->varcount + 1; i++)
 	{
-		argDef[i * 2 + 1] = jit_type_long;
-		argDef[i * 2 + 2] = jit_type_ulong;
+		argDef[i * 2] = jit_type_long;
+		argDef[i * 2 + 1] = jit_type_ulong;
 	}
 
 	jit_type_t bodySignature = jit_type_create_signature(jit_abi_cdecl, jit_type_ubyte, argDef, totalArgCount, 0);
-	jit_function_t body = jit_function_create(ptrs_jit_context, bodySignature);
+	jit_function_t body = jit_function_create_nested(ptrs_jit_context, bodySignature, func);
 
 	jit_function_set_meta(body, PTRS_JIT_FUNCTIONMETA_NAME, "(foreach body)", NULL, 0);
 	jit_function_set_meta(body, PTRS_JIT_FUNCTIONMETA_FILE, (char *)node->file, NULL, 0);
@@ -793,14 +795,17 @@ ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 		stmt->varsymbols[i].meta = jit_value_create(body, jit_type_ulong);
 		stmt->varsymbols[i].constType = -1;
 
-		jit_insn_store(body, stmt->varsymbols[i].val, jit_value_get_param(body, i * 2 + 1));
-		jit_insn_store(body, stmt->varsymbols[i].meta, jit_value_get_param(body, i * 2 + 2));
+		jit_insn_store(body, stmt->varsymbols[i].val, jit_value_get_param(body, i * 2 + 2));
+		jit_insn_store(body, stmt->varsymbols[i].meta, jit_value_get_param(body, i * 2 + 3));
 	}
 
 	stmt->varsymbols[0].constType = PTRS_TYPE_INT; //TODO remove this when we can foreach over structs
 
 	ptrs_scope_t bodyScope;
 	ptrs_initScope(&bodyScope);
+
+	//TODO use jit_value_get_param(body, 1) to retrieve the return address
+	jit_function_set_parent_frame(body, jit_value_get_param(body, 0));
 
 	stmt->body->handler(stmt->body, body, &bodyScope);
 

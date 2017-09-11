@@ -453,32 +453,78 @@ ptrs_jit_var_t ptrs_handle_wildcardsymbol(ptrs_ast_t *node, jit_function_t func,
 
 ptrs_jit_var_t ptrs_handle_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	return *node->arg.varval;
+	ptrs_jit_var_t target = *node->arg.varval;
+	jit_function_t targetFunc = jit_value_get_function(target.val);
+
+	if(func == targetFunc)
+	{
+		return target;
+	}
+	else
+	{
+		target.val = jit_insn_import(func, target.val);
+		if(target.val == NULL)
+			ptrs_error(node, "Cannot access that variable from here");
+
+		target.val = jit_insn_load_relative(func, target.val, 0, jit_type_long);
+
+		if(!jit_value_is_constant(target.meta))
+		{
+			target.meta = jit_insn_import(func, target.meta);
+			target.meta = jit_insn_load_relative(func, target.meta, 0, jit_type_ulong);
+		}
+
+		return target;
+	}
 }
 void ptrs_handle_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
 {
-	ptrs_jit_var_t *target = node->arg.varval;
-	jit_insn_store(func, target->val, val.val);
+	ptrs_jit_var_t target = *node->arg.varval;
+	jit_function_t targetFunc = jit_value_get_function(target.val);
 
-	if(target->constType != -1)
+	if(func == targetFunc)
+	{
+		jit_insn_store(func, target.val, val.val);
+	}
+	else
+	{
+		target.val = jit_insn_import(func, target.val);
+		if(target.val == NULL)
+			ptrs_error(node, "Cannot access that variable from here");
+
+		jit_insn_store_relative(func, target.val, 0, val.val);
+	}
+
+	if(target.constType != -1)
 	{
 		if(val.constType == -1)
 		{
 			jit_value_t type = ptrs_jit_getType(func, val.meta);
-			jit_value_t targetType = jit_const_long(func, ulong, target->constType);
+			jit_value_t targetType = jit_const_long(func, ulong, target.constType);
 			ptrs_jit_assert(node, func, scope,
 				jit_insn_eq(func, type, targetType),
 				2, "Cannot assign value of type %mt to variable of type %t", type, targetType);
 		}
-		else if(val.constType != target->constType)
+		else if(val.constType != target.constType)
 		{
 			ptrs_error(node, "Cannot assign value of type %t to variable of type %t",
-				val.constType, target->constType);
+				val.constType, target.constType);
 		}
 	}
 
-	if(!jit_value_is_constant(target->meta))
-		jit_insn_store(func, target->meta, val.meta);
+	if(jit_value_is_constant(target.meta))
+	{
+		//nothing
+	}
+	else if(func == targetFunc)
+	{
+		jit_insn_store(func, target.meta, val.meta);
+	}
+	else
+	{
+		target.meta = jit_insn_import(func, target.meta);
+		jit_insn_store_relative(func, target.meta, 0, val.meta);
+	}
 }
 
 ptrs_jit_var_t ptrs_handle_functionidentifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
