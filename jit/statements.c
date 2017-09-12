@@ -501,18 +501,21 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 	struct ptrs_ast_function *ast = &node->arg.function;
 	ptrs_function_t *funcAst = &ast->func;
 
-	jit_type_t argDef[funcAst->argc * 2];
+	jit_type_t argDef[funcAst->argc * 2 + 2];
+	argDef[0] = jit_type_void_ptr; //parent frame
+	argDef[1] = jit_type_void_ptr; //reserved
+
 	for(int i = 0; i < funcAst->argc; i++)
 	{
-		argDef[i * 2] = jit_type_long;
-		argDef[i * 2 + 1] = jit_type_ulong;
+		argDef[i * 2 + 2] = jit_type_long;
+		argDef[i * 2 + 3] = jit_type_ulong;
 	}
 
 	//TODO variadic functions
 
-	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, ptrs_jit_getVarType(), argDef, funcAst->argc * 2, 1);
-	jit_function_t self = jit_function_create(ptrs_jit_context, signature);
-	jit_type_free(signature);
+	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, ptrs_jit_getVarType(), argDef,
+		funcAst->argc * 2 + 2, 1);
+	jit_function_t self = jit_function_create_nested(ptrs_jit_context, signature, func);
 
 	jit_function_set_meta(self, PTRS_JIT_FUNCTIONMETA_NAME, funcAst->name, NULL, 0);
 	jit_function_set_meta(self, PTRS_JIT_FUNCTIONMETA_FILE, (char *)node->file, NULL, 0);
@@ -524,14 +527,16 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 	ptrs_scope_t selfScope;
 	ptrs_initScope(&selfScope);
 
+	jit_function_set_parent_frame(self, jit_value_get_param(self, 0));
+
 	for(int i = 0; i < funcAst->argc; i++)
 	{
 		funcAst->args[i].val = jit_value_create(self, jit_type_long);
 		funcAst->args[i].meta = jit_value_create(self, jit_type_ulong);
 		funcAst->args[i].constType = -1;
 
-		jit_insn_store(self, funcAst->args[i].val, jit_value_get_param(self, i * 2));
-		jit_insn_store(self, funcAst->args[i].meta, jit_value_get_param(self, i * 2 + 1));
+		jit_insn_store(self, funcAst->args[i].val, jit_value_get_param(self, i * 2 + 2));
+		jit_insn_store(self, funcAst->args[i].meta, jit_value_get_param(self, i * 2 + 3));
 
 		if(funcAst->argv != NULL && funcAst->argv[i] != NULL)
 		{

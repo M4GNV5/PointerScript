@@ -60,23 +60,21 @@ jit_value_t ptrs_jit_vcall(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *
 
 ptrs_jit_var_t ptrs_jit_callnested(jit_function_t func, jit_function_t callee, size_t narg, ptrs_jit_var_t *args)
 {
-	jit_type_t paramDef[narg * 2];
-	jit_value_t _args[narg * 2];
+	jit_value_t _args[narg * 2 + 2];
+	_args[0] = jit_insn_get_parent_frame_pointer_of(func, callee);
+	_args[1] = jit_const_int(func, nuint, 0); //reserved
+
+	if(_args[0] == NULL)
+		_args[0] = jit_const_int(func, nuint, 0);
+
 	for(int i = 0; i < narg; i++)
 	{
-		paramDef[i * 2] = jit_type_long;
-		paramDef[i * 2 + 1] = jit_type_long;
-
-		_args[i * 2] = args[i].val;
-		_args[i * 2 + 1] = args[i].meta;
+		_args[i * 2 + 2] = args[i].val;
+		_args[i * 2 + 3] = args[i].meta;
 	}
 
-	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, ptrs_jit_getVarType(), paramDef, narg * 2, 1);
 	const char *name = jit_function_get_meta(callee, PTRS_JIT_FUNCTIONMETA_NAME);
-
-	jit_value_t ret = jit_insn_call(func, name, callee, signature, _args, narg * 2, 0);
-
-	jit_type_free(signature);
+	jit_value_t ret = jit_insn_call(func, name, callee, NULL, _args, narg * 2 + 2, 0);
 
 	return ptrs_jit_valToVar(func, ret);
 }
