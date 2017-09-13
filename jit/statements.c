@@ -803,57 +803,33 @@ ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	jit_value_set_addressable(ret);
 	jit_value_t retAddr = jit_insn_address_of(func, ret);
 
-	if(val.constType != -1)
-	{
-		if(val.constType == PTRS_TYPE_NATIVE)
-		{
+	ptrs_jit_typeSwitch(node, func, scope, val,
+		(1, "Cannot iterate over value of type %t", val.constType),
+		(PTRS_TYPE_NATIVE, PTRS_TYPE_POINTER),
+
+		case PTRS_TYPE_NATIVE:
 			stmt->varsymbols[0].constType = PTRS_TYPE_INT;
 			stmt->varsymbols[1].constType = PTRS_TYPE_INT;
 
 			forinArray(stmt, func, val,
 				body, bodySignature, totalArgCount,
 				retAddr, &returnVal, &done, true);
-		}
-		else if(val.constType == PTRS_TYPE_POINTER)
-		{
+			break;
+
+		case PTRS_TYPE_POINTER:
 			stmt->varsymbols[0].constType = PTRS_TYPE_INT;
 
 			forinArray(stmt, func, val,
 				body, bodySignature, totalArgCount,
 				retAddr, &returnVal, &done, false);
-		}
-		//TODO struct
-		else
-		{
-			ptrs_error(node, "Cannot iterate over value of type %t", val.constType);
-		}
-	}
-	else
-	{
-		jit_value_t type = ptrs_jit_getType(func, val.meta);
-
-		jit_label_t isPointer = jit_label_undefined;
-
-		jit_insn_branch_if(func, jit_insn_eq(func, type, jit_const_int(func, nuint, PTRS_TYPE_POINTER)), &isPointer);
-
-		//native
-		forinArray(stmt, func, val,
-			body, bodySignature, totalArgCount,
-			retAddr, &returnVal, &done, true);
-
-		//pointer
-		jit_insn_label(func, &isPointer);
-		forinArray(stmt, func, val,
-			body, bodySignature, totalArgCount,
-			retAddr, &returnVal, &done, false);
-
-		//TODO struct
-	}
+			break;
+	);
 
 	jit_insn_label(func, &returnVal);
 	jit_insn_return_ptr(func, retAddr, ptrs_jit_getVarType());
 
 	jit_insn_label(func, &done);
+
 
 
 	//handle the body function
