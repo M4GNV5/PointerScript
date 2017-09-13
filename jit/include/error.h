@@ -28,6 +28,8 @@ void ptrs_handle_signals();
 void ptrs_printError(ptrs_error_t *error);
 void ptrs_error(ptrs_ast_t *ast, const char *msg, ...);
 
+struct ptrs_assertion *ptrs_jit_vassert(ptrs_ast_t *ast, jit_function_t func, ptrs_scope_t *scope,
+	jit_value_t condition, size_t argCount, const char *text, va_list ap);
 struct ptrs_assertion *ptrs_jit_assert(ptrs_ast_t *ast, jit_function_t func, ptrs_scope_t *scope,
 	jit_value_t condition, size_t argCount, const char *text, ...);
 void ptrs_jit_appendAssert(jit_function_t func, struct ptrs_assertion *assert, jit_value_t condition);

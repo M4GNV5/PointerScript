@@ -271,6 +271,7 @@ void *ptrs_handle_exception(int type)
 void ptrs_handle_signals(jit_function_t func)
 {
 	struct sigaction action;
+	memset(&action, 0, sizeof(struct sigaction));
 	action.sa_sigaction = ptrs_handle_sig;
 	action.sa_flags = SA_SIGINFO | SA_NODEFER | SA_RESTART;
 
@@ -288,12 +289,9 @@ void ptrs_handle_signals(jit_function_t func)
 	jit_exception_set_handler(ptrs_handle_exception);
 }
 
-struct ptrs_assertion *ptrs_jit_assert(ptrs_ast_t *ast, jit_function_t func, ptrs_scope_t *scope,
-	jit_value_t condition, size_t argCount, const char *text, ...)
+struct ptrs_assertion *ptrs_jit_vassert(ptrs_ast_t *ast, jit_function_t func, ptrs_scope_t *scope,
+	jit_value_t condition, size_t argCount, const char *text, va_list ap)
 {
-	va_list ap;
-	va_start(ap, text);
-
 	argCount += 2;
 
 	struct ptrs_assertion *assertion = malloc(sizeof(struct ptrs_assertion) + argCount * sizeof(jit_value_t));
@@ -323,6 +321,15 @@ struct ptrs_assertion *ptrs_jit_assert(ptrs_ast_t *ast, jit_function_t func, ptr
 	}
 
 	return assertion;
+}
+
+struct ptrs_assertion *ptrs_jit_assert(ptrs_ast_t *ast, jit_function_t func, ptrs_scope_t *scope,
+	jit_value_t condition, size_t argCount, const char *text, ...)
+{
+	va_list ap;
+	va_start(ap, text);
+
+	return ptrs_jit_vassert(ast, func, scope, condition, argCount, text, ap);
 }
 
 void ptrs_jit_appendAssert(jit_function_t func, struct ptrs_assertion *assertion, jit_value_t condition)

@@ -56,4 +56,42 @@ ptrs_meta_t ptrs_jit_value_getMetaConstant(jit_value_t meta);
 		} \
 	} while(0)
 
+void ptrs_jit_typeSwitch_setup(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+	ptrs_jit_var_t *val, jit_value_t valType,
+	int *count, uint8_t *types, jit_label_t *labels,
+	size_t argCount, const char *msg, ...);
+#define _ptrs_jit_typeSwitch_paste(...) __VA_ARGS__
+#define ptrs_jit_typeSwitch(node, func, scope, val, errorTuple, typeTuple, cases) \
+	{ \
+		uint8_t types[] = {_ptrs_jit_typeSwitch_paste typeTuple}; \
+		jit_label_t labels[sizeof(types) / sizeof(uint8_t)]; \
+		int count = sizeof(types) / sizeof(uint8_t); \
+		jit_label_t end = jit_label_undefined; \
+		jit_value_t TYPESWITCH_TYPE; \
+		\
+		if(val.constType == -1) \
+			TYPESWITCH_TYPE = ptrs_jit_getType(func, val.meta); \
+		\
+		ptrs_jit_typeSwitch_setup(node, func, scope, \
+			&val, TYPESWITCH_TYPE, &count, types, labels, \
+			_ptrs_jit_typeSwitch_paste errorTuple \
+		); \
+		\
+		for(int i = 0; i < count; i++) \
+		{ \
+			if(val.constType == -1) \
+				jit_insn_label(func, labels + i); \
+			\
+			switch(types[i]) \
+			{ \
+				cases \
+			} \
+			\
+			if(val.constType == -1 && i < count - 1) \
+				jit_insn_branch(func, &end); \
+		} \
+		\
+		jit_insn_label(func, &end); \
+	} \
+
 #endif

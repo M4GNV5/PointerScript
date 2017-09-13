@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <assert.h>
 #include <jit/jit.h>
 
@@ -5,6 +6,7 @@
 #include "../../parser/ast.h"
 #include "../include/run.h"
 #include "../include/conversion.h"
+#include "../include/error.h"
 
 void ptrs_initScope(ptrs_scope_t *scope)
 {
@@ -134,4 +136,36 @@ jit_value_t ptrs_jit_normalizeForVar(jit_function_t func, jit_value_t val)
 	}
 
 	return val;
+}
+
+void ptrs_jit_typeSwitch_setup(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+	ptrs_jit_var_t *val, jit_value_t valType,
+	int *count, uint8_t *types, jit_label_t *labels,
+	size_t argCount, const char *msg, ...)
+{
+	va_list ap;
+	va_start(ap, msg);
+
+	if(val->constType == -1)
+	{
+		for(int i = *count - 1; i > 0; i--)
+		{
+			labels[i] = jit_label_undefined;
+			jit_insn_branch_if(func,
+				jit_insn_eq(func, valType, jit_const_int(func, int, types[i])),
+				labels + i
+			);
+		}
+
+		labels[0] = jit_label_undefined;
+		ptrs_jit_vassert(node, func, scope,
+			jit_insn_eq(func, valType, jit_const_int(func, int, types[0])),
+			argCount, msg, ap
+		);
+	}
+	else
+	{
+		types[0] = val->constType;
+		*count = 1;
+	}
 }
