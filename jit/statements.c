@@ -550,6 +550,8 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 
 	funcAst->body->handler(funcAst->body, self, &selfScope);
 
+	jit_insn_default_return(self);
+
 	ptrs_jit_placeAssertions(self, &selfScope);
 
 	if(ptrs_compileAot && jit_function_compile(self) == 0)
