@@ -76,6 +76,9 @@ ptrs_meta_t ptrs_jit_value_getMetaConstant(jit_value_t meta)
 
 jit_value_t ptrs_jit_reinterpretCast(jit_function_t func, jit_value_t val, jit_type_t newType)
 {
+	if(jit_value_get_type(val) == newType)
+		return val;
+
 	if(jit_value_is_constant(val))
 	{
 		jit_constant_t constVal = jit_value_get_constant(val);

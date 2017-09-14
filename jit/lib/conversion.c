@@ -158,7 +158,7 @@ jit_value_t ptrs_jit_vartof(jit_function_t func, ptrs_jit_var_t val)
 		case PTRS_TYPE_INT:
 			return jit_insn_convert(func, val.val, jit_type_float64, 0);
 		case PTRS_TYPE_FLOAT:
-			return val.val;
+			return ptrs_jit_reinterpretCast(func, val.val, jit_type_float64);
 	}
 
 	jit_intrinsic_descr_t descr = {

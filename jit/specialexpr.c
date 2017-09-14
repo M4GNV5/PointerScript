@@ -397,7 +397,8 @@ ptrs_jit_var_t ptrs_handle_cast_builtin(ptrs_ast_t *node, jit_function_t func, p
 			val.constType = PTRS_TYPE_INT;
 			break;
 		case PTRS_TYPE_FLOAT:
-			val.val = ptrs_jit_reinterpretCast(func, ptrs_jit_vartof(func, val), jit_type_long);
+			if(val.constType != PTRS_TYPE_FLOAT)
+				val.val = ptrs_jit_reinterpretCast(func, ptrs_jit_vartof(func, val), jit_type_long);
 			val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_FLOAT);
 			val.constType = PTRS_TYPE_FLOAT;
 			break;
@@ -477,7 +478,7 @@ void ptrs_handle_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_s
 			jit_value_t type = ptrs_jit_getType(func, val.meta);
 			ptrs_jit_assert(node, func, scope,
 				jit_insn_eq(func, type, jit_const_long(func, ulong, target.constType)),
-				2, "Cannot assign value of type %mt to variable of type %t", type, targetType);
+				2, "Cannot assign value of type %mt to variable of type %t", type, target.constType);
 		}
 		else if(val.constType != target.constType)
 		{
