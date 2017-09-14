@@ -171,58 +171,158 @@ jit_value_t ptrs_jit_vartof(jit_function_t func, ptrs_jit_var_t val)
 	return jit_insn_call_intrinsic(func, NULL, ptrs_vartof, &descr, val.val, val.meta);
 }
 
+void ptrs_itoa(char *buff, ptrs_val_t val)
+{
+	sprintf(buff, "%"PRId64, val.intval);
+}
+void ptrs_ftona(char *buff, int maxlen, ptrs_val_t val)
+{
+	snprintf(buff, maxlen, "%.8f", val.floatval);
+
+	int i = 0;
+	while(buff[i] != '.')
+		i++;
+
+	int last = i;
+	i++;
+
+	while(buff[i] != 0)
+	{
+		if(buff[i] != '0')
+			last = i + 1;
+		i++;
+	}
+	buff[last] = 0;
+}
+void ptrs_ftoa(char *buff, ptrs_val_t val)
+{
+	ptrs_ftona(buff, 32, val);
+}
+void ptrs_ptoa(char *buff, ptrs_val_t val)
+{
+	sprintf(buff, "pointer:%p", val.ptrval);
+}
+void ptrs_stoa(char *buff, ptrs_val_t val)
+{
+	sprintf(buff, "%s:%p", val.structval->name, val.structval);
+}
 ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, ptrs_jit_var_t val)
 {
-	jit_value_t buff = jit_value_create(func, jit_type_void_ptr);
-	jit_value_t size = jit_value_create(func, jit_type_ulong);
+	jit_value_t buff;
 
-	jit_label_t genericConversion = jit_label_undefined;
-	jit_label_t done = jit_label_undefined;
+	if(val.constType == -1)
+	{
+		buff = jit_value_create(func, jit_type_void_ptr);
+		jit_value_t size = jit_value_create(func, jit_type_ulong);
 
-	jit_value_t isNative = ptrs_jit_hasType(func, val.meta, PTRS_TYPE_NATIVE);
-	jit_insn_branch_if_not(func, isNative, &genericConversion);
+		jit_label_t genericConversion = jit_label_undefined;
+		jit_label_t done = jit_label_undefined;
 
-	jit_value_t _size = ptrs_jit_getArraySize(func, val.meta);
-	jit_value_t zeroLength = jit_insn_eq(func, _size, jit_const_long(func, ulong, 0));
-	jit_insn_branch_if(func, zeroLength, &genericConversion);
+		jit_value_t isNative = ptrs_jit_hasType(func, val.meta, PTRS_TYPE_NATIVE);
+		jit_insn_branch_if_not(func, isNative, &genericConversion);
 
-	//sized variable of type native (i.e. already a (sized) string)
-	jit_insn_store(func, size, jit_insn_add(func, _size, jit_const_int(func, nuint, 1)));
-	jit_insn_store(func, buff, jit_insn_alloca(func, size));
+		jit_value_t _size = ptrs_jit_getArraySize(func, val.meta);
+		jit_value_t zeroLength = jit_insn_eq(func, _size, jit_const_long(func, ulong, 0));
+		jit_insn_branch_if(func, zeroLength, &genericConversion);
 
-	jit_insn_memcpy(func, buff, val.val, _size);
-	jit_insn_store_elem(func, buff, _size, jit_const_int(func, ubyte, 0));
+		//sized variable of type native (i.e. already a (sized) string)
+		jit_insn_store(func, size, jit_insn_add(func, _size, jit_const_int(func, nuint, 1)));
+		jit_insn_store(func, buff, jit_insn_alloca(func, size));
 
-	jit_insn_branch(func, &done);
+		jit_insn_memcpy(func, buff, val.val, _size);
+		jit_insn_store_elem(func, buff, _size, jit_const_int(func, ubyte, 0));
 
-	//other type that needs to be converted
-	jit_insn_label(func, &genericConversion);
-	jit_insn_store(func, size, jit_const_int(func, nuint, 32));
-	jit_insn_store(func, buff, jit_insn_alloca(func, size));
+		jit_insn_branch(func, &done);
 
-	jit_type_t paramDef[] = {
-		jit_type_long, //ptrs_val_t
-		jit_type_ulong, //ptrs_meta_t
-		jit_type_void_ptr,
-		jit_type_ulong
-	};
+		//other type that needs to be converted
+		jit_insn_label(func, &genericConversion);
+		jit_insn_store(func, size, jit_const_int(func, nuint, 32));
+		jit_insn_store(func, buff, jit_insn_alloca(func, size));
 
-	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, jit_type_void_ptr, paramDef, 4, 1);
-	jit_value_t params[] = {val.val, val.meta, buff, size};
+		jit_type_t paramDef[] = {
+			jit_type_long, //ptrs_val_t
+			jit_type_ulong, //ptrs_meta_t
+			jit_type_void_ptr,
+			jit_type_ulong
+		};
 
-	jit_insn_call_native(func, NULL, ptrs_vartoa, signature, params, 4, JIT_CALL_NOTHROW);
-	jit_type_free(signature);
+		jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, jit_type_void_ptr, paramDef, 4, 1);
+		jit_value_t params[] = {val.val, val.meta, buff, size};
 
-	jit_insn_label(func, &done);
+		jit_insn_call_native(func, NULL, ptrs_vartoa, signature, params, 4, JIT_CALL_NOTHROW);
+		jit_type_free(signature);
 
-	ptrs_jit_var_t ret;
-	ret.val = buff;
-	ret.meta = ptrs_jit_arrayMeta(func,
-		jit_const_long(func, ulong, PTRS_TYPE_NATIVE),
-		jit_const_long(func, ulong, 0),
-		size);
-	ret.constType = PTRS_TYPE_NATIVE;
-	return ret;
+		jit_insn_label(func, &done);
+
+		ptrs_jit_var_t ret;
+		ret.val = buff;
+		ret.meta = ptrs_jit_arrayMeta(func,
+			jit_const_long(func, ulong, PTRS_TYPE_NATIVE),
+			jit_const_long(func, ulong, 0),
+			size);
+		ret.constType = PTRS_TYPE_NATIVE;
+		return ret;
+	}
+	else
+	{
+		if(val.constType == PTRS_TYPE_NATIVE)
+		{
+			jit_value_t size = ptrs_jit_getArraySize(func, val.meta);
+
+			jit_value_t buffSize = jit_insn_add(func, size, jit_const_int(func, nint, 1));
+			val.meta = ptrs_jit_arrayMeta(func,
+				jit_const_int(func, ulong, PTRS_TYPE_NATIVE),
+				jit_const_int(func, ulong, 0),
+				buffSize
+			);
+
+			if(jit_value_is_constant(size))
+				buff = jit_insn_array(func, jit_value_get_long_constant(buffSize));
+			else
+				buff = jit_insn_alloca(func, buffSize);
+
+			jit_insn_memcpy(func, buff, val.val, size);
+			jit_insn_store_elem(func, buff, size, jit_const_int(func, ubyte, 0));
+
+			val.constType = PTRS_TYPE_NATIVE;
+			val.val = buff;
+			return val;
+		}
+
+		buff = jit_insn_array(func, 32);
+		ptrs_jit_var_t ret;
+		ret.constType = PTRS_TYPE_NATIVE;
+		ret.val = buff;
+		ret.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_NATIVE, 0, 32);
+
+		if(val.constType == PTRS_TYPE_UNDEFINED)
+		{
+			jit_insn_memcpy(func, buff, jit_const_int(func, void_ptr, (uintptr_t)"undefined"),
+				jit_const_int(func, nuint, strlen("undefined")));
+			return ret;
+		}
+
+		static jit_type_t conversionSignature = NULL;
+		if(conversionSignature == NULL)
+		{
+			jit_type_t argDef[] = {
+				jit_type_void_ptr,
+				jit_type_long,
+			};
+			conversionSignature = jit_type_create_signature(jit_abi_cdecl, jit_type_void, argDef, 2, 0);
+		}
+
+		void *converters[] = {
+			[PTRS_TYPE_INT] = ptrs_itoa,
+			[PTRS_TYPE_FLOAT] = ptrs_ftoa,
+			[PTRS_TYPE_POINTER] = ptrs_ptoa,
+			[PTRS_TYPE_STRUCT] = ptrs_stoa,
+		};
+
+		jit_value_t args[] = {buff, val.val};
+		jit_insn_call_native(func, "ptrs_vartoa", converters[val.constType], conversionSignature, args, 2, 0);
+		return ret;
+	}
 }
 
 bool ptrs_vartob(ptrs_val_t val, ptrs_meta_t meta)
@@ -319,23 +419,7 @@ const char *ptrs_vartoa(ptrs_val_t val, ptrs_meta_t meta, char *buff, size_t max
 			snprintf(buff, maxlen, "%"PRId64, val.intval);
 			break;
 		case PTRS_TYPE_FLOAT:
-			snprintf(buff, maxlen, "%.8f", val.floatval);
-
-			int i = 0;
-			while(buff[i] != '.')
-				i++;
-
-			int last = i;
-			i++;
-
-			while(buff[i] != 0)
-			{
-				if(buff[i] != '0')
-					last = i + 1;
-				i++;
-			}
-			buff[last] = 0;
-
+			ptrs_ftona(buff, maxlen, val);
 			break;
 		case PTRS_TYPE_NATIVE:
 			;
