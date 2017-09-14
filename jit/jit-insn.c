@@ -7841,6 +7841,23 @@ jit_insn_alloca(jit_function_t func, jit_value_t size)
 }
 
 /*@
+ * @deftypefun jit_value_t jit_insn_alloca (jit_function_t @var{func}, jit_value_t @var{size})
+ * The returned value is a pointer to an array of @var{size} bytes. The
+ * difference to alloca is that the memory is 'allocated' in the variable
+ * space at compile time.
+ * @end deftypefun
+@*/
+jit_value_t
+jit_insn_array(jit_function_t func, jit_nint size)
+{
+	jit_type_t type = jit_type_create_struct(NULL, 0, 0);
+	jit_type_set_size_and_alignment(type, size, 1);
+
+	jit_value_t value = jit_value_create(func, type);
+	return jit_insn_address_of(func, value);
+}
+
+/*@
  * @deftypefun int jit_insn_move_blocks_to_end (jit_function_t @var{func}, jit_label_t @var{from_label}, jit_label_t @var{to_label})
  * Move all of the blocks between @var{from_label} (inclusive) and
  * @var{to_label} (exclusive) to the end of the current function.
