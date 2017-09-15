@@ -76,6 +76,11 @@ void ptrs_astlist_handleByte(struct ptrs_astlist *list, jit_function_t func, ptr
 		list = list->next;
 	}
 
-	jit_value_t index = jit_const_int(func, nuint, i);
-	jit_insn_memset(func, jit_insn_add(func, val, index), zero, jit_insn_sub(func, size, index));
+	if(i != 0)
+	{
+		jit_value_t index = jit_const_int(func, nuint, i);
+		size = jit_insn_sub(func, size, index);
+		val = jit_insn_add(func, val, index);
+	}
+	jit_insn_memset(func, val, zero, size);
 }

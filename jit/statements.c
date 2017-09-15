@@ -118,7 +118,10 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	//allocate memory
 	if(stmt->onStack)
 	{
-		val.val = jit_insn_alloca(func, size);
+		if(jit_value_is_constant(size))
+			val.val = jit_insn_array(func, jit_value_get_nint_constant(size));
+		else
+			val.val = jit_insn_alloca(func, size);
 	}
 	else
 	{
@@ -190,7 +193,10 @@ ptrs_jit_var_t ptrs_handle_vararray(ptrs_ast_t *node, jit_function_t func, ptrs_
 	//allocate memory
 	if(stmt->onStack)
 	{
-		val.val = jit_insn_alloca(func, byteSize);
+		if(jit_value_is_constant(byteSize))
+			val.val = jit_insn_array(func, jit_value_get_nint_constant(byteSize));
+		else
+			val.val = jit_insn_alloca(func, byteSize);
 	}
 	else
 	{
