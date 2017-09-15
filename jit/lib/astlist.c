@@ -54,33 +54,43 @@ void ptrs_astlist_handle(struct ptrs_astlist *list, jit_function_t func, ptrs_sc
 
 void ptrs_astlist_handleByte(struct ptrs_astlist *list, jit_function_t func, ptrs_scope_t *scope, jit_value_t val, jit_value_t size)
 {
-	int i;
+	int i = 0;
 	jit_value_t zero = jit_const_long(func, ubyte, 0);
-	jit_value_t result = zero;
+	jit_value_t result;
 
-	for(i = 0; list != NULL; i++)
+	if(list == NULL)
 	{
-		//if(list->expand) //TODO
-
-		if(list->entry == NULL)
-		{
-			result = zero;
-		}
-		else
-		{
-			ptrs_jit_var_t _result = list->entry->handler(list->entry, func, scope);
-			result = ptrs_jit_vartoi(func, _result);
-		}
-
-		jit_insn_store_relative(func, val, i, result);
-		list = list->next;
+		result = zero;
 	}
-
-	if(i != 0)
+	else if(list->next == NULL)
 	{
+		ptrs_jit_var_t _result = list->entry->handler(list->entry, func, scope);
+		result = ptrs_jit_vartoi(func, _result);
+	}
+	else
+	{
+		for(; list != NULL; i++)
+		{
+			//if(list->expand) //TODO
+
+			if(list->entry == NULL)
+			{
+				result = zero;
+			}
+			else
+			{
+				ptrs_jit_var_t _result = list->entry->handler(list->entry, func, scope);
+				result = ptrs_jit_vartoi(func, _result);
+			}
+
+			jit_insn_store_relative(func, val, i, result);
+			list = list->next;
+		}
+
 		jit_value_t index = jit_const_int(func, nuint, i);
 		size = jit_insn_sub(func, size, index);
 		val = jit_insn_add(func, val, index);
 	}
-	jit_insn_memset(func, val, zero, size);
+
+	jit_insn_memset(func, val, result, size);
 }
