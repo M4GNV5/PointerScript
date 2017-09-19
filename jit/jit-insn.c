@@ -1406,8 +1406,10 @@ jit_insn_store(jit_function_t func, jit_value_t dest, jit_value_t value)
  * one, so there is no need to move it down.
  */
 static jit_insn_t
-find_base_insn(jit_function_t func, jit_insn_iter_t iter, jit_value_t value, int *plast)
+find_base_insn(jit_function_t func, jit_insn_iter_t iter, jit_value_t *pvalue, int *plast)
 {
+	jit_value_t value = *pvalue;
+
 	/* The "value" could be vulnerable to aliasing effects so we cannot
 	   optimize it */
 	if(value->is_addressable || value->is_volatile)
@@ -1428,8 +1430,63 @@ find_base_insn(jit_function_t func, jit_insn_iter_t iter, jit_value_t value, int
 			/* This is the instruction we were looking for */
 			if(insn->opcode == JIT_OP_ADDRESS_OF)
 			{
-				*plast = last;
-				return insn;
+				if(last)
+				{
+					*plast = last;
+					return insn;
+				}
+
+				/* Scan forwards to check if we already moved insn down */
+				jit_insn_iter_t iter2 = iter;
+				jit_insn_iter_next(&iter2);
+				jit_insn_t insn2;
+				jit_insn_t movedTo = 0;
+				int notUsedCount;
+				while((insn2 = jit_insn_iter_next(&iter2)) != 0)
+				{
+					if(insn2->opcode == JIT_OP_ADDRESS_OF
+						&& insn2->value1 == insn->value1
+						&& (insn2->flags & JIT_INSN_DEST_IS_VALUE) == 0)
+					{
+						/* we already moved insn down, now continue checking,
+						   if all subsequent instructions use "insn->dest" we
+						   can use "insn->dest" too, otherwise move it down
+						   again */
+						movedTo = insn2;
+						notUsedCount = 0;
+					}
+					else if(movedTo != 0
+						&& insn2->value1 != movedTo->dest
+						&& (insn2->flags & JIT_INSN_DEST_IS_VALUE) == 0)
+					{
+						/* something between movedTo and the end did not use
+						   "movedTo->dest", if this happens more than 3 times
+						   we ignore movedTo */
+						if(++notUsedCount > 3)
+						{
+							movedTo = 0;
+						}
+					}
+				}
+
+				if(movedTo != 0)
+				{
+					/* We already moved insn down and used it recently. Set
+					   pvalue to the moved down value and signal the caller to
+					   not move it down again. This allows us to chain multiple
+					   relative loads or stores without moving down the value
+					   multiple times */
+					*pvalue = movedTo->dest;
+					*plast = 1;
+				}
+				else
+				{
+					/* We didnt move it down yet or we did something else since
+					   then. Just move it down again. */
+					*plast = 0;
+					return insn;
+				}
+
 			}
 			if(insn->opcode == JIT_OP_ADD_RELATIVE)
 			{
@@ -1491,14 +1548,14 @@ jit_insn_load_relative(jit_function_t func, jit_value_t value, jit_nint offset, 
 	jit_insn_iter_init_last(&iter, func->builder->current_block);
 
 	int last;
-	jit_insn_t insn = find_base_insn(func, iter, value, &last);
+	jit_insn_t insn = find_base_insn(func, iter, &value, &last);
 	if(insn && insn->opcode == JIT_OP_ADD_RELATIVE)
 	{
 		/* We have a previous "add_relative" instruction for this
 		   pointer. Adjust the current offset accordingly */
 		offset += jit_value_get_nint_constant(insn->value2);
 		value = insn->value1;
-		insn = find_base_insn(func, iter, value, &last);
+		insn = find_base_insn(func, iter, &value, &last);
 		last = 0;
 	}
 	if(insn && insn->opcode == JIT_OP_ADDRESS_OF && !last)
@@ -1545,14 +1602,14 @@ jit_insn_store_relative(jit_function_t func, jit_value_t dest, jit_nint offset, 
 	jit_insn_iter_init_last(&iter, func->builder->current_block);
 
 	int last;
-	jit_insn_t insn = find_base_insn(func, iter, dest, &last);
+	jit_insn_t insn = find_base_insn(func, iter, &dest, &last);
 	if(insn && insn->opcode == JIT_OP_ADD_RELATIVE)
 	{
 		/* We have a previous "add_relative" instruction for this
 		   pointer. Adjust the current offset accordingly */
 		offset += jit_value_get_nint_constant(insn->value2);
 		dest = insn->value1;
-		insn = find_base_insn(func, iter, value, &last);
+		insn = find_base_insn(func, iter, &value, &last);
 		last = 0;
 	}
 	if(insn && insn->opcode == JIT_OP_ADDRESS_OF && !last)
@@ -1617,7 +1674,7 @@ jit_insn_add_relative(jit_function_t func, jit_value_t value, jit_nint offset)
 	jit_insn_iter_init_last(&iter, func->builder->current_block);
 
 	int last;
-	jit_insn_t insn = find_base_insn(func, iter, value, &last);
+	jit_insn_t insn = find_base_insn(func, iter, &value, &last);
 	if(insn && insn->opcode == JIT_OP_ADD_RELATIVE)
 	{
 		/* We have a previous "add_relative" instruction for this
