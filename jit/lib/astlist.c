@@ -5,6 +5,14 @@
 #include "../../parser/common.h"
 #include "../../parser/ast.h"
 
+void ptrs_initArray(ptrs_var_t *array, size_t len, ptrs_val_t val, ptrs_meta_t meta)
+{
+	for(int i = 0; i < len; i++)
+	{
+		array[i].value = val;
+		array[i].meta = meta;
+	}
+}
 void ptrs_astlist_handle(struct ptrs_astlist *list, jit_function_t func, ptrs_scope_t *scope, jit_value_t val, jit_value_t size)
 {
 	int i;
@@ -31,25 +39,46 @@ void ptrs_astlist_handle(struct ptrs_astlist *list, jit_function_t func, ptrs_sc
 		list = list->next;
 	}
 
-	jit_value_t index = jit_value_create(func, jit_type_nuint);
-	jit_insn_store(func, index, jit_const_int(func, nuint, i * 2));
+	if(jit_value_is_constant(result.val) && jit_value_is_constant(result.meta)
+		&& !jit_value_is_true(result.val) && !jit_value_is_true(result.meta))
+	{
+		val = jit_insn_add(func, val, jit_const_int(func, nuint, i * 16));
+		size = jit_insn_sub(func, size, jit_const_int(func, nuint, i)); //size = size - i
+		size = jit_insn_shl(func, size, jit_const_int(func, long, 4)); //size = size * 16
+		jit_insn_memset(func, val, zero, size);
+	}
+	else if(jit_value_is_constant(size) && jit_value_get_nint_constant(size) < 16)
+	{
+		size_t len = jit_value_get_nint_constant(size);
+		for(; i < len; i++)
+		{
+			jit_insn_store_relative(func, val, i * 16, result.val);
+			jit_insn_store_relative(func, val, i * 16 + 8, result.meta);
+		}
+	}
+	else
+	{
+		static jit_type_t signature = NULL;
+		if(signature == NULL)
+		{
+			jit_type_t argDef[] = {
+				jit_type_void_ptr,
+				jit_type_nuint,
+				jit_type_long,
+				jit_type_ulong
+			};
 
-	jit_value_t endIndex = jit_insn_shl(func, size, jit_const_int(func, nuint, 1)); //mul 2
+			signature = jit_type_create_signature(jit_abi_cdecl, jit_type_void, argDef, 4, 0);
+		}
 
-	jit_label_t check = jit_label_undefined;
-	jit_label_t done = jit_label_undefined;
-
-	jit_insn_label(func, &check);
-	jit_insn_branch_if_not(func, jit_insn_lt(func, index, endIndex), &done); //while(i < array.size)
-
-	jit_insn_store_elem(func, val, index, result.val); //array[index] = lastElement.value
-	jit_value_t _index = jit_insn_add(func, index, jit_const_int(func, nuint, 1)); //i++
-	jit_insn_store_elem(func, val, _index, result.meta); //array[index] = lastElement.meta
-	_index = jit_insn_add(func, _index, jit_const_int(func, nuint, 1)); //i++
-
-	jit_insn_store(func, index, _index);
-	jit_insn_branch(func, &check);
-	jit_insn_label(func, &done);
+		jit_value_t args[] = {
+			jit_insn_add(func, val, jit_const_int(func, nuint, i * 16)),
+			jit_insn_sub(func, size, jit_const_int(func, nuint, i)),
+			result.val,
+			result.meta
+		};
+		jit_insn_call_native(func, "ptrs_initArray", ptrs_initArray, signature, args, 4, 0);
+	}
 }
 
 void ptrs_astlist_handleByte(struct ptrs_astlist *list, jit_function_t func, ptrs_scope_t *scope, jit_value_t val, jit_value_t size)
