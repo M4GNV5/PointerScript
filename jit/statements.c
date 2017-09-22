@@ -658,7 +658,7 @@ ptrs_jit_var_t ptrs_handle_switch(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 		if(!hadCase)
 			stmt->defaultCase->handler(stmt->defaultCase, func, scope);
 	}
-	else if(stmt->caseCount > 2 && stmt->caseCount * 4 <= interval && interval < 0x1000)
+	else if(stmt->caseCount > 2 && interval < 0x1000 && interval / stmt->caseCount < 50)
 	{
 		jit_label_t table[interval];
 		for(int i = 0; i < interval; i++)
