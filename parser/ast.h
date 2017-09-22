@@ -144,13 +144,17 @@ struct ptrs_ast_new
 
 struct ptrs_ast_case
 {
-	int64_t value;
+	int64_t min;
+	int64_t max;
 	struct ptrs_ast *body;
 	struct ptrs_ast_case *next;
 };
 struct ptrs_ast_switch
 {
 	struct ptrs_ast *condition;
+	int64_t min;
+	int64_t max;
+	size_t caseCount;
 	struct ptrs_ast_case *cases;
 	struct ptrs_ast *defaultCase;
 };

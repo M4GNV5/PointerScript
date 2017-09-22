@@ -1702,6 +1702,10 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 	struct ptrs_astlist *body = NULL;
 	struct ptrs_astlist *bodyStart = NULL;
 	struct ptrs_ast_case *cases = &first;
+	size_t caseCount = 0;
+	int64_t totalMin = INT64_MAX;
+	int64_t totalMax = INT64_MIN;
+
 	for(;;)
 	{
 		if(!isDefault && lookahead(code, "default"))
@@ -1756,21 +1760,39 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 				{
 					ptrs_ast_t *expr = parseExpression(code, true);
 					if(expr->handler != ptrs_handle_constant || expr->arg.constval.meta.type != PTRS_TYPE_INT)
-						unexpected(code, "integer constant");
+						PTRS_HANDLE_ASTERROR(expr, "Expected integer constant");
 
 					currCase->next = talloc(struct ptrs_ast_case);
 					currCase = currCase->next;
+					caseCount++;
 
-					currCase->value = expr->arg.constval.value.intval;
+					currCase->min = expr->arg.constval.value.intval;
 					free(expr);
-					currCase->next = NULL;
+
+					if(lookahead(code, ".."))
+					{
+						expr = parseExpression(code, true);
+						if(expr->handler != ptrs_handle_constant || expr->arg.constval.meta.type != PTRS_TYPE_INT)
+							PTRS_HANDLE_ASTERROR(expr, "Expected integer constant");
+
+						currCase->max = expr->arg.constval.value.intval;
+						free(expr);
+					}
+					else
+					{
+						currCase->max = currCase->min;
+					}
+
+					if(currCase->min < totalMin)
+						totalMin = currCase->min;
+					if(currCase->max > totalMax)
+						totalMax = currCase->max;
 
 					if(code->curr == ':')
 						break;
 					consumec(code, ',');
-
-					currCase->next = NULL;
 				}
+				currCase->next = NULL;
 			}
 			consumec(code, ':');
 		}
@@ -1789,6 +1811,9 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 		}
 	}
 
+	stmt->arg.switchcase.caseCount = caseCount;
+	stmt->arg.switchcase.min = totalMin;
+	stmt->arg.switchcase.max = totalMax;
 	stmt->arg.switchcase.cases = first.next;
 }
 

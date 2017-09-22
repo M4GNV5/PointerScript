@@ -132,7 +132,11 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 		jit_type_free(signature);
 	}
 
-	val.meta = ptrs_jit_arrayMeta(func, jit_const_long(func, ulong, PTRS_TYPE_NATIVE), jit_const_long(func, ulong, false), size);
+	val.meta = ptrs_jit_arrayMeta(func,
+		jit_const_long(func, ulong, PTRS_TYPE_NATIVE),
+		jit_const_long(func, ulong, false),
+		size
+	);
 	val.constType = PTRS_TYPE_NATIVE;
 
 	//store the array
@@ -157,7 +161,8 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 
 		//copy initExpr memory to array and zero the rest
 		jit_insn_memcpy(func, val.val, init.val, initSize);
-		jit_insn_memset(func, jit_insn_add(func, val.val, initSize), jit_const_int(func, ubyte, 0), jit_insn_sub(func, size, initSize));
+		jit_insn_memset(func, jit_insn_add(func, val.val, initSize),
+			jit_const_int(func, ubyte, 0), jit_insn_sub(func, size, initSize));
 	}
 	else
 	{
@@ -312,7 +317,8 @@ static void importNative(ptrs_ast_t *node, char *from, ptrs_val_t **values, ptrs
 		curr = curr->next;
 	}
 }
-void ptrs_import(ptrs_ast_t *node, ptrs_val_t fromVal, ptrs_meta_t fromMeta, ptrs_val_t **values, ptrs_meta_t **metas)
+void ptrs_import(ptrs_ast_t *node, ptrs_val_t fromVal, ptrs_meta_t fromMeta,
+	ptrs_val_t **values, ptrs_meta_t **metas)
 {
 	char *path = NULL;
 	if(fromMeta.type != PTRS_TYPE_UNDEFINED)
@@ -396,7 +402,8 @@ ptrs_jit_var_t ptrs_handle_import(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 		curr = curr->next;
 	}
 
-	jit_value_t values = jit_insn_alloca(func, jit_const_int(func, nuint, len * (sizeof(ptrs_val_t) + sizeof(ptrs_meta_t))));
+	jit_value_t values = jit_insn_alloca(func,
+		jit_const_int(func, nuint, len * (sizeof(ptrs_val_t) + sizeof(ptrs_meta_t))));
 	jit_value_t metas = jit_insn_add(func, values, jit_const_int(func, nuint, len * sizeof(ptrs_val_t)));
 
 	curr = stmt->imports;
@@ -625,7 +632,130 @@ ptrs_jit_var_t ptrs_handle_if(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 
 ptrs_jit_var_t ptrs_handle_switch(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	//TODO
+	struct ptrs_ast_switch *stmt = &node->arg.switchcase;
+	struct ptrs_ast_case *curr = stmt->cases;
+	jit_label_t done = jit_label_undefined;
+	int64_t interval = stmt->max - stmt->min + 1;
+
+	ptrs_jit_var_t condition = stmt->condition->handler(stmt->condition, func, scope);
+	jit_value_t val = ptrs_jit_vartoi(func, condition);
+
+	if(jit_value_is_constant(condition.val))
+	{
+		int64_t _val = jit_value_get_long_constant(condition.val);
+		bool hadCase = false;
+
+		while(curr != NULL)
+		{
+			if(curr->min > _val && _val < curr->max)
+			{
+				curr->body->handler(curr->body, func, scope);
+				hadCase = true;
+			}
+			curr = curr->next;
+		}
+
+		if(!hadCase)
+			stmt->defaultCase->handler(stmt->defaultCase, func, scope);
+	}
+	else if(stmt->caseCount > 2 && stmt->caseCount * 4 <= interval && interval < 0x1000)
+	{
+		jit_label_t table[interval];
+		for(int i = 0; i < interval; i++)
+			table[i] = jit_label_undefined;
+
+		bool hasCase[interval];
+		memset(hasCase, 0, sizeof(bool) * interval);
+
+		if(stmt->min != 0)
+			val = jit_insn_sub(func, val, jit_const_int(func, long, stmt->min));
+		jit_insn_jump_table(func, val, table, interval);
+
+		while(curr != NULL)
+		{
+			ptrs_ast_t *body = curr->body;
+			while(curr != NULL && curr->body == body)
+			{
+				for(int i = 0; i < curr->max - stmt->min; i++)
+				{
+					jit_insn_label(func, table + i);
+					hasCase[i] = true;
+				}
+				curr = curr->next;
+			}
+
+			body->handler(body, func, scope);
+
+			jit_insn_branch(func, &done);
+		}
+
+		if(stmt->defaultCase != NULL)
+		{
+			jit_label_t defaultCase = jit_label_undefined;
+			jit_insn_label(func, &defaultCase);
+
+			for(int i = 0; i < interval; i++)
+			{
+				if(!hasCase[i])
+					jit_insn_label(func, table + i);
+			}
+			stmt->defaultCase->handler(stmt->defaultCase, func, scope);
+			jit_insn_branch(func, &done);
+
+			//let all values outside of the jump table jump to the default label
+			jit_insn_branch(func, &defaultCase);
+		}
+	}
+	else
+	{
+		jit_label_t cases[stmt->caseCount];
+		for(int i = 0; i < stmt->caseCount; i++)
+			cases[i] = jit_label_undefined;
+
+		for(int i = 0; curr != NULL; i++)
+		{
+			jit_value_t caseCondition;
+			if(curr->min == curr->max)
+			{
+				caseCondition = jit_insn_eq(func, val, jit_const_int(func, long, curr->min));
+			}
+			else
+			{
+				caseCondition = jit_insn_and(func,
+					jit_insn_ge(func, val, jit_const_int(func, long, curr->min)),
+					jit_insn_le(func, val, jit_const_int(func, long, curr->max))
+				);
+			}
+
+			jit_insn_branch_if(func, caseCondition, cases + i);
+			curr = curr->next;
+		}
+
+		if(stmt->defaultCase != NULL)
+		{
+			stmt->defaultCase->handler(stmt->defaultCase, func, scope);
+			jit_insn_branch(func, &done);
+		}
+
+		curr = stmt->cases;
+		int i = 0;
+		while(curr != NULL)
+		{
+			ptrs_ast_t *body = curr->body;
+			while(curr != NULL && curr->body == body)
+			{
+				jit_insn_label(func, cases + i);
+				curr = curr->next;
+				i++;
+			}
+
+			body->handler(body, func, scope);
+
+			jit_insn_branch(func, &done);
+		}
+	}
+
+	jit_insn_label(func, &done);
 }
 
 ptrs_jit_var_t ptrs_handle_while(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
