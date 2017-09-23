@@ -1,7 +1,7 @@
 import printf, srand, rand, time from "libc.so.6";
 
-const len = 500;
-var parts[len];
+const len = 10000;
+var parts = new array[len];
 
 srand(time(NULL));
 for(var i = 0; i < len; i++)
@@ -29,9 +29,9 @@ qsort(parts, len, VARSIZE, compar);
 */
 
 //simple bubble sort
-for(var i = 0; i < len; i++)
+for(let i = 0; i < len; i++)
 {
-	for(var j = 0; j < len - 1; j++)
+	for(let j = 0; j < len - 1; j++)
 	{
 		if(parts[j] > parts[j + 1])
 		{
