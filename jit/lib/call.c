@@ -37,8 +37,26 @@ jit_value_t ptrs_jit_call(jit_function_t func,
 	jit_value_t _args[narg];
 	for(int i = 0; i < narg; i++)
 	{
-		paramDef[i] = jit_type_long;
-		_args[i] = args[i].val;
+		switch(args[i].constType)
+		{
+			case PTRS_TYPE_UNDEFINED:
+				paramDef[i] = jit_type_long;
+				_args[i] = jit_const_int(func, long, 0);
+				break;
+			case -1:
+			case PTRS_TYPE_INT:
+				paramDef[i] = jit_type_long;
+				_args[i] = args[i].val;
+				break;
+			case PTRS_TYPE_FLOAT:
+				paramDef[i] = jit_type_float64;
+				_args[i] = ptrs_jit_reinterpretCast(func, args[i].val, jit_type_float64);
+				break;
+			default: //pointer type
+				paramDef[i] = jit_type_void_ptr;
+				_args[i] = args[i].val;
+				break;
+		}
 	}
 
 	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, retType, paramDef, narg, 1);
