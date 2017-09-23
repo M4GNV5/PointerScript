@@ -501,6 +501,26 @@ void ptrs_handle_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_s
 		jit_insn_store_relative(func, target.meta, 0, val.meta);
 	}
 }
+ptrs_jit_var_t ptrs_handle_addressof_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+{
+	ptrs_jit_var_t target = *node->arg.varval;
+	jit_function_t targetFunc = jit_value_get_function(target.val);
+
+	if(func == targetFunc)
+	{
+		target.val = jit_insn_address_of(func, target.val);
+	}
+	else
+	{
+		target.val = jit_insn_import(func, target.val);
+		if(target.val == NULL)
+			ptrs_error(node, "Cannot access that variable from here");
+	}
+
+	target.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_POINTER, 0, 1);
+	target.constType = PTRS_TYPE_POINTER;
+	return target;
+}
 
 ptrs_jit_var_t ptrs_handle_functionidentifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {

@@ -195,7 +195,7 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 						*node = ast = talloc(ptrs_ast_t);
 						ast->handler = ptrs_handle_identifier;
 						ast->setHandler = ptrs_handle_assign_identifier;
-						ast->addressHandler = NULL;
+						ast->addressHandler = ptrs_handle_addressof_identifier;
 						ast->callHandler = NULL;
 
 						ast->arg.varval = curr->arg.location;
