@@ -422,9 +422,71 @@ ptrs_jit_var_t ptrs_handle_cast(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 	//TODO
 }
 
-ptrs_jit_var_t ptrs_handle_wildcardsymbol(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_importedsymbol(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	//TODO
+	struct ptrs_ast_importedsymbol *expr = &node->arg.importedsymbol;
+	jit_value_t values = *expr->location;
+	jit_function_t targetFunc = jit_value_get_function(values);
+
+	if(func != targetFunc)
+	{
+		values = jit_insn_import(func, values);
+		values = jit_insn_load_relative(func, values, 0, jit_type_void_ptr);
+		if(values == NULL)
+			ptrs_error(node, "Cannot access that variable from here");
+	}
+
+	ptrs_jit_var_t ret;
+	if(expr->type == NULL)
+	{
+		ret.val = jit_insn_load_relative(func, values,
+			expr->index * sizeof(ptrs_var_t), jit_type_long);
+		ret.meta = jit_insn_load_relative(func, values,
+			expr->index * sizeof(ptrs_var_t) + sizeof(ptrs_val_t), jit_type_ulong);
+		ret.constType = -1;
+	}
+	else
+	{
+		ret.val = jit_insn_load_relative(func, values, expr->index * sizeof(ptrs_var_t), jit_type_void_ptr);
+		ret.val = jit_insn_load_relative(func, ret.val, 0, expr->type->jitType);
+		ret.val = ptrs_jit_normalizeForVar(func, ret.val);
+
+		ret.meta = ptrs_jit_const_meta(func, expr->type->varType);
+		ret.constType = expr->type->varType;
+	}
+
+	return ret;
+}
+void ptrs_handle_assign_importedsymbol(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+	ptrs_jit_var_t val)
+{
+	struct ptrs_ast_importedsymbol *expr = &node->arg.importedsymbol;
+	jit_value_t values = *expr->location;
+	jit_function_t targetFunc = jit_value_get_function(values);
+
+	if(func != targetFunc)
+	{
+		values = jit_insn_import(func, values);
+		if(values == NULL)
+			ptrs_error(node, "Cannot access that variable from here");
+	}
+
+	ptrs_jit_var_t ret;
+	if(expr->type == NULL)
+	{
+		jit_insn_store_relative(func, values,
+			expr->index * sizeof(ptrs_var_t), val.val);
+		jit_insn_store_relative(func, values,
+			expr->index * sizeof(ptrs_var_t) + sizeof(ptrs_val_t), val.meta);
+	}
+	else
+	{
+		ptrs_jit_typeCheck(node, func, scope, val, expr->type->varType,
+			2, "Cannot assign an extern of type %s from type %t", expr->type->name, TYPECHECK_TYPE);
+
+		values = jit_insn_load_relative(func, values, expr->index * sizeof(ptrs_var_t), jit_type_void_ptr);
+		jit_insn_store_relative(func, values, 0, val.val);
+	}
 }
 
 ptrs_jit_var_t ptrs_handle_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
@@ -551,29 +613,6 @@ ptrs_jit_var_t ptrs_handle_call_functionidentifier(ptrs_ast_t *node, jit_functio
 	ptrs_ast_t *caller, struct ptrs_astlist *arguments)
 {
 	return ptrs_jit_vcallnested(func, scope, *node->arg.funcval, arguments);
-}
-
-ptrs_jit_var_t ptrs_handle_typed(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
-{
-	struct ptrs_ast_typed *expr = &node->arg.typed;
-
-	ptrs_jit_var_t ret;
-	ret.meta = ptrs_jit_const_meta(func, expr->type->varType);
-	ret.constType = expr->type->varType;
-
-	ret.val = jit_insn_load_relative(func, expr->location->val, 0, expr->type->jitType);
-	ret.val = ptrs_jit_normalizeForVar(func, ret.val);
-
-	return ret;
-}
-void ptrs_handle_assign_typed(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
-{
-	struct ptrs_ast_typed *expr = &node->arg.typed;
-
-	ptrs_jit_typeCheck(node, func, scope, val, expr->type->varType,
-		2, "Cannot assign an extern of type %s from type %mt", expr->type->name, TYPECHECK_TYPE);
-
-	jit_insn_store_relative(func, expr->location->val, 0, val.val);
 }
 
 ptrs_jit_var_t ptrs_handle_constant(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)

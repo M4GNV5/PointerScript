@@ -21,7 +21,7 @@ typedef enum
 	PTRS_SYMBOL_CONST,
 	PTRS_SYMBOL_TYPED,
 	PTRS_SYMBOL_LAZY,
-	PTRS_SYMBOL_WILDCARD,
+	PTRS_SYMBOL_IMPORTED,
 } ptrs_symboltype_t;
 
 struct symbollist
@@ -34,18 +34,14 @@ struct symbollist
 		struct
 		{
 			ptrs_jit_var_t *location;
-			unsigned index;
-		} wildcard;
-		struct
-		{
-			ptrs_jit_var_t *location;
 			ptrs_ast_t *value;
 		} lazy;
 		struct
 		{
-			ptrs_jit_var_t *location;
-			ptrs_nativetype_info_t *type;
-		} typed;
+			ptrs_nativetype_info_t *type; //optional
+			jit_value_t *location;
+			unsigned index;
+		} imported;
 	} arg;
 	ptrs_symboltype_t type;
 	char *text;
@@ -216,17 +212,6 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 						memcpy(ast, curr->arg.data, sizeof(ptrs_ast_t));
 						break;
 
-					case PTRS_SYMBOL_TYPED:
-						*node = ast = talloc(ptrs_ast_t);
-						ast->handler = ptrs_handle_typed;
-						ast->setHandler = ptrs_handle_assign_typed;
-						ast->addressHandler = NULL;
-						ast->callHandler = NULL;
-
-						ast->arg.typed.location = curr->arg.typed.location;
-						ast->arg.typed.type = curr->arg.typed.type;
-						break;
-
 					case PTRS_SYMBOL_LAZY:
 						*node = ast = talloc(ptrs_ast_t);
 						ast->handler = ptrs_handle_lazy;
@@ -237,15 +222,16 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 						ast->arg.lazy.value = curr->arg.lazy.value;
 						break;
 
-					case PTRS_SYMBOL_WILDCARD:
+					case PTRS_SYMBOL_IMPORTED:
 						*node = ast = talloc(ptrs_ast_t);
-						ast->handler = ptrs_handle_wildcardsymbol;
-						ast->setHandler = NULL;
+						ast->handler = ptrs_handle_importedsymbol;
+						ast->setHandler = ptrs_handle_assign_importedsymbol;
 						ast->addressHandler = NULL;
 						ast->callHandler = NULL;
 
-						ast->arg.wildcard.location = curr->arg.wildcard.location;
-						ast->arg.wildcard.index = curr->arg.wildcard.index;
+						ast->arg.importedsymbol.location = curr->arg.imported.location;
+						ast->arg.importedsymbol.index = curr->arg.imported.index;
+						ast->arg.importedsymbol.type = curr->arg.imported.type;
 						break;
 				}
 				return 0;
@@ -1619,7 +1605,10 @@ static void parseImport(code_t *code, ptrs_ast_t *stmt)
 {
 	stmt->handler = ptrs_handle_import;
 	stmt->arg.import.imports = NULL;
-	stmt->arg.import.wildcardCount = 0;
+	stmt->arg.import.lastImport = NULL;
+	stmt->arg.import.count = 0;
+
+	struct ptrs_importlist **nextPtr = &stmt->arg.import.imports;
 
 	for(;;)
 	{
@@ -1636,33 +1625,39 @@ static void parseImport(code_t *code, ptrs_ast_t *stmt)
 			curr->start = name;
 			curr->startLen = strlen(name);
 		}
-		else if(code->curr == ':')
-		{
-			next(code);
-
-			struct ptrs_importlist *curr = talloc(struct ptrs_importlist);
-			curr->name = name;
-			curr->next = stmt->arg.import.imports;
-			stmt->arg.import.imports = curr;
-
-			struct symbollist *symbol = addSpecialSymbol(code, strdup(name), PTRS_SYMBOL_TYPED);
-			symbol->arg.typed.location = &curr->location;
-			symbol->arg.typed.type = readNativeType(code);
-
-			if(symbol->arg.typed.type == NULL)
-				unexpected(code, "Native type name");
-		}
 		else
 		{
 			struct ptrs_importlist *curr = talloc(struct ptrs_importlist);
-			curr->next = stmt->arg.import.imports;
-			stmt->arg.import.imports = curr;
+			stmt->arg.import.lastImport = curr;
+			*nextPtr = curr;
+			nextPtr = &curr->next;
 
 			curr->name = name;
-			if(lookahead(code, "as"))
-				addSymbol(code, readIdentifier(code), &curr->location);
+			curr->next = NULL;
+
+			struct symbollist *symbol = addSpecialSymbol(code, NULL, PTRS_SYMBOL_IMPORTED);
+			symbol->arg.imported.location = &stmt->arg.import.location;
+			symbol->arg.imported.index = stmt->arg.import.count++;
+
+			if(code->curr == ':')
+			{
+				next(code);
+
+				symbol->text = strdup(name);
+				symbol->arg.imported.type = readNativeType(code);
+
+				if(symbol->arg.imported.type == NULL)
+					unexpected(code, "Native type name");
+			}
 			else
-				addSymbol(code, strdup(curr->name), &curr->location);
+			{
+				if(lookahead(code, "as"))
+					symbol->text = readIdentifier(code);
+				else
+					symbol->text = strdup(curr->name);
+
+				symbol->arg.imported.type = NULL;
+			}
 		}
 
 		if(code->curr == ';')
@@ -2896,29 +2891,26 @@ static ptrs_ast_t *getSymbolFromWildcard(code_t *code, char *text)
 			{
 				struct ptrs_ast_import *stmt = &curr->importStmt->arg.import;
 				struct ptrs_importlist *import = talloc(struct ptrs_importlist);
-				import->next = stmt->imports;
-				stmt->imports = import;
 
-				import->wildcardIndex = stmt->wildcardCount++;
+				if(stmt->lastImport == NULL)
+					stmt->imports = import;
+				else
+					stmt->lastImport->next = import;
+				stmt->lastImport = import;
+
 				import->name = strdup(text);
-
-				ptrs_ast_t *ast = talloc(ptrs_ast_t);
-				ast->handler = ptrs_handle_wildcardsymbol;
-				ast->setHandler = NULL;
-				ast->callHandler = NULL;
-				ast->addressHandler = NULL;
-				ast->arg.wildcard.location = &stmt->wildcards;
-				ast->arg.wildcard.index = import->wildcardIndex;
+				import->next = NULL;
 
 				struct symbollist *entry = talloc(struct symbollist);
 				entry->text = strdup(text);
-				entry->type = PTRS_SYMBOL_WILDCARD;
-				entry->arg.wildcard.location = &stmt->wildcards;
-				entry->arg.wildcard.index = import->wildcardIndex;
+				entry->type = PTRS_SYMBOL_IMPORTED;
+				entry->arg.imported.location = &stmt->location;
+				entry->arg.imported.index = stmt->count++;
+
 				entry->next = symbols->current;
 				symbols->current = entry;
 
-				return ast;
+				return getSymbol(code, text);
 			}
 
 			curr = curr->next;

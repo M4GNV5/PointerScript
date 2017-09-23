@@ -152,7 +152,7 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 
 		//check type of initExpr
 		ptrs_jit_typeCheck(node, func, scope, init, PTRS_TYPE_NATIVE,
-			1, "Array init expression must be of type native not %mt", TYPECHECK_TYPE);
+			1, "Array init expression must be of type native not %t", TYPECHECK_TYPE);
 
 		//check initExpr.size <= array.size
 		jit_value_t initSize = ptrs_jit_getArraySize(func, init.meta);
@@ -279,11 +279,11 @@ ptrs_cache_t *importCachedScript(char *path, ptrs_ast_t *node, ptrs_scope_t *sco
 }
 */
 
-static void importScript(ptrs_ast_t *node, char *from, ptrs_val_t **values, ptrs_meta_t **metas)
+static void importScript(ptrs_ast_t *node, ptrs_var_t *values, char *from)
 {
 	//TODO
 }
-static void importNative(ptrs_ast_t *node, char *from, ptrs_val_t **values, ptrs_meta_t **metas)
+static void importNative(ptrs_ast_t *node, ptrs_var_t *values, char *from)
 {
 	const char *error;
 
@@ -303,12 +303,10 @@ static void importNative(ptrs_ast_t *node, char *from, ptrs_val_t **values, ptrs
 	struct ptrs_importlist *curr = node->arg.import.imports;
 	for(int i = 0; curr != NULL; i++)
 	{
-		metas[i]->type = PTRS_TYPE_NATIVE;
-		metas[i]->array.size = 0;
-		metas[i]->array.readOnly = true;
-		values[i]->nativeval = dlsym(handle, curr->name);
-
-		//TODO do wildcards need special care?
+		values[i].value.nativeval = dlsym(handle, curr->name);
+		values[i].meta.type = PTRS_TYPE_NATIVE;
+		values[i].meta.array.size = 0;
+		values[i].meta.array.readOnly = true;
 
 		error = dlerror();
 		if(error != NULL)
@@ -317,8 +315,7 @@ static void importNative(ptrs_ast_t *node, char *from, ptrs_val_t **values, ptrs
 		curr = curr->next;
 	}
 }
-void ptrs_import(ptrs_ast_t *node, ptrs_val_t fromVal, ptrs_meta_t fromMeta,
-	ptrs_val_t **values, ptrs_meta_t **metas)
+void ptrs_import(ptrs_ast_t *node, ptrs_var_t *values, ptrs_val_t fromVal, ptrs_meta_t fromMeta)
 {
 	char *path = NULL;
 	if(fromMeta.type != PTRS_TYPE_UNDEFINED)
@@ -371,9 +368,9 @@ void ptrs_import(ptrs_ast_t *node, ptrs_val_t fromVal, ptrs_meta_t fromMeta,
 		ending = strrchr(path, '.');
 
 	if(ending != NULL && strcmp(ending, ".ptrs") == 0)
-		importScript(node, path, values, metas);
+		importScript(node, values, path);
 	else
-		importNative(node, path, values, metas);
+		importNative(node, values, path);
 }
 
 ptrs_jit_var_t ptrs_handle_import(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
@@ -402,46 +399,28 @@ ptrs_jit_var_t ptrs_handle_import(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 		curr = curr->next;
 	}
 
-	jit_value_t values = jit_insn_alloca(func,
-		jit_const_int(func, nuint, len * (sizeof(ptrs_val_t) + sizeof(ptrs_meta_t))));
-	jit_value_t metas = jit_insn_add(func, values, jit_const_int(func, nuint, len * sizeof(ptrs_val_t)));
-
-	curr = stmt->imports;
-	for(int i = 0; i < len; i++)
-	{
-		jit_value_t index = jit_const_int(func, nuint, i);
-		curr->location.val = jit_value_create(func, jit_type_long);
-		curr->location.meta = jit_value_create(func, jit_type_ulong);
-		curr->location.constType = -1; //TODO
-
-		jit_value_set_addressable(curr->location.val);
-		jit_value_set_addressable(curr->location.meta);
-
-		jit_insn_store_elem(func, values, index, jit_insn_address_of(func, curr->location.val));
-		jit_insn_store_elem(func, metas, index, jit_insn_address_of(func, curr->location.meta));
-
-		curr = curr->next;
-	}
+	stmt->location = jit_insn_array(func, len * sizeof(ptrs_var_t));
 
 	jit_value_t params[] = {
 		jit_const_int(func, void_ptr, (uintptr_t)node),
+		stmt->location,
 		from.val,
 		from.meta,
-		values,
-		metas
 	};
 
-	jit_type_t paramDef[] = {
-		jit_type_void_ptr,
-		jit_type_long,
-		jit_type_ulong,
-		jit_type_void_ptr,
-		jit_type_void_ptr,
-	};
-	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, jit_type_void, paramDef, 5, 1);
+	static jit_type_t importSignature = NULL;
+	if(importSignature == NULL)
+	{
+		jit_type_t paramDef[] = {
+			jit_type_void_ptr,
+			jit_type_void_ptr,
+			jit_type_long,
+			jit_type_ulong,
+		};
+		importSignature = jit_type_create_signature(jit_abi_cdecl, jit_type_void, paramDef, 4, 1);
+	}
 
-	jit_insn_call_native(func, "import", ptrs_import, signature, params, 5, 0);
-	jit_type_free(signature);
+	jit_insn_call_native(func, "import", ptrs_import, importSignature, params, 4, 0);
 
 	return from; //doh
 }

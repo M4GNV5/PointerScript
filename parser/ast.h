@@ -25,12 +25,6 @@ struct ptrs_ast_define
 	uint8_t isTyped : 1;
 };
 
-struct ptrs_ast_typed
-{
-	ptrs_jit_var_t *location;
-	ptrs_nativetype_info_t *type;
-};
-
 struct ptrs_ast_lazy
 {
 	ptrs_jit_var_t *location;
@@ -46,15 +40,17 @@ struct ptrs_ast_member
 
 struct ptrs_ast_import
 {
-	ptrs_jit_var_t wildcards;
-	int wildcardCount;
+	jit_value_t location;
+	int count;
 	struct ptrs_importlist *imports;
+	struct ptrs_importlist *lastImport;
 	struct ptrs_ast *from;
 };
 
-struct ptrs_ast_wildcard
+struct ptrs_ast_importedsymbol
 {
-	ptrs_jit_var_t *location;
+	ptrs_nativetype_info_t *type; //optional
+	jit_value_t *location;
 	int index;
 };
 
@@ -212,10 +208,9 @@ union ptrs_ast_arg
 
 	struct ptrs_ast_define define;
 	struct ptrs_ast_lazy lazy;
-	struct ptrs_ast_typed typed;
 	struct ptrs_ast_member member;
 	struct ptrs_ast_import import;
-	struct ptrs_ast_wildcard wildcard;
+	struct ptrs_ast_importedsymbol importedsymbol;
 	struct ptrs_ast_trycatch trycatch;
 	struct ptrs_ast_asm asmstmt;
 	struct ptrs_ast_function function;
