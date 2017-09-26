@@ -83,6 +83,25 @@ ptrs_jit_var_t ptrs_jit_varFromConstant(jit_function_t func, ptrs_var_t val)
 	return ret;
 }
 
+void ptrs_jit_assignTypedFromVar(jit_function_t func,
+	jit_value_t target, jit_type_t type, ptrs_jit_var_t val)
+{
+	jit_type_t normalized = jit_type_normalize(jit_type_promote_int(type));
+	switch(jit_type_get_kind(normalized))
+	{
+		case JIT_TYPE_FLOAT32:
+		case JIT_TYPE_FLOAT64:
+			val.val = ptrs_jit_vartof(func, val);
+			break;
+		default: //int, uint, long, ulong, pointer
+			val.val = ptrs_jit_vartoi(func, val);
+			break;
+	}
+
+	val.val = jit_insn_convert(func, val.val, type, 0);
+	jit_insn_store_relative(func, target, 0, val.val);
+}
+
 jit_value_t ptrs_jit_reinterpretCast(jit_function_t func, jit_value_t val, jit_type_t newType)
 {
 	if(jit_value_get_type(val) == newType)

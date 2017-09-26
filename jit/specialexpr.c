@@ -469,6 +469,9 @@ void ptrs_handle_assign_importedsymbol(ptrs_ast_t *node, jit_function_t func, pt
 	jit_value_t values = *expr->location;
 	jit_function_t targetFunc = jit_value_get_function(values);
 
+	if(expr->type == NULL)
+		ptrs_error(node, "Cannot re-assign an imported function");
+
 	if(func != targetFunc)
 	{
 		values = jit_insn_import(func, values);
@@ -476,22 +479,19 @@ void ptrs_handle_assign_importedsymbol(ptrs_ast_t *node, jit_function_t func, pt
 			ptrs_error(node, "Cannot access that variable from here");
 	}
 
-	ptrs_jit_var_t ret;
-	if(expr->type == NULL)
+	if(jit_value_is_constant(values))
 	{
-		jit_insn_store_relative(func, values,
-			expr->index * sizeof(ptrs_var_t), val.val);
-		jit_insn_store_relative(func, values,
-			expr->index * sizeof(ptrs_var_t) + sizeof(ptrs_val_t), val.meta);
+		ptrs_var_t *target = (ptrs_var_t *)jit_value_get_nint_constant(values);
+		target = target[expr->index].value.nativeval;
+		values = jit_const_int(func, void_ptr, (uintptr_t)target);
 	}
 	else
 	{
-		ptrs_jit_typeCheck(node, func, scope, val, expr->type->varType,
-			2, "Cannot assign an extern of type %s from type %t", expr->type->name, TYPECHECK_TYPE);
-
-		values = jit_insn_load_relative(func, values, expr->index * sizeof(ptrs_var_t), jit_type_void_ptr);
-		jit_insn_store_relative(func, values, 0, val.val);
+		values = jit_insn_load_relative(func, values,
+			expr->index * sizeof(ptrs_var_t), jit_type_void_ptr);
 	}
+
+	ptrs_jit_assignTypedFromVar(func, values, expr->type->jitType, val);
 }
 
 ptrs_jit_var_t ptrs_handle_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
