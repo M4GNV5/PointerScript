@@ -377,18 +377,6 @@ ptrs_jit_var_t ptrs_handle_import(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 {
 	struct ptrs_ast_import *stmt = &node->arg.import;
 
-	ptrs_jit_var_t from;
-	if(stmt->from)
-	{
-		from = stmt->from->handler(stmt->from, func, scope);
-	}
-	else
-	{
-		from.val = jit_const_long(func, long, 0);
-		from.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
-		from.constType = PTRS_TYPE_UNDEFINED;
-	}
-
 	int len = 0;
 	struct ptrs_importlist *curr;
 
@@ -399,30 +387,56 @@ ptrs_jit_var_t ptrs_handle_import(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 		curr = curr->next;
 	}
 
-	stmt->location = jit_insn_array(func, len * sizeof(ptrs_var_t));
+	ptrs_jit_var_t from;
+	if(stmt->from != NULL)
+		from = stmt->from->handler(stmt->from, func, scope);
 
-	jit_value_t params[] = {
-		jit_const_int(func, void_ptr, (uintptr_t)node),
-		stmt->location,
-		from.val,
-		from.meta,
-	};
-
-	static jit_type_t importSignature = NULL;
-	if(importSignature == NULL)
+	if(stmt->from == NULL
+		|| (jit_value_is_constant(from.val) && jit_value_is_constant(from.meta)))
 	{
-		jit_type_t paramDef[] = {
-			jit_type_void_ptr,
-			jit_type_void_ptr,
-			jit_type_long,
-			jit_type_ulong,
+		ptrs_var_t constFrom;
+		if(stmt->from == NULL)
+		{
+			constFrom.meta.type = PTRS_TYPE_UNDEFINED;
+		}
+		else
+		{
+			constFrom.value = ptrs_jit_value_getValConstant(from.val);
+			constFrom.value = ptrs_jit_value_getValConstant(from.meta);
+		}
+
+		ptrs_var_t *values = malloc(len * sizeof(ptrs_var_t));
+		ptrs_import(node, values, constFrom.value, constFrom.meta);
+
+		stmt->location = jit_const_int(func, void_ptr, (uintptr_t)values);
+	}
+	else
+	{
+		stmt->location = jit_insn_array(func, len * sizeof(ptrs_var_t));
+
+		jit_value_t params[] = {
+			jit_const_int(func, void_ptr, (uintptr_t)node),
+			stmt->location,
+			from.val,
+			from.meta,
 		};
-		importSignature = jit_type_create_signature(jit_abi_cdecl, jit_type_void, paramDef, 4, 1);
+
+		static jit_type_t importSignature = NULL;
+		if(importSignature == NULL)
+		{
+			jit_type_t paramDef[] = {
+				jit_type_void_ptr,
+				jit_type_void_ptr,
+				jit_type_long,
+				jit_type_ulong,
+			};
+			importSignature = jit_type_create_signature(jit_abi_cdecl, jit_type_void, paramDef, 4, 1);
+		}
+
+		jit_insn_call_native(func, "import", ptrs_import, importSignature, params, 4, 0);
 	}
 
-	jit_insn_call_native(func, "import", ptrs_import, importSignature, params, 4, 0);
-
-	return from; //doh
+	return from;
 }
 
 ptrs_jit_var_t ptrs_handle_return(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)

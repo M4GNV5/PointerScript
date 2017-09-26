@@ -428,7 +428,12 @@ ptrs_jit_var_t ptrs_handle_importedsymbol(ptrs_ast_t *node, jit_function_t func,
 	jit_value_t values = *expr->location;
 	jit_function_t targetFunc = jit_value_get_function(values);
 
-	if(func != targetFunc)
+	if(jit_value_is_constant(values))
+	{
+		ptrs_var_t *constValues = (ptrs_var_t *)jit_value_get_nint_constant(values);
+		return ptrs_jit_varFromConstant(func, constValues[expr->index]);
+	}
+	else if(func != targetFunc)
 	{
 		values = jit_insn_import(func, values);
 		values = jit_insn_load_relative(func, values, 0, jit_type_void_ptr);

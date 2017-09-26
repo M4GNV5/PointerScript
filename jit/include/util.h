@@ -17,6 +17,7 @@ jit_value_t ptrs_jit_normalizeForVar(jit_function_t func, jit_value_t val);
 
 ptrs_val_t ptrs_jit_value_getValConstant(jit_value_t val);
 ptrs_meta_t ptrs_jit_value_getMetaConstant(jit_value_t meta);
+ptrs_jit_var_t ptrs_jit_varFromConstant(jit_function_t func, ptrs_var_t val);
 
 #define ptrs_jit_typeCheck(node, func, scope, val, type, argCount, msg, ...) \
 	do \
