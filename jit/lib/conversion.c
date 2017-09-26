@@ -128,10 +128,13 @@ jit_value_t ptrs_jit_vartoi(jit_function_t func, ptrs_jit_var_t val)
 	switch(val.constType)
 	{
 		case -1:
+		case PTRS_TYPE_NATIVE:
 			break; //use intrinsic
 		case PTRS_TYPE_UNDEFINED:
 			return jit_const_long(func, long, 0);
 		case PTRS_TYPE_INT:
+		case PTRS_TYPE_POINTER:
+		case PTRS_TYPE_STRUCT:
 			return val.val;
 		case PTRS_TYPE_FLOAT:
 			return jit_insn_convert(func, ptrs_jit_reinterpretCast(func, val.val, jit_type_float64), jit_type_long, 0);
@@ -152,10 +155,13 @@ jit_value_t ptrs_jit_vartof(jit_function_t func, ptrs_jit_var_t val)
 	switch(val.constType)
 	{
 		case -1:
+		case PTRS_TYPE_NATIVE:
 			break; //use instrinsic
 		case PTRS_TYPE_UNDEFINED:
 			return jit_const_long(func, long, 0);
 		case PTRS_TYPE_INT:
+		case PTRS_TYPE_POINTER:
+		case PTRS_TYPE_STRUCT:
 			return jit_insn_convert(func, val.val, jit_type_float64, 0);
 		case PTRS_TYPE_FLOAT:
 			return ptrs_jit_reinterpretCast(func, val.val, jit_type_float64);
