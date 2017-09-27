@@ -278,7 +278,30 @@ ptrs_cache_t *importCachedScript(char *path, ptrs_ast_t *node, ptrs_scope_t *sco
 	return cache;
 }
 */
+static char *resolveRelPath(ptrs_ast_t *node, const char *from)
+{
+	char *fullPath;
+	if(from[0] != '/')
+	{
+		char dirbuff[strlen(node->file) + 1];
+		strcpy(dirbuff, node->file);
+		char *dir = dirname(dirbuff);
 
+		char buff[strlen(dir) + strlen(from) + 2];
+		sprintf(buff, "%s/%s", dir, from);
+
+		fullPath = realpath(buff, NULL);
+	}
+	else
+	{
+		fullPath = realpath(from, NULL);
+	}
+
+	if(fullPath == NULL)
+		ptrs_error(node, "Could not resolve path '%s'", from);
+
+	return fullPath;
+}
 static void importScript(ptrs_ast_t *node, ptrs_var_t *values, char *from)
 {
 	//TODO
@@ -292,6 +315,9 @@ static void importNative(ptrs_ast_t *node, ptrs_var_t *values, char *from)
 	void *handle = NULL;
 	if(from != NULL)
 	{
+		if(from[0] == '.' || from[0] == '/')
+			from = resolveRelPath(node, from);
+
 		handle = dlopen(from, RTLD_NOW);
 		free(from);
 
@@ -320,45 +346,25 @@ void ptrs_import(ptrs_ast_t *node, ptrs_var_t *values, ptrs_val_t fromVal, ptrs_
 	char *path = NULL;
 	if(fromMeta.type != PTRS_TYPE_UNDEFINED)
 	{
-		char *from = NULL;
 		if(fromMeta.type == PTRS_TYPE_NATIVE)
 		{
 			int len = strnlen(fromVal.strval, fromMeta.array.size);
 			if(len < fromMeta.array.size)
 			{
-				from = (char *)fromVal.strval;
+				path = (char *)fromVal.strval;
 			}
 			else
 			{
-				from = alloca(len) + 1;
-				memcpy(from, fromVal.strval, len);
-				from[len] = 0;
+				path = alloca(len) + 1;
+				memcpy(path, fromVal.strval, len);
+				path[len] = 0;
 			}
 		}
 		else
 		{
-			from = alloca(32);
-			ptrs_vartoa(fromVal, fromMeta, from, 32);
+			path = alloca(32);
+			ptrs_vartoa(fromVal, fromMeta, path, 32);
 		}
-
-		if(from[0] != '/')
-		{
-			char dirbuff[strlen(node->file) + 1];
-			strcpy(dirbuff, node->file);
-			char *dir = dirname(dirbuff);
-
-			char buff[strlen(dir) + strlen(from) + 2];
-			sprintf(buff, "%s/%s", dir, from);
-
-			path = realpath(buff, NULL);
-		}
-		else
-		{
-			path = realpath(from, NULL);
-		}
-
-		if(from == NULL)
-			ptrs_error(node, "Error resolving path '%s'", from);
 	}
 
 	char *ending;
@@ -402,7 +408,7 @@ ptrs_jit_var_t ptrs_handle_import(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 		else
 		{
 			constFrom.value = ptrs_jit_value_getValConstant(from.val);
-			constFrom.value = ptrs_jit_value_getValConstant(from.meta);
+			constFrom.meta = ptrs_jit_value_getMetaConstant(from.meta);
 		}
 
 		ptrs_var_t *values = malloc(len * sizeof(ptrs_var_t));
