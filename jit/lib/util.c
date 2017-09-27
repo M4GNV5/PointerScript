@@ -8,13 +8,19 @@
 #include "../include/conversion.h"
 #include "../include/error.h"
 
-void ptrs_initScope(ptrs_scope_t *scope)
+void ptrs_initScope(ptrs_scope_t *scope, ptrs_scope_t *parent)
 {
 	scope->continueLabel = jit_label_undefined;
 	scope->breakLabel = jit_label_undefined;
 	scope->firstAssertion = NULL;
 	scope->lastAssertion = NULL;
 	scope->indexSize = NULL;
+
+	if(parent != NULL)
+	{		
+		scope->rootFunc = parent->rootFunc;
+		scope->rootFrame = parent->rootFrame;
+	}
 }
 
 jit_type_t ptrs_jit_getVarType()

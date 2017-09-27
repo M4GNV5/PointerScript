@@ -8,6 +8,7 @@ typedef struct
 	ptrs_ast_t *ast;
 	ptrs_symboltable_t *symbols;
 	jit_function_t func;
+	void *funcFrame;
 } ptrs_result_t;
 
 extern jit_context_t ptrs_jit_context;

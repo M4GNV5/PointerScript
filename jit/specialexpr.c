@@ -151,19 +151,21 @@ ptrs_jit_var_t ptrs_handle_prefix_dereference(ptrs_ast_t *node, jit_function_t f
 	ptrs_jit_var_t ret = {
 		jit_value_create(func, jit_type_long),
 		jit_value_create(func, jit_type_ulong),
+		-1,
 	};
 
 	ptrs_jit_typeSwitch(node, func, scope, val,
 		(1, "Cannot dereference variable of type %t", TYPESWITCH_TYPE),
 		(PTRS_TYPE_NATIVE, PTRS_TYPE_POINTER),
-		case PTRS_TYPE_NATIVE:
+		case PTRS_TYPE_POINTER:
 			jit_insn_store(func, ret.val, jit_insn_load_relative(func, val.val, 0, jit_type_long));
 			jit_insn_store(func, ret.meta, jit_insn_load_relative(func, val.val, sizeof(ptrs_val_t), jit_type_ulong));
 			break;
 
-		case PTRS_TYPE_POINTER:
+		case PTRS_TYPE_NATIVE:
 			jit_insn_store(func, ret.val, jit_insn_load_relative(func, val.val, 0, jit_type_ubyte));
 			jit_insn_store(func, ret.meta, ptrs_jit_const_meta(func, PTRS_TYPE_INT));
+			ret.constType = PTRS_TYPE_INT;
 			break;
 	);
 
@@ -596,9 +598,10 @@ ptrs_jit_var_t ptrs_handle_functionidentifier(ptrs_ast_t *node, jit_function_t f
 
 	if(closure == NULL)
 	{
-		ptrs_function_t *funcAst = jit_function_get_meta(target, PTRS_JIT_FUNCTIONMETA_AST);
+		ptrs_ast_t *funcNode = jit_function_get_meta(target, PTRS_JIT_FUNCTIONMETA_AST);
+		ptrs_function_t *funcAst = &funcNode->arg.function.func;
 
-		closure = ptrs_jit_createTrampoline(funcAst, target);
+		closure = ptrs_jit_createTrampoline(node, scope, funcAst, target);
 		jit_function_set_meta(target, PTRS_JIT_FUNCTIONMETA_CLOSURE, closure, NULL, 0);
 
 		if(ptrs_compileAot && jit_function_compile(closure) == 0)

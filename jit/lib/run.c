@@ -16,7 +16,7 @@ bool ptrs_compileAot = true;
 void ptrs_compile(ptrs_result_t *result, char *src, const char *filename)
 {
 	ptrs_scope_t scope;
-	ptrs_initScope(&scope);
+	ptrs_initScope(&scope, NULL);
 
 	if(ptrs_jit_context == NULL)
 		ptrs_jit_context = jit_context_create();
@@ -37,6 +37,13 @@ void ptrs_compile(ptrs_result_t *result, char *src, const char *filename)
 	jit_function_set_meta(result->func, PTRS_JIT_FUNCTIONMETA_NAME, "(root)", NULL, 0);
 	jit_function_set_meta(result->func, PTRS_JIT_FUNCTIONMETA_FILE, (char *)filename, NULL, 0);
 	jit_function_set_meta(result->func, PTRS_JIT_FUNCTIONMETA_AST, result->ast, NULL, 0);
+
+	scope.rootFunc = result->func;
+	scope.rootFrame = &result->funcFrame;
+	jit_insn_store_relative(result->func,
+		jit_const_int(result->func, void_ptr, (uintptr_t)scope.rootFrame), 0,
+		jit_insn_get_frame_pointer(result->func)
+	);
 
 	result->ast->handler(result->ast, result->func, &scope);
 

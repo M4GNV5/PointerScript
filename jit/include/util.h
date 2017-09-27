@@ -5,7 +5,7 @@
 #include "../../parser/ast.h"
 #include "../include/error.h"
 
-void ptrs_initScope(ptrs_scope_t *scope);
+void ptrs_initScope(ptrs_scope_t *scope, ptrs_scope_t *parent);
 
 jit_type_t ptrs_jit_getVarType();
 

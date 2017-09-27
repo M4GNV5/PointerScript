@@ -103,9 +103,13 @@ ptrs_jit_var_t ptrs_jit_vcallnested(jit_function_t func, ptrs_scope_t *scope,
 	return ptrs_jit_callnested(func, callee, len, buff);
 }
 
-jit_function_t ptrs_jit_createTrampoline(ptrs_function_t *funcAst, jit_function_t func)
+jit_function_t ptrs_jit_createTrampoline(ptrs_ast_t *node, ptrs_scope_t *scope,
+	ptrs_function_t *funcAst, jit_function_t func)
 {
-	jit_type_t argDef[funcAst->argc * 2];
+	if(jit_function_get_nested_parent(func) != scope->rootFunc)
+		ptrs_error(node, "Cannot create closure of multi-nested function"); //TODO
+
+	jit_type_t argDef[funcAst->argc];
 	for(int i = 0; i < funcAst->argc; i++)
 	{
 		argDef[i] = jit_type_long;
@@ -119,20 +123,26 @@ jit_function_t ptrs_jit_createTrampoline(ptrs_function_t *funcAst, jit_function_
 	jit_function_set_meta(closure, PTRS_JIT_FUNCTIONMETA_FILE, "(builtin)", NULL, 0);
 	jit_function_set_meta(closure, PTRS_JIT_FUNCTIONMETA_CLOSURE, NULL, NULL, 0);
 
-	jit_value_t args[funcAst->argc * 2];
+	int argCount = funcAst->argc * 2 + 1;
+	jit_value_t args[argCount];
 	jit_value_t meta = ptrs_jit_const_meta(closure, PTRS_TYPE_INT);
 
+	args[0] = jit_const_int(func, void_ptr, 0);
 	for(int i = 0; i < funcAst->argc; i++)
 	{
-		argDef[i * 2] = jit_type_long;
-		argDef[i * 2 + 1] = jit_type_ulong;
-
-		args[i * 2] = jit_value_get_param(closure, i);
-		args[i * 2 + 1] = meta;
+		args[i * 2 + 1] = jit_value_get_param(closure, i);
+		args[i * 2 + 2] = meta;
 	}
 
-	signature = jit_type_create_signature(jit_abi_cdecl, ptrs_jit_getVarType(), argDef, funcAst->argc * 2, 1);
-	jit_value_t retVal = jit_insn_call(closure, funcAst->name, func, signature, args, funcAst->argc * 2, 0);
+	void *targetClosure = jit_function_to_closure(func);
+	jit_value_t target = jit_const_int(closure, void_ptr, (uintptr_t)targetClosure);
+	jit_value_t frame = jit_insn_load_relative(closure,
+		jit_const_int(closure, void_ptr, (uintptr_t)scope->rootFrame),
+		0, jit_type_void_ptr
+	);
+
+	signature = jit_function_get_signature(func);
+	jit_value_t retVal =  jit_insn_call_nested_indirect(closure, target, frame, signature, args, argCount, 0);
 	jit_type_free(signature);
 
 	ptrs_jit_var_t ret = ptrs_jit_valToVar(closure, retVal);

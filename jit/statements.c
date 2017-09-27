@@ -536,7 +536,7 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 	*ast->symbol = self;
 
 	ptrs_scope_t selfScope;
-	ptrs_initScope(&selfScope);
+	ptrs_initScope(&selfScope, scope);
 
 	for(int i = 0; i < funcAst->argc; i++)
 	{
@@ -574,7 +574,7 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 	ptrs_jit_var_t ret;
 	if(ast->isAnonymous)
 	{
-		jit_function_t closure = ptrs_jit_createTrampoline(funcAst, func);
+		jit_function_t closure = ptrs_jit_createTrampoline(node, scope, funcAst, func);
 		jit_function_set_meta(self, PTRS_JIT_FUNCTIONMETA_CLOSURE, closure, NULL, 0);
 
 		if(ptrs_compileAot && jit_function_compile(closure) == 0)
@@ -979,7 +979,7 @@ ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	}
 
 	ptrs_scope_t bodyScope;
-	ptrs_initScope(&bodyScope);
+	ptrs_initScope(&bodyScope, scope);
 
 	stmt->body->handler(stmt->body, body, &bodyScope);
 

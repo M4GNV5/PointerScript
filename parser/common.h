@@ -46,6 +46,8 @@ typedef struct ptrs_scope
 	struct ptrs_assertion *firstAssertion;
 	struct ptrs_assertion *lastAssertion;
 	jit_value_t indexSize;
+	jit_function_t rootFunc;
+	void **rootFrame;
 } ptrs_scope_t;
 
 typedef void (*ptrs_nativetype_handler_t)(void *target, size_t typeSize, struct ptrs_var *value);
