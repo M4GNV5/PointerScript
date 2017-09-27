@@ -111,7 +111,10 @@ int main(int argc, char **argv)
 	}
 
 	jit_init();
-	ptrs_result_t *result = ptrs_compilefile(file);
+
+	ptrs_result_t result;
+	ptrs_compilefile(&result, file);
+
 	exitOnError();
 
 	if(dumpOps)
@@ -132,7 +135,7 @@ int main(int argc, char **argv)
 
 		ptrs_var_t ret;
 		void *arg = arguments;
-		jit_function_apply(result->func, &arg, &ret);
+		jit_function_apply(result.func, &arg, &ret);
 
 		exitOnError();
 

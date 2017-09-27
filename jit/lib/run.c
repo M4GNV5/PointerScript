@@ -13,7 +13,7 @@
 jit_context_t ptrs_jit_context = NULL;
 bool ptrs_compileAot = true;
 
-ptrs_result_t *ptrs_compile(char *src, const char *filename)
+void ptrs_compile(ptrs_result_t *result, char *src, const char *filename)
 {
 	ptrs_scope_t scope;
 	ptrs_initScope(&scope);
@@ -21,17 +21,19 @@ ptrs_result_t *ptrs_compile(char *src, const char *filename)
 	if(ptrs_jit_context == NULL)
 		ptrs_jit_context = jit_context_create();
 
-	ptrs_result_t *result = malloc(sizeof(ptrs_result_t));
-
 	result->symbols = NULL;
 	result->ast = ptrs_parse(src, filename, &result->symbols);
 
 	jit_context_build_start(ptrs_jit_context);
 
-	jit_type_t params[1] = {jit_type_void_ptr};
-	result->signature = jit_type_create_signature(jit_abi_cdecl, ptrs_jit_getVarType(), params, 1, 1);
+	static jit_type_t rootSignature = NULL;
+	if(rootSignature == NULL)
+	{
+		jit_type_t params[1] = {jit_type_void_ptr};
+		rootSignature = jit_type_create_signature(jit_abi_cdecl, ptrs_jit_getVarType(), params, 1, 1);
+	}
 
-	result->func = jit_function_create(ptrs_jit_context, result->signature);
+	result->func = jit_function_create(ptrs_jit_context, rootSignature);
 	jit_function_set_meta(result->func, PTRS_JIT_FUNCTIONMETA_NAME, "(root)", NULL, 0);
 	jit_function_set_meta(result->func, PTRS_JIT_FUNCTIONMETA_FILE, (char *)filename, NULL, 0);
 	jit_function_set_meta(result->func, PTRS_JIT_FUNCTIONMETA_AST, result->ast, NULL, 0);
@@ -42,11 +44,9 @@ ptrs_result_t *ptrs_compile(char *src, const char *filename)
 		ptrs_error(result->ast, "Failed compiling the root function");
 
 	jit_context_build_end(ptrs_jit_context);
-
-	return result;
 }
 
-ptrs_result_t *ptrs_compilefile(const char *file)
+void ptrs_compilefile(ptrs_result_t *result, const char *file)
 {
 	FILE *fd = fopen(file, "r");
 
@@ -74,5 +74,5 @@ ptrs_result_t *ptrs_compilefile(const char *file)
 			file += len + 1;
 	}
 
-	return ptrs_compile(src, strdup(file));
+	return ptrs_compile(result, src, strdup(file));
 }

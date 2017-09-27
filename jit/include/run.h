@@ -7,14 +7,13 @@ typedef struct
 {
 	ptrs_ast_t *ast;
 	ptrs_symboltable_t *symbols;
-	jit_type_t signature;
 	jit_function_t func;
 } ptrs_result_t;
 
 extern jit_context_t ptrs_jit_context;
 extern bool ptrs_compileAot;
 
-ptrs_result_t *ptrs_compile(char *src, const char *filename);
-ptrs_result_t *ptrs_compilefile(const char *file);
+void ptrs_compile(ptrs_result_t *result, char *src, const char *filename);
+void ptrs_compilefile(ptrs_result_t *result, const char *file);
 
 #endif
