@@ -341,43 +341,6 @@ static void importNative(ptrs_ast_t *node, ptrs_var_t *values, char *from)
 		curr = curr->next;
 	}
 }
-void ptrs_import(ptrs_ast_t *node, ptrs_var_t *values, ptrs_val_t fromVal, ptrs_meta_t fromMeta)
-{
-	char *path = NULL;
-	if(fromMeta.type != PTRS_TYPE_UNDEFINED)
-	{
-		if(fromMeta.type == PTRS_TYPE_NATIVE)
-		{
-			int len = strnlen(fromVal.strval, fromMeta.array.size);
-			if(len < fromMeta.array.size)
-			{
-				path = (char *)fromVal.strval;
-			}
-			else
-			{
-				path = alloca(len) + 1;
-				memcpy(path, fromVal.strval, len);
-				path[len] = 0;
-			}
-		}
-		else
-		{
-			path = alloca(32);
-			ptrs_vartoa(fromVal, fromMeta, path, 32);
-		}
-	}
-
-	char *ending;
-	if(path == NULL)
-	 	ending = NULL;
-	else
-		ending = strrchr(path, '.');
-
-	if(ending != NULL && strcmp(ending, ".ptrs") == 0)
-		importScript(node, values, path);
-	else
-		importNative(node, values, path);
-}
 
 ptrs_jit_var_t ptrs_handle_import(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
@@ -394,53 +357,55 @@ ptrs_jit_var_t ptrs_handle_import(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	}
 
 	ptrs_jit_var_t from;
-	if(stmt->from != NULL)
-		from = stmt->from->handler(stmt->from, func, scope);
-
-	if(stmt->from == NULL
-		|| (jit_value_is_constant(from.val) && jit_value_is_constant(from.meta)))
+	char *path;
+	if(stmt->from == NULL)
 	{
-		ptrs_var_t constFrom;
-		if(stmt->from == NULL)
-		{
-			constFrom.meta.type = PTRS_TYPE_UNDEFINED;
-		}
-		else
-		{
-			constFrom.value = ptrs_jit_value_getValConstant(from.val);
-			constFrom.meta = ptrs_jit_value_getMetaConstant(from.meta);
-		}
-
-		ptrs_var_t *values = malloc(len * sizeof(ptrs_var_t));
-		ptrs_import(node, values, constFrom.value, constFrom.meta);
-
-		stmt->location = jit_const_int(func, void_ptr, (uintptr_t)values);
+		from.val = jit_const_long(func, long, 0);
+		from.meta = jit_const_long(func, ulong, 0);
+		path = NULL;
 	}
 	else
 	{
-		stmt->location = jit_insn_array(func, len * sizeof(ptrs_var_t));
+		from = stmt->from->handler(stmt->from, func, scope);
 
-		jit_value_t params[] = {
-			jit_const_int(func, void_ptr, (uintptr_t)node),
-			stmt->location,
-			from.val,
-			from.meta,
-		};
+		if(!jit_value_is_constant(from.val) || !jit_value_is_constant(from.meta))
+			ptrs_error(node, "Dynamic imports are not supported");
 
-		static jit_type_t importSignature = NULL;
-		if(importSignature == NULL)
+		ptrs_val_t val = ptrs_jit_value_getValConstant(from.val);
+		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(from.meta);
+
+		if(meta.type == PTRS_TYPE_NATIVE)
 		{
-			jit_type_t paramDef[] = {
-				jit_type_void_ptr,
-				jit_type_void_ptr,
-				jit_type_long,
-				jit_type_ulong,
-			};
-			importSignature = jit_type_create_signature(jit_abi_cdecl, jit_type_void, paramDef, 4, 1);
+			int len = strnlen(val.strval, meta.array.size);
+			if(len < meta.array.size)
+			{
+				path = (char *)val.strval;
+			}
+			else
+			{
+				path = alloca(len) + 1;
+				memcpy(path, val.strval, len);
+				path[len] = 0;
+			}
 		}
-
-		jit_insn_call_native(func, "import", ptrs_import, importSignature, params, 4, 0);
+		else
+		{
+			path = alloca(32);
+			ptrs_vartoa(val, meta, path, 32);
+		}
 	}
+
+	ptrs_var_t *values = malloc(len * sizeof(ptrs_var_t));
+	stmt->location = jit_const_int(func, void_ptr, (uintptr_t)values);
+
+	char *ending = NULL;
+	if(path != NULL)
+		ending = strrchr(path, '.');
+
+	if(ending != NULL && strcmp(ending, ".ptrs") == 0)
+		importScript(node, values, path);
+	else
+		importNative(node, values, path);
 
 	return from;
 }
