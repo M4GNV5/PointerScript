@@ -33,10 +33,7 @@ void ptrs_compile(ptrs_result_t *result, char *src, const char *filename)
 		rootSignature = jit_type_create_signature(jit_abi_cdecl, ptrs_jit_getVarType(), params, 1, 1);
 	}
 
-	result->func = jit_function_create(ptrs_jit_context, rootSignature);
-	jit_function_set_meta(result->func, PTRS_JIT_FUNCTIONMETA_NAME, "(root)", NULL, 0);
-	jit_function_set_meta(result->func, PTRS_JIT_FUNCTIONMETA_FILE, (char *)filename, NULL, 0);
-	jit_function_set_meta(result->func, PTRS_JIT_FUNCTIONMETA_AST, result->ast, NULL, 0);
+	result->func = ptrs_jit_createFunction(result->ast, NULL, rootSignature, "(root)");
 
 	scope.rootFunc = result->func;
 	scope.rootFrame = &result->funcFrame;

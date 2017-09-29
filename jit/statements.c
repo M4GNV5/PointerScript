@@ -491,12 +491,7 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 
 	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, ptrs_jit_getVarType(), argDef,
 		funcAst->argc * 2 + 1, 1);
-	jit_function_t self = jit_function_create_nested(ptrs_jit_context, signature, func);
-
-	jit_function_set_meta(self, PTRS_JIT_FUNCTIONMETA_NAME, funcAst->name, NULL, 0);
-	jit_function_set_meta(self, PTRS_JIT_FUNCTIONMETA_FILE, (char *)node->file, NULL, 0);
-	jit_function_set_meta(self, PTRS_JIT_FUNCTIONMETA_AST, node, NULL, 0);
-	jit_function_set_meta(self, PTRS_JIT_FUNCTIONMETA_CLOSURE, NULL, NULL, 0);
+	jit_function_t self = ptrs_jit_createFunction(node, func, signature, funcAst->name);
 
 	*ast->symbol = self;
 
@@ -885,12 +880,7 @@ ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 
 	//create the body function so we have something to call
 	jit_type_t bodySignature = jit_type_create_signature(jit_abi_cdecl, jit_type_ubyte, argDef, totalArgCount, 0);
-	jit_function_t body = jit_function_create_nested(ptrs_jit_context, bodySignature, func);
-
-	jit_function_set_meta(body, PTRS_JIT_FUNCTIONMETA_NAME, "(foreach body)", NULL, 0);
-	jit_function_set_meta(body, PTRS_JIT_FUNCTIONMETA_FILE, (char *)node->file, NULL, 0);
-	jit_function_set_meta(body, PTRS_JIT_FUNCTIONMETA_AST, node, NULL, 0);
-	jit_function_set_meta(body, PTRS_JIT_FUNCTIONMETA_CLOSURE, NULL, NULL, 0);
+	jit_function_t body = ptrs_jit_createFunction(node, func, bodySignature, "(foreach body)");
 
 
 
