@@ -951,13 +951,29 @@ ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 
 ptrs_jit_var_t ptrs_handle_scopestatement(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
+	static jit_type_t bodySignature = NULL;
+	if(bodySignature == NULL)
+		bodySignature = jit_type_create_signature(jit_abi_cdecl, jit_type_void, NULL, 0, 0);
+
 	ptrs_ast_t *body = node->arg.astval;
+	jit_function_t bodyFunc = jit_function_create_nested(ptrs_jit_context, bodySignature, func);
+	ptrs_scope_t bodyScope;
+	ptrs_initScope(&bodyScope, scope);
 
-	ptrs_jit_var_t val = body->handler(body, func, scope);
+	ptrs_jit_var_t val = body->handler(body, bodyFunc, &bodyScope);
 
-	jit_insn_default_return(func);
-	ptrs_jit_placeAssertions(func, scope);
+	jit_value_t ret = jit_insn_call(func, "(scoped body)", bodyFunc, bodySignature, NULL, 0, 0);
+	//TODO handle ret
 
+	jit_insn_default_return(bodyFunc);
+	ptrs_jit_placeAssertions(bodyFunc, scope);
+
+	if(ptrs_compileAot && jit_function_compile(bodyFunc) == 0)
+		ptrs_error(node, "Failed compiling the scoped statement body");
+
+	val.val = ret;
+	val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
+	val.constType = PTRS_TYPE_UNDEFINED;
 	return val;
 }
 

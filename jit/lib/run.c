@@ -44,6 +44,9 @@ void ptrs_compile(ptrs_result_t *result, char *src, const char *filename)
 
 	result->ast->handler(result->ast, result->func, &scope);
 
+	jit_insn_default_return(result->func);
+	ptrs_jit_placeAssertions(result->func, &scope);
+
 	if(ptrs_compileAot && jit_function_compile(result->func) == 0)
 		ptrs_error(result->ast, "Failed compiling the root function");
 

@@ -156,13 +156,7 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 	}
 
 
-	ptrs_ast_t *ast = talloc(ptrs_ast_t);
-	ast->handler = ptrs_handle_file;
-	ast->arg.astval = parseStmtList(&code, 0);
-
-	ast->file = filename;
-	ast->code = src;
-	ast->codepos = 0;
+	ptrs_ast_t *ast = parseStmtList(&code, 0);
 
 	if(symbols == NULL)
 		symbolScope_decrease(&code);
