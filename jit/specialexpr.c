@@ -427,73 +427,37 @@ ptrs_jit_var_t ptrs_handle_cast(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 ptrs_jit_var_t ptrs_handle_importedsymbol(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_importedsymbol *expr = &node->arg.importedsymbol;
-	jit_value_t values = *expr->location;
-	jit_function_t targetFunc = jit_value_get_function(values);
+	ptrs_var_t *values = *expr->location;
 
-	if(jit_value_is_constant(values))
-	{
-		ptrs_var_t *constValues = (ptrs_var_t *)jit_value_get_nint_constant(values);
-		return ptrs_jit_varFromConstant(func, constValues[expr->index]);
-	}
-	else if(func != targetFunc)
-	{
-		values = jit_insn_import(func, values);
-		values = jit_insn_load_relative(func, values, 0, jit_type_void_ptr);
-		if(values == NULL)
-			ptrs_error(node, "Cannot access that variable from here");
-	}
-
-	ptrs_jit_var_t ret;
 	if(expr->type == NULL)
 	{
-		ret.val = jit_insn_load_relative(func, values,
-			expr->index * sizeof(ptrs_var_t), jit_type_long);
-		ret.meta = jit_insn_load_relative(func, values,
-			expr->index * sizeof(ptrs_var_t) + sizeof(ptrs_val_t), jit_type_ulong);
-		ret.constType = -1;
+		return ptrs_jit_varFromConstant(func, values[expr->index]);
 	}
 	else
 	{
-		ret.val = jit_insn_load_relative(func, values, expr->index * sizeof(ptrs_var_t), jit_type_void_ptr);
-		ret.val = jit_insn_load_relative(func, ret.val, 0, expr->type->jitType);
-		ret.val = ptrs_jit_normalizeForVar(func, ret.val);
+		ptrs_jit_var_t ret;
+		jit_value_t addr = jit_const_int(func, void_ptr,
+			(uintptr_t)values[expr->index].value.nativeval);
 
+		ret.val = jit_insn_load_relative(func, addr, 0, expr->type->jitType);
 		ret.meta = ptrs_jit_const_meta(func, expr->type->varType);
 		ret.constType = expr->type->varType;
-	}
 
-	return ret;
+		return ret;
+	}
 }
 void ptrs_handle_assign_importedsymbol(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_jit_var_t val)
 {
 	struct ptrs_ast_importedsymbol *expr = &node->arg.importedsymbol;
-	jit_value_t values = *expr->location;
-	jit_function_t targetFunc = jit_value_get_function(values);
+	ptrs_var_t *values = *expr->location;
 
 	if(expr->type == NULL)
 		ptrs_error(node, "Cannot re-assign an imported function");
 
-	if(func != targetFunc)
-	{
-		values = jit_insn_import(func, values);
-		if(values == NULL)
-			ptrs_error(node, "Cannot access that variable from here");
-	}
-
-	if(jit_value_is_constant(values))
-	{
-		ptrs_var_t *target = (ptrs_var_t *)jit_value_get_nint_constant(values);
-		target = target[expr->index].value.nativeval;
-		values = jit_const_int(func, void_ptr, (uintptr_t)target);
-	}
-	else
-	{
-		values = jit_insn_load_relative(func, values,
-			expr->index * sizeof(ptrs_var_t), jit_type_void_ptr);
-	}
-
-	ptrs_jit_assignTypedFromVar(func, values, expr->type->jitType, val);
+	jit_value_t addr = jit_const_int(func, void_ptr,
+		(uintptr_t)values[expr->index].value.nativeval);
+	ptrs_jit_assignTypedFromVar(func, addr, expr->type->jitType, val);
 }
 
 ptrs_jit_var_t ptrs_handle_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)

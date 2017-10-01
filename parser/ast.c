@@ -39,7 +39,7 @@ struct symbollist
 		struct
 		{
 			ptrs_nativetype_info_t *type; //optional
-			jit_value_t *location;
+			ptrs_var_t **location;
 			unsigned index;
 		} imported;
 	} arg;

@@ -40,7 +40,7 @@ struct ptrs_ast_member
 
 struct ptrs_ast_import
 {
-	jit_value_t location;
+	ptrs_var_t *location;
 	int count;
 	struct ptrs_importlist *imports;
 	struct ptrs_importlist *lastImport;
@@ -50,7 +50,7 @@ struct ptrs_ast_import
 struct ptrs_ast_importedsymbol
 {
 	ptrs_nativetype_info_t *type; //optional
-	jit_value_t *location;
+	ptrs_var_t **location;
 	int index;
 };
 

@@ -395,17 +395,16 @@ ptrs_jit_var_t ptrs_handle_import(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 		}
 	}
 
-	ptrs_var_t *values = malloc(len * sizeof(ptrs_var_t));
-	stmt->location = jit_const_int(func, void_ptr, (uintptr_t)values);
+	stmt->location = malloc(len * sizeof(ptrs_var_t));
 
 	char *ending = NULL;
 	if(path != NULL)
 		ending = strrchr(path, '.');
 
 	if(ending != NULL && strcmp(ending, ".ptrs") == 0)
-		importScript(node, values, path);
+		importScript(node, stmt->location, path);
 	else
-		importNative(node, values, path);
+		importNative(node, stmt->location, path);
 
 	return from;
 }
