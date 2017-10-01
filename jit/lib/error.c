@@ -214,7 +214,7 @@ void *ptrs_formatErrorMsg(const char *msg, va_list ap)
 	return buff;
 }
 
-static void _vptrs_error(ptrs_ast_t *ast, int skipTrace, const char *msg, va_list ap)
+static void _ptrs_verror(ptrs_ast_t *ast, int skipTrace, const char *msg, va_list ap)
 {
 	ptrs_error_t *error = malloc(sizeof(ptrs_error_t));
 	error->message = ptrs_formatErrorMsg(msg, ap);
@@ -248,14 +248,14 @@ static void _ptrs_error(ptrs_ast_t *ast, int skipTrace, const char *msg, ...)
 {
 	va_list ap;
 	va_start(ap, msg);
-	_vptrs_error(ast, skipTrace, msg, ap);
+	_ptrs_verror(ast, skipTrace, msg, ap);
 }
 
 void ptrs_error(ptrs_ast_t *ast, const char *msg, ...)
 {
 	va_list ap;
 	va_start(ap, msg);
-	_vptrs_error(ast, 3, msg, ap);
+	_ptrs_verror(ast, 3, msg, ap);
 }
 
 void ptrs_handle_sig(int sig, siginfo_t *info, void *data)
@@ -292,6 +292,9 @@ void ptrs_handle_signals(jit_function_t func)
 struct ptrs_assertion *ptrs_jit_vassert(ptrs_ast_t *ast, jit_function_t func, ptrs_scope_t *scope,
 	jit_value_t condition, size_t argCount, const char *text, va_list ap)
 {
+	if(jit_value_is_constant(condition) && !jit_value_is_true(condition))
+		_ptrs_verror(ast, 0, text, ap);
+
 	argCount += 2;
 
 	struct ptrs_assertion *assertion = malloc(sizeof(struct ptrs_assertion) + argCount * sizeof(jit_value_t));
@@ -306,7 +309,9 @@ struct ptrs_assertion *ptrs_jit_vassert(ptrs_ast_t *ast, jit_function_t func, pt
 	va_end(ap);
 
 	assertion->label = jit_label_undefined;
-	jit_insn_branch_if_not(func, condition, &assertion->label);
+
+	if(!jit_value_is_constant(condition))
+		jit_insn_branch_if_not(func, condition, &assertion->label);
 
 	assertion->next = NULL;
 	if(scope->lastAssertion == NULL)

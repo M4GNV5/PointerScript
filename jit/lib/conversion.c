@@ -462,5 +462,8 @@ const char * const ptrs_typeStrings[] = {
 };
 const char *ptrs_typetoa(ptrs_vartype_t type)
 {
-	return ptrs_typeStrings[type];
+	if(type < 0 || type > PTRS_TYPE_STRUCT)
+		return "unknown";
+	else
+		return ptrs_typeStrings[type];
 }
