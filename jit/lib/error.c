@@ -162,10 +162,11 @@ void *ptrs_formatErrorMsg(const char *msg, va_list ap)
 			char valbuff[32];
 
 			const char *str;
+			int len;
 			switch(*++msg)
 			{
 				case 't':
-					str = ptrs_typetoa(va_arg(ap, long));
+					str = ptrs_typetoa(va_arg(ap, uintptr_t));
 					break;
 				case 'm':
 					val = va_arg(ap, uintptr_t);
@@ -184,14 +185,22 @@ void *ptrs_formatErrorMsg(const char *msg, va_list ap)
 					val = va_arg(ap, uintptr_t);
 					uintptr_t meta = va_arg(ap, uintptr_t);
 					str = ptrs_vartoa(*(ptrs_val_t *)&val, *(ptrs_meta_t *)&meta, buff, 32);
+					break;
 				default:
 					;
-					char format[3] = {'%', *msg, 0};
-					snprintf(valbuff, 32, format, va_arg(ap, long));
-					str = valbuff;
+					//TODO support float and double's
+					val = va_arg(ap, uintptr_t);
+					valbuff[0] = '%';
+					valbuff[1] = *msg;
+					valbuff[2] = 0;
+					str = NULL;
+					len = snprintf(NULL, 0, valbuff, val);
+					break;
 			}
 
-			int len = strlen(str);
+			if(str != NULL)
+				len = strlen(str);
+
 			while(buffptr + len > buff + bufflen)
 			{
 				ptrdiff_t diff = buffptr - buff;
@@ -200,8 +209,15 @@ void *ptrs_formatErrorMsg(const char *msg, va_list ap)
 				buffptr = buff + diff;
 			}
 
-			memcpy(buffptr, str, len + 1);
-			buffptr += len;
+			if(str != NULL)
+			{
+				memcpy(buffptr, str, len + 1);
+				buffptr += len;
+			}
+			else
+			{
+				buffptr += sprintf(buffptr, valbuff, val);
+			}
 		}
 		else
 		{
