@@ -15,32 +15,15 @@ ptrs_jit_var_t ptrs_handle_call(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 	struct ptrs_ast_call *expr = &node->arg.call;
 
 	if(expr->value->callHandler != NULL)
-		return expr->value->callHandler(expr->value, func, scope, node, expr->arguments);
-
-	ptrs_jit_var_t val = expr->value->handler(expr->value, func, scope);
-
-	jit_type_t retType;
-	if(expr->retType == NULL)
-		retType = jit_type_long;
-	else
-		retType = expr->retType->jitType;
-
-	ptrs_jit_var_t ret;
-	ret.val = ptrs_jit_vcall(node, func, scope, retType, val.val, val.meta, expr->arguments);
-
-	if(expr->retType == NULL)
 	{
-		ret.constType = PTRS_TYPE_INT;
-		ret.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
+		return expr->value->callHandler(expr->value, func, scope, node, expr->retType, expr->arguments);
 	}
 	else
 	{
-		ret.constType = expr->retType->varType;
-		ret.meta = ptrs_jit_const_meta(func, expr->retType->varType);
-		ret.val = ptrs_jit_normalizeForVar(func, ret.val);
+		ptrs_jit_var_t val = expr->value->handler(expr->value, func, scope);
+		return ptrs_jit_vcallTyped(node, func, scope, expr->retType, val, expr->arguments);
 	}
 
-	return ret;
 }
 
 ptrs_jit_var_t ptrs_handle_stringformat(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
@@ -112,7 +95,7 @@ ptrs_jit_var_t ptrs_handle_addressof_member(ptrs_ast_t *node, jit_function_t fun
 	//TODO
 }
 ptrs_jit_var_t ptrs_handle_call_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
-	ptrs_ast_t *caller, struct ptrs_astlist *arguments)
+	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments)
 {
 	//TODO
 }
@@ -477,6 +460,67 @@ void ptrs_handle_assign_importedsymbol(ptrs_ast_t *node, jit_function_t func, pt
 		(uintptr_t)stmt->symbols[expr->index].value.nativeval);
 	ptrs_jit_assignTypedFromVar(func, addr, expr->type->jitType, val);
 }
+ptrs_jit_var_t ptrs_handle_call_importedsymbol(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments)
+{
+	struct ptrs_ast_importedsymbol *expr = &node->arg.importedsymbol;
+	struct ptrs_ast_import *stmt = &expr->import->arg.import;
+	ptrs_jit_var_t val;
+
+	if(stmt->isScriptImport)
+	{
+		ptrs_ast_t *ast = stmt->expressions[expr->index];
+		if(ast->callHandler != NULL)
+			return ast->callHandler(ast, func, scope, caller, retType, arguments);
+		else
+			val = ast->handler(ast, func, scope);
+	}
+	else if(expr->type == NULL)
+	{
+		val = ptrs_jit_varFromConstant(func, stmt->symbols[expr->index]);
+	}
+	else
+	{
+		ptrs_jit_var_t ret;
+		jit_value_t addr = jit_const_int(func, void_ptr,
+			(uintptr_t)stmt->symbols[expr->index].value.nativeval);
+
+		val.val = jit_insn_load_relative(func, addr, 0, expr->type->jitType);
+		val.meta = ptrs_jit_const_meta(func, expr->type->varType);
+		val.constType = expr->type->varType;
+	}
+
+	return ptrs_jit_vcallTyped(node, func, scope, retType, val, arguments);
+}
+ptrs_jit_var_t ptrs_handle_addressof_importedsymbol(ptrs_ast_t *node,
+	jit_function_t func, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_importedsymbol *expr = &node->arg.importedsymbol;
+	struct ptrs_ast_import *stmt = &expr->import->arg.import;
+
+	if(stmt->isScriptImport)
+	{
+		ptrs_ast_t *ast = stmt->expressions[expr->index];
+		if(ast->addressHandler != NULL)
+			return ast->addressHandler(ast, func, scope);
+		else
+			ptrs_error(node, "Cannot get address of temporary or constant value");
+	}
+	else if(expr->type == NULL)
+	{
+		ptrs_error(node, "Cannot get address of imported native function");
+	}
+	else
+	{
+		ptrs_jit_var_t ret;
+		ret.val = jit_const_int(func, void_ptr,
+			(uintptr_t)stmt->symbols[expr->index].value.nativeval);
+		ret.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_NATIVE, false, expr->type->size);
+		ret.constType = PTRS_TYPE_NATIVE;
+
+		return ret;
+	}
+}
 
 ptrs_jit_var_t ptrs_handle_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
@@ -600,7 +644,7 @@ ptrs_jit_var_t ptrs_handle_functionidentifier(ptrs_ast_t *node, jit_function_t f
 	return ret;
 }
 ptrs_jit_var_t ptrs_handle_call_functionidentifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
-	ptrs_ast_t *caller, struct ptrs_astlist *arguments)
+	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments)
 {
 	return ptrs_jit_vcallnested(func, scope, *node->arg.funcval, arguments);
 }

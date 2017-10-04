@@ -289,6 +289,7 @@ static void importScript(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *sc
 		char *src = ptrs_readFile(from);
 
 		cache = malloc(sizeof(ptrs_cache_t));
+		cache->symbols = NULL;
 		cache->ast = ptrs_parse(src, from, &cache->symbols);
 
 		cache->ast->handler(cache->ast, func, scope);

@@ -220,8 +220,8 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 						*node = ast = talloc(ptrs_ast_t);
 						ast->handler = ptrs_handle_importedsymbol;
 						ast->setHandler = ptrs_handle_assign_importedsymbol;
-						ast->addressHandler = NULL;
-						ast->callHandler = NULL;
+						ast->addressHandler = ptrs_handle_addressof_importedsymbol;
+						ast->callHandler = ptrs_handle_call_importedsymbol;
 
 						ast->arg.importedsymbol.import = curr->arg.imported.import;
 						ast->arg.importedsymbol.index = curr->arg.imported.index;

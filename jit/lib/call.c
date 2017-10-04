@@ -76,6 +76,33 @@ jit_value_t ptrs_jit_vcall(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *
 	return ptrs_jit_call(func, retType, val, len, buff);
 }
 
+ptrs_jit_var_t ptrs_jit_vcallTyped(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+	ptrs_nativetype_info_t *retType, ptrs_jit_var_t callee, struct ptrs_astlist *args)
+{
+	jit_type_t _retType;
+	if(retType == NULL)
+		_retType = jit_type_long;
+	else
+		_retType = retType->jitType;
+
+	ptrs_jit_var_t ret;
+	ret.val = ptrs_jit_vcall(node, func, scope, _retType, callee.val, callee.meta, args);
+
+	if(retType == NULL)
+	{
+		ret.constType = PTRS_TYPE_INT;
+		ret.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
+	}
+	else
+	{
+		ret.constType = retType->varType;
+		ret.meta = ptrs_jit_const_meta(func, retType->varType);
+		ret.val = ptrs_jit_normalizeForVar(func, ret.val);
+	}
+
+	return ret;
+}
+
 ptrs_jit_var_t ptrs_jit_callnested(jit_function_t func, jit_function_t callee, size_t narg, ptrs_jit_var_t *args)
 {
 	jit_value_t _args[narg * 2 + 1];

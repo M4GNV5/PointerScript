@@ -63,13 +63,16 @@ void ptrs_handle_assign_importedsymbol(ptrs_ast_t *node, jit_function_t func, pt
 ptrs_jit_var_t ptrs_handle_addressof_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_addressof_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_addressof_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
+ptrs_jit_var_t ptrs_handle_addressof_importedsymbol(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 
 ptrs_jit_var_t ptrs_handle_call_functionidentifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
-	ptrs_ast_t *caller, struct ptrs_astlist *arguments);
+	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments);
 ptrs_jit_var_t ptrs_handle_call_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
-	ptrs_ast_t *caller, struct ptrs_astlist *arguments);
+	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments);
 ptrs_jit_var_t ptrs_handle_call_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
-	ptrs_ast_t *caller, struct ptrs_astlist *arguments);
+	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments);
+ptrs_jit_var_t ptrs_handle_call_importedsymbol(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments);
 
 ptrs_jit_var_t ptrs_handle_op_ternary(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_op_instanceof(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
