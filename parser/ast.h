@@ -40,8 +40,13 @@ struct ptrs_ast_member
 
 struct ptrs_ast_import
 {
-	ptrs_var_t *location;
+	union
+	{
+		ptrs_var_t *symbols;
+		struct ptrs_ast **expressions;
+	};
 	int count;
+	bool isScriptImport;
 	struct ptrs_importlist *imports;
 	struct ptrs_importlist *lastImport;
 	struct ptrs_ast *from;
@@ -50,7 +55,7 @@ struct ptrs_ast_import
 struct ptrs_ast_importedsymbol
 {
 	ptrs_nativetype_info_t *type; //optional
-	ptrs_var_t **location;
+	struct ptrs_ast *import;
 	int index;
 };
 

@@ -235,49 +235,15 @@ ptrs_jit_var_t ptrs_handle_structvar(ptrs_ast_t *node, jit_function_t func, ptrs
 	//TODO
 }
 
-/*
 typedef struct ptrs_cache
 {
 	const char *path;
 	ptrs_ast_t *ast;
-	ptrs_scope_t *scope;
 	ptrs_symboltable_t *symbols;
 	struct ptrs_cache *next;
 } ptrs_cache_t;
 ptrs_cache_t *ptrs_cache = NULL;
-ptrs_cache_t *importCachedScript(char *path, ptrs_ast_t *node, ptrs_scope_t *scope)
-{
-	ptrs_cache_t *cache = ptrs_cache;
-	while(cache != NULL)
-	{
-		if(strcmp(cache->path, path) == 0)
-		{
-			free(path);
-			return cache;
-		}
-		cache = cache->next;
-	}
 
-	ptrs_scope_t *_scope = calloc(1, sizeof(ptrs_scope_t));
-	ptrs_symboltable_t *symbols = NULL;
-	ptrs_var_t valuev;
-
-	ptrs_lastast = NULL;
-	ptrs_lastscope = NULL;
-	ptrs_ast_t *ast = ptrs_dofile(path, &valuev, _scope, &symbols);
-	ptrs_lastast = node;
-	ptrs_lastscope = scope;
-
-	cache = malloc(sizeof(ptrs_cache_t));
-	cache->path = path;
-	cache->ast = ast;
-	cache->scope = _scope;
-	cache->symbols = symbols;
-	cache->next = ptrs_cache;
-	ptrs_cache = cache;
-	return cache;
-}
-*/
 static char *resolveRelPath(ptrs_ast_t *node, const char *from)
 {
 	char *fullPath;
@@ -302,9 +268,43 @@ static char *resolveRelPath(ptrs_ast_t *node, const char *from)
 
 	return fullPath;
 }
-static void importScript(ptrs_ast_t *node, ptrs_var_t *values, char *from)
+static void importScript(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+	ptrs_ast_t **expressions, char *from)
 {
-	//TODO
+	from = resolveRelPath(node, from);
+
+	ptrs_cache_t *cache = ptrs_cache;
+	while(cache != NULL)
+	{
+		if(strcmp(cache->path, from) == 0)
+		{
+			free(from);
+			break;
+		}
+		cache = cache->next;
+	}
+
+	if(cache == NULL)
+	{
+		char *src = ptrs_readFile(from);
+
+		cache = malloc(sizeof(ptrs_cache_t));
+		cache->ast = ptrs_parse(src, from, &cache->symbols);
+
+		cache->ast->handler(cache->ast, func, scope);
+
+		cache->next = ptrs_cache;
+		ptrs_cache = cache;
+	}
+
+	struct ptrs_importlist *curr = node->arg.import.imports;
+	for(int i = 0; curr != NULL; i++)
+	{
+		if(ptrs_ast_getSymbol(cache->symbols, curr->name, expressions + i) != 0)
+			ptrs_error(node, "Script '%s' has no property '%s'", from, curr->name);
+
+		curr = curr->next;
+	}
 }
 static void importNative(ptrs_ast_t *node, ptrs_var_t *values, char *from)
 {
@@ -395,16 +395,22 @@ ptrs_jit_var_t ptrs_handle_import(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 		}
 	}
 
-	stmt->location = malloc(len * sizeof(ptrs_var_t));
-
 	char *ending = NULL;
 	if(path != NULL)
 		ending = strrchr(path, '.');
 
 	if(ending != NULL && strcmp(ending, ".ptrs") == 0)
-		importScript(node, stmt->location, path);
+	{
+		stmt->isScriptImport = true;
+		stmt->expressions = malloc(len * sizeof(ptrs_ast_t *));
+		importScript(node, func, scope, stmt->expressions, path);
+	}
 	else
-		importNative(node, stmt->location, path);
+	{
+		stmt->isScriptImport = false;
+		stmt->symbols = malloc(len * sizeof(ptrs_var_t));
+		importNative(node, stmt->symbols, path);
+	}
 
 	return from;
 }

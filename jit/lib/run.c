@@ -55,22 +55,13 @@ void ptrs_compile(ptrs_result_t *result, char *src, const char *filename)
 
 void ptrs_compilefile(ptrs_result_t *result, const char *file)
 {
-	FILE *fd = fopen(file, "r");
+	char *src = ptrs_readFile(file);
 
-	if(fd == NULL)
+	if(src == NULL)
 	{
 		fprintf(stderr, "%s : %s\n", file, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
-
-	fseek(fd, 0, SEEK_END);
-	long fsize = ftell(fd);
-	fseek(fd, 0, SEEK_SET);
-
-	char *src = malloc(fsize + 1);
-	fread(src, fsize, 1, fd);
-	fclose(fd);
-	src[fsize] = 0;
 
 	{
 		char cwd[1024];

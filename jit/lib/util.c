@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include <stdarg.h>
 #include <assert.h>
 #include <jit/jit.h>
@@ -7,6 +9,25 @@
 #include "../include/run.h"
 #include "../include/conversion.h"
 #include "../include/error.h"
+
+char *ptrs_readFile(const char *path)
+{
+	FILE *fd = fopen(path, "r");
+
+	if(fd == NULL)
+		return NULL;
+
+	fseek(fd, 0, SEEK_END);
+	long fsize = ftell(fd);
+	fseek(fd, 0, SEEK_SET);
+
+	char *content = malloc(fsize + 1);
+	fread(content, fsize, 1, fd);
+	fclose(fd);
+	content[fsize] = 0;
+
+	return content;
+}
 
 jit_function_t ptrs_jit_createFunction(ptrs_ast_t *node, jit_function_t parent,
 	jit_type_t signature, const char *name)

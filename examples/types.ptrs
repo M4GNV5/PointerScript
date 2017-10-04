@@ -18,4 +18,3 @@ function log(val)
 log(1337 * 42);
 log(3.1415);
 log("Hello world!");
-log(log);

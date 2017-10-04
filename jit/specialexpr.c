@@ -427,17 +427,22 @@ ptrs_jit_var_t ptrs_handle_cast(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 ptrs_jit_var_t ptrs_handle_importedsymbol(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_importedsymbol *expr = &node->arg.importedsymbol;
-	ptrs_var_t *values = *expr->location;
+	struct ptrs_ast_import *stmt = &expr->import->arg.import;
 
-	if(expr->type == NULL)
+	if(stmt->isScriptImport)
 	{
-		return ptrs_jit_varFromConstant(func, values[expr->index]);
+		ptrs_ast_t *ast = stmt->expressions[expr->index];
+		return ast->handler(ast, func, scope);
+	}
+	else if(expr->type == NULL)
+	{
+		return ptrs_jit_varFromConstant(func, stmt->symbols[expr->index]);
 	}
 	else
 	{
 		ptrs_jit_var_t ret;
 		jit_value_t addr = jit_const_int(func, void_ptr,
-			(uintptr_t)values[expr->index].value.nativeval);
+			(uintptr_t)stmt->symbols[expr->index].value.nativeval);
 
 		ret.val = jit_insn_load_relative(func, addr, 0, expr->type->jitType);
 		ret.meta = ptrs_jit_const_meta(func, expr->type->varType);
@@ -450,13 +455,26 @@ void ptrs_handle_assign_importedsymbol(ptrs_ast_t *node, jit_function_t func, pt
 	ptrs_jit_var_t val)
 {
 	struct ptrs_ast_importedsymbol *expr = &node->arg.importedsymbol;
-	ptrs_var_t *values = *expr->location;
+	struct ptrs_ast_import *stmt = &expr->import->arg.import;
+
+	if(stmt->isScriptImport)
+	{
+		ptrs_ast_t *ast = stmt->expressions[expr->index];
+		if(ast->setHandler == NULL)
+			ptrs_error(node, "Invalid assign expression, left side is not a valid lvalue");
+		else
+			ast->setHandler(ast, func, scope, val);
+
+		return;
+	}
 
 	if(expr->type == NULL)
+	{
 		ptrs_error(node, "Cannot re-assign an imported function");
+	}
 
 	jit_value_t addr = jit_const_int(func, void_ptr,
-		(uintptr_t)values[expr->index].value.nativeval);
+		(uintptr_t)stmt->symbols[expr->index].value.nativeval);
 	ptrs_jit_assignTypedFromVar(func, addr, expr->type->jitType, val);
 }
 

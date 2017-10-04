@@ -39,7 +39,7 @@ struct symbollist
 		struct
 		{
 			ptrs_nativetype_info_t *type; //optional
-			ptrs_var_t **location;
+			ptrs_ast_t *import;
 			unsigned index;
 		} imported;
 	} arg;
@@ -223,7 +223,7 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 						ast->addressHandler = NULL;
 						ast->callHandler = NULL;
 
-						ast->arg.importedsymbol.location = curr->arg.imported.location;
+						ast->arg.importedsymbol.import = curr->arg.imported.import;
 						ast->arg.importedsymbol.index = curr->arg.imported.index;
 						ast->arg.importedsymbol.type = curr->arg.imported.type;
 						break;
@@ -1628,7 +1628,7 @@ static void parseImport(code_t *code, ptrs_ast_t *stmt)
 			curr->next = NULL;
 
 			struct symbollist *symbol = addSpecialSymbol(code, NULL, PTRS_SYMBOL_IMPORTED);
-			symbol->arg.imported.location = &stmt->arg.import.location;
+			symbol->arg.imported.import = stmt;
 			symbol->arg.imported.index = stmt->arg.import.count++;
 
 			if(code->curr == ':')
@@ -2896,7 +2896,7 @@ static ptrs_ast_t *getSymbolFromWildcard(code_t *code, char *text)
 				struct symbollist *entry = talloc(struct symbollist);
 				entry->text = strdup(text);
 				entry->type = PTRS_SYMBOL_IMPORTED;
-				entry->arg.imported.location = &stmt->location;
+				entry->arg.imported.import = curr->importStmt;
 				entry->arg.imported.index = stmt->count++;
 
 				entry->next = symbols->current;
