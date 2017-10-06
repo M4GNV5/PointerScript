@@ -18,7 +18,6 @@
 	- [StructVariableDefinition](#structvariabledefinition)
 	- [ConstDefinition](#constdefinition)
 	- [ImportStatement](#importstatement)
-	- [AsmStatement](#asmstatement)
 	- [ScopeStatement](#scopestatement)
 	- [TryStatement](#trystatement)
 	- [TryCatchStatement](#trycatchstatement)
@@ -89,15 +88,20 @@ if(typeof myVal == type<int>)
 	//...
 ```
 
-Converting a variable to an `int` or `float` or `native`.
-Casting to native will allocate memory on the stack and place a string representation in it.
+Converting a variable to an `int` or `float` or `string`.
+Casting to string will allocate memory on the stack and return a stringified
+value of type native.
 ```js
 var myVal = cast<float>"3.14";
-var myString = cast<native>myVal;
+var myInt = cast<int>myVal;
+var myString = cast<string>(myInt * myVal);
 ```
 
 Changing the type of a variable. Note: this will not touch the actual value.
 ```js
+var x = 3;
+var y = as<pointer>3;
+
 //by default all native functions return an int
 var ptr = malloc!native(1024);
 ```
@@ -108,9 +112,8 @@ var ptr = malloc!native(1024);
 | `undefined` | - | A not defined value |
 | `int` | `int64_t` | 64 bit integer |
 | `float` | `double` | 64 bit IEEE Float |
-| `native` | `char *` | Pointer to a byte sequence or native function |
+| `native` | `char *` | Pointer to a byte sequence or a function |
 | `pointer` | `ptrs_var_t *` | Pointer to another variable |
-| `function` | `ptrs_function_t *` | A PointerScript function |
 | `struct` | `ptrs_struct_t *` | A PointerScript struct |
 
 ## Constants
@@ -120,8 +123,6 @@ var ptr = malloc!native(1024);
 | `false` | `int` | 0 |
 | `NULL` | `native` | 0 |
 | `null` | `pointer` | 0 |
-| `VARSIZE` | `int` | Size of a variable |
-| `PTRSIZE` | `int` | Size of a pointer |
 | `undefined` | `undefined` | - |
 | `NaN` | `float` | NaN |
 | `Infinity` | `float` | Infinity |
@@ -129,7 +130,7 @@ var ptr = malloc!native(1024);
 | `E` | `float` | e |
 
 ## Structs
-Structs are as powerful as classes in other languages (they support fields, functions, overlods, getters/setters, ...).
+Structs are as powerful as classes in other languages (they support fields, functions, overloads, getters/setters, ...).
 Here is an example of basic/common struct usage.
 For things like operator overloading etc. see [struct.ptrs](examples/struct.ptrs) in the examples directory.
 ```js
@@ -362,58 +363,13 @@ function fibo(val)
 }
 ```
 
-Wildcard imports can be used when you need many functions from a library that all start with the same prefix so you dont have to write them all down manually.
+Wildcard imports can be used when you need many functions from a library that all start with the same prefix so you don't have to write them all down manually.
 ```js
 import curl_* from "libcurl.so";
 var ctx = curl_easy_init();
 curl_easy_setopt(ctx, 10002/*CURLOPT_URL*/, "https://pointerscript.org");
 curl_easy_perform(ctx);
 curl_easy_cleanup(ctx);
-```
-
-## AsmStatement
-(only available on linux-x86_64) The assembly code will be assembled at parse time and linked at runtime. This is powered by [libjitas](https://github.com/M4GNV5/libjitas) using GAS syntax for instructions and Intel syntax for data (`db`, `resq` etc.)
-```js
-//'asm' [ IdentifierList ] '{' AsmInstructionList '}' ';'
-
-import printf;
-var fmt = "myVar = %d\n";
-var myVar = 42;
-
-//asm followed directly by a body will be executed when reached
-asm
-{
-	//when using local variables there are three modes:
-	//$myVar is the address of myVar
-	//myVar is the value of myVar
-	//*myVar is the value where myVar points to (only valid for pointer/native types)
-	mov fmt, %rdi
-	mov myVar, %rsi
-	mov $0, %eax
-	call *printf
-	//a ret at the end is necesarry or bad things will happen
-	ret
-};
-
-//asm followed by a list of export symbols will not execute when reached but export
-//symbols from the assembly code
-asm myFunc, myData
-{
-	//char myFunc(int index); returns myData[index]
-	myFunc:
-		mov $myData, %rcx
-		mov $0, %rax
-		mov (%rcx, %rdi, 1), %al
-		ret
-
-	myPrivateData:
-		resq 16
-
-	myData:
-		db 42, 31, 12
-};
-
-myFunc(2) == myData[2];
 ```
 
 ## ScopeStatement
@@ -486,7 +442,7 @@ finally(ret)
 {
 	freeRessources();
 
-	//you can either return 'ret' or something completly different
+	//you can either return 'ret' or something completely different
 	return ret;
 }
 ```
@@ -530,7 +486,7 @@ function log(lazy msg)  { /* ... */ }
 function tar(name, args...) { /* ... */ }
 ```
 ### ArgumentDefinition
-Arguments will be set to the value to the caller provides or the default value if provided otherwise to `undefined`.
+Arguments will be set to the value the caller provides or the default value if provided otherwise to `undefined`.
 ```js
 //Identifier [ '=' Expression ]
 ```
@@ -543,7 +499,7 @@ will be passed non-lazy (aka evaluated when calling the function) (see [CallExpr
 ```js
 //'lazy' Identifier [ '=' Expression ]
 ```
-The varargs argument will be set to a NULL terminated array of all additional arguments passed. This must be the last argument.
+The varargs argument will be set to an array of all additional arguments passed. This must be the last argument.
 For information on how to use varargs see the [Variable Arguments](#variable-arguments) section
 ```js
 //Identifier '...'
@@ -751,18 +707,24 @@ delete baz;
 ## SwitchStatement
 Note: A break between one cases body and the next case is **not** necessary.
 Also one case statement can have multiple cases seperated by a comma (all cases must be constants of type integer).
+A case may also be a range between two values.
 ```js
-//'switch' '(' Expression ')' '{' SwitchCaseBody '}'
-//'case' ExpressionList ':'
-//'default' ':'
+//SwitchStatement   := 'switch' '(' Expression ')' '{' SwitchCaseList '}'
+//SwitchCase        := 'case' CaseList ':' StatementList
+//                  |  'default' ':' StatementList
+
+//CaseList          := IntegerConstant [ ',' CaseList ]
+//                  |  IntegerConstant '..' IntegerConstant [ ',' CaseList ]
 
 var str;
 switch(getchar())
 {
 	case 'a', 'b':
 		str = "hey";
-	case ':', 10:
+	case 10, 128 .. 255:
 		str = "ahoi";
+	case '0' .. '9', 'f', 'e':
+		str = "hóla";
 	default:
 		str = "hello";
 }
@@ -841,7 +803,7 @@ return atoi("42");
 ## CallExpression
 Calls a function.
 
-When calling a native function you can also specify the return type. This is necesarry for functions that return floats and handy for functions that return pointers or signed integers that are not `int64_t`'s.
+When calling a native function you can also specify the return type. This is necessary for functions that return floats and handy for functions that return pointers or signed integers that are not `int64_t`'s.
 ```js
 //Identifier '(' ArgumentList ')'
 //Identifier '!' TypeName '(' ArgumentList ')'
@@ -867,9 +829,9 @@ foo(_); //a will be 3
 function bar(a) { /* ... */ }
 bar(5); //a will be 5
 
-function doSomething(a, b, c) { /* ... */ }
+function doSomething(x, y, z) { /* ... */ }
 var args[] = [42, 1337, "foo"];
-doSomething(...args); //a will be 42, b will be 1336 and c will be "foo"
+doSomething(...args); //x will be 42, y will be 1336 and z will be "foo"
 
 function log(lazy str)
 {
@@ -940,7 +902,7 @@ sizeof(bar);
 sizeof int; //returns the size of the C 'int' type (usually 4 on amd64 computers)
 sizeof(int);
 
-sizeof var; //returns the size of a variable (same as the constant VARSIZE)
+sizeof var; //returns the size of a variable (usually 16)
 sizeof(var);
 ```
 
@@ -998,9 +960,9 @@ new_stack array[] ["hi", 1337, PI, 9.11];
 Creates a map of key->values in the form of a struct instance. This is a short form for
 defining a struct, useful when defining constant data.
 ```js
-//MapExpression		:=	'map' '{' MapEntryList '}'
-//MapEntryList		:=	Identifier ':' Expression [ ',' MapEntryList ]
-//					|	StringLiteral ':' Expression [ ',' MapEntryList ]
+//MapExpression     := 'map' '{' MapEntryList '}'
+//MapEntryList      := Identifier ':' Expression [ ',' MapEntryList ]
+//                  |  StringLiteral ':' Expression [ ',' MapEntryList ]
 
 var escapes = map {
 	n: '\n',
@@ -1053,8 +1015,8 @@ Returns the length of the array currently indexing.
 
 var foo[6] = ["hello", 42, 1337, 31.12, 666, "ptrs"];
 
-printf("%d\n", foo[$ - 1]); //prints 42
-printf("%s\n", foo[$ - 2]); //prints ptrs
+printf("%d\n", foo[$ - 2]); //prints 666
+printf("%s\n", foo[$ - 1]); //prints ptrs
 
 //sets bar to an array starting at `&foo[4]` with length '2'
 var bar = foo[$ - 2 .. $]
@@ -1083,7 +1045,7 @@ as<float>0x7fc00000
 ```
 
 ## CastBuiltinExpression
-Converts an expression to a specific type. Casting to int/float converts the value. Casting to native returns a native function bundle for functions and a pointer to the struct data for structs.
+Converts an expression to a specific type. Casting to int/float converts the value.
 ```js
 //'cast' '<' TypeName '>' Expression
 cast<int>3.14 //returns 3
@@ -1132,7 +1094,7 @@ foo
 ```
 
 ## ConstantExpression
-Note that constant mathematical expressions will be calculated during parse time.
+Note that constant mathematical expressions will be calculated during compile time.
 ```C
 //String | Integer | Float
 
@@ -1142,7 +1104,6 @@ Note that constant mathematical expressions will be calculated during parse time
 Are you fine?` //wysiwyg string
 42
 5f
-3.14 * 5 + 7
 ```
 
 ## BinaryExpression
@@ -1162,5 +1123,4 @@ foo * 3
 ```js
 //Expression SuffixOperator
 foo++
-foo--
 ```
