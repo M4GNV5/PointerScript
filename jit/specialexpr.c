@@ -557,7 +557,8 @@ void ptrs_handle_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_s
 
 	if(func == targetFunc)
 	{
-		val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
+		if(target.constType != PTRS_TYPE_FLOAT)
+			val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
 		jit_insn_store(func, target.val, val.val);
 	}
 	else

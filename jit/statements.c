@@ -80,7 +80,16 @@ ptrs_jit_var_t ptrs_handle_typeddefine(ptrs_ast_t *node, jit_function_t func, pt
 		stmt->location.constType = stmt->type;
 	}
 
-	stmt->location.val = jit_value_create(func, jit_type_long);
+	if(stmt->location.constType == PTRS_TYPE_FLOAT)
+	{
+		stmt->location.val = jit_value_create(func, jit_type_float64);
+		val.val = jit_insn_convert(func, val.val, jit_type_float64, 0);
+	}
+	else
+	{
+		stmt->location.val = jit_value_create(func, jit_type_long);
+		val.val = jit_insn_convert(func, val.val, jit_type_long, 0);
+	}
 	jit_insn_store(func, stmt->location.val, val.val);
 
 	if(stmt->location.constType == PTRS_TYPE_NATIVE || stmt->location.constType == PTRS_TYPE_POINTER)
