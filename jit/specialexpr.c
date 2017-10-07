@@ -651,11 +651,7 @@ ptrs_jit_var_t ptrs_handle_call_functionidentifier(ptrs_ast_t *node, jit_functio
 
 ptrs_jit_var_t ptrs_handle_constant(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	ptrs_jit_var_t val;
-	val.val = jit_const_long(func, long, node->arg.constval.value.intval);
-	val.meta = jit_const_long(func, ulong, *(uint64_t *)&node->arg.constval.meta);
-	val.constType = node->arg.constval.meta.type;
-	return val;
+	return ptrs_jit_varFromConstant(func, node->arg.constval);
 }
 
 ptrs_jit_var_t ptrs_handle_lazy(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
