@@ -364,6 +364,9 @@ ptrs_jit_var_t ptrs_handle_as(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 
 	ptrs_jit_var_t val = expr->value->handler(expr->value, func, scope);
 
+	if(expr->builtinType != PTRS_TYPE_FLOAT)
+		val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
+
 	val.meta = ptrs_jit_const_meta(func, expr->builtinType);
 	val.constType = expr->builtinType;
 	return val;
@@ -382,8 +385,7 @@ ptrs_jit_var_t ptrs_handle_cast_builtin(ptrs_ast_t *node, jit_function_t func, p
 			val.constType = PTRS_TYPE_INT;
 			break;
 		case PTRS_TYPE_FLOAT:
-			if(val.constType != PTRS_TYPE_FLOAT)
-				val.val = ptrs_jit_reinterpretCast(func, ptrs_jit_vartof(func, val), jit_type_long);
+			val.val = ptrs_jit_vartof(func, val);
 			val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_FLOAT);
 			val.constType = PTRS_TYPE_FLOAT;
 			break;
@@ -555,6 +557,7 @@ void ptrs_handle_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_s
 
 	if(func == targetFunc)
 	{
+		val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
 		jit_insn_store(func, target.val, val.val);
 	}
 	else

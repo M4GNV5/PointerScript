@@ -1,6 +1,7 @@
 #include "../../parser/common.h"
 #include "../../parser/ast.h"
 #include "../include/conversion.h"
+#include "../include/util.h"
 
 ptrs_jit_var_t ptrs_handle_op_logicxor(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
@@ -37,13 +38,18 @@ ptrs_jit_var_t ptrs_handle_op_ternary(ptrs_ast_t *node, jit_function_t func, ptr
 
 	//is true
 	ptrs_jit_var_t trueVal = expr->trueVal->handler(expr->trueVal, func, scope);
+	trueVal.val = ptrs_jit_reinterpretCast(func, trueVal.val, jit_type_long);
+
 	jit_insn_store(func, ret.val, trueVal.val);
 	jit_insn_store(func, ret.meta, trueVal.meta);
 	jit_insn_branch(func, &done);
 
 	//is false
 	jit_insn_label(func, &isFalse);
+
 	ptrs_jit_var_t falseVal = expr->falseVal->handler(expr->falseVal, func, scope);
+	falseVal.val = ptrs_jit_reinterpretCast(func, falseVal.val, jit_type_long);
+
 	jit_insn_store(func, ret.val, falseVal.val);
 	jit_insn_store(func, ret.meta, falseVal.meta);
 

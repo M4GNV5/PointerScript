@@ -178,6 +178,7 @@ typedef struct ptrs_var
 
 #define jit_const_int(func, type, val) (jit_value_create_nint_constant(func, jit_type_##type, val))
 #define jit_const_long(func, type, val) (jit_value_create_long_constant(func, jit_type_##type, val))
+#define jit_const_float(func, val) (jit_value_create_float64_constant(func, jit_type_float64, val))
 
 #define ptrs_const_meta(type) ((uint64_t)(type))
 #define ptrs_const_arrayMeta(type, readOnly, size) \

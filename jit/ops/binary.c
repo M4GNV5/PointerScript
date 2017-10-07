@@ -197,7 +197,6 @@ static jit_type_t getIntrinsicSignature()
 							ptrs_jit_reinterpretCast(func, left.val, jit_type_float64), \
 							jit_insn_convert(func, right.val, jit_type_float64, 0) \
 						); \
-						left.val = ptrs_jit_reinterpretCast(func, left.val, jit_type_long); \
 						break; \
 					case const_typecomp(INT, FLOAT): \
 						left.constType = PTRS_TYPE_FLOAT; \
@@ -206,7 +205,6 @@ static jit_type_t getIntrinsicSignature()
 							jit_insn_convert(func, left.val, jit_type_float64, 0), \
 							ptrs_jit_reinterpretCast(func, right.val, jit_type_float64) \
 						); \
-						left.val = ptrs_jit_reinterpretCast(func, left.val, jit_type_long); \
 						break; \
 					case const_typecomp(FLOAT, FLOAT): \
 						left.constType = PTRS_TYPE_FLOAT; \
@@ -215,7 +213,6 @@ static jit_type_t getIntrinsicSignature()
 							ptrs_jit_reinterpretCast(func, left.val, jit_type_float64), \
 							ptrs_jit_reinterpretCast(func, right.val, jit_type_float64) \
 						); \
-						left.val = ptrs_jit_reinterpretCast(func, left.val, jit_type_long); \
 						break; \
 					jitCases \
 					default: \
@@ -229,9 +226,9 @@ static jit_type_t getIntrinsicSignature()
 		\
 		jit_value_t args[5] = { \
 			jit_const_int(func, void_ptr, (uintptr_t)node), \
-			left.val, \
+			ptrs_jit_reinterpretCast(func, left.val, jit_type_long), \
 			left.meta, \
-			right.val, \
+			ptrs_jit_reinterpretCast(func, right.val, jit_type_long), \
 			right.meta \
 		}; \
 		\
@@ -287,9 +284,9 @@ static jit_type_t getIntrinsicSignature()
 		\
 		jit_value_t args[5] = { \
 			jit_const_int(func, void_ptr, (uintptr_t)node), \
-			left.val, \
+			ptrs_jit_reinterpretCast(func, left.val, jit_type_long), \
 			left.meta, \
-			right.val, \
+			ptrs_jit_reinterpretCast(func, right.val, jit_type_long), \
 			right.meta \
 		}; \
 		\

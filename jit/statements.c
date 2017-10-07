@@ -48,6 +48,8 @@ ptrs_jit_var_t ptrs_handle_define(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	stmt->location.meta = jit_value_create(func, jit_type_ulong);
 	stmt->location.constType = -1;
 
+	val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
+
 	jit_insn_store(func, stmt->location.val, val.val);
 	jit_insn_store(func, stmt->location.meta, val.meta);
 	return stmt->location;
@@ -519,6 +521,7 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 			jit_insn_branch_if_not(self, ptrs_jit_hasType(self, funcAst->args[i].meta, PTRS_TYPE_UNDEFINED), &given);
 
 			ptrs_jit_var_t val = funcAst->argv[i]->handler(funcAst->argv[i], self, &selfScope);
+			val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
 			jit_insn_store(self, funcAst->args[i].val, val.val);
 			jit_insn_store(self, funcAst->args[i].meta, val.meta);
 
