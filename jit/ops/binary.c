@@ -232,10 +232,14 @@ static jit_type_t getIntrinsicSignature()
 			right.meta \
 		}; \
 		\
-		jit_value_t ret = jit_insn_call_native(func, "(op " #operator ")", \
+		jit_value_t retVal = jit_insn_call_native(func, "(op " #operator ")", \
 			ptrs_intrinsic_##name, getIntrinsicSignature(), args, 5, 0); \
 		\
-		return ptrs_jit_valToVar(func, ret); \
+		ptrs_jit_var_t ret = ptrs_jit_valToVar(func, retVal); \
+		if(left.constType == PTRS_TYPE_FLOAT || right.constType == PTRS_TYPE_FLOAT) \
+			ret.constType = PTRS_TYPE_FLOAT; \
+		\
+		return ret; \
 	}
 
 #define handle_binary_intonly(name, opName, operator) \
