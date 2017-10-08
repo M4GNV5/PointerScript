@@ -483,13 +483,6 @@ ptrs_jit_var_t ptrs_handle_trycatch(ptrs_ast_t *node, jit_function_t func, ptrs_
 	//TODO
 }
 
-#ifndef _PTRS_PORTABLE
-ptrs_jit_var_t ptrs_handle_asm(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
-{
-	//TODO
-}
-#endif
-
 ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_function *ast = &node->arg.function;
