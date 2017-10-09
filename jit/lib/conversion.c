@@ -245,18 +245,15 @@ ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, ptrs_jit_var_t val)
 		jit_insn_store(func, size, jit_const_int(func, nuint, 32));
 		jit_insn_store(func, buff, jit_insn_alloca(func, size));
 
-		jit_type_t paramDef[] = {
-			jit_type_long, //ptrs_val_t
-			jit_type_ulong, //ptrs_meta_t
-			jit_type_void_ptr,
-			jit_type_ulong
-		};
-
-		jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, jit_type_void_ptr, paramDef, 4, 1);
-		jit_value_t params[] = {val.val, val.meta, buff, size};
-
-		jit_insn_call_native(func, NULL, ptrs_vartoa, signature, params, 4, JIT_CALL_NOTHROW);
-		jit_type_free(signature);
+		ptrs_jit_reusableCallVoid(func, ptrs_vartoa,
+			(
+				jit_type_long, //ptrs_val_t
+				jit_type_ulong, //ptrs_meta_t
+				jit_type_void_ptr,
+				jit_type_ulong
+			),
+			(val.val, val.meta, buff, size)
+		);
 
 		jit_insn_label(func, &done);
 
@@ -308,16 +305,6 @@ ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, ptrs_jit_var_t val)
 			return ret;
 		}
 
-		static jit_type_t conversionSignature = NULL;
-		if(conversionSignature == NULL)
-		{
-			jit_type_t argDef[] = {
-				jit_type_void_ptr,
-				jit_type_long,
-			};
-			conversionSignature = jit_type_create_signature(jit_abi_cdecl, jit_type_void, argDef, 2, 0);
-		}
-
 		void *converters[] = {
 			[PTRS_TYPE_INT] = ptrs_itoa,
 			[PTRS_TYPE_FLOAT] = ptrs_ftoa,
@@ -325,8 +312,10 @@ ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, ptrs_jit_var_t val)
 			[PTRS_TYPE_STRUCT] = ptrs_stoa,
 		};
 
-		jit_value_t args[] = {buff, val.val};
-		jit_insn_call_native(func, "ptrs_vartoa", converters[val.constType], conversionSignature, args, 2, 0);
+		ptrs_jit_reusableCallVoid(func, converters[val.constType],
+			(jit_type_void_ptr, jit_type_long),
+			(buff, val.val)
+		);
 		return ret;
 	}
 }

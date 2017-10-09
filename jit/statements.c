@@ -136,11 +136,10 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	}
 	else
 	{
-		jit_type_t params[] = {jit_type_nuint};
-		jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, jit_type_void_ptr, params, 1, 1);
-
-		val.val = jit_insn_call_native(func, "malloc", malloc, signature, &size, 1, JIT_CALL_NOTHROW);
-		jit_type_free(signature);
+		ptrs_jit_reusableCall(func, malloc, val.val,
+			jit_type_void_ptr, (jit_type_nuint),
+			(size)
+		);
 	}
 
 	val.meta = ptrs_jit_arrayMeta(func,
@@ -216,11 +215,10 @@ ptrs_jit_var_t ptrs_handle_vararray(ptrs_ast_t *node, jit_function_t func, ptrs_
 	}
 	else
 	{
-		jit_type_t params[] = {jit_type_nuint};
-		jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, jit_type_void_ptr, params, 1, 1);
-
-		val.val = jit_insn_call_native(func, "malloc", malloc, signature, &byteSize, 1, JIT_CALL_NOTHROW);
-		jit_type_free(signature);
+		ptrs_jit_reusableCall(func, malloc, val.val,
+			jit_type_void_ptr, (jit_type_nuint),
+			(byteSize)
+		);
 	}
 
 	val.meta = ptrs_jit_arrayMeta(func,
@@ -463,14 +461,7 @@ ptrs_jit_var_t ptrs_handle_delete(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 
 	//TODO structs
 
-	static jit_type_t freeSignature = NULL;
-	if(freeSignature == NULL)
-	{
-		jit_type_t arg = jit_type_void_ptr;
-		freeSignature = jit_type_create_signature(jit_abi_cdecl, jit_type_void, &arg, 1, 0);
-	}
-
-	jit_insn_call_native(func, "free", free, freeSignature, &val.val, 1, 0);
+	ptrs_jit_reusableCallVoid(func, free, (jit_type_void_ptr), (val.val));
 }
 
 ptrs_jit_var_t ptrs_handle_throw(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)

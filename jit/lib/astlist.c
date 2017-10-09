@@ -1,9 +1,10 @@
 #include <string.h>
 #include <jit/jit.h>
 
-#include "../include/conversion.h"
 #include "../../parser/common.h"
 #include "../../parser/ast.h"
+#include "../include/conversion.h"
+#include "../include/util.h"
 
 void ptrs_initArray(ptrs_var_t *array, size_t len, ptrs_val_t val, ptrs_meta_t meta)
 {
@@ -58,26 +59,18 @@ void ptrs_astlist_handle(struct ptrs_astlist *list, jit_function_t func, ptrs_sc
 	}
 	else
 	{
-		static jit_type_t signature = NULL;
-		if(signature == NULL)
-		{
-			jit_type_t argDef[] = {
+		ptrs_jit_reusableCallVoid(func, ptrs_initArray, (
 				jit_type_void_ptr,
 				jit_type_nuint,
 				jit_type_long,
 				jit_type_ulong
-			};
-
-			signature = jit_type_create_signature(jit_abi_cdecl, jit_type_void, argDef, 4, 0);
-		}
-
-		jit_value_t args[] = {
-			jit_insn_add(func, val, jit_const_int(func, nuint, i * 16)),
-			jit_insn_sub(func, size, jit_const_int(func, nuint, i)),
-			result.val,
-			result.meta
-		};
-		jit_insn_call_native(func, "ptrs_initArray", ptrs_initArray, signature, args, 4, 0);
+			), (
+				jit_insn_add(func, val, jit_const_int(func, nuint, i * 16)),
+				jit_insn_sub(func, size, jit_const_int(func, nuint, i)),
+				result.val,
+				result.meta
+			)
+		);
 	}
 }
 

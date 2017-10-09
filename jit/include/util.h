@@ -5,6 +5,8 @@
 #include "../../parser/ast.h"
 #include "../include/error.h"
 
+#define ptrs_util_pasteTuple(...) __VA_ARGS__
+
 char *ptrs_readFile(const char *path);
 
 jit_function_t ptrs_jit_createFunction(ptrs_ast_t *node, jit_function_t parent,
@@ -24,6 +26,34 @@ void ptrs_jit_assignTypedFromVar(jit_function_t func,
 ptrs_val_t ptrs_jit_value_getValConstant(jit_value_t val);
 ptrs_meta_t ptrs_jit_value_getMetaConstant(jit_value_t meta);
 ptrs_jit_var_t ptrs_jit_varFromConstant(jit_function_t func, ptrs_var_t val);
+
+#define ptrs_jit_reusableSignature(func, name, retType, types) \
+	static jit_type_t name = NULL; \
+	if(name == NULL) \
+	{ \
+		jit_type_t argDef[] = { \
+			ptrs_util_pasteTuple types \
+		}; \
+		\
+		name = jit_type_create_signature(jit_abi_cdecl, retType, argDef, \
+			sizeof(argDef) / sizeof(jit_type_t), 0); \
+	}
+
+#define ptrs_jit_reusableCall(func, callee, retVal, retType, types, args) \
+	do \
+	{ \
+		ptrs_jit_reusableSignature(func, signature, retType, types); \
+		\
+		jit_value_t params[] = { \
+			ptrs_util_pasteTuple args \
+		}; \
+		retVal = jit_insn_call_native(func, #callee, callee, signature, params, \
+			sizeof(params) / sizeof(jit_value_t), JIT_CALL_NOTHROW); \
+	} while(0)
+
+#define ptrs_jit_reusableCallVoid(func, callee, types, args) \
+	ptrs_jit_reusableCall(func, callee, jit_value_t dummy, jit_type_void, types, args)
+
 
 #define ptrs_jit_typeCheck(node, func, scope, val, type, argCount, msg, ...) \
 	do \
@@ -67,10 +97,9 @@ void ptrs_jit_typeSwitch_setup(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 	ptrs_jit_var_t *val, jit_value_t valType,
 	int *count, uint8_t *types, jit_label_t *labels,
 	size_t argCount, const char *msg, ...);
-#define _ptrs_jit_typeSwitch_paste(...) __VA_ARGS__
 #define ptrs_jit_typeSwitch(node, func, scope, val, errorTuple, typeTuple, cases) \
 	{ \
-		uint8_t types[] = {_ptrs_jit_typeSwitch_paste typeTuple}; \
+		uint8_t types[] = {ptrs_util_pasteTuple typeTuple}; \
 		jit_label_t labels[sizeof(types) / sizeof(uint8_t)]; \
 		int count = sizeof(types) / sizeof(uint8_t); \
 		jit_label_t end = jit_label_undefined; \
@@ -81,7 +110,7 @@ void ptrs_jit_typeSwitch_setup(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 		\
 		ptrs_jit_typeSwitch_setup(node, func, scope, \
 			&val, TYPESWITCH_TYPE, &count, types, labels, \
-			_ptrs_jit_typeSwitch_paste errorTuple \
+			ptrs_util_pasteTuple errorTuple \
 		); \
 		\
 		for(int i = 0; i < count; i++) \
