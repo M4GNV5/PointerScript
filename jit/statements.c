@@ -127,21 +127,7 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 		1, "Cannot create array of size %d", size);
 
 	//allocate memory
-	if(stmt->onStack)
-	{
-		if(jit_value_is_constant(size))
-			val.val = jit_insn_array(func, jit_value_get_nint_constant(size));
-		else
-			val.val = jit_insn_alloca(func, size);
-	}
-	else
-	{
-		ptrs_jit_reusableCall(func, malloc, val.val,
-			jit_type_void_ptr, (jit_type_nuint),
-			(size)
-		);
-	}
-
+	val.val = ptrs_jit_allocate(func, size, stmt->onStack, true);
 	val.meta = ptrs_jit_arrayMeta(func,
 		jit_const_long(func, ulong, PTRS_TYPE_NATIVE),
 		jit_const_long(func, ulong, false),
@@ -206,21 +192,7 @@ ptrs_jit_var_t ptrs_handle_vararray(ptrs_ast_t *node, jit_function_t func, ptrs_
 		1, "Cannot create array of size %d", size);
 
 	//allocate memory
-	if(stmt->onStack)
-	{
-		if(jit_value_is_constant(byteSize))
-			val.val = jit_insn_array(func, jit_value_get_nint_constant(byteSize));
-		else
-			val.val = jit_insn_alloca(func, byteSize);
-	}
-	else
-	{
-		ptrs_jit_reusableCall(func, malloc, val.val,
-			jit_type_void_ptr, (jit_type_nuint),
-			(byteSize)
-		);
-	}
-
+	val.val = ptrs_jit_allocate(func, size, stmt->onStack, true);
 	val.meta = ptrs_jit_arrayMeta(func,
 		jit_const_long(func, ulong, PTRS_TYPE_POINTER),
 		jit_const_long(func, ulong, false),

@@ -9,6 +9,7 @@
 #include "../include/run.h"
 #include "../include/conversion.h"
 #include "../include/error.h"
+#include "../include/util.h"
 
 char *ptrs_readFile(const char *path)
 {
@@ -214,6 +215,25 @@ jit_value_t ptrs_jit_normalizeForVar(jit_function_t func, jit_value_t val)
 	}
 
 	return val;
+}
+
+jit_value_t ptrs_jit_allocate(jit_function_t func, jit_value_t size, bool onStack, bool allowReuse)
+{
+	jit_value_t ret;
+	if(onStack)
+	{
+		if(allowReuse && jit_value_is_constant(size))
+			ret = jit_insn_array(func, jit_value_get_nint_constant(size));
+		else
+			ret = jit_insn_alloca(func, size);
+	}
+	else
+	{
+		ptrs_jit_reusableCall(func, malloc, ret,
+			jit_type_void_ptr, (jit_type_nuint),
+			(size)
+		);
+	}
 }
 
 void ptrs_jit_typeSwitch_setup(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,

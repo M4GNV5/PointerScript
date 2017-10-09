@@ -27,6 +27,8 @@ ptrs_val_t ptrs_jit_value_getValConstant(jit_value_t val);
 ptrs_meta_t ptrs_jit_value_getMetaConstant(jit_value_t meta);
 ptrs_jit_var_t ptrs_jit_varFromConstant(jit_function_t func, ptrs_var_t val);
 
+jit_value_t ptrs_jit_allocate(jit_function_t func, jit_value_t size, bool onStack, bool allowReuse);
+
 #define ptrs_jit_reusableSignature(func, name, retType, types) \
 	static jit_type_t name = NULL; \
 	if(name == NULL) \
