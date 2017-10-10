@@ -125,6 +125,14 @@ jit_value_t ptrs_jit_vartob(jit_function_t func, ptrs_jit_var_t val)
 
 jit_value_t ptrs_jit_vartoi(jit_function_t func, ptrs_jit_var_t val)
 {
+	if(jit_value_is_constant(val.val) && jit_value_is_constant(val.meta))
+	{
+		ptrs_val_t constVal = ptrs_jit_value_getValConstant(val.val);
+		ptrs_meta_t constMeta = ptrs_jit_value_getMetaConstant(val.meta);
+		
+		return jit_const_long(func, long, ptrs_vartoi(constVal, constMeta));
+	}
+	
 	switch(val.constType)
 	{
 		case -1:
@@ -152,6 +160,14 @@ jit_value_t ptrs_jit_vartoi(jit_function_t func, ptrs_jit_var_t val)
 
 jit_value_t ptrs_jit_vartof(jit_function_t func, ptrs_jit_var_t val)
 {
+	if(jit_value_is_constant(val.val) && jit_value_is_constant(val.meta))
+	{
+		ptrs_val_t constVal = ptrs_jit_value_getValConstant(val.val);
+		ptrs_meta_t constMeta = ptrs_jit_value_getMetaConstant(val.meta);
+		
+		return jit_const_float(func, ptrs_vartof(constVal, constMeta));
+	}
+	
 	switch(val.constType)
 	{
 		case -1:
