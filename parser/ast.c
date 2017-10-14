@@ -546,17 +546,17 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		{
 			stmt->arg.define.type = readTypeName(code);
 
-			if(stmt->arg.define.type > PTRS_TYPE_STRUCT)
+			if(stmt->arg.define.type >= PTRS_NUM_TYPES)
 				unexpected(code, "TypeName");
 		}
 		else
 		{
-			stmt->arg.define.type = PTRS_TYPE_STRUCT + 1;
+			stmt->arg.define.type = PTRS_NUM_TYPES;
 		}
 
 		if(lookahead(code, "="))
 			stmt->arg.define.value = parseExpression(code, true);
-		else if(stmt->arg.define.type > PTRS_TYPE_STRUCT)
+		else if(stmt->arg.define.type >= PTRS_NUM_TYPES)
 			unexpectedm(code, NULL, "A let statement must either have a type or an initializer");
 		else
 			stmt->arg.define.value = NULL;
@@ -1054,7 +1054,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		consumec(code, '<');
 		ptrs_vartype_t type = readTypeName(code);
 
-		if(type > PTRS_TYPE_STRUCT)
+		if(type >= PTRS_NUM_TYPES)
 			unexpectedm(code, NULL, "Syntax is type<TYPENAME>");
 
 		ast = talloc(ptrs_ast_t);
@@ -1106,7 +1106,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		consumec(code, '<');
 		ptrs_vartype_t type = readTypeName(code);
 
-		if(type > PTRS_TYPE_STRUCT)
+		if(type >= PTRS_NUM_TYPES)
 			unexpectedm(code, NULL, "Syntax is as<TYPE>");
 
 		consumec(code, '>');
@@ -1135,7 +1135,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		consumec(code, '<');
 		ptrs_vartype_t type = readTypeName(code);
 
-		if(type <= PTRS_TYPE_STRUCT)
+		if(type < PTRS_NUM_TYPES)
 		{
 			if(type != PTRS_TYPE_INT && type != PTRS_TYPE_FLOAT && type != PTRS_TYPE_NATIVE)
 				unexpectedm(code, NULL, "Invalid cast, can only cast to int, float, native and string");
@@ -2496,7 +2496,7 @@ static ptrs_vartype_t readTypeName(code_t *code)
 		}
 	}
 
-	return PTRS_TYPE_STRUCT + 1;
+	return PTRS_NUM_TYPES;
 }
 
 ptrs_nativetype_info_t ptrs_nativeTypes[] = {

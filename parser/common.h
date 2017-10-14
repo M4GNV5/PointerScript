@@ -30,6 +30,8 @@ typedef enum type
 	PTRS_TYPE_NATIVE,
 	PTRS_TYPE_POINTER,
 	PTRS_TYPE_STRUCT,
+	
+	PTRS_NUM_TYPES
 } ptrs_vartype_t;
 
 struct ptrs_error;

@@ -63,9 +63,9 @@ ptrs_jit_var_t ptrs_handle_typeddefine(ptrs_ast_t *node, jit_function_t func, pt
 	{
 		val = stmt->value->handler(stmt->value, func, scope);
 
-		if(val.constType == -1 && stmt->type > PTRS_TYPE_STRUCT)
+		if(val.constType == -1 && stmt->type >= PTRS_NUM_TYPES)
 			ptrs_error(node, "Initializer of untyped let statement has a dynamic type");
-		else if(stmt->type > PTRS_TYPE_STRUCT)
+		else if(stmt->type >= PTRS_NUM_TYPES)
 			stmt->location.constType = val.constType;
 		else if(val.constType == -1)
 			stmt->location.constType = stmt->type;
