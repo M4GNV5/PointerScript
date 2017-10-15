@@ -57,7 +57,7 @@ void ptrs_printError(ptrs_error_t *error)
 {
 	fprintf(ptrs_errorfile, "%s", error->message);
 
-	if(error->ast != NULL)
+	if(error->ast != NULL && error->pos.currLine != NULL)
 	{
 		fprintf(ptrs_errorfile, " at %s:%d:%d\n\n", error->ast->file, error->pos.line, error->pos.column);
 
@@ -227,6 +227,7 @@ void *ptrs_formatErrorMsg(const char *msg, va_list ap)
 		msg++;
 	}
 
+	*buffptr++ = 0;
 	return buff;
 }
 
