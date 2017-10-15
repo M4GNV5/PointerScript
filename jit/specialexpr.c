@@ -21,7 +21,7 @@ ptrs_jit_var_t ptrs_handle_call(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 	else
 	{
 		ptrs_jit_var_t val = expr->value->handler(expr->value, func, scope);
-		return ptrs_jit_vcallTyped(node, func, scope, expr->retType, val, expr->arguments);
+		return ptrs_jit_call(node, func, scope, expr->retType, val, expr->arguments);
 	}
 
 }
@@ -492,7 +492,7 @@ ptrs_jit_var_t ptrs_handle_call_importedsymbol(ptrs_ast_t *node, jit_function_t 
 		val.constType = expr->type->varType;
 	}
 
-	return ptrs_jit_vcallTyped(node, func, scope, retType, val, arguments);
+	return ptrs_jit_call(node, func, scope, retType, val, arguments);
 }
 ptrs_jit_var_t ptrs_handle_addressof_importedsymbol(ptrs_ast_t *node,
 	jit_function_t func, ptrs_scope_t *scope)
@@ -624,33 +624,21 @@ ptrs_jit_var_t ptrs_handle_addressof_identifier(ptrs_ast_t *node, jit_function_t
 ptrs_jit_var_t ptrs_handle_functionidentifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	jit_function_t target = *node->arg.funcval;
-	jit_function_t closure = jit_function_get_meta(target, PTRS_JIT_FUNCTIONMETA_CLOSURE);
 
-	if(closure == NULL)
-	{
-		ptrs_ast_t *funcNode = jit_function_get_meta(target, PTRS_JIT_FUNCTIONMETA_AST);
-		ptrs_function_t *funcAst = &funcNode->arg.function.func;
+	ptrs_jit_var_t ret;
+	ret.val = jit_const_long(func, long, (uintptr_t)jit_function_to_closure(target));
+	ret.meta = ptrs_jit_pointerMeta(func,
+		jit_const_long(func, ulong, PTRS_TYPE_FUNCTION),
+		jit_insn_get_parent_frame_pointer_of(func, target)
+	);
+	ret.constType = PTRS_TYPE_FUNCTION;
 
-		closure = ptrs_jit_createTrampoline(node, scope, funcAst, target);
-		jit_function_set_meta(target, PTRS_JIT_FUNCTIONMETA_CLOSURE, closure, NULL, 0);
-
-		if(ptrs_compileAot && jit_function_compile(closure) == 0)
-			ptrs_error(node, "Failed compiling closure of function %s", funcAst->name);
-	}
-
-	void *closurePtr = jit_function_to_closure(closure);
-
-	ptrs_jit_var_t ret = {
-		.val = jit_const_int(func, void_ptr, (uintptr_t)closurePtr),
-		.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_NATIVE, true, 0),
-		.constType = PTRS_TYPE_NATIVE,
-	};
 	return ret;
 }
 ptrs_jit_var_t ptrs_handle_call_functionidentifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments)
 {
-	return ptrs_jit_vcallnested(func, scope, *node->arg.funcval, arguments);
+	return ptrs_jit_callnested(func, scope, *node->arg.funcval, arguments);
 }
 
 ptrs_jit_var_t ptrs_handle_constant(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)

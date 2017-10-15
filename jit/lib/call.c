@@ -30,104 +30,149 @@ static void ptrs_arglist_handle(jit_function_t func, ptrs_scope_t *scope, struct
 	}
 }
 
-jit_value_t ptrs_jit_call(jit_function_t func,
-	jit_type_t retType, jit_value_t val, size_t narg, ptrs_jit_var_t *args)
-{
-	jit_type_t paramDef[narg];
-	jit_value_t _args[narg];
-	for(int i = 0; i < narg; i++)
-	{
-		switch(args[i].constType)
-		{
-			case PTRS_TYPE_UNDEFINED:
-				paramDef[i] = jit_type_long;
-				_args[i] = jit_const_int(func, long, 0);
-				break;
-			case -1:
-			case PTRS_TYPE_INT:
-				paramDef[i] = jit_type_long;
-				_args[i] = args[i].val;
-				break;
-			case PTRS_TYPE_FLOAT:
-				paramDef[i] = jit_type_float64;
-				_args[i] = ptrs_jit_reinterpretCast(func, args[i].val, jit_type_float64);
-				break;
-			default: //pointer type
-				paramDef[i] = jit_type_void_ptr;
-				_args[i] = args[i].val;
-				break;
-		}
-	}
-
-	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, retType, paramDef, narg, 1);
-	jit_value_t ret = jit_insn_call_indirect(func, val, signature, _args, narg, 0);
-	jit_type_free(signature);
-
-	return ret;
-}
-
-jit_value_t ptrs_jit_vcall(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
-	jit_type_t retType, jit_value_t val, jit_value_t meta, struct ptrs_astlist *args)
-{
-	int len = ptrs_arglist_length(args);
-	ptrs_jit_var_t buff[len];
-	ptrs_arglist_handle(func, scope, args, buff);
-
-	return ptrs_jit_call(func, retType, val, len, buff);
-}
-
-ptrs_jit_var_t ptrs_jit_vcallTyped(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_nativetype_info_t *retType, ptrs_jit_var_t callee, struct ptrs_astlist *args)
 {
-	jit_type_t _retType;
-	if(retType == NULL)
-		_retType = jit_type_long;
-	else
-		_retType = retType->jitType;
+	int narg = ptrs_arglist_length(args);
+	jit_type_t paramDef[narg * 2 + 1];
+	jit_value_t _args[narg * 2 + 1];
 
-	ptrs_jit_var_t ret;
-	ret.val = ptrs_jit_vcall(node, func, scope, _retType, callee.val, callee.meta, args);
+	ptrs_jit_var_t ret = {
+		jit_value_create(func, jit_type_long),
+		jit_value_create(func, jit_type_ulong),
+		-1
+	};
 
-	if(retType == NULL)
-	{
-		ret.constType = PTRS_TYPE_INT;
-		ret.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
-	}
-	else
-	{
-		ret.constType = retType->varType;
-		ret.meta = ptrs_jit_const_meta(func, retType->varType);
-		ret.val = ptrs_jit_normalizeForVar(func, ret.val);
-	}
+	ptrs_jit_typeSwitch(node, func, scope, callee,
+		(1, "Cannot call variable of type %t", TYPESWITCH_TYPE),
+		(PTRS_TYPE_FUNCTION, PTRS_TYPE_NATIVE),
+		case PTRS_TYPE_FUNCTION:
+			{
+				paramDef[0] = jit_type_int; //reserved
+				_args[0] = jit_const_int(func, nuint, 0);
+
+				for(int i = 0; args != NULL; i++)
+				{
+					//if(args->expand) //TODO
+					//if(args->lazy) //TODO
+					ptrs_jit_var_t val = args->entry->handler(args->entry, func, scope);
+
+					paramDef[i * 2 + 1] = jit_type_long;
+					paramDef[i * 2 + 2] = jit_type_ulong;
+
+					_args[i * 2 + 1] = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
+					_args[i * 2 + 2] = val.meta;
+
+					args = args->next;
+				}
+
+				jit_value_t parentFrame = ptrs_jit_getMetaPointer(func, callee.meta);
+				jit_type_t signature = jit_type_create_signature(jit_abi_cdecl,
+					ptrs_jit_getVarType(), paramDef, narg * 2 + 1, 1);
+
+				jit_value_t retVal = jit_insn_call_nested_indirect(func, callee.val,
+					parentFrame, signature, _args, narg * 2 + 1, 0);
+				jit_type_free(signature);
+
+				ptrs_jit_var_t _ret = ptrs_jit_valToVar(func, retVal);
+				jit_insn_store(func, ret.val, _ret.val);
+				jit_insn_store(func, ret.val, _ret.meta);
+			}
+			break;
+
+		case PTRS_TYPE_NATIVE:
+			{
+				for(int i = 0; args != NULL; i++)
+				{
+					//if(args->expand) //TODO
+					//if(args->lazy) //TODO
+					ptrs_jit_var_t val = args->entry->handler(args->entry, func, scope);
+					args = args->next;
+
+					switch(val.constType)
+					{
+						case PTRS_TYPE_UNDEFINED:
+							paramDef[i] = jit_type_long;
+							_args[i] = jit_const_int(func, long, 0);
+							break;
+						case -1:
+						case PTRS_TYPE_INT:
+							paramDef[i] = jit_type_long;
+							_args[i] = val.val;
+							break;
+						case PTRS_TYPE_FLOAT:
+							paramDef[i] = jit_type_float64;
+							_args[i] = ptrs_jit_reinterpretCast(func, val.val, jit_type_float64);
+							break;
+						default: //pointer type
+							paramDef[i] = jit_type_void_ptr;
+							_args[i] = val.val;
+							break;
+					}
+				}
+
+				jit_type_t _retType;
+				if(retType == NULL)
+					_retType = jit_type_long;
+				else
+					_retType = retType->jitType;
+
+				jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, _retType, paramDef, narg, 1);
+				jit_value_t retVal = jit_insn_call_indirect(func, callee.val, signature, _args, narg, 0);
+				jit_type_free(signature);
+
+				ptrs_vartype_t retVarType;
+				if(retType == NULL)
+				{
+					retVarType = PTRS_TYPE_INT;
+				}
+				else
+				{
+					retVarType = retType->varType;
+					retVal = ptrs_jit_normalizeForVar(func, retVal);
+				}
+
+				if(callee.constType == PTRS_TYPE_NATIVE)
+				{
+					ret.constType = retVarType;
+					ret.val = retVal;
+					ret.meta = ptrs_jit_const_meta(func, retVarType);
+				}
+				else
+				{
+					jit_insn_store(func, ret.val, retVal);
+					jit_insn_store(func, ret.meta, ptrs_jit_const_meta(func, retVarType));
+				}
+			}
+			break;
+	);
 
 	return ret;
 }
 
-ptrs_jit_var_t ptrs_jit_callnested(jit_function_t func, jit_function_t callee, size_t narg, ptrs_jit_var_t *args)
+ptrs_jit_var_t ptrs_jit_callnested(jit_function_t func, ptrs_scope_t *scope,
+	jit_function_t callee, struct ptrs_astlist *args)
 {
+	int narg = ptrs_arglist_length(args);
 	jit_value_t _args[narg * 2 + 1];
 	_args[0] = jit_const_int(func, nuint, 0); //reserved
 
-	for(int i = 0; i < narg; i++)
+	for(int i = 0; args != NULL; i++)
 	{
-		_args[i * 2 + 1] = args[i].val;
-		_args[i * 2 + 2] = args[i].meta;
+		//if(args->expand) //TODO
+		//if(args->lazy) //TODO
+		ptrs_jit_var_t val = args->entry->handler(args->entry, func, scope);
+
+		_args[i * 2 + 1] = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
+		_args[i * 2 + 2] = val.meta;
+
+		args = args->next;
 	}
 
 	const char *name = jit_function_get_meta(callee, PTRS_JIT_FUNCTIONMETA_NAME);
 	jit_value_t ret = jit_insn_call(func, name, callee, NULL, _args, narg * 2 + 1, 0);
 
 	return ptrs_jit_valToVar(func, ret);
-}
-
-ptrs_jit_var_t ptrs_jit_vcallnested(jit_function_t func, ptrs_scope_t *scope,
-	jit_function_t callee, struct ptrs_astlist *args)
-{
-	int len = ptrs_arglist_length(args);
-	ptrs_jit_var_t buff[len];
-	ptrs_arglist_handle(func, scope, args, buff);
-
-	return ptrs_jit_callnested(func, callee, len, buff);
 }
 
 jit_function_t ptrs_jit_createTrampoline(ptrs_ast_t *node, ptrs_scope_t *scope,

@@ -503,28 +503,13 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 	if(ptrs_compileAot && jit_function_compile(self) == 0)
 		ptrs_error(node, "Failed compiling function %s", funcAst->name);
 
-
-
 	ptrs_jit_var_t ret;
-	if(ast->isAnonymous)
-	{
-		jit_function_t closure = ptrs_jit_createTrampoline(node, scope, funcAst, func);
-		jit_function_set_meta(self, PTRS_JIT_FUNCTIONMETA_CLOSURE, closure, NULL, 0);
-
-		if(ptrs_compileAot && jit_function_compile(closure) == 0)
-			ptrs_error(node, "Failed compiling closure of function %s", funcAst->name);
-
-		void *closurePtr = jit_function_to_closure(closure);
-		ret.val = jit_const_int(func, void_ptr, (uintptr_t)closurePtr);
-		ret.meta = ptrs_jit_const_meta(func, PTRS_TYPE_NATIVE);
-		ret.constType = PTRS_TYPE_NATIVE;
-	}
-	else
-	{
-		ret.val = jit_const_long(func, long, 0);
-		ret.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
-		ret.constType = PTRS_TYPE_UNDEFINED;
-	}
+	ret.val = jit_const_long(func, long, (uintptr_t)jit_function_to_closure(self));
+	ret.meta = ptrs_jit_pointerMeta(func,
+		jit_const_long(func, ulong, PTRS_TYPE_FUNCTION),
+		jit_insn_get_frame_pointer(func)
+	);
+	ret.constType = PTRS_TYPE_FUNCTION;
 
 	return ret;
 }

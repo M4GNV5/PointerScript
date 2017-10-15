@@ -174,7 +174,6 @@ jit_value_t ptrs_jit_reinterpretCast(jit_function_t func, jit_value_t val, jit_t
 	}
 	else
 	{
-
 		jit_value_t ret = jit_value_create(func, newType);
 		jit_value_set_addressable(ret);
 		jit_insn_store_relative(func, jit_insn_address_of(func, ret), 0, val);

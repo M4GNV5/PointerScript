@@ -30,7 +30,8 @@ typedef enum type
 	PTRS_TYPE_NATIVE,
 	PTRS_TYPE_POINTER,
 	PTRS_TYPE_STRUCT,
-	
+	PTRS_TYPE_FUNCTION,
+
 	PTRS_NUM_TYPES
 } ptrs_vartype_t;
 
@@ -154,6 +155,7 @@ typedef struct meta
 			uint16_t padding;
 			uint32_t size;
 		} __attribute__((packed)) array;
+		uint8_t pointer[7]; //actually 8, use the ptrs_meta_getPointer macro below
 	};
 } ptrs_meta_t;
 #else
@@ -167,6 +169,7 @@ typedef struct meta
 			uint16_t padding;
 			bool readOnly;
 		} __attribute__((packed)) array;
+		uint8_t pointer[7]; //actually 8, use the ptrs_meta_getPointer macro below
 	};
 	uint8_t type;
 } ptrs_meta_t;
@@ -185,11 +188,20 @@ typedef struct ptrs_var
 #define ptrs_const_meta(type) ((uint64_t)(type))
 #define ptrs_const_arrayMeta(type, readOnly, size) \
 	(((uint64_t)(size) << 32) | (uint64_t)(readOnly) << 8 | (uint64_t)(type))
+#define ptrs_const_pointerMeta(type, ptr) \
+	(((uint64_t)(uintptr_t)(ptr) << 8) | (uint64_t)(type))
+
+#define ptrs_meta_getPointer(meta) \
+	(*(uint64_t *)&(meta) >> 8)
+#define ptrs_meta_setPointer(meta, ptr) \
+	(*(uint64_t *)&(meta) = (((uint64_t)(uintptr_t)(ptr) << 8) | (meta).type))
 
 #define ptrs_jit_const_meta(func, type) \
-	(jit_value_create_long_constant(func, jit_type_ulong, ptrs_const_meta(type)))
+	(jit_const_long(func, ulong, ptrs_const_meta(type)))
 #define ptrs_jit_const_arrayMeta(func, type, readOnly, size) \
 	(jit_const_long(func, ulong, ptrs_const_arrayMeta(type, readOnly, size)))
+#define ptrs_jit_const_pointerMeta(func, type, ptr) \
+	(jit_const_long(func, ulong, ptrs_const_pointerMeta(type, ptr)))
 
 #define ptrs_jit_arrayMeta(func, type, readOnly, size) \
 	(jit_insn_or(func, \
@@ -199,14 +211,25 @@ typedef struct ptrs_var
 		), \
 		(type) \
 	))
+#define ptrs_jit_pointerMeta(func, type, ptr) \
+	(jit_insn_or(func, \
+		jit_insn_shl(func, (ptr), jit_const_long(func, ulong, 8)), \
+		(type) \
+	))
 
 #define ptrs_jit_getType(func, meta) (jit_insn_and(func, meta, jit_const_long(func, ulong, 0xFF)))
 #define ptrs_jit_getArraySize(func, meta) (jit_insn_shr(func, meta, jit_const_int(func, ubyte, 32)))
+#define ptrs_jit_getMetaPointer(func, meta) (jit_insn_shr(func, meta, jit_const_int(func, ubyte, 8)))
 
 #define ptrs_jit_setArraySize(func, meta, size) \
 	(jit_insn_or(func, \
 		jit_insn_and(func, (meta), jit_const_long(func, ulong, 0xFFFFFFFF)), \
 		jit_insn_shl(func, (size), jit_const_int(func, ubyte, 32)) \
+	))
+#define ptrs_jit_setMetaPointer(func, meta, ptr) \
+	(jit_insn_or(func, \
+		jit_insn_and(func, (meta), jit_const_long(func, ulong, 0xFF)), \
+		jit_insn_shl(func, (size), jit_const_int(func, ubyte, 8)) \
 	))
 
 #define ptrs_jit_hasType(func, meta, type) \
