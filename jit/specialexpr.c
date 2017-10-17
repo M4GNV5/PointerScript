@@ -7,6 +7,7 @@
 #include "include/error.h"
 #include "include/conversion.h"
 #include "include/call.h"
+#include "include/struct.h"
 #include "include/util.h"
 #include "include/run.h"
 
@@ -79,20 +80,69 @@ ptrs_jit_var_t ptrs_handle_stringformat(ptrs_ast_t *node, jit_function_t func, p
 
 ptrs_jit_var_t ptrs_handle_new(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	//TODO
+	struct ptrs_ast_new *expr = &node->arg.newexpr;
+	ptrs_jit_var_t val = expr->value->handler(expr->value, func, scope);
+
+	return ptrs_struct_construct(node, func, scope,
+		val, expr->arguments, expr->onStack);
 }
 
 ptrs_jit_var_t ptrs_handle_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	//TODO
+	struct ptrs_ast_member *expr = &node->arg.member;
+	ptrs_jit_var_t base = expr->base->handler(expr->base, func, scope);
+
+	jit_value_t ret;
+	jit_value_t astVal = jit_const_int(func, void_ptr, (uintptr_t)node);
+	jit_value_t nameVal = jit_const_int(func, void_ptr, (uintptr_t)expr->name);
+	base.meta = ptrs_jit_getMetaPointer(func, base.meta);
+	ptrs_jit_reusableCall(func, ptrs_struct_get, ret, ptrs_jit_getVarType(),
+		(jit_type_void_ptr, jit_type_long, jit_type_ulong, jit_type_void_ptr),
+		(astVal, base.val, base.meta, nameVal)
+	);
+
+	return ptrs_jit_valToVar(func, ret);
 }
-ptrs_jit_var_t ptrs_handle_assign_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
+void ptrs_handle_assign_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+	ptrs_jit_var_t val)
 {
-	//TODO
+	struct ptrs_ast_member *expr = &node->arg.member;
+	ptrs_jit_var_t base = expr->base->handler(expr->base, func, scope);
+
+	jit_value_t ret;
+	ptrs_jit_reusableCall(func, ptrs_struct_set, ret, ptrs_jit_getVarType(),
+		(
+			jit_type_void_ptr,
+			jit_type_long,
+			jit_type_ulong,
+			jit_type_void_ptr,
+			jit_type_long,
+			jit_type_ulong
+		), (
+			jit_const_int(func, void_ptr, (uintptr_t)node),
+			base.val,
+			ptrs_jit_getMetaPointer(func, base.meta),
+			jit_const_int(func, void_ptr, (uintptr_t)expr->name),
+			val.val,
+			val.meta
+		)
+	);
 }
 ptrs_jit_var_t ptrs_handle_addressof_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	//TODO
+	struct ptrs_ast_member *expr = &node->arg.member;
+	ptrs_jit_var_t base = expr->base->handler(expr->base, func, scope);
+
+	jit_value_t ret;
+	jit_value_t astVal = jit_const_int(func, void_ptr, (uintptr_t)node);
+	jit_value_t nameVal = jit_const_int(func, void_ptr, (uintptr_t)expr->name);
+	base.meta = ptrs_jit_getMetaPointer(func, base.meta);
+	ptrs_jit_reusableCall(func, ptrs_struct_addressOf, ret, ptrs_jit_getVarType(),
+		(jit_type_void_ptr, jit_type_long, jit_type_ulong, jit_type_void_ptr),
+		(astVal, base.val, base.meta, nameVal)
+	);
+
+	return ptrs_jit_valToVar(func, ret);
 }
 ptrs_jit_var_t ptrs_handle_call_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments)

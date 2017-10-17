@@ -104,10 +104,14 @@ struct ptrs_structmember
 		struct ptrs_ast *startval;
 		struct
 		{
-			struct ptrs_astlist *arrayInit;
+			struct ptrs_astlist *init;
 			uint64_t size;
-		};
-		ptrs_function_t *function;
+		} array;
+		struct
+		{
+			ptrs_function_t *ast;
+			jit_function_t func;
+		} function;
 		ptrs_nativetype_info_t *type;
 	} value;
 };
@@ -124,12 +128,10 @@ typedef struct ptrs_struct
 	ptrs_jit_var_t *location;
 	struct ptrs_structmember *member;
 	struct ptrs_opoverload *overloads;
-	ptrs_scope_t *scope;
 	uint32_t size;
 	uint16_t memberCount;
 	bool isOnStack;
 	void *staticData;
-	void *data;
 } ptrs_struct_t;
 
 typedef union val
@@ -139,7 +141,6 @@ typedef union val
 	const char *strval;
 	struct ptrs_var *ptrval;
 	void *nativeval;
-	ptrs_function_t *funcval;
 	ptrs_struct_t *structval;
 } ptrs_val_t;
 

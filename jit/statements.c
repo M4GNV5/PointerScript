@@ -92,7 +92,8 @@ ptrs_jit_var_t ptrs_handle_typeddefine(ptrs_ast_t *node, jit_function_t func, pt
 	}
 	jit_insn_store(func, stmt->location.val, val.val);
 
-	if(stmt->location.constType == PTRS_TYPE_NATIVE || stmt->location.constType == PTRS_TYPE_POINTER)
+	if(stmt->location.constType  != PTRS_TYPE_INT
+		&& stmt->location.constType != PTRS_TYPE_FLOAT)
 	{
 		stmt->location.meta = jit_value_create(func, jit_type_long);
 		jit_insn_store(func, stmt->location.meta, val.meta);
@@ -516,7 +517,55 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 
 ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	//TODO
+	ptrs_struct_t *struc = &node->arg.structval;
+
+	jit_value_t staticData = NULL;
+	if(struc->staticData != NULL)
+		staticData = jit_const_int(func, void_ptr, (uintptr_t)struc->staticData);
+
+	for(int i = 0; i < struc->memberCount; i++)
+	{
+		struct ptrs_structmember *curr = &struc->member[i];
+		if(curr->name == NULL) //hashmap filler entry
+			continue;
+
+		if(curr->type == PTRS_STRUCTMEMBER_FUNCTION
+			|| curr->type == PTRS_STRUCTMEMBER_GETTER
+			|| curr->type == PTRS_STRUCTMEMBER_SETTER)
+		{
+			//TODO
+		}
+		else if(curr->isStatic && curr->type == PTRS_STRUCTMEMBER_VAR)
+		{
+			ptrs_ast_t *ast = curr->value.startval;
+			ptrs_jit_var_t startVal = ast->handler(ast, func, scope);
+			jit_value_t addr = jit_insn_add_relative(func, staticData, curr->offset);
+			jit_insn_store_relative(func, addr, 0, startVal.val);
+			jit_insn_store_relative(func, addr, sizeof(ptrs_val_t), startVal.meta);
+		}
+		else if(curr->isStatic && curr->type == PTRS_STRUCTMEMBER_ARRAY)
+		{
+			ptrs_astlist_handleByte(curr->value.array.init, func, scope,
+				jit_insn_add(func, staticData, jit_const_int(func, nuint, curr->offset)),
+				jit_const_int(func, nuint, curr->value.array.size)
+			);
+		}
+		else if(curr->isStatic && curr->type == PTRS_STRUCTMEMBER_VARARRAY)
+		{
+			ptrs_astlist_handle(curr->value.array.init, func, scope,
+				jit_insn_add(func, staticData, jit_const_int(func, nuint, curr->offset)),
+				jit_const_int(func, nuint, curr->value.array.size / sizeof(ptrs_var_t))
+			);
+		}
+	}
+
+	//TODO compile the op overloads
+
+	struc->location->val = jit_const_long(func, long, 0);
+	struc->location->meta = ptrs_jit_const_pointerMeta(func, PTRS_TYPE_STRUCT, struc);
+	struc->location->constType = PTRS_TYPE_STRUCT;
+
+	return *struc->location;
 }
 
 ptrs_jit_var_t ptrs_handle_if(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)

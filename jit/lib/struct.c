@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stddef.h>
 #include <ctype.h>
 #include <string.h>
 
@@ -9,10 +10,10 @@
 #include "../include/error.h"
 #include "../include/conversion.h"
 #include "../include/astlist.h"
+#include "../include/util.h"
 
-ptrs_function_t *ptrs_struct_getOverload(ptrs_var_t *struc, void *handler)
+ptrs_function_t *ptrs_struct_getOverload(ptrs_var_t *struc, void *handler, bool isInstance)
 {
-	bool isInstance = struc->value.structval->data != NULL;
 	struct ptrs_opoverload *curr = struc->value.structval->overloads;
 	while(curr != NULL)
 	{
@@ -83,83 +84,69 @@ struct ptrs_structmember *ptrs_struct_find(ptrs_struct_t *struc, const char *key
 	return NULL;
 }
 
-ptrs_var_t *ptrs_struct_getMember(ptrs_struct_t *struc, ptrs_var_t *result,
-	struct ptrs_structmember *member, ptrs_ast_t *ast)
+ptrs_var_t ptrs_struct_getMember(ptrs_ast_t *ast, void *data, ptrs_struct_t *struc,
+	struct ptrs_structmember *member)
 {
-	void *data = struc->data;
-	if(data == NULL || member->isStatic)
-	{
-		if(!member->isStatic)
-			ptrs_error(ast, "Cannot access non-static property of struct %s", struc->name);
-
+	if(member->isStatic)
 		data = struc->staticData;
-	}
+	else if(data == NULL)
+		ptrs_error(ast, "Cannot access non-static property of struct %s", struc->name);
 
-	ptrs_var_t func;
+	ptrs_var_t result;
 	switch(member->type)
 	{
 		case PTRS_STRUCTMEMBER_VAR:
-			return data + member->offset;
+			return *(ptrs_var_t *)(data + member->offset);
 		case PTRS_STRUCTMEMBER_GETTER:
-			//func.meta.type = PTRS_TYPE_FUNCTION;
-			//func.value.funcval = member->value.function;
 			//TODO
-			//return ptrs_callfunc(ast, result, scope, struc, &func, 0, NULL);
-			return NULL;
+			return result;
 		case PTRS_STRUCTMEMBER_SETTER:
-			return NULL;
+			//TODO
+			return result;
 		case PTRS_STRUCTMEMBER_FUNCTION:
-			result->meta.type = PTRS_TYPE_NATIVE;
-			result->value.funcval = member->value.function;
+			//TODO
 			return result;
 		case PTRS_STRUCTMEMBER_ARRAY:
-			result->meta.type = PTRS_TYPE_NATIVE;
-			result->value.nativeval = data + member->offset;
-			result->meta.array.readOnly = false;
-			result->meta.array.size = member->value.size;
+			result.meta.type = PTRS_TYPE_NATIVE;
+			result.value.nativeval = data + member->offset;
+			result.meta.array.readOnly = false;
+			result.meta.array.size = member->value.array.size;
 			return result;
 		case PTRS_STRUCTMEMBER_VARARRAY:
-			result->meta.type = PTRS_TYPE_POINTER;
-			result->value.ptrval = data + member->offset;
-			result->meta.array.size = member->value.size / sizeof(ptrs_var_t);
+			result.meta.type = PTRS_TYPE_POINTER;
+			result.value.ptrval = data + member->offset;
+			result.meta.array.size = member->value.array.size / sizeof(ptrs_var_t);
 			return result;
 		case PTRS_STRUCTMEMBER_TYPED:
-			member->value.type->getHandler(data + member->offset, member->value.type->size, result);
+			member->value.type->getHandler(data + member->offset, member->value.type->size, &result);
 			return result;
 	}
-
-	return NULL;
 }
 
-void ptrs_struct_setMember(ptrs_struct_t *struc, ptrs_var_t *value,
-	struct ptrs_structmember *member, ptrs_ast_t *ast)
+void ptrs_struct_setMember(ptrs_ast_t *ast, void *data, ptrs_struct_t *struc,
+	struct ptrs_structmember *member, ptrs_val_t val, ptrs_meta_t meta)
 {
-	void *data = struc->data;
-	if(data == NULL || member->isStatic)
-	{
-		if(!member->isStatic)
-			ptrs_error(ast, "Cannot assign non-static property of struct %s", struc->name);
-
+	if(member->isStatic)
 		data = struc->staticData;
-	}
+	else if(data == NULL)
+		ptrs_error(ast, "Cannot assign non-static property of struct %s", struc->name);
 
 	if(member->type == PTRS_STRUCTMEMBER_VAR)
 	{
-		memcpy(data + member->offset, value, sizeof(ptrs_var_t));
+		*(ptrs_val_t *)(data + member->offset) = val;
+		*(ptrs_meta_t *)(data + member->offset + sizeof(ptrs_val_t)) = meta;
 	}
 	else if(member->type == PTRS_STRUCTMEMBER_SETTER)
 	{
-		ptrs_var_t func;
-		ptrs_var_t result;
-		//func.meta.type = PTRS_TYPE_FUNCTION;
-		//func.value.funcval = member->value.function;
 		//TODO
-		//ptrs_callfunc(ast, &result, scope, struc, &func, 1, value);
 	}
 	else if(member->type == PTRS_STRUCTMEMBER_TYPED)
 	{
 		ptrs_nativetype_info_t *type = member->value.type;
-		type->setHandler(data + member->offset, type->size, value);
+		ptrs_var_t result;
+		result.value = val;
+		result.meta = meta;
+		type->setHandler(data + member->offset, type->size, &result);
 	}
 	else
 	{
@@ -167,68 +154,76 @@ void ptrs_struct_setMember(ptrs_struct_t *struc, ptrs_var_t *value,
 	}
 }
 
-void ptrs_struct_addressOfMember(ptrs_struct_t *struc, ptrs_var_t *result,
-	struct ptrs_structmember *member, ptrs_ast_t *ast)
+ptrs_var_t ptrs_struct_addressOfMember(ptrs_ast_t *ast, void *data, ptrs_struct_t *struc,
+	struct ptrs_structmember *member)
 {
-	void *data = struc->data;
-	if(data == NULL || member->isStatic)
-	{
-		if(!member->isStatic)
-			ptrs_error(ast, "Cannot get address of non-static property of struct %s", struc->name);
-
+	if(member->isStatic)
 		data = struc->staticData;
-	}
+	else if(data == NULL)
+		ptrs_error(ast, "Cannot get the address of a non-static property of struct %s", struc->name);
 
+	ptrs_var_t result;
 	if(member->type == PTRS_STRUCTMEMBER_VAR)
 	{
-		result->meta.type = PTRS_TYPE_POINTER;
-		result->value.ptrval = data + member->offset;
-		result->meta.array.size = 1;
+		result.meta.type = PTRS_TYPE_POINTER;
+		result.meta.array.size = 1;
+		result.value.ptrval = data + member->offset;
 	}
 	else if(member->type == PTRS_STRUCTMEMBER_TYPED)
 	{
-		result->meta.type = PTRS_TYPE_NATIVE;
-		result->value.nativeval = data + member->offset;
-		result->meta.array.size = member->value.type->size;
+		result.meta.type = PTRS_TYPE_NATIVE;
+		result.meta.array.size = member->value.type->size;
+		result.value.nativeval = data + member->offset;
 	}
 	else
 	{
 		ptrs_error(ast, "Cannot get address of non-property struct member");
 	}
+	return result;
 }
 
-ptrs_var_t *ptrs_struct_get(ptrs_struct_t *struc, ptrs_var_t *result, const char *key, ptrs_ast_t *ast)
+ptrs_var_t ptrs_struct_get(ptrs_ast_t *ast, void *instance, ptrs_struct_t *struc, const char *key)
 {
 	struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, ast);
 	if(member == NULL)
-		return NULL;
+		ptrs_error(ast, "Struct %s has no member named %s", struc->name, key);
 
-	return ptrs_struct_getMember(struc, result, member, ast);
+	return ptrs_struct_getMember(ast, instance, struc, member);
 }
 
-bool ptrs_struct_set(ptrs_struct_t *struc, ptrs_var_t *value, const char *key, ptrs_ast_t *ast)
+void ptrs_struct_set(ptrs_ast_t *ast, void *instance, ptrs_struct_t *struc, const char *key,
+	ptrs_val_t val, ptrs_meta_t meta)
 {
 	struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_GETTER, ast);
 	if(member == NULL)
-		return false;
+		ptrs_error(ast, "Struct %s has no member named %s", struc->name, key);
 
-	ptrs_struct_setMember(struc, value, member, ast);
-	return true;
+	ptrs_struct_setMember(ast, instance, struc, member, val, meta);
 }
 
-bool ptrs_struct_addressOf(ptrs_struct_t *struc, ptrs_var_t *result, const char *key, ptrs_ast_t *ast)
+ptrs_var_t ptrs_struct_addressOf(ptrs_ast_t *ast, void *instance, ptrs_struct_t *struc, const char *key)
 {
 	struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_GETTER, ast);
 	if(member == NULL)
-		return false;
+		ptrs_error(ast, "Struct %s has no member named %s", struc->name, key);
 
-	ptrs_struct_addressOfMember(struc, result, member, ast);
-	return true;
+	return ptrs_struct_addressOfMember(ast, instance, struc, member);
 }
 
-ptrs_var_t *ptrs_struct_construct(ptrs_var_t *constructor, struct ptrs_astlist *arguments, bool allocateOnStack,
-		ptrs_ast_t *node, ptrs_var_t *result)
+ptrs_jit_var_t ptrs_struct_construct(ptrs_ast_t *ast, jit_function_t func, ptrs_scope_t *scope,
+	ptrs_jit_var_t constructor, struct ptrs_astlist *arguments, bool allocateOnStack)
 {
-	//TODO
-	return NULL;
+	ptrs_jit_typeCheck(ast, func, scope, constructor, PTRS_TYPE_STRUCT,
+		1, "Value of type %t is not a constructor", TYPECHECK_TYPE);
+
+	jit_value_t struc = ptrs_jit_getMetaPointer(func, constructor.meta);
+	jit_value_t size = jit_insn_load_relative(func, struc,
+		offsetof(ptrs_struct_t, size), jit_type_uint);
+
+	jit_value_t instance = ptrs_jit_allocate(func, size, allocateOnStack, false);
+
+	//TODO constructor
+
+	ptrs_jit_var_t ret = {instance, constructor.meta, PTRS_TYPE_STRUCT};
+	return ret;
 }

@@ -1938,7 +1938,6 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 	struc->size = 0;
 	struc->name = "(map)";
 	struc->overloads = NULL;
-	struc->data = NULL;
 	struc->staticData = NULL;
 
 	consumec(code, '{');
@@ -1976,7 +1975,7 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 			symbolScope_increase(code, 1, false);
 			setSymbol(code, strdup("this"), 0);
 
-			ptrs_function_t *func = curr->member.value.function = talloc(ptrs_function_t);
+			ptrs_function_t *func = curr->member.value.function.ast = talloc(ptrs_function_t);
 			func->name = "(map function member)";
 			func->argc = parseArgumentDefinitionList(code, &func->args, &func->argv, &func->vararg);
 
@@ -2043,7 +2042,6 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 	struc->name = structName;
 	struc->overloads = NULL;
 	struc->size = 0;
-	struc->data = NULL;
 	consumec(code, '{');
 
 	symbolScope_increase(code, 0, true);
@@ -2343,7 +2341,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			}
 
 			func->body = parseBody(code, false, true);
-			curr->value.function = func;
+			curr->value.function.ast = func;
 		}
 		else if(code->curr == '(')
 		{
@@ -2351,7 +2349,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			sprintf(funcName, "%s.%s", structName, name);
 
 			curr->type = PTRS_STRUCTMEMBER_FUNCTION;
-			curr->value.function = parseFunction(code, funcName);
+			curr->value.function.ast = parseFunction(code, funcName);
 		}
 		else if(code->curr == '[')
 		{
@@ -2363,12 +2361,12 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			if(lookahead(code, "="))
 			{
 				consumec(code, '[');
-				curr->value.arrayInit = parseExpressionList(code, ']');
+				curr->value.array.init = parseExpressionList(code, ']');
 				consumec(code, ']');
 			}
 			else
 			{
-				curr->value.arrayInit = NULL;
+				curr->value.array.init = NULL;
 			}
 
 			consumec(code, ';');
@@ -2376,9 +2374,9 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			if(ast->handler != ptrs_handle_constant)
 				PTRS_HANDLE_ASTERROR(ast, "Struct array member size must be a constant");
 
-			curr->value.size = ast->arg.constval.value.intval * sizeof(ptrs_var_t);
+			curr->value.array.size = ast->arg.constval.value.intval * sizeof(ptrs_var_t);
 			curr->offset = currSize;
-			currSize += curr->value.size;
+			currSize += curr->value.array.size;
 			free(ast);
 		}
 		else if(code->curr == '{')
@@ -2391,12 +2389,12 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			if(lookahead(code, "="))
 			{
 				consumec(code, '{');
-				curr->value.arrayInit = parseExpressionList(code, '}');
+				curr->value.array.init = parseExpressionList(code, '}');
 				consumec(code, '}');
 			}
 			else
 			{
-				curr->value.arrayInit = NULL;
+				curr->value.array.init = NULL;
 			}
 
 			consumec(code, ';');
@@ -2404,16 +2402,16 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			if(ast->handler != ptrs_handle_constant)
 				PTRS_HANDLE_ASTERROR(ast, "Struct array member size must be a constant");
 
-			curr->value.size = ast->arg.constval.value.intval;
+			curr->value.array.size = ast->arg.constval.value.intval;
 
 			if(old != NULL && old->isStatic == curr->isStatic && old->type == PTRS_STRUCTMEMBER_TYPED)
 				curr->offset = old->offset + old->value.type->size;
 			else if(old != NULL && old->isStatic == curr->isStatic && old->type == PTRS_STRUCTMEMBER_ARRAY)
-				curr->offset = old->offset + old->value.size;
+				curr->offset = old->offset + old->value.array.size;
 			else
 				curr->offset = currSize;
 
-			currSize = ((curr->offset + curr->value.size - 1) & ~7) + 8;
+			currSize = ((curr->offset + curr->value.array.size - 1) & ~7) + 8;
 			free(ast);
 		}
 		else if(code->curr == ':')
@@ -2434,7 +2432,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			}
 			else if(old != NULL && old->isStatic == curr->isStatic && old->type == PTRS_STRUCTMEMBER_ARRAY)
 			{
-				curr->offset = (old->offset & ~(type->size - 1)) + old->value.size;
+				curr->offset = (old->offset & ~(type->size - 1)) + old->value.array.size;
 			}
 			else
 			{

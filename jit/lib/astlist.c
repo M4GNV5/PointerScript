@@ -14,7 +14,8 @@ void ptrs_initArray(ptrs_var_t *array, size_t len, ptrs_val_t val, ptrs_meta_t m
 		array[i].meta = meta;
 	}
 }
-void ptrs_astlist_handle(struct ptrs_astlist *list, jit_function_t func, ptrs_scope_t *scope, jit_value_t val, jit_value_t size)
+void ptrs_astlist_handle(struct ptrs_astlist *list, jit_function_t func, ptrs_scope_t *scope,
+	jit_value_t val, jit_value_t size)
 {
 	int i;
 	jit_value_t zero = jit_const_long(func, ulong, 0);
@@ -74,7 +75,8 @@ void ptrs_astlist_handle(struct ptrs_astlist *list, jit_function_t func, ptrs_sc
 	}
 }
 
-void ptrs_astlist_handleByte(struct ptrs_astlist *list, jit_function_t func, ptrs_scope_t *scope, jit_value_t val, jit_value_t size)
+void ptrs_astlist_handleByte(struct ptrs_astlist *list, jit_function_t func, ptrs_scope_t *scope,
+	jit_value_t val, jit_value_t size)
 {
 	int i = 0;
 	jit_value_t zero = jit_const_long(func, ubyte, 0);
