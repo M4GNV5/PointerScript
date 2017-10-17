@@ -125,12 +125,12 @@ struct ptrs_opoverload
 typedef struct ptrs_struct
 {
 	char *name;
+	struct ptrs_ast *ast;
 	ptrs_jit_var_t *location;
 	struct ptrs_structmember *member;
 	struct ptrs_opoverload *overloads;
 	uint32_t size;
 	uint16_t memberCount;
-	bool isOnStack;
 	void *staticData;
 } ptrs_struct_t;
 

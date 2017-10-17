@@ -24,24 +24,26 @@ ptrs_function_t *ptrs_struct_getOverload(ptrs_var_t *struc, void *handler, bool 
 	return NULL;
 }
 
-bool ptrs_struct_canAccess(ptrs_struct_t *struc, struct ptrs_structmember *member, ptrs_ast_t *node)
+bool ptrs_struct_canAccess(ptrs_ast_t *node, ptrs_struct_t *struc, struct ptrs_structmember *member)
 {
 	switch(member->protection)
 	{
 		case 0:
 			return true;
 		case 1:
-			;
-			//TODO
-
-			//fallthrough
+			if(strcmp(node->file, struc->ast->file) == 0)
+				return true;
+			else
+				break;
 		default:
 			//TODO
-
-			if(node != NULL)
-				ptrs_error(node, "Cannot access property %s of struct %s\n", member->name, struc->name);
-			return false;
+			break;
 	}
+
+	if(node != NULL)
+		ptrs_error(node, "Cannot access property %s of struct %s\n", member->name, struc->name);
+	else
+		return false;
 }
 
 unsigned long ptrs_struct_hashName(const char *key)
@@ -74,7 +76,7 @@ struct ptrs_structmember *ptrs_struct_find(ptrs_struct_t *struc, const char *key
 	{
 		if(strcmp(struc->member[i].name, key) == 0 && struc->member[i].type != exclude)
 		{
-			ptrs_struct_canAccess(struc, &struc->member[i], ast);
+			ptrs_struct_canAccess(ast, struc, &struc->member[i]);
 			return &struc->member[i];
 		}
 

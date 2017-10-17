@@ -7,7 +7,7 @@
 
 ptrs_function_t *ptrs_struct_getOverload(ptrs_var_t *struc, void *handler, bool isInstance);
 
-bool ptrs_struct_canAccess(ptrs_struct_t *struc, struct ptrs_structmember *member, ptrs_ast_t *node);
+bool ptrs_struct_canAccess(ptrs_ast_t *ast, ptrs_struct_t *struc, struct ptrs_structmember *member);
 
 unsigned long ptrs_struct_hashName(const char *key);
 
