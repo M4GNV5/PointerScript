@@ -95,7 +95,6 @@ ptrs_jit_var_t ptrs_handle_member(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	jit_value_t ret;
 	jit_value_t astVal = jit_const_int(func, void_ptr, (uintptr_t)node);
 	jit_value_t nameVal = jit_const_int(func, void_ptr, (uintptr_t)expr->name);
-	base.meta = ptrs_jit_getMetaPointer(func, base.meta);
 	ptrs_jit_reusableCall(func, ptrs_struct_get, ret, ptrs_jit_getVarType(),
 		(jit_type_void_ptr, jit_type_long, jit_type_ulong, jit_type_void_ptr),
 		(astVal, base.val, base.meta, nameVal)
@@ -121,7 +120,7 @@ void ptrs_handle_assign_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 		), (
 			jit_const_int(func, void_ptr, (uintptr_t)node),
 			base.val,
-			ptrs_jit_getMetaPointer(func, base.meta),
+			base.meta,
 			jit_const_int(func, void_ptr, (uintptr_t)expr->name),
 			val.val,
 			val.meta
@@ -136,7 +135,6 @@ ptrs_jit_var_t ptrs_handle_addressof_member(ptrs_ast_t *node, jit_function_t fun
 	jit_value_t ret;
 	jit_value_t astVal = jit_const_int(func, void_ptr, (uintptr_t)node);
 	jit_value_t nameVal = jit_const_int(func, void_ptr, (uintptr_t)expr->name);
-	base.meta = ptrs_jit_getMetaPointer(func, base.meta);
 	ptrs_jit_reusableCall(func, ptrs_struct_addressOf, ret, ptrs_jit_getVarType(),
 		(jit_type_void_ptr, jit_type_long, jit_type_ulong, jit_type_void_ptr),
 		(astVal, base.val, base.meta, nameVal)

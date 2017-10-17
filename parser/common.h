@@ -193,7 +193,7 @@ typedef struct ptrs_var
 	(((uint64_t)(uintptr_t)(ptr) << 8) | (uint64_t)(type))
 
 #define ptrs_meta_getPointer(meta) \
-	(*(uint64_t *)&(meta) >> 8)
+	(void *)(*(uint64_t *)&(meta) >> 8)
 #define ptrs_meta_setPointer(meta, ptr) \
 	(*(uint64_t *)&(meta) = (((uint64_t)(uintptr_t)(ptr) << 8) | (meta).type))
 

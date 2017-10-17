@@ -184,8 +184,12 @@ ptrs_var_t ptrs_struct_addressOfMember(ptrs_ast_t *ast, void *data, ptrs_struct_
 	return result;
 }
 
-ptrs_var_t ptrs_struct_get(ptrs_ast_t *ast, void *instance, ptrs_struct_t *struc, const char *key)
+ptrs_var_t ptrs_struct_get(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta, const char *key)
 {
+	if(meta.type != PTRS_TYPE_STRUCT)
+		ptrs_error(ast, "Cannot get member %s of a value of type %t", key, meta.type);
+	ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
+
 	struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, ast);
 	if(member == NULL)
 		ptrs_error(ast, "Struct %s has no member named %s", struc->name, key);
@@ -193,18 +197,26 @@ ptrs_var_t ptrs_struct_get(ptrs_ast_t *ast, void *instance, ptrs_struct_t *struc
 	return ptrs_struct_getMember(ast, instance, struc, member);
 }
 
-void ptrs_struct_set(ptrs_ast_t *ast, void *instance, ptrs_struct_t *struc, const char *key,
-	ptrs_val_t val, ptrs_meta_t meta)
+void ptrs_struct_set(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta, const char *key,
+	ptrs_val_t val, ptrs_meta_t valMeta)
 {
+	if(meta.type != PTRS_TYPE_STRUCT)
+		ptrs_error(ast, "Cannot set member %s of a value of type %t", key, meta.type);
+	ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
+
 	struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_GETTER, ast);
 	if(member == NULL)
 		ptrs_error(ast, "Struct %s has no member named %s", struc->name, key);
 
-	ptrs_struct_setMember(ast, instance, struc, member, val, meta);
+	ptrs_struct_setMember(ast, instance, struc, member, val, valMeta);
 }
 
-ptrs_var_t ptrs_struct_addressOf(ptrs_ast_t *ast, void *instance, ptrs_struct_t *struc, const char *key)
+ptrs_var_t ptrs_struct_addressOf(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta, const char *key)
 {
+	if(meta.type != PTRS_TYPE_STRUCT)
+		ptrs_error(ast, "Cannot get the address of a member named %s of value of type %t", key, meta.type);
+	ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
+
 	struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_GETTER, ast);
 	if(member == NULL)
 		ptrs_error(ast, "Struct %s has no member named %s", struc->name, key);
