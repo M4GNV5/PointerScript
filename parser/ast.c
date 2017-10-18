@@ -57,7 +57,6 @@ struct wildcardsymbol
 
 struct ptrs_symboltable
 {
-	bool isInline;
 	struct symbollist *current;
 	struct wildcardsymbol *wildcards;
 	ptrs_symboltable_t *outer;
@@ -99,11 +98,10 @@ static char readEscapeSequence(code_t *code);
 static int64_t readInt(code_t *code, int base);
 static double readDouble(code_t *code);
 
-static void setSymbol(code_t *code, char *text, unsigned offset);
 static void addSymbol(code_t *code, char *text, ptrs_jit_var_t *location);
 static struct symbollist *addSpecialSymbol(code_t *code, char *symbol, ptrs_symboltype_t type);
 static ptrs_ast_t *getSymbol(code_t *code, char *text);
-static void symbolScope_increase(code_t *code, int buildInCount, bool isInline);
+static void symbolScope_increase(code_t *code);
 static void symbolScope_decrease(code_t *code);
 
 static bool lookahead(code_t *code, const char *str);
@@ -135,8 +133,8 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 	if(symbols == NULL || *symbols == NULL)
 	{
 		code.symbols = NULL;
-		symbolScope_increase(&code, 1, false);
-		setSymbol(&code, strdup("arguments"), 0);
+		symbolScope_increase(&code);
+		//addSymbol(&code, strdup("arguments"), TODO argumentsLocation);
 	}
 	else
 	{
@@ -170,7 +168,6 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 	if(node != NULL)
 		*node = NULL;
 
-	unsigned level = 0;
 	while(symbols != NULL)
 	{
 		struct symbollist *curr = symbols->current;
@@ -233,8 +230,6 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 			curr = curr->next;
 		}
 
-		if(!symbols->isInline)
-			level++;
 		symbols = symbols->outer;
 	}
 	return 1;
@@ -486,7 +481,7 @@ static ptrs_ast_t *parseScopelessBody(code_t *code, bool allowStmt)
 static ptrs_ast_t *parseBody(code_t *code, bool allowStmt, bool isFunction)
 {
 	if(!isFunction)
-		symbolScope_increase(code, 0, true);
+		symbolScope_increase(code);
 
 	ptrs_ast_t *result = parseScopelessBody(code, allowStmt);
 
@@ -497,11 +492,12 @@ static ptrs_ast_t *parseBody(code_t *code, bool allowStmt, bool isFunction)
 
 static ptrs_function_t *parseFunction(code_t *code, char *name)
 {
-	symbolScope_increase(code, 1, false);
-	setSymbol(code, strdup("this"), 0);
+	symbolScope_increase(code);
 
 	ptrs_function_t *func = talloc(ptrs_function_t);
 	func->name = name;
+
+	addSymbol(code, strdup("this"), &func->thisVal);
 
 	func->argc = parseArgumentDefinitionList(code, &func->args, &func->argv, &func->vararg);
 	func->body = parseBody(code, false, true);
@@ -667,7 +663,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	else if(lookahead(code, "scoped"))
 	{
 		stmt->handler = ptrs_handle_scopestatement;
-		symbolScope_increase(code, 0, false);
+		symbolScope_increase(code);
 		stmt->arg.astval = parseBody(code, true, true);
 	}
 	else if(lookahead(code, "try"))
@@ -677,7 +673,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 
 		if(lookahead(code, "catch"))
 		{
-			symbolScope_increase(code, 0, false);
+			symbolScope_increase(code);
 			stmt->arg.trycatch.argc = parseArgumentDefinitionList(code, &stmt->arg.trycatch.args, NULL, NULL);
 			stmt->arg.trycatch.catchBody = parseScopelessBody(code, true);
 			symbolScope_decrease(code);
@@ -689,7 +685,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 
 		if(lookahead(code, "finally"))
 		{
-			symbolScope_increase(code, 0, true);
+			symbolScope_increase(code);
 			if(code->curr == '(')
 			{
 				consumec(code, '(');
@@ -728,8 +724,8 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		struct symbollist *symbol = addSpecialSymbol(code, strdup(func->name), PTRS_SYMBOL_FUNCTION);
 		symbol->arg.function = stmt->arg.function.symbol;
 
-		symbolScope_increase(code, 1, false);
-		setSymbol(code, strdup("this"), 0);
+		symbolScope_increase(code);
+		addSymbol(code, strdup("this"), &func->thisVal);
 
 		func->argc = parseArgumentDefinitionList(code, &func->args, &func->argv, &func->vararg);
 		func->body = parseBody(code, false, true);
@@ -768,7 +764,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "do"))
 	{
-		symbolScope_increase(code, 0, true);
+		symbolScope_increase(code);
 		stmt->handler = ptrs_handle_dowhile;
 		stmt->arg.control.body = parseScopelessBody(code, true);
 		consume(code, "while");
@@ -782,7 +778,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	else if(lookahead(code, "foreach"))
 	{
 		consumec(code, '(');
-		symbolScope_increase(code, 0, false);
+		symbolScope_increase(code);
 		stmt->arg.forin.varcount = parseIdentifierList(code, "in", &stmt->arg.forin.varsymbols, NULL);
 
 		consume(code, "in");
@@ -796,7 +792,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	else if(lookahead(code, "for"))
 	{
 		stmt->handler = ptrs_handle_for;
-		symbolScope_increase(code, 0, true);
+		symbolScope_increase(code);
 
 		consumec(code, '(');
 		stmt->arg.forstatement.init = parseStatement(code);
@@ -1175,8 +1171,8 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		ptrs_function_t *func = &ast->arg.function.func;
 		func->name = "(anonymous function)";
 
-		symbolScope_increase(code, 1, false);
-		setSymbol(code, strdup("this"), 0);
+		symbolScope_increase(code);
+		addSymbol(code, strdup("this"), &func->thisVal);
 
 		func->argc = parseArgumentDefinitionList(code, &func->args, &func->argv, &func->vararg);
 		func->body = parseBody(code, false, true);
@@ -1313,8 +1309,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 				code->pos = start;
 				code->curr = code->src[start];
 
-				symbolScope_increase(code, 1, false);
-				setSymbol(code, strdup("this"), 0);
+				symbolScope_increase(code);
 
 				ast = talloc(ptrs_ast_t);
 				ast->handler = ptrs_handle_function;
@@ -1322,6 +1317,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 
 				ptrs_function_t *func = &ast->arg.function.func;
 				func->name = "(lambda expression)";
+				addSymbol(code, strdup("this"), &func->thisVal);
 				func->argv = NULL;
 				func->argc = parseArgumentDefinitionList(code, &func->args, NULL, &func->vararg);
 
@@ -1930,7 +1926,7 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 	struc->staticData = NULL;
 
 	consumec(code, '{');
-	symbolScope_increase(code, 0, false);
+	symbolScope_increase(code);
 
 	int count = 0;
 	struct ptrs_structParseList *start = NULL;
@@ -1961,10 +1957,10 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 		if(code->curr == '(')
 		{
 			curr->member.type = PTRS_STRUCTMEMBER_FUNCTION;
-			symbolScope_increase(code, 1, false);
-			setSymbol(code, strdup("this"), 0);
+			symbolScope_increase(code);
 
 			ptrs_function_t *func = curr->member.value.function.ast = talloc(ptrs_function_t);
+			addSymbol(code, strdup("this"), &func->thisVal);
 			func->name = "(map function member)";
 			func->argc = parseArgumentDefinitionList(code, &func->args, &func->argv, &func->vararg);
 
@@ -2033,7 +2029,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 	struc->size = 0;
 	consumec(code, '{');
 
-	symbolScope_increase(code, 0, true);
+	symbolScope_increase(code);
 	int memberCount = 0;
 	struct ptrs_structParseList *start = NULL;
 	struct ptrs_structParseList *currList = NULL;
@@ -2049,14 +2045,15 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 		if(lookahead(code, "operator"))
 		{
-			symbolScope_increase(code, 1, false);
-			setSymbol(code, strdup("this"), 0);
+			symbolScope_increase(code);
 
 			ptrs_jit_var_t *oldYield = code->yield;
 			const char *nameFormat = NULL;
 			const char *opLabel = NULL;
 			char *otherName = NULL;
+
 			ptrs_function_t *func = talloc(ptrs_function_t);
+			addSymbol(code, strdup("this"), &func->thisVal);
 			func->argc = 0;
 			func->argv = NULL;
 			func->vararg.val = NULL;
@@ -2302,11 +2299,11 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 		if(isProperty > 0)
 		{
-			symbolScope_increase(code, 1, false);
-			setSymbol(code, strdup("this"), 0);
+			symbolScope_increase(code);
 
 			ptrs_function_t *func = talloc(ptrs_function_t);
 			func->name = malloc(structNameLen + strlen(name) + 6);
+			addSymbol(code, strdup("this"), &func->thisVal);
 			func->vararg.val = NULL;
 			func->vararg.meta = NULL;
 
@@ -2824,14 +2821,6 @@ static double readDouble(code_t *code)
 	return val;
 }
 
-static void setSymbol(code_t *code, char *text, unsigned offset)
-{
-	ptrs_symboltable_t *curr = code->symbols;
-	struct symbollist *entry = talloc(struct symbollist);
-
-	//TODO remove
-}
-
 static void addSymbol(code_t *code, char *symbol, ptrs_jit_var_t *location)
 {
 	ptrs_symboltable_t *curr = code->symbols;
@@ -2859,7 +2848,6 @@ static struct symbollist *addSpecialSymbol(code_t *code, char *symbol, ptrs_symb
 
 static ptrs_ast_t *getSymbolFromWildcard(code_t *code, char *text)
 {
-	unsigned level = 0;
 	ptrs_symboltable_t *symbols = code->symbols;
 	while(symbols != NULL)
 	{
@@ -2895,8 +2883,6 @@ static ptrs_ast_t *getSymbolFromWildcard(code_t *code, char *text)
 			curr = curr->next;
 		}
 
-		if(!symbols->isInline)
-			level++;
 		symbols = symbols->outer;
 	}
 
@@ -2919,10 +2905,9 @@ static ptrs_ast_t *getSymbol(code_t *code, char *text)
 	return ast; //doh
 }
 
-static void symbolScope_increase(code_t *code, int buildInCount, bool isInline)
+static void symbolScope_increase(code_t *code)
 {
 	ptrs_symboltable_t *new = talloc(ptrs_symboltable_t);
-	new->isInline = isInline;
 	new->outer = code->symbols;
 	new->current = NULL;
 	new->wildcards = NULL;

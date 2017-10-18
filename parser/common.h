@@ -75,6 +75,7 @@ typedef struct function
 {
 	char *name;
 	int argc;
+	ptrs_jit_var_t thisVal;
 	ptrs_jit_var_t vararg;
 	ptrs_jit_var_t *args;
 	struct ptrs_ast **argv;
