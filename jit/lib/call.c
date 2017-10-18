@@ -175,50 +175,72 @@ ptrs_jit_var_t ptrs_jit_callnested(jit_function_t func, ptrs_scope_t *scope,
 	return ptrs_jit_valToVar(func, ret);
 }
 
-jit_function_t ptrs_jit_createTrampoline(ptrs_ast_t *node, ptrs_scope_t *scope,
-	ptrs_function_t *funcAst, jit_function_t func)
+jit_function_t ptrs_jit_createFunction(ptrs_ast_t *node, jit_function_t parent,
+	jit_type_t signature, const char *name)
 {
-	if(jit_function_get_nested_parent(func) != scope->rootFunc)
-		ptrs_error(node, "Cannot create closure of multi-nested function"); //TODO
+	jit_function_t func;
+	if(parent == NULL)
+		func = jit_function_create(ptrs_jit_context, signature);
+	else
+		func = jit_function_create_nested(ptrs_jit_context, signature, parent);
 
-	jit_type_t argDef[funcAst->argc];
-	for(int i = 0; i < funcAst->argc; i++)
+	jit_function_set_meta(func, PTRS_JIT_FUNCTIONMETA_NAME, (char *)name, NULL, 0);
+	jit_function_set_meta(func, PTRS_JIT_FUNCTIONMETA_AST, node, NULL, 0);
+	jit_function_set_meta(func, PTRS_JIT_FUNCTIONMETA_CLOSURE, NULL, NULL, 0);
+
+	return func;
+}
+
+jit_function_t ptrs_jit_compileFunction(ptrs_ast_t *node, jit_function_t parent, ptrs_scope_t *scope,
+	ptrs_function_t *ast)
+{
+	jit_type_t paramDef[ast->argc * 2 + 1];
+	paramDef[0] = jit_type_void_ptr; //reserved
+	for(int i = 1; i < ast->argc * 2 + 1;)
 	{
-		argDef[i] = jit_type_long;
+		paramDef[i++] = jit_type_long;
+		paramDef[i++] = jit_type_ulong;
 	}
 
-	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, jit_type_long, argDef, funcAst->argc, 1);
-	jit_function_t closure = jit_function_create(ptrs_jit_context, signature);
-	jit_type_free(signature);
+	//TODO variadic functions
 
-	jit_function_set_meta(closure, PTRS_JIT_FUNCTIONMETA_NAME, "(trampoline)", NULL, 0);
-	jit_function_set_meta(closure, PTRS_JIT_FUNCTIONMETA_FILE, "(builtin)", NULL, 0);
-	jit_function_set_meta(closure, PTRS_JIT_FUNCTIONMETA_CLOSURE, NULL, NULL, 0);
+	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl,
+		ptrs_jit_getVarType(), paramDef, ast->argc * 2 + 1, 0);
+	jit_function_t func = ptrs_jit_createFunction(node, parent, signature, ast->name);
 
-	int argCount = funcAst->argc * 2 + 1;
-	jit_value_t args[argCount];
-	jit_value_t meta = ptrs_jit_const_meta(closure, PTRS_TYPE_INT);
+	ptrs_scope_t funcScope;
+	ptrs_initScope(&funcScope, scope);
 
-	args[0] = jit_const_int(func, void_ptr, 0);
-	for(int i = 0; i < funcAst->argc; i++)
+	//TODO func->thisVal
+
+	for(int i = 0; i < ast->argc; i++)
 	{
-		args[i * 2 + 1] = jit_value_get_param(closure, i);
-		args[i * 2 + 2] = meta;
+		ast->args[i].val = jit_value_get_param(func, i * 2 + 1);
+		ast->args[i].meta = jit_value_get_param(func, i * 2 + 2);
+		ast->args[i].constType = -1;
+
+		if(ast->argv != NULL && ast->argv[i] != NULL)
+		{
+			jit_label_t given = jit_label_undefined;
+			jit_value_t isGiven = ptrs_jit_hasType(func, ast->args[i].meta, PTRS_TYPE_UNDEFINED);
+			jit_insn_branch_if_not(func, isGiven, &given);
+
+			ptrs_jit_var_t val = ast->argv[i]->handler(ast->argv[i], func, &funcScope);
+			val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
+			jit_insn_store(func, ast->args[i].val, val.val);
+			jit_insn_store(func, ast->args[i].meta, val.meta);
+
+			jit_insn_label(func, &given);
+		}
 	}
 
-	void *targetClosure = jit_function_to_closure(func);
-	jit_value_t target = jit_const_int(closure, void_ptr, (uintptr_t)targetClosure);
-	jit_value_t frame = jit_insn_load_relative(closure,
-		jit_const_int(closure, void_ptr, (uintptr_t)scope->rootFrame),
-		0, jit_type_void_ptr
-	);
+	ast->body->handler(ast->body, func, &funcScope);
+	jit_insn_default_return(func);
 
-	signature = jit_function_get_signature(func);
-	jit_value_t retVal =  jit_insn_call_nested_indirect(closure, target, frame, signature, args, argCount, 0);
-	jit_type_free(signature);
+	ptrs_jit_placeAssertions(func, &funcScope);
 
-	ptrs_jit_var_t ret = ptrs_jit_valToVar(closure, retVal);
-	jit_insn_return(closure, ptrs_jit_vartoi(closure, ret));
+	if(ptrs_compileAot && jit_function_compile(func) == 0)
+		ptrs_error(node, "Failed compiling function %s", ast->name);
 
-	return closure;
+	return func;
 }

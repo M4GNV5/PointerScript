@@ -9,6 +9,7 @@
 #include "../include/run.h"
 #include "../include/error.h"
 #include "../include/util.h"
+#include "../include/call.h"
 
 jit_context_t ptrs_jit_context = NULL;
 bool ptrs_compileAot = true;

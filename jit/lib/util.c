@@ -30,22 +30,6 @@ char *ptrs_readFile(const char *path)
 	return content;
 }
 
-jit_function_t ptrs_jit_createFunction(ptrs_ast_t *node, jit_function_t parent,
-	jit_type_t signature, const char *name)
-{
-	jit_function_t func;
-	if(parent == NULL)
-		func = jit_function_create(ptrs_jit_context, signature);
-	else
-		func = jit_function_create_nested(ptrs_jit_context, signature, parent);
-
-	jit_function_set_meta(func, PTRS_JIT_FUNCTIONMETA_NAME, (char *)name, NULL, 0);
-	jit_function_set_meta(func, PTRS_JIT_FUNCTIONMETA_AST, node, NULL, 0);
-	jit_function_set_meta(func, PTRS_JIT_FUNCTIONMETA_CLOSURE, NULL, NULL, 0);
-
-	return func;
-}
-
 void ptrs_initScope(ptrs_scope_t *scope, ptrs_scope_t *parent)
 {
 	scope->continueLabel = jit_label_undefined;

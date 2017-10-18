@@ -72,6 +72,8 @@ ptrs_jit_var_t ptrs_handle_typeddefine(ptrs_ast_t *node, jit_function_t func, pt
 		else if(val.constType != stmt->type)
 			ptrs_error(node, "Variable is defined as %t but initializer has type %t",
 				stmt->type, val.constType);
+		else
+			stmt->location.constType = val.constType;
 	}
 	else
 	{
@@ -445,59 +447,9 @@ ptrs_jit_var_t ptrs_handle_trycatch(ptrs_ast_t *node, jit_function_t func, ptrs_
 ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_function *ast = &node->arg.function;
-	ptrs_function_t *funcAst = &ast->func;
 
-	jit_type_t argDef[funcAst->argc * 2 + 1];
-	argDef[0] = jit_type_void_ptr; //reserved
-
-	for(int i = 0; i < funcAst->argc; i++)
-	{
-		argDef[i * 2 + 1] = jit_type_long;
-		argDef[i * 2 + 2] = jit_type_ulong;
-	}
-
-	//TODO variadic functions
-
-	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, ptrs_jit_getVarType(), argDef,
-		funcAst->argc * 2 + 1, 1);
-	jit_function_t self = ptrs_jit_createFunction(node, func, signature, funcAst->name);
-
+	jit_function_t self = ptrs_jit_compileFunction(node, func, scope, &ast->func);
 	*ast->symbol = self;
-
-	ptrs_scope_t selfScope;
-	ptrs_initScope(&selfScope, scope);
-
-	for(int i = 0; i < funcAst->argc; i++)
-	{
-		funcAst->args[i].val = jit_value_create(self, jit_type_long);
-		funcAst->args[i].meta = jit_value_create(self, jit_type_ulong);
-		funcAst->args[i].constType = -1;
-
-		jit_insn_store(self, funcAst->args[i].val, jit_value_get_param(self, i * 2 + 1));
-		jit_insn_store(self, funcAst->args[i].meta, jit_value_get_param(self, i * 2 + 2));
-
-		if(funcAst->argv != NULL && funcAst->argv[i] != NULL)
-		{
-			jit_label_t given = jit_label_undefined;
-			jit_insn_branch_if_not(self, ptrs_jit_hasType(self, funcAst->args[i].meta, PTRS_TYPE_UNDEFINED), &given);
-
-			ptrs_jit_var_t val = funcAst->argv[i]->handler(funcAst->argv[i], self, &selfScope);
-			val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
-			jit_insn_store(self, funcAst->args[i].val, val.val);
-			jit_insn_store(self, funcAst->args[i].meta, val.meta);
-
-			jit_insn_label(self, &given);
-		}
-	}
-
-	funcAst->body->handler(funcAst->body, self, &selfScope);
-
-	jit_insn_default_return(self);
-
-	ptrs_jit_placeAssertions(self, &selfScope);
-
-	if(ptrs_compileAot && jit_function_compile(self) == 0)
-		ptrs_error(node, "Failed compiling function %s", funcAst->name);
 
 	ptrs_jit_var_t ret;
 	ret.val = jit_const_long(func, long, (uintptr_t)jit_function_to_closure(self));

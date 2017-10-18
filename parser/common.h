@@ -22,7 +22,7 @@ typedef struct
 	int8_t constType;
 } ptrs_jit_var_t;
 
-typedef enum type
+typedef enum
 {
 	PTRS_TYPE_UNDEFINED,
 	PTRS_TYPE_INT,
@@ -42,7 +42,7 @@ typedef struct ptrs_patchlist
 	void *patch;
 	struct ptrs_patchlist *next;
 } ptrs_patchlist_t;
-typedef struct ptrs_scope
+typedef struct
 {
 	jit_label_t continueLabel;
 	jit_label_t breakLabel;
@@ -54,7 +54,7 @@ typedef struct ptrs_scope
 } ptrs_scope_t;
 
 typedef void (*ptrs_nativetype_handler_t)(void *target, size_t typeSize, struct ptrs_var *value);
-typedef struct ptrs_nativetype_info
+typedef struct
 {
 	const char *name;
 	size_t size;
@@ -71,7 +71,7 @@ typedef enum
 	PTRS_JIT_FUNCTIONMETA_AST,
 	PTRS_JIT_FUNCTIONMETA_CLOSURE,
 } ptrs_jit_functionmeta_t;
-typedef struct function
+typedef struct
 {
 	char *name;
 	int argc;
@@ -123,7 +123,7 @@ struct ptrs_opoverload
 	ptrs_function_t *handler;
 	struct ptrs_opoverload *next;
 };
-typedef struct ptrs_struct
+typedef struct
 {
 	char *name;
 	struct ptrs_ast *ast;
@@ -135,7 +135,7 @@ typedef struct ptrs_struct
 	void *staticData;
 } ptrs_struct_t;
 
-typedef union val
+typedef union
 {
 	int64_t intval;
 	double floatval;
@@ -146,7 +146,7 @@ typedef union val
 } ptrs_val_t;
 
 #if (__BYTE_ORDER__==__ORDER_LITTLE_ENDIAN__)
-typedef struct meta
+typedef struct
 {
 	uint8_t type;
 	union
@@ -161,7 +161,7 @@ typedef struct meta
 	};
 } ptrs_meta_t;
 #else
-typedef struct meta
+typedef struct
 {
 	union
 	{

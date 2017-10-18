@@ -9,8 +9,6 @@
 
 char *ptrs_readFile(const char *path);
 
-jit_function_t ptrs_jit_createFunction(ptrs_ast_t *node, jit_function_t parent,
-	jit_type_t signature, const char *name);
 void ptrs_initScope(ptrs_scope_t *scope, ptrs_scope_t *parent);
 
 jit_type_t ptrs_jit_getVarType();
