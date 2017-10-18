@@ -43,13 +43,12 @@ ptrs_jit_var_t ptrs_handle_stringformat(ptrs_ast_t *node, jit_function_t func, p
 	struct ptrs_stringformat *curr = expr->insertions;
 	for(int i = 3; i < argCount; i++)
 	{
-		argDef[i] = jit_type_void_ptr;
-
 		ptrs_jit_var_t val = curr->entry->handler(curr->entry, func, scope);
 
 		if(curr->convert)
 			val = ptrs_jit_vartoa(func, val);
 
+		argDef[i] = jit_value_get_type(val.val);
 		args[i] = val.val;
 		curr = curr->next;
 	}

@@ -129,10 +129,10 @@ jit_value_t ptrs_jit_vartoi(jit_function_t func, ptrs_jit_var_t val)
 	{
 		ptrs_val_t constVal = ptrs_jit_value_getValConstant(val.val);
 		ptrs_meta_t constMeta = ptrs_jit_value_getMetaConstant(val.meta);
-		
+
 		return jit_const_long(func, long, ptrs_vartoi(constVal, constMeta));
 	}
-	
+
 	switch(val.constType)
 	{
 		case -1:
@@ -155,6 +155,7 @@ jit_value_t ptrs_jit_vartoi(jit_function_t func, ptrs_jit_var_t val)
 		.arg2_type = jit_type_ulong
 	};
 
+	val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
 	return jit_insn_call_intrinsic(func, NULL, ptrs_vartoi, &descr, val.val, val.meta);
 }
 
@@ -164,10 +165,10 @@ jit_value_t ptrs_jit_vartof(jit_function_t func, ptrs_jit_var_t val)
 	{
 		ptrs_val_t constVal = ptrs_jit_value_getValConstant(val.val);
 		ptrs_meta_t constMeta = ptrs_jit_value_getMetaConstant(val.meta);
-		
+
 		return jit_const_float(func, ptrs_vartof(constVal, constMeta));
 	}
-	
+
 	switch(val.constType)
 	{
 		case -1:
@@ -190,6 +191,7 @@ jit_value_t ptrs_jit_vartof(jit_function_t func, ptrs_jit_var_t val)
 		.arg2_type = jit_type_ulong
 	};
 
+	val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
 	return jit_insn_call_intrinsic(func, NULL, ptrs_vartof, &descr, val.val, val.meta);
 }
 
@@ -261,6 +263,7 @@ ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, ptrs_jit_var_t val)
 		jit_insn_store(func, size, jit_const_int(func, nuint, 32));
 		jit_insn_store(func, buff, jit_insn_alloca(func, size));
 
+		val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
 		ptrs_jit_reusableCallVoid(func, ptrs_vartoa,
 			(
 				jit_type_long, //ptrs_val_t
@@ -328,6 +331,7 @@ ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, ptrs_jit_var_t val)
 			[PTRS_TYPE_STRUCT] = ptrs_stoa,
 		};
 
+		val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
 		ptrs_jit_reusableCallVoid(func, converters[val.constType],
 			(jit_type_void_ptr, jit_type_long),
 			(buff, val.val)
