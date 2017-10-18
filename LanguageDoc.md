@@ -15,7 +15,6 @@
 	- [DefinitionStatement](#definitionstatement)
 	- [ArrayDefinitionStatement](#arraydefinitionstatement)
 	- [VarArrayDefinitionStatement](#vararraydefinitionstatement)
-	- [StructVariableDefinition](#structvariabledefinition)
 	- [ConstDefinition](#constdefinition)
 	- [ImportStatement](#importstatement)
 	- [ScopeStatement](#scopestatement)
@@ -328,13 +327,6 @@ var foo[32];
 //'var' Identifier '[]' [ Expression ] '}' '=' '[' ExpressionList ']' ';'
 var foo[] = [31 * 12, 3.14, "Ahoi"];
 var bar[32] = [42, 13.37, foo];
-```
-
-## StructVariableDefinition
-Creates a struct on the stack.
-```js
-//'var' Identifier ':' Identifier '(' ExpressionList ')' ';'
-var bar : Foo(42, 666);
 ```
 
 ## ConstDefinition

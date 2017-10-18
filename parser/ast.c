@@ -621,17 +621,6 @@ static ptrs_ast_t *parseStatement(code_t *code)
 				stmt->arg.define.isInitExpr = false;
 			}
 		}
-		else if(lookahead(code, ":"))
-		{
-			stmt->handler = ptrs_handle_structvar;
-			stmt->arg.define.value = parseUnaryExpr(code, true, false);
-			stmt->arg.define.isInitExpr = false;
-			stmt->arg.define.onStack = true;
-
-			consumec(code, '(');
-			stmt->arg.define.initVal = parseExpressionList(code, ')');
-			consumec(code, ')');
-		}
 		else if(lookahead(code, "="))
 		{
 			stmt->arg.define.value = parseExpression(code, true);
