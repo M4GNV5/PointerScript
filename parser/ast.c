@@ -2467,6 +2467,7 @@ const char * const typeNames[] = {
 	[PTRS_TYPE_NATIVE] = "native",
 	[PTRS_TYPE_POINTER] = "pointer",
 	[PTRS_TYPE_STRUCT] = "struct",
+	[PTRS_TYPE_FUNCTION] = "function",
 };
 static int typeNameCount = sizeof(typeNames) / sizeof(const char *);
 

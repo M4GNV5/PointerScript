@@ -468,6 +468,7 @@ const char * const ptrs_typeStrings[] = {
 	[PTRS_TYPE_NATIVE] = "native",
 	[PTRS_TYPE_POINTER] = "pointer",
 	[PTRS_TYPE_STRUCT] = "struct",
+	[PTRS_TYPE_FUNCTION] = "function",
 };
 const char *ptrs_typetoa(ptrs_vartype_t type)
 {
