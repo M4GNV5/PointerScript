@@ -448,7 +448,7 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 {
 	struct ptrs_ast_function *ast = &node->arg.function;
 
-	jit_function_t self = ptrs_jit_compileFunction(node, func, scope, &ast->func);
+	jit_function_t self = ptrs_jit_compileFunction(node, func, scope, &ast->func, NULL);
 	*ast->symbol = self;
 
 	ptrs_jit_var_t ret;
@@ -471,6 +471,9 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	if(struc->staticData != NULL)
 		staticData = jit_const_int(func, void_ptr, (uintptr_t)struc->staticData);
 
+	jit_insn_store_relative(func, jit_const_int(func, void_ptr, (uintptr_t)struc),
+		offsetof(ptrs_struct_t, parentFrame), jit_insn_get_frame_pointer(func));
+
 	for(int i = 0; i < struc->memberCount; i++)
 	{
 		struct ptrs_structmember *curr = &struc->member[i];
@@ -481,7 +484,8 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 			|| curr->type == PTRS_STRUCTMEMBER_GETTER
 			|| curr->type == PTRS_STRUCTMEMBER_SETTER)
 		{
-			//TODO
+			curr->value.function.func = ptrs_jit_compileFunction(node, func,
+				scope, curr->value.function.ast, struc);
 		}
 		else if(curr->isStatic && curr->type == PTRS_STRUCTMEMBER_VAR)
 		{

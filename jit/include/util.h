@@ -54,6 +54,25 @@ jit_value_t ptrs_jit_allocate(jit_function_t func, jit_value_t size, bool onStac
 #define ptrs_jit_reusableCallVoid(func, callee, types, args) \
 	ptrs_jit_reusableCall(func, callee, jit_value_t dummy, jit_type_void, types, args)
 
+//TODO libjit needs jit_function_apply_nested and jit_apply_nested
+#define ptrs_jit_applyNested(func, ret, parentFrame, thisArg, argPtrs) \
+	do \
+	{ \
+		void *closure = jit_function_to_closure(func); \
+		void *args[] = {&parentFrame, &thisArg, ptrs_util_pasteTuple argPtrs}; \
+		\
+		jit_type_t argDef[sizeof(args) / sizeof(void *)]; \
+		for(int i = 0; i < sizeof(argDef) / sizeof(jit_type_t); i++) \
+			argDef[i] = jit_type_ulong; \
+		\
+		jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, \
+			jit_type_get_return(jit_function_get_signature(func)), argDef, \
+			sizeof(argDef) / sizeof(jit_type_t), 0); \
+		\
+		jit_apply(signature, closure, args, sizeof(args) / sizeof(void *), ret); \
+		jit_type_free(signature); \
+	} while(0)
+
 
 #define ptrs_jit_typeCheck(node, func, scope, val, type, argCount, msg, ...) \
 	do \

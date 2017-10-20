@@ -192,7 +192,7 @@ jit_function_t ptrs_jit_createFunction(ptrs_ast_t *node, jit_function_t parent,
 }
 
 jit_function_t ptrs_jit_compileFunction(ptrs_ast_t *node, jit_function_t parent, ptrs_scope_t *scope,
-	ptrs_function_t *ast)
+	ptrs_function_t *ast, ptrs_struct_t *thisType)
 {
 	jit_type_t paramDef[ast->argc * 2 + 1];
 	paramDef[0] = jit_type_void_ptr; //reserved
@@ -211,7 +211,18 @@ jit_function_t ptrs_jit_compileFunction(ptrs_ast_t *node, jit_function_t parent,
 	ptrs_scope_t funcScope;
 	ptrs_initScope(&funcScope, scope);
 
-	//TODO func->thisVal
+	if(thisType == NULL)
+	{
+		ast->thisVal.val = jit_const_long(func, long, 0);
+		ast->thisVal.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
+		ast->thisVal.constType = PTRS_TYPE_UNDEFINED;
+	}
+	else
+	{
+		ast->thisVal.val = jit_value_get_param(func, 0);
+		ast->thisVal.meta = ptrs_jit_const_pointerMeta(func, PTRS_TYPE_STRUCT, thisType);
+		ast->thisVal.constType = PTRS_TYPE_STRUCT;
+	}
 
 	for(int i = 0; i < ast->argc; i++)
 	{

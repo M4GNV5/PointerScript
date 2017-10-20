@@ -13,6 +13,6 @@ jit_function_t ptrs_jit_createTrampoline(ptrs_ast_t *node, ptrs_scope_t *scope,
 jit_function_t ptrs_jit_createFunction(ptrs_ast_t *node, jit_function_t parent,
 	jit_type_t signature, const char *name);
 jit_function_t ptrs_jit_compileFunction(ptrs_ast_t *node, jit_function_t parent, ptrs_scope_t *scope,
-	ptrs_function_t *ast);
+	ptrs_function_t *ast, ptrs_struct_t *thisType);
 
 #endif

@@ -133,6 +133,7 @@ typedef struct
 	uint32_t size;
 	uint16_t memberCount;
 	void *staticData;
+	void *parentFrame;
 } ptrs_struct_t;
 
 typedef union

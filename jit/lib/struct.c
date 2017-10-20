@@ -100,13 +100,15 @@ ptrs_var_t ptrs_struct_getMember(ptrs_ast_t *ast, void *data, ptrs_struct_t *str
 		case PTRS_STRUCTMEMBER_VAR:
 			return *(ptrs_var_t *)(data + member->offset);
 		case PTRS_STRUCTMEMBER_GETTER:
-			//TODO
+			ptrs_jit_applyNested(member->value.function.func, &result,
+				struc->parentFrame, data, ());
 			return result;
-		case PTRS_STRUCTMEMBER_SETTER:
-			//TODO
+		case PTRS_STRUCTMEMBER_SETTER: //this should not happen
+			result.meta.type = PTRS_TYPE_UNDEFINED;
 			return result;
 		case PTRS_STRUCTMEMBER_FUNCTION:
-			//TODO
+			result.value.nativeval = jit_function_to_closure(member->value.function.func);
+			*(uint64_t *)&result.meta = ptrs_const_pointerMeta(PTRS_TYPE_FUNCTION, struc->parentFrame);
 			return result;
 		case PTRS_STRUCTMEMBER_ARRAY:
 			result.meta.type = PTRS_TYPE_NATIVE;
@@ -140,7 +142,9 @@ void ptrs_struct_setMember(ptrs_ast_t *ast, void *data, ptrs_struct_t *struc,
 	}
 	else if(member->type == PTRS_STRUCTMEMBER_SETTER)
 	{
-		//TODO
+		ptrs_var_t result;
+		ptrs_jit_applyNested(member->value.function.func, &result,
+			struc->parentFrame, data, (&val, &meta));
 	}
 	else if(member->type == PTRS_STRUCTMEMBER_TYPED)
 	{
