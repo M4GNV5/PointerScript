@@ -94,15 +94,19 @@ ptrs_jit_var_t ptrs_handle_typeddefine(ptrs_ast_t *node, jit_function_t func, pt
 	}
 	jit_insn_store(func, stmt->location.val, val.val);
 
-	if(stmt->location.constType  != PTRS_TYPE_INT
-		&& stmt->location.constType != PTRS_TYPE_FLOAT)
+	if(stmt->location.constType == PTRS_TYPE_STRUCT && jit_value_is_constant(val.meta))
 	{
-		stmt->location.meta = jit_value_create(func, jit_type_long);
-		jit_insn_store(func, stmt->location.meta, val.meta);
+		stmt->location.meta = val.meta;
+	}
+	else if(stmt->location.constType == PTRS_TYPE_INT
+		|| stmt->location.constType == PTRS_TYPE_FLOAT)
+	{
+		stmt->location.meta = ptrs_jit_const_meta(func, stmt->location.constType);
 	}
 	else
 	{
-		stmt->location.meta = ptrs_jit_const_meta(func, stmt->location.constType);
+		stmt->location.meta = jit_value_create(func, jit_type_long);
+		jit_insn_store(func, stmt->location.meta, val.meta);
 	}
 
 	return stmt->location;

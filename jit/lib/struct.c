@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <ctype.h>
 #include <string.h>
+#include <assert.h>
 
 #include "../../parser/common.h"
 #include "../../parser/ast.h"
@@ -11,6 +12,7 @@
 #include "../include/conversion.h"
 #include "../include/astlist.h"
 #include "../include/util.h"
+#include "../include/call.h"
 
 ptrs_function_t *ptrs_struct_getOverload(ptrs_var_t *struc, void *handler, bool isInstance)
 {
@@ -99,28 +101,30 @@ ptrs_var_t ptrs_struct_getMember(ptrs_ast_t *ast, void *data, ptrs_struct_t *str
 	{
 		case PTRS_STRUCTMEMBER_VAR:
 			return *(ptrs_var_t *)(data + member->offset);
+
 		case PTRS_STRUCTMEMBER_GETTER:
 			ptrs_jit_applyNested(member->value.function.func, &result,
 				struc->parentFrame, data, ());
 			return result;
-		case PTRS_STRUCTMEMBER_SETTER: //this should not happen
-			result.meta.type = PTRS_TYPE_UNDEFINED;
-			return result;
+
 		case PTRS_STRUCTMEMBER_FUNCTION:
 			result.value.nativeval = jit_function_to_closure(member->value.function.func);
 			*(uint64_t *)&result.meta = ptrs_const_pointerMeta(PTRS_TYPE_FUNCTION, struc->parentFrame);
 			return result;
+
 		case PTRS_STRUCTMEMBER_ARRAY:
 			result.meta.type = PTRS_TYPE_NATIVE;
 			result.value.nativeval = data + member->offset;
 			result.meta.array.readOnly = false;
 			result.meta.array.size = member->value.array.size;
 			return result;
+
 		case PTRS_STRUCTMEMBER_VARARRAY:
 			result.meta.type = PTRS_TYPE_POINTER;
 			result.value.ptrval = data + member->offset;
 			result.meta.array.size = member->value.array.size / sizeof(ptrs_var_t);
 			return result;
+
 		case PTRS_STRUCTMEMBER_TYPED:
 			member->value.type->getHandler(data + member->offset, member->value.type->size, &result);
 			return result;
@@ -200,6 +204,64 @@ ptrs_var_t ptrs_struct_get(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta, co
 
 	return ptrs_struct_getMember(ast, instance, struc, member);
 }
+ptrs_jit_var_t ptrs_jit_struct_get(jit_function_t func, ptrs_ast_t *ast, ptrs_scope_t *scope,
+	jit_value_t data, ptrs_struct_t *struc, const char *key)
+{
+	struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, ast);
+	if(member == NULL)
+		ptrs_error(ast, "Struct %s has no member named %s", struc->name, key);
+
+	ptrs_jit_var_t result;
+	switch(member->type)
+	{
+		case PTRS_STRUCTMEMBER_VAR:
+			result.val = jit_insn_load_relative(func, data, member->offset, jit_type_long);
+			result.meta = jit_insn_load_relative(func, data,
+				member->offset + sizeof(ptrs_val_t), jit_type_long);
+			result.constType = -1;
+			return result;
+
+		case PTRS_STRUCTMEMBER_GETTER:
+			return ptrs_jit_callnested(func, scope, member->value.function.func, NULL);
+
+		case PTRS_STRUCTMEMBER_FUNCTION:
+			;
+			jit_function_t target = member->value.function.func;
+			result.val = jit_const_long(func, long, (uintptr_t)jit_function_to_closure(target));
+			result.meta = ptrs_jit_pointerMeta(func,
+				jit_const_long(func, ulong, PTRS_TYPE_FUNCTION),
+				jit_insn_get_parent_frame_pointer_of(func, target)
+			);
+			result.constType = PTRS_TYPE_FUNCTION;
+			return result;
+
+		case PTRS_STRUCTMEMBER_ARRAY:
+			result.val = jit_insn_add_relative(func, data, member->offset);
+			result.meta = ptrs_jit_const_arrayMeta(func,
+				PTRS_TYPE_NATIVE,
+				false,
+				member->value.array.size
+			);
+			result.constType = PTRS_TYPE_NATIVE;
+			return result;
+
+		case PTRS_STRUCTMEMBER_VARARRAY:
+			result.val = jit_insn_add_relative(func, data, member->offset);
+			result.meta = ptrs_jit_const_arrayMeta(func,
+				PTRS_TYPE_POINTER,
+				false,
+				member->value.array.size / sizeof(ptrs_var_t)
+			);
+			result.constType = PTRS_TYPE_POINTER;
+			return result;
+
+		case PTRS_STRUCTMEMBER_TYPED:
+			result.val = jit_insn_load_relative(func, data, member->offset, member->value.type->jitType);
+			result.meta = ptrs_jit_const_meta(func, member->value.type->varType);
+			result.constType = member->value.type->varType;
+			return result;
+	}
+}
 
 void ptrs_struct_set(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta, const char *key,
 	ptrs_val_t val, ptrs_meta_t valMeta)
@@ -213,6 +275,39 @@ void ptrs_struct_set(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta, const ch
 		ptrs_error(ast, "Struct %s has no member named %s", struc->name, key);
 
 	ptrs_struct_setMember(ast, instance, struc, member, val, valMeta);
+}
+void ptrs_jit_struct_set(jit_function_t func, ptrs_ast_t *ast, ptrs_scope_t *scope,
+	jit_value_t data, ptrs_struct_t *struc, const char *key, ptrs_jit_var_t value)
+{
+	struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_GETTER, ast);
+	if(member == NULL)
+		ptrs_error(ast, "Struct %s has no member named %s", struc->name, key);
+
+	if(member->type == PTRS_STRUCTMEMBER_VAR)
+	{
+		jit_insn_store_relative(func, data, member->offset, value.val);
+		jit_insn_store_relative(func, data, member->offset + sizeof(ptrs_val_t), value.meta);
+	}
+	else if(member->type == PTRS_STRUCTMEMBER_SETTER)
+	{
+		//TODO
+	}
+	else if(member->type == PTRS_STRUCTMEMBER_TYPED)
+	{
+		ptrs_nativetype_info_t *type = member->value.type;
+		jit_value_t val;
+		if(type->varType == PTRS_TYPE_FLOAT)
+			val = ptrs_jit_vartof(func, value);
+		else
+			val = ptrs_jit_vartoi(func, value);
+
+		val = jit_insn_convert(func, val, type->jitType, 0);
+		jit_insn_store_relative(func, data, member->offset, val);
+	}
+	else
+	{
+		ptrs_error(ast, "Cannot assign to non-variable and non-property struct member");
+	}
 }
 
 ptrs_var_t ptrs_struct_addressOf(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta, const char *key)

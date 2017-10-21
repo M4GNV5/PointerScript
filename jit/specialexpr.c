@@ -91,15 +91,25 @@ ptrs_jit_var_t ptrs_handle_member(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	struct ptrs_ast_member *expr = &node->arg.member;
 	ptrs_jit_var_t base = expr->base->handler(expr->base, func, scope);
 
-	jit_value_t ret;
-	jit_value_t astVal = jit_const_int(func, void_ptr, (uintptr_t)node);
-	jit_value_t nameVal = jit_const_int(func, void_ptr, (uintptr_t)expr->name);
-	ptrs_jit_reusableCall(func, ptrs_struct_get, ret, ptrs_jit_getVarType(),
-		(jit_type_void_ptr, jit_type_long, jit_type_ulong, jit_type_void_ptr),
-		(astVal, base.val, base.meta, nameVal)
-	);
+	if(jit_value_is_constant(base.meta))
+	{
+		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(base.meta);
+		ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
 
-	return ptrs_jit_valToVar(func, ret);
+		return ptrs_jit_struct_get(func, node, scope, base.val, struc, expr->name);
+	}
+	else
+	{
+		jit_value_t ret;
+		jit_value_t astVal = jit_const_int(func, void_ptr, (uintptr_t)node);
+		jit_value_t nameVal = jit_const_int(func, void_ptr, (uintptr_t)expr->name);
+		ptrs_jit_reusableCall(func, ptrs_struct_get, ret, ptrs_jit_getVarType(),
+			(jit_type_void_ptr, jit_type_long, jit_type_ulong, jit_type_void_ptr),
+			(astVal, base.val, base.meta, nameVal)
+		);
+
+		return ptrs_jit_valToVar(func, ret);
+	}
 }
 void ptrs_handle_assign_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_jit_var_t val)
@@ -107,24 +117,33 @@ void ptrs_handle_assign_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 	struct ptrs_ast_member *expr = &node->arg.member;
 	ptrs_jit_var_t base = expr->base->handler(expr->base, func, scope);
 
-	jit_value_t ret;
-	ptrs_jit_reusableCall(func, ptrs_struct_set, ret, ptrs_jit_getVarType(),
-		(
-			jit_type_void_ptr,
-			jit_type_long,
-			jit_type_ulong,
-			jit_type_void_ptr,
-			jit_type_long,
-			jit_type_ulong
-		), (
-			jit_const_int(func, void_ptr, (uintptr_t)node),
-			base.val,
-			base.meta,
-			jit_const_int(func, void_ptr, (uintptr_t)expr->name),
-			val.val,
-			val.meta
-		)
-	);
+	if(jit_value_is_constant(base.meta))
+	{
+		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(base.meta);
+		ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
+
+		return ptrs_jit_struct_set(func, node, scope, base.val, struc, expr->name, val);
+	}
+	else
+	{
+		ptrs_jit_reusableCallVoid(func, ptrs_struct_set,
+			(
+				jit_type_void_ptr,
+				jit_type_long,
+				jit_type_ulong,
+				jit_type_void_ptr,
+				jit_type_long,
+				jit_type_ulong
+			), (
+				jit_const_int(func, void_ptr, (uintptr_t)node),
+				base.val,
+				base.meta,
+				jit_const_int(func, void_ptr, (uintptr_t)expr->name),
+				val.val,
+				val.meta
+			)
+		);
+	}
 }
 ptrs_jit_var_t ptrs_handle_addressof_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
@@ -188,8 +207,10 @@ ptrs_jit_var_t ptrs_handle_prefix_dereference(ptrs_ast_t *node, jit_function_t f
 		(1, "Cannot dereference variable of type %t", TYPESWITCH_TYPE),
 		(PTRS_TYPE_NATIVE, PTRS_TYPE_POINTER),
 		case PTRS_TYPE_POINTER:
-			jit_insn_store(func, ret.val, jit_insn_load_relative(func, val.val, 0, jit_type_long));
-			jit_insn_store(func, ret.meta, jit_insn_load_relative(func, val.val, sizeof(ptrs_val_t), jit_type_ulong));
+			jit_insn_store(func, ret.val,
+				jit_insn_load_relative(func, val.val, 0, jit_type_long));
+			jit_insn_store(func, ret.meta,
+				jit_insn_load_relative(func, val.val, sizeof(ptrs_val_t), jit_type_ulong));
 			break;
 
 		case PTRS_TYPE_NATIVE:
@@ -246,7 +267,8 @@ static void ptrs_handle_index_common(ptrs_ast_t *node, jit_function_t func, ptrs
 	ptrs_jit_var_t _index = expr->right->handler(expr->right, func, scope);
 	*index = ptrs_jit_vartoi(func, _index);
 
-	struct ptrs_assertion *assertion = ptrs_jit_assert(node, func, scope, jit_insn_lt(func, *index, scope->indexSize),
+	struct ptrs_assertion *assertion = ptrs_jit_assert(node, func, scope,
+		jit_insn_lt(func, *index, scope->indexSize),
 		2, "Index %d is out of range of array of size %d", *index, scope->indexSize);
 	ptrs_jit_appendAssert(func, assertion, jit_insn_ge(func, *index, jit_const_long(func, long, 0)));
 

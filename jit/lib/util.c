@@ -92,8 +92,21 @@ jit_value_t ptrs_jit_varToVal(jit_function_t func, ptrs_jit_var_t var)
 
 ptrs_val_t ptrs_jit_value_getValConstant(jit_value_t val)
 {
-	jit_long _constVal = jit_value_get_long_constant(val);
-	return *(ptrs_val_t *)&_constVal;
+	switch(jit_type_get_kind(jit_value_get_type(val)))
+	{
+		case JIT_TYPE_FLOAT32: //this should not happen and will probably not work anyways
+			;
+			jit_float64 float32Val = jit_value_get_float32_constant(val);
+			return *(ptrs_val_t *)&float32Val;
+		case JIT_TYPE_FLOAT64:
+			;
+			jit_float64 float64Val = jit_value_get_float64_constant(val);
+			return *(ptrs_val_t *)&float64Val;
+		default: //int, uint, long, ulong, pointer
+			;
+			jit_long longVal = jit_value_get_long_constant(val);
+			return *(ptrs_val_t *)&longVal;
+	}
 }
 
 ptrs_meta_t ptrs_jit_value_getMetaConstant(jit_value_t meta)
