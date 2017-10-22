@@ -26,6 +26,11 @@ ptrs_function_t *ptrs_struct_getOverload(ptrs_var_t *struc, void *handler, bool 
 	return NULL;
 }
 
+const char const *accessorNames[] = {
+	"public",
+	"internal",
+	"private"
+};
 bool ptrs_struct_canAccess(ptrs_ast_t *node, ptrs_struct_t *struc, struct ptrs_structmember *member)
 {
 	switch(member->protection)
@@ -42,10 +47,11 @@ bool ptrs_struct_canAccess(ptrs_ast_t *node, ptrs_struct_t *struc, struct ptrs_s
 			break;
 	}
 
-	if(node != NULL)
-		ptrs_error(node, "Cannot access property %s of struct %s\n", member->name, struc->name);
-	else
+	if(node == NULL)
 		return false;
+
+	ptrs_error(node, "Cannot access %s property %s of struct %s\n",
+		accessorNames[member->protection], member->name, struc->name);
 }
 
 unsigned long ptrs_struct_hashName(const char *key)
@@ -74,18 +80,26 @@ struct ptrs_structmember *ptrs_struct_find(ptrs_struct_t *struc, const char *key
 		return NULL;
 
 	int i = ptrs_struct_hashName(key) % struc->memberCount;
+	struct ptrs_structmember *ignored = NULL;
 	while(struc->member[i].name != NULL)
 	{
-		if(strcmp(struc->member[i].name, key) == 0 && struc->member[i].type != exclude)
+		if(strcmp(struc->member[i].name, key) == 0)
 		{
-			ptrs_struct_canAccess(ast, struc, &struc->member[i]);
-			return &struc->member[i];
+			if(struc->member[i].type == exclude)
+			{
+				ignored = &struc->member[i];
+			}
+			else
+			{
+				ptrs_struct_canAccess(ast, struc, &struc->member[i]);
+				return &struc->member[i];
+			}
 		}
 
 		i = (i + 1) % struc->memberCount;
 	}
 
-	return NULL;
+	return ignored;
 }
 
 ptrs_var_t ptrs_struct_getMember(ptrs_ast_t *ast, void *data, ptrs_struct_t *struc,
@@ -94,7 +108,7 @@ ptrs_var_t ptrs_struct_getMember(ptrs_ast_t *ast, void *data, ptrs_struct_t *str
 	if(member->isStatic)
 		data = struc->staticData;
 	else if(data == NULL)
-		ptrs_error(ast, "Cannot access non-static property of struct %s", struc->name);
+		ptrs_error(ast, "Property %s of struct %s is only available on instances", member->name, struc->name);
 
 	ptrs_var_t result;
 	switch(member->type)
@@ -137,7 +151,7 @@ void ptrs_struct_setMember(ptrs_ast_t *ast, void *data, ptrs_struct_t *struc,
 	if(member->isStatic)
 		data = struc->staticData;
 	else if(data == NULL)
-		ptrs_error(ast, "Cannot assign non-static property of struct %s", struc->name);
+		ptrs_error(ast, "Property %s of struct %s is only available on instances", member->name, struc->name);
 
 	if(member->type == PTRS_STRUCTMEMBER_VAR)
 	{
@@ -160,7 +174,7 @@ void ptrs_struct_setMember(ptrs_ast_t *ast, void *data, ptrs_struct_t *struc,
 	}
 	else
 	{
-		ptrs_error(ast, "Cannot assign to non-variable and non-property struct member");
+		ptrs_error(ast, "Property %s of struct %s is not a valid lvalue", member->name, struc->name);
 	}
 }
 
@@ -170,7 +184,7 @@ ptrs_var_t ptrs_struct_addressOfMember(ptrs_ast_t *ast, void *data, ptrs_struct_
 	if(member->isStatic)
 		data = struc->staticData;
 	else if(data == NULL)
-		ptrs_error(ast, "Cannot get the address of a non-static property of struct %s", struc->name);
+		ptrs_error(ast, "Property %s of struct %s is only available on instances", member->name, struc->name);
 
 	ptrs_var_t result;
 	if(member->type == PTRS_STRUCTMEMBER_VAR)
@@ -187,7 +201,7 @@ ptrs_var_t ptrs_struct_addressOfMember(ptrs_ast_t *ast, void *data, ptrs_struct_
 	}
 	else
 	{
-		ptrs_error(ast, "Cannot get address of non-property struct member");
+		ptrs_error(ast, "Property %s of struct %s is not a valid lvalue", member->name, struc->name);
 	}
 	return result;
 }
@@ -195,12 +209,14 @@ ptrs_var_t ptrs_struct_addressOfMember(ptrs_ast_t *ast, void *data, ptrs_struct_
 ptrs_var_t ptrs_struct_get(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta, const char *key)
 {
 	if(meta.type != PTRS_TYPE_STRUCT)
-		ptrs_error(ast, "Cannot get member %s of a value of type %t", key, meta.type);
+		ptrs_error(ast, "Cannot get property %s of a value of type %t", key, meta.type);
 	ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
 
 	struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, ast);
 	if(member == NULL)
-		ptrs_error(ast, "Struct %s has no member named %s", struc->name, key);
+		ptrs_error(ast, "Struct %s has no property named %s", struc->name, key);
+	else if(member->type == PTRS_STRUCTMEMBER_SETTER)
+		ptrs_error(ast, "Cannot get setter only property %s of struct %s", key, struc->name);
 
 	return ptrs_struct_getMember(ast, instance, struc, member);
 }
@@ -209,7 +225,12 @@ ptrs_jit_var_t ptrs_jit_struct_get(jit_function_t func, ptrs_ast_t *ast, ptrs_sc
 {
 	struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, ast);
 	if(member == NULL)
-		ptrs_error(ast, "Struct %s has no member named %s", struc->name, key);
+		ptrs_error(ast, "Struct %s has no property named %s", struc->name, key);
+	else if(member->type == PTRS_STRUCTMEMBER_SETTER)
+		ptrs_error(ast, "Cannot get setter only property %s of struct %s", key, struc->name);
+
+	if(jit_value_is_constant(data) && !jit_value_is_true(data))
+		ptrs_error(ast, "Property %s of struct %s is only available on instances", member->name, struc->name);
 
 	ptrs_jit_var_t result;
 	switch(member->type)
@@ -268,12 +289,14 @@ void ptrs_struct_set(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta, const ch
 	ptrs_val_t val, ptrs_meta_t valMeta)
 {
 	if(meta.type != PTRS_TYPE_STRUCT)
-		ptrs_error(ast, "Cannot set member %s of a value of type %t", key, meta.type);
+		ptrs_error(ast, "Cannot set property %s of a value of type %t", key, meta.type);
 	ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
 
 	struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_GETTER, ast);
 	if(member == NULL)
-		ptrs_error(ast, "Struct %s has no member named %s", struc->name, key);
+		ptrs_error(ast, "Struct %s has no property named %s", struc->name, key);
+	else if(member->type == PTRS_STRUCTMEMBER_GETTER)
+		ptrs_error(ast, "Cannot set getter only property %s of struct %s", key, struc->name);
 
 	ptrs_struct_setMember(ast, instance, struc, member, val, valMeta);
 }
@@ -282,7 +305,12 @@ void ptrs_jit_struct_set(jit_function_t func, ptrs_ast_t *ast, ptrs_scope_t *sco
 {
 	struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_GETTER, ast);
 	if(member == NULL)
-		ptrs_error(ast, "Struct %s has no member named %s", struc->name, key);
+		ptrs_error(ast, "Struct %s has no property named %s", struc->name, key);
+	else if(member->type == PTRS_STRUCTMEMBER_GETTER)
+		ptrs_error(ast, "Cannot set getter only property %s of struct %s", key, struc->name);
+
+	if(jit_value_is_constant(data) && !jit_value_is_true(data))
+		ptrs_error(ast, "Property %s of struct %s is only available on instances", member->name, struc->name);
 
 	if(member->type == PTRS_STRUCTMEMBER_VAR)
 	{
@@ -307,19 +335,19 @@ void ptrs_jit_struct_set(jit_function_t func, ptrs_ast_t *ast, ptrs_scope_t *sco
 	}
 	else
 	{
-		ptrs_error(ast, "Cannot assign to non-variable and non-property struct member");
+		ptrs_error(ast, "Property %s of struct %s is not a valid lvalue", member->name, struc->name);
 	}
 }
 
 ptrs_var_t ptrs_struct_addressOf(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta, const char *key)
 {
 	if(meta.type != PTRS_TYPE_STRUCT)
-		ptrs_error(ast, "Cannot get the address of a member named %s of value of type %t", key, meta.type);
+		ptrs_error(ast, "Cannot get the address of property %s of value of type %t", key, meta.type);
 	ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
 
-	struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_GETTER, ast);
+	struct ptrs_structmember *member = ptrs_struct_find(struc, key, -1, ast);
 	if(member == NULL)
-		ptrs_error(ast, "Struct %s has no member named %s", struc->name, key);
+		ptrs_error(ast, "Struct %s has no property named %s", struc->name, key);
 
 	return ptrs_struct_addressOfMember(ast, instance, struc, member);
 }
