@@ -257,6 +257,7 @@ ptrs_jit_var_t ptrs_jit_struct_get(jit_function_t func, ptrs_ast_t *ast, ptrs_sc
 
 		case PTRS_STRUCTMEMBER_TYPED:
 			result.val = jit_insn_load_relative(func, data, member->offset, member->value.type->jitType);
+			result.val = ptrs_jit_normalizeForVar(func, result.val);
 			result.meta = ptrs_jit_const_meta(func, member->value.type->varType);
 			result.constType = member->value.type->varType;
 			return result;

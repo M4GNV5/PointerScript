@@ -203,12 +203,7 @@ jit_value_t ptrs_jit_normalizeForVar(jit_function_t func, jit_value_t val)
 	}
 
 	if(convertTo != NULL)
-	{
 		val = jit_insn_convert(func, val, convertTo, 0);
-
-		if(convertTo != jit_type_long)
-			val = ptrs_jit_reinterpretCast(func, val, jit_type_long);
-	}
 
 	return val;
 }
