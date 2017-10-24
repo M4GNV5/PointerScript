@@ -2418,7 +2418,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			}
 			else if(old != NULL && old->isStatic == curr->isStatic && old->type == PTRS_STRUCTMEMBER_ARRAY)
 			{
-				curr->offset = (old->offset & ~(type->size - 1)) + old->value.array.size;
+				curr->offset = ((old->offset + old->value.array.size - 1) & ~(type->size - 1)) + type->size;
 			}
 			else
 			{
