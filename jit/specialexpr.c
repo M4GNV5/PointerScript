@@ -657,7 +657,32 @@ void ptrs_handle_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_s
 
 	if(jit_value_is_constant(target.meta))
 	{
-		//nothing
+		if(target.constType == PTRS_TYPE_INT || target.constType == PTRS_TYPE_FLOAT)
+		{
+			//ignore
+		}
+		else if(jit_value_is_constant(val.meta))
+		{
+			if(jit_value_get_long_constant(target.meta) != jit_value_get_long_constant(val.meta))
+			{
+				ptrs_error(node, "The right side's meta value does not match the defined meta"
+					" of the variable. Are you trying to assign a different struct"
+					" to a struct variable defined using let?");
+			}
+		}
+		else
+		{
+			if(func != targetFunc)
+			{
+				target.meta = jit_insn_import(func, target.meta);
+				target.meta = jit_insn_load_relative(func, target.meta, 0, jit_type_ulong);
+			}
+			
+			ptrs_jit_assert(node, func, scope, jit_insn_eq(func, target.meta, val.meta),
+				2, "The right side's meta value does not match the defined meta"
+				" of the variable. Are you trying to assign a different struct"
+				" to a struct variable defined using let?");
+		}
 	}
 	else if(func == targetFunc)
 	{
