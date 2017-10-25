@@ -31,6 +31,10 @@ ptrs_var_t ptrs_struct_addressOfMember(ptrs_ast_t *ast, void *data, ptrs_struct_
 	struct ptrs_structmember *member);
 ptrs_var_t ptrs_struct_addressOf(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta, const char *key);
 
+ptrs_jit_var_t ptrs_jit_struct_call(jit_function_t func, ptrs_ast_t *ast,
+	ptrs_scope_t *scope, jit_value_t data, ptrs_struct_t *struc,
+	const char *key, ptrs_nativetype_info_t *retType, struct ptrs_astlist *args);
+
 ptrs_jit_var_t ptrs_struct_construct(ptrs_ast_t *ast, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_jit_var_t constructor, struct ptrs_astlist *arguments, bool allocateOnStack);
 

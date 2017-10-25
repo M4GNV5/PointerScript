@@ -17,7 +17,8 @@ static int ptrs_arglist_length(struct ptrs_astlist *curr)
 	return len;
 }
 
-static void ptrs_arglist_handle(jit_function_t func, ptrs_scope_t *scope, struct ptrs_astlist *curr, ptrs_jit_var_t *buff)
+static void ptrs_arglist_handle(jit_function_t func, ptrs_scope_t *scope,
+	struct ptrs_astlist *curr, ptrs_jit_var_t *buff)
 {
 	for(int i = 0; curr != NULL; i++)
 	{
@@ -31,7 +32,7 @@ static void ptrs_arglist_handle(jit_function_t func, ptrs_scope_t *scope, struct
 }
 
 ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
-	ptrs_nativetype_info_t *retType, ptrs_jit_var_t callee, struct ptrs_astlist *args)
+	ptrs_nativetype_info_t *retType, jit_value_t thisPtr, ptrs_jit_var_t callee, struct ptrs_astlist *args)
 {
 	int narg = ptrs_arglist_length(args);
 	jit_type_t paramDef[narg * 2 + 1];
@@ -48,8 +49,8 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 		(PTRS_TYPE_FUNCTION, PTRS_TYPE_NATIVE),
 		case PTRS_TYPE_FUNCTION:
 			{
-				paramDef[0] = jit_type_int; //reserved
-				_args[0] = jit_const_int(func, nuint, 0);
+				paramDef[0] = jit_type_void_ptr;
+				_args[0] = thisPtr;
 
 				for(int i = 0; args != NULL; i++)
 				{
@@ -151,11 +152,11 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 }
 
 ptrs_jit_var_t ptrs_jit_callnested(jit_function_t func, ptrs_scope_t *scope,
-	jit_function_t callee, struct ptrs_astlist *args)
+	jit_value_t thisPtr, jit_function_t callee, struct ptrs_astlist *args)
 {
 	int narg = ptrs_arglist_length(args);
 	jit_value_t _args[narg * 2 + 1];
-	_args[0] = jit_const_int(func, nuint, 0); //reserved
+	_args[0] = thisPtr;
 
 	for(int i = 0; args != NULL; i++)
 	{

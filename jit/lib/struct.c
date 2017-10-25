@@ -243,7 +243,7 @@ ptrs_jit_var_t ptrs_jit_struct_get(jit_function_t func, ptrs_ast_t *ast, ptrs_sc
 			return result;
 
 		case PTRS_STRUCTMEMBER_GETTER:
-			return ptrs_jit_callnested(func, scope, member->value.function.func, NULL);
+			return ptrs_jit_callnested(func, scope, data, member->value.function.func, NULL);
 
 		case PTRS_STRUCTMEMBER_FUNCTION:
 			;
@@ -350,6 +350,30 @@ ptrs_var_t ptrs_struct_addressOf(ptrs_ast_t *ast, void *instance, ptrs_meta_t me
 		ptrs_error(ast, "Struct %s has no property named %s", struc->name, key);
 
 	return ptrs_struct_addressOfMember(ast, instance, struc, member);
+}
+
+ptrs_jit_var_t ptrs_jit_struct_call(jit_function_t func, ptrs_ast_t *ast,
+	ptrs_scope_t *scope, jit_value_t data, ptrs_struct_t *struc,
+	const char *key, ptrs_nativetype_info_t *retType, struct ptrs_astlist *args)
+{
+	struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, ast);
+	if(member == NULL)
+		ptrs_error(ast, "Struct %s has no property named %s", struc->name, key);
+	else if(member->type == PTRS_STRUCTMEMBER_SETTER)
+		ptrs_error(ast, "Cannot call setter only property %s of struct %s", key, struc->name);
+
+	if(jit_value_is_constant(data) && !jit_value_is_true(data))
+		ptrs_error(ast, "Property %s of struct %s is only available on instances", member->name, struc->name);
+
+	if(member->type == PTRS_STRUCTMEMBER_FUNCTION)
+	{
+		return ptrs_jit_callnested(func, scope, data, member->value.function.func, args);
+	}
+	else
+	{
+		ptrs_jit_var_t callee = ptrs_jit_struct_get(func, ast, scope, data, struc, key);
+		ptrs_jit_call(ast, func, scope, retType, data, callee, args);
+	}
 }
 
 ptrs_jit_var_t ptrs_struct_construct(ptrs_ast_t *ast, jit_function_t func, ptrs_scope_t *scope,

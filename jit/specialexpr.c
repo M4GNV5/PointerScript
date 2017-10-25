@@ -22,7 +22,8 @@ ptrs_jit_var_t ptrs_handle_call(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 	else
 	{
 		ptrs_jit_var_t val = expr->value->handler(expr->value, func, scope);
-		return ptrs_jit_call(node, func, scope, expr->retType, val, expr->arguments);
+		return ptrs_jit_call(node, func, scope,
+			expr->retType, jit_const_int(func, void_ptr, 0), val, expr->arguments);
 	}
 
 }
@@ -163,7 +164,30 @@ ptrs_jit_var_t ptrs_handle_addressof_member(ptrs_ast_t *node, jit_function_t fun
 ptrs_jit_var_t ptrs_handle_call_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments)
 {
-	//TODO
+	struct ptrs_ast_member *expr = &node->arg.member;
+	ptrs_jit_var_t base = expr->base->handler(expr->base, func, scope);
+
+	if(jit_value_is_constant(base.meta))
+	{
+		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(base.meta);
+		ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
+
+		return ptrs_jit_struct_call(func, node, scope, base.val, struc, expr->name,
+			retType, arguments);
+	}
+	else
+	{
+		jit_value_t ret;
+		jit_value_t astVal = jit_const_int(func, void_ptr, (uintptr_t)node);
+		jit_value_t nameVal = jit_const_int(func, void_ptr, (uintptr_t)expr->name);
+		ptrs_jit_reusableCall(func, ptrs_struct_get, ret, ptrs_jit_getVarType(),
+			(jit_type_void_ptr, jit_type_long, jit_type_ulong, jit_type_void_ptr),
+			(astVal, base.val, base.meta, nameVal)
+		);
+
+		ptrs_jit_var_t callee = ptrs_jit_valToVar(func, ret);
+		return ptrs_jit_call(node, func, scope, retType, base.val, callee, arguments);
+	}
 }
 
 ptrs_jit_var_t ptrs_handle_prefix_sizeof(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
@@ -561,7 +585,8 @@ ptrs_jit_var_t ptrs_handle_call_importedsymbol(ptrs_ast_t *node, jit_function_t 
 		val.constType = expr->type->varType;
 	}
 
-	return ptrs_jit_call(node, func, scope, retType, val, arguments);
+	return ptrs_jit_call(node, func, scope,
+		retType, jit_const_int(func, void_ptr, 0), val, arguments);
 }
 ptrs_jit_var_t ptrs_handle_addressof_importedsymbol(ptrs_ast_t *node,
 	jit_function_t func, ptrs_scope_t *scope)
@@ -677,7 +702,7 @@ void ptrs_handle_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_s
 				target.meta = jit_insn_import(func, target.meta);
 				target.meta = jit_insn_load_relative(func, target.meta, 0, jit_type_ulong);
 			}
-			
+
 			ptrs_jit_assert(node, func, scope, jit_insn_eq(func, target.meta, val.meta),
 				2, "The right side's meta value does not match the defined meta"
 				" of the variable. Are you trying to assign a different struct"
@@ -732,7 +757,7 @@ ptrs_jit_var_t ptrs_handle_functionidentifier(ptrs_ast_t *node, jit_function_t f
 ptrs_jit_var_t ptrs_handle_call_functionidentifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments)
 {
-	return ptrs_jit_callnested(func, scope, *node->arg.funcval, arguments);
+	return ptrs_jit_callnested(func, scope, jit_const_int(func, void_ptr, 0), *node->arg.funcval, arguments);
 }
 
 ptrs_jit_var_t ptrs_handle_constant(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
