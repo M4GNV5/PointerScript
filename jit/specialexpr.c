@@ -820,18 +820,21 @@ ptrs_jit_var_t ptrs_handle_op_in(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	ptrs_jit_var_t left = expr->left->handler(expr->left, func, scope);
 	ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope);
 
-	ptrs_jit_var_t name = ptrs_jit_vartoa(func, left);
-	if(jit_value_is_constant(name.val) && jit_value_is_constant(right.meta))
+	if(jit_value_is_constant(left.val) && jit_value_is_constant(left.meta) && jit_value_is_constant(right.meta))
 	{
-		char *constName = ptrs_jit_value_getValConstant(name.val).nativeval;
-		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(right.meta);
+		ptrs_val_t nameVal = ptrs_jit_value_getValConstant(left.val);
+		ptrs_meta_t nameMeta = ptrs_jit_value_getMetaConstant(left.meta);
+		ptrs_meta_t strucMeta = ptrs_jit_value_getMetaConstant(right.meta);
 
-		bool result = ptrs_struct_find(ptrs_meta_getPointer(meta), constName, -1, node);
+		char buff[32];
+		const char *name = ptrs_vartoa(nameVal, nameMeta, buff, 32);
 
+		bool result = ptrs_struct_find(ptrs_meta_getPointer(strucMeta), name, -1, node);
 		left.val = jit_const_long(func, long, result);
 	}
 	else
 	{
+		ptrs_jit_var_t name = ptrs_jit_vartoa(func, left);
 		jit_value_t struc = ptrs_jit_getMetaPointer(func, right.meta);
 		jit_value_t nodeVal = jit_const_int(func, void_ptr, (uintptr_t)node);
 
