@@ -319,7 +319,10 @@ void ptrs_jit_struct_set(jit_function_t func, ptrs_ast_t *ast, ptrs_scope_t *sco
 	}
 	else if(member->type == PTRS_STRUCTMEMBER_SETTER)
 	{
-		//TODO
+		jit_value_t args[3] = {data, value.val, value.meta};
+
+		const char *name = jit_function_get_meta(member->value.function.func, PTRS_JIT_FUNCTIONMETA_NAME);
+		jit_insn_call(func, name, member->value.function.func, NULL, args, 3, 0);
 	}
 	else if(member->type == PTRS_STRUCTMEMBER_TYPED)
 	{
