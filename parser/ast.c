@@ -1101,20 +1101,6 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		ast->arg.cast.builtinType = type;
 		ast->arg.cast.value = parseUnaryExpr(code, false, true);
 	}
-	else if(lookahead(code, "cast_stack")) //TODO find a better syntax for this
-	{
-		consumec(code, '<');
-		ast = talloc(ptrs_ast_t);
-		ast->handler = ptrs_handle_cast;
-		ast->arg.cast.type = parseUnaryExpr(code, false, false);
-		ast->arg.cast.onStack = true;
-
-		if(ast->arg.cast.type == NULL)
-			unexpectedm(code, NULL, "Syntax is cast_stack<TYPE>");
-
-		consumec(code, '>');
-		ast->arg.cast.value = parseUnaryExpr(code, false, true);
-	}
 	else if(lookahead(code, "cast"))
 	{
 		consumec(code, '<');
@@ -1122,8 +1108,8 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 
 		if(type < PTRS_NUM_TYPES)
 		{
-			if(type != PTRS_TYPE_INT && type != PTRS_TYPE_FLOAT && type != PTRS_TYPE_NATIVE)
-				unexpectedm(code, NULL, "Invalid cast, can only cast to int, float, native and string");
+			if(type != PTRS_TYPE_INT && type != PTRS_TYPE_FLOAT)
+				unexpectedm(code, NULL, "Invalid cast, can only cast to int, float and string");
 
 			ast = talloc(ptrs_ast_t);
 			ast->handler = ptrs_handle_cast_builtin;
@@ -1139,7 +1125,6 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			ast = talloc(ptrs_ast_t);
 			ast->handler = ptrs_handle_cast;
 			ast->arg.cast.type = parseUnaryExpr(code, false, false);
-			ast->arg.cast.onStack = false;
 
 			if(ast->arg.cast.type == NULL)
 				unexpectedm(code, NULL, "Syntax is cast<TYPE>");

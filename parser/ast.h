@@ -126,7 +126,6 @@ struct ptrs_ast_cast
 		struct ptrs_ast *type;
 	};
 	struct ptrs_ast *value;
-	bool onStack;
 };
 
 struct ptrs_ast_call
