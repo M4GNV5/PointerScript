@@ -26,6 +26,12 @@ jit_function_t ptrs_struct_getOverload(ptrs_struct_t *struc, void *handler, bool
 	return NULL;
 }
 
+void *ptrs_struct_getOverloadClosure(ptrs_struct_t *struc, void *handler, bool isInstance)
+{
+	jit_function_t func = ptrs_struct_getOverload(struc, handler, isInstance);
+	return jit_function_to_closure(func);
+}
+
 const char const *accessorNames[] = {
 	"public",
 	"internal",
@@ -407,7 +413,7 @@ ptrs_jit_var_t ptrs_struct_construct(ptrs_ast_t *ast, jit_function_t func, ptrs_
 		instance = ptrs_jit_allocate(func, size, allocateOnStack, false);
 
 		ptrs_jit_var_t ctor;
-		ptrs_jit_reusableCall(func, ptrs_struct_getOverload, ctor.val,
+		ptrs_jit_reusableCall(func, ptrs_struct_getOverloadClosure, ctor.val,
 			jit_type_void_ptr, (jit_type_void_ptr, jit_type_void_ptr, jit_type_int),
 			(struc, jit_const_int(func, void_ptr, (uintptr_t)ptrs_handle_new), jit_const_int(func, int, 1))
 		);
