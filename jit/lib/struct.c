@@ -14,13 +14,13 @@
 #include "../include/util.h"
 #include "../include/call.h"
 
-ptrs_function_t *ptrs_struct_getOverload(ptrs_var_t *struc, void *handler, bool isInstance)
+jit_function_t ptrs_struct_getOverload(ptrs_struct_t *struc, void *handler, bool isInstance)
 {
-	struct ptrs_opoverload *curr = struc->value.structval->overloads;
+	struct ptrs_opoverload *curr = struc->overloads;
 	while(curr != NULL)
 	{
 		if(curr->op == handler && (isInstance || curr->isStatic))
-			return curr->handler;
+			return curr->handlerFunc;
 		curr = curr->next;
 	}
 	return NULL;
@@ -385,13 +385,45 @@ ptrs_jit_var_t ptrs_struct_construct(ptrs_ast_t *ast, jit_function_t func, ptrs_
 	ptrs_jit_typeCheck(ast, func, scope, constructor, PTRS_TYPE_STRUCT,
 		1, "Value of type %t is not a constructor", TYPECHECK_TYPE);
 
-	jit_value_t struc = ptrs_jit_getMetaPointer(func, constructor.meta);
-	jit_value_t size = jit_insn_load_relative(func, struc,
-		offsetof(ptrs_struct_t, size), jit_type_uint);
+	jit_value_t instance;
+	if(jit_value_is_constant(constructor.meta))
+	{
+		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(constructor.meta);
+		ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
 
-	jit_value_t instance = ptrs_jit_allocate(func, size, allocateOnStack, false);
+		jit_value_t size = jit_const_int(func, nuint, struc->size);
+		instance = ptrs_jit_allocate(func, size, allocateOnStack, false);
 
-	//TODO constructor
+		jit_function_t ctor = ptrs_struct_getOverload(struc, ptrs_handle_new, true);
+		if(ctor != NULL)
+			ptrs_jit_callnested(func, scope, instance, ctor, arguments);
+	}
+	else
+	{
+		jit_value_t struc = ptrs_jit_getMetaPointer(func, constructor.meta);
+		jit_value_t size = jit_insn_load_relative(func, struc,
+			offsetof(ptrs_struct_t, size), jit_type_uint);
+
+		instance = ptrs_jit_allocate(func, size, allocateOnStack, false);
+
+		ptrs_jit_var_t ctor;
+		ptrs_jit_reusableCall(func, ptrs_struct_getOverload, ctor.val,
+			jit_type_void_ptr, (jit_type_void_ptr, jit_type_void_ptr, jit_type_int),
+			(struc, jit_const_int(func, void_ptr, (uintptr_t)ptrs_handle_new), jit_const_int(func, int, 1))
+		);
+
+		jit_label_t noCtor = jit_label_undefined;
+		jit_insn_branch_if_not(func, ctor.val, &noCtor);
+
+		ctor.constType = PTRS_TYPE_FUNCTION;
+		ctor.meta = ptrs_jit_pointerMeta(func,
+			jit_const_long(func, ulong, PTRS_TYPE_FUNCTION),
+			jit_insn_get_frame_pointer(func)
+		);
+		ptrs_jit_call(ast, func, scope, NULL, instance, ctor, arguments);
+
+		jit_insn_label(func, &noCtor);
+	}
 
 	ptrs_jit_var_t ret = {instance, constructor.meta, PTRS_TYPE_STRUCT};
 	return ret;

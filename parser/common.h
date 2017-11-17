@@ -121,6 +121,7 @@ struct ptrs_opoverload
 	uint8_t isStatic : 1;
 	void *op;
 	ptrs_function_t *handler;
+	jit_function_t handlerFunc;
 	struct ptrs_opoverload *next;
 };
 typedef struct

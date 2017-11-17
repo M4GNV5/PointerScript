@@ -515,7 +515,14 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 		}
 	}
 
-	//TODO compile the op overloads
+	struct ptrs_opoverload *curr = struc->overloads;
+	while(curr != NULL)
+	{
+		//TODO include non static member initializers in the ptrs_handle_new overload
+		curr->handlerFunc = ptrs_jit_compileFunction(node, func,
+			scope, curr->handler, struc);
+		curr = curr->next;
+	}
 
 	struc->location->val = jit_const_long(func, long, 0);
 	struc->location->meta = ptrs_jit_const_pointerMeta(func, PTRS_TYPE_STRUCT, struc);
