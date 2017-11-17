@@ -147,6 +147,6 @@ void ptrs_jit_typeSwitch_setup(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 		} \
 		\
 		jit_insn_label(func, &end); \
-	} \
+	}
 
 #endif
