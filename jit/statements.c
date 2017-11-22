@@ -199,7 +199,7 @@ ptrs_jit_var_t ptrs_handle_vararray(ptrs_ast_t *node, jit_function_t func, ptrs_
 		1, "Cannot create array of size %d", size);
 
 	//allocate memory
-	val.val = ptrs_jit_allocate(func, size, stmt->onStack, true);
+	val.val = ptrs_jit_allocate(func, byteSize, stmt->onStack, true);
 	val.meta = ptrs_jit_arrayMeta(func,
 		jit_const_long(func, ulong, PTRS_TYPE_POINTER),
 		jit_const_long(func, ulong, false),
