@@ -395,9 +395,27 @@ ptrs_jit_var_t ptrs_handle_addressof_index(ptrs_ast_t *node, jit_function_t func
 	return result;
 }
 ptrs_jit_var_t ptrs_handle_call_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
-	ptrs_ast_t *caller, struct ptrs_astlist *arguments)
+	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments)
 {
-	//TODO
+	ptrs_jit_var_t base;
+	jit_value_t index;
+	jit_value_t type;
+	jit_value_t size;
+	ptrs_handle_index_common(node, func, scope, &base, &type, &size, &index);
+
+	ptrs_jit_assert(node, func, scope,
+		jit_insn_eq(func, type, jit_const_int(func, nint, PTRS_TYPE_POINTER)),
+		2, "Cannot call index %d of type %t", index, type
+	);
+
+	ptrs_jit_var_t callee;
+	callee.constType = -1;
+	index = jit_insn_shl(func, index, jit_const_int(func, nint, 1));
+	callee.val = jit_insn_load_elem(func, base.val, index, jit_type_long);
+	index = jit_insn_add(func, index, jit_const_int(func, nint, 1));
+	callee.meta = jit_insn_load_elem(func, base.val, index, jit_type_ulong);
+
+	return ptrs_jit_call(node, func, scope, retType, base.val, callee, arguments);
 }
 
 ptrs_jit_var_t ptrs_handle_slice(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
