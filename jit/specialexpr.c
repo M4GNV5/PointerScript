@@ -91,60 +91,18 @@ ptrs_jit_var_t ptrs_handle_member(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 {
 	struct ptrs_ast_member *expr = &node->arg.member;
 	ptrs_jit_var_t base = expr->base->handler(expr->base, func, scope);
+	jit_value_t key = jit_const_int(func, void_ptr, (uintptr_t)expr->name);
 
-	if(jit_value_is_constant(base.meta))
-	{
-		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(base.meta);
-		ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
-
-		return ptrs_jit_struct_get(func, node, scope, base.val, struc, expr->name);
-	}
-	else
-	{
-		jit_value_t ret;
-		jit_value_t astVal = jit_const_int(func, void_ptr, (uintptr_t)node);
-		jit_value_t nameVal = jit_const_int(func, void_ptr, (uintptr_t)expr->name);
-		ptrs_jit_reusableCall(func, ptrs_struct_get, ret, ptrs_jit_getVarType(),
-			(jit_type_void_ptr, jit_type_long, jit_type_ulong, jit_type_void_ptr),
-			(astVal, base.val, base.meta, nameVal)
-		);
-
-		return ptrs_jit_valToVar(func, ret);
-	}
+	return ptrs_jit_struct_get(node, func, scope, base, key);
 }
 void ptrs_handle_assign_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_jit_var_t val)
 {
 	struct ptrs_ast_member *expr = &node->arg.member;
 	ptrs_jit_var_t base = expr->base->handler(expr->base, func, scope);
+	jit_value_t key = jit_const_int(func, void_ptr, (uintptr_t)expr->name);
 
-	if(jit_value_is_constant(base.meta))
-	{
-		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(base.meta);
-		ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
-
-		return ptrs_jit_struct_set(func, node, scope, base.val, struc, expr->name, val);
-	}
-	else
-	{
-		ptrs_jit_reusableCallVoid(func, ptrs_struct_set,
-			(
-				jit_type_void_ptr,
-				jit_type_long,
-				jit_type_ulong,
-				jit_type_void_ptr,
-				jit_type_long,
-				jit_type_ulong
-			), (
-				jit_const_int(func, void_ptr, (uintptr_t)node),
-				base.val,
-				base.meta,
-				jit_const_int(func, void_ptr, (uintptr_t)expr->name),
-				val.val,
-				val.meta
-			)
-		);
-	}
+	ptrs_jit_struct_set(node, func, scope, base, key, val);
 }
 ptrs_jit_var_t ptrs_handle_addressof_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
@@ -166,28 +124,9 @@ ptrs_jit_var_t ptrs_handle_call_member(ptrs_ast_t *node, jit_function_t func, pt
 {
 	struct ptrs_ast_member *expr = &node->arg.member;
 	ptrs_jit_var_t base = expr->base->handler(expr->base, func, scope);
+	jit_value_t key = jit_const_int(func, void_ptr, (uintptr_t)expr->name);
 
-	if(jit_value_is_constant(base.meta))
-	{
-		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(base.meta);
-		ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
-
-		return ptrs_jit_struct_call(func, node, scope, base.val, struc, expr->name,
-			retType, arguments);
-	}
-	else
-	{
-		jit_value_t ret;
-		jit_value_t astVal = jit_const_int(func, void_ptr, (uintptr_t)node);
-		jit_value_t nameVal = jit_const_int(func, void_ptr, (uintptr_t)expr->name);
-		ptrs_jit_reusableCall(func, ptrs_struct_get, ret, ptrs_jit_getVarType(),
-			(jit_type_void_ptr, jit_type_long, jit_type_ulong, jit_type_void_ptr),
-			(astVal, base.val, base.meta, nameVal)
-		);
-
-		ptrs_jit_var_t callee = ptrs_jit_valToVar(func, ret);
-		return ptrs_jit_call(node, func, scope, retType, base.val, callee, arguments);
-	}
+	ptrs_jit_struct_call(node, func, scope, base, key, retType, arguments);
 }
 
 ptrs_jit_var_t ptrs_handle_prefix_sizeof(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)

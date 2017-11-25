@@ -226,68 +226,89 @@ ptrs_var_t ptrs_struct_get(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta, co
 
 	return ptrs_struct_getMember(ast, instance, struc, member);
 }
-ptrs_jit_var_t ptrs_jit_struct_get(jit_function_t func, ptrs_ast_t *ast, ptrs_scope_t *scope,
-	jit_value_t data, ptrs_struct_t *struc, const char *key)
+ptrs_jit_var_t ptrs_jit_struct_get(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+	ptrs_jit_var_t base, jit_value_t keyVal)
 {
-	struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, ast);
-	if(member == NULL)
-		ptrs_error(ast, "Struct %s has no property named %s", struc->name, key);
-	else if(member->type == PTRS_STRUCTMEMBER_SETTER)
-		ptrs_error(ast, "Cannot get setter only property %s of struct %s", key, struc->name);
-
-	if(jit_value_is_constant(data) && !jit_value_is_true(data))
-		ptrs_error(ast, "Property %s of struct %s is only available on instances", member->name, struc->name);
-
-	ptrs_jit_var_t result;
-	switch(member->type)
+	if(jit_value_is_constant(base.meta) && jit_value_is_constant(keyVal))
 	{
-		case PTRS_STRUCTMEMBER_VAR:
-			result.val = jit_insn_load_relative(func, data, member->offset, jit_type_long);
-			result.meta = jit_insn_load_relative(func, data,
+		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(base.meta);
+		ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
+		const char *key = (const char *)jit_value_get_nint_constant(keyVal);
+
+		if(meta.type != PTRS_TYPE_STRUCT)
+			ptrs_error(node, "Cannot get property %s of value of type %t", key, meta.type);
+
+		struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, node);
+		if(member == NULL)
+			ptrs_error(node, "Struct %s has no property named %s", struc->name, key);
+		else if(member->type == PTRS_STRUCTMEMBER_SETTER)
+			ptrs_error(node, "Cannot get setter only property %s of struct %s", key, struc->name);
+
+		if(jit_value_is_constant(base.val) && !jit_value_is_true(base.val))
+			ptrs_error(node, "Property %s of struct %s is only available on instances", member->name, struc->name);
+
+		ptrs_jit_var_t result;
+		switch(member->type)
+		{
+			case PTRS_STRUCTMEMBER_VAR:
+				result.val = jit_insn_load_relative(func, base.val, member->offset, jit_type_long);
+				result.meta = jit_insn_load_relative(func, base.val,
 				member->offset + sizeof(ptrs_val_t), jit_type_long);
-			result.constType = -1;
-			return result;
+				result.constType = -1;
+				return result;
 
-		case PTRS_STRUCTMEMBER_GETTER:
-			return ptrs_jit_callnested(func, scope, data, member->value.function.func, NULL);
+			case PTRS_STRUCTMEMBER_GETTER:
+				return ptrs_jit_callnested(func, scope, base.val, member->value.function.func, NULL);
 
-		case PTRS_STRUCTMEMBER_FUNCTION:
-			;
-			jit_function_t target = member->value.function.func;
-			result.val = jit_const_long(func, long, (uintptr_t)jit_function_to_closure(target));
-			result.meta = ptrs_jit_pointerMeta(func,
-				jit_const_long(func, ulong, PTRS_TYPE_FUNCTION),
-				jit_insn_get_parent_frame_pointer_of(func, target)
-			);
-			result.constType = PTRS_TYPE_FUNCTION;
-			return result;
+			case PTRS_STRUCTMEMBER_FUNCTION:
+				;
+				jit_function_t target = member->value.function.func;
+				result.val = jit_const_long(func, long, (uintptr_t)jit_function_to_closure(target));
+				result.meta = ptrs_jit_pointerMeta(func,
+					jit_const_long(func, ulong, PTRS_TYPE_FUNCTION),
+					jit_insn_get_parent_frame_pointer_of(func, target)
+				);
+				result.constType = PTRS_TYPE_FUNCTION;
+				return result;
 
-		case PTRS_STRUCTMEMBER_ARRAY:
-			result.val = jit_insn_add_relative(func, data, member->offset);
-			result.meta = ptrs_jit_const_arrayMeta(func,
-				PTRS_TYPE_NATIVE,
-				false,
-				member->value.array.size
-			);
-			result.constType = PTRS_TYPE_NATIVE;
-			return result;
+			case PTRS_STRUCTMEMBER_ARRAY:
+				result.val = jit_insn_add_relative(func, base.val, member->offset);
+				result.meta = ptrs_jit_const_arrayMeta(func,
+					PTRS_TYPE_NATIVE,
+					false,
+					member->value.array.size
+				);
+				result.constType = PTRS_TYPE_NATIVE;
+				return result;
 
-		case PTRS_STRUCTMEMBER_VARARRAY:
-			result.val = jit_insn_add_relative(func, data, member->offset);
-			result.meta = ptrs_jit_const_arrayMeta(func,
-				PTRS_TYPE_POINTER,
-				false,
-				member->value.array.size / sizeof(ptrs_var_t)
-			);
-			result.constType = PTRS_TYPE_POINTER;
-			return result;
+			case PTRS_STRUCTMEMBER_VARARRAY:
+				result.val = jit_insn_add_relative(func, base.val, member->offset);
+				result.meta = ptrs_jit_const_arrayMeta(func,
+					PTRS_TYPE_POINTER,
+					false,
+					member->value.array.size / sizeof(ptrs_var_t)
+				);
+				result.constType = PTRS_TYPE_POINTER;
+				return result;
 
-		case PTRS_STRUCTMEMBER_TYPED:
-			result.val = jit_insn_load_relative(func, data, member->offset, member->value.type->jitType);
-			result.val = ptrs_jit_normalizeForVar(func, result.val);
-			result.meta = ptrs_jit_const_meta(func, member->value.type->varType);
-			result.constType = member->value.type->varType;
-			return result;
+			case PTRS_STRUCTMEMBER_TYPED:
+				result.val = jit_insn_load_relative(func, base.val, member->offset, member->value.type->jitType);
+				result.val = ptrs_jit_normalizeForVar(func, result.val);
+				result.meta = ptrs_jit_const_meta(func, member->value.type->varType);
+				result.constType = member->value.type->varType;
+				return result;
+		}
+	}
+	else
+	{
+		jit_value_t ret;
+		jit_value_t astVal = jit_const_int(func, void_ptr, (uintptr_t)node);
+		ptrs_jit_reusableCall(func, ptrs_struct_get, ret, ptrs_jit_getVarType(),
+			(jit_type_void_ptr, jit_type_long, jit_type_ulong, jit_type_void_ptr),
+			(astVal, base.val, base.meta, keyVal)
+		);
+
+		return ptrs_jit_valToVar(func, ret);
 	}
 }
 
@@ -306,45 +327,75 @@ void ptrs_struct_set(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta, const ch
 
 	ptrs_struct_setMember(ast, instance, struc, member, val, valMeta);
 }
-void ptrs_jit_struct_set(jit_function_t func, ptrs_ast_t *ast, ptrs_scope_t *scope,
-	jit_value_t data, ptrs_struct_t *struc, const char *key, ptrs_jit_var_t value)
+void ptrs_jit_struct_set(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+	ptrs_jit_var_t base, jit_value_t keyVal, ptrs_jit_var_t value)
 {
-	struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_GETTER, ast);
-	if(member == NULL)
-		ptrs_error(ast, "Struct %s has no property named %s", struc->name, key);
-	else if(member->type == PTRS_STRUCTMEMBER_GETTER)
-		ptrs_error(ast, "Cannot set getter only property %s of struct %s", key, struc->name);
-
-	if(jit_value_is_constant(data) && !jit_value_is_true(data))
-		ptrs_error(ast, "Property %s of struct %s is only available on instances", member->name, struc->name);
-
-	if(member->type == PTRS_STRUCTMEMBER_VAR)
+	if(jit_value_is_constant(base.meta) && jit_value_is_constant(keyVal))
 	{
-		jit_insn_store_relative(func, data, member->offset, value.val);
-		jit_insn_store_relative(func, data, member->offset + sizeof(ptrs_val_t), value.meta);
-	}
-	else if(member->type == PTRS_STRUCTMEMBER_SETTER)
-	{
-		jit_value_t args[3] = {data, value.val, value.meta};
+		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(base.meta);
+		ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
+		const char *key = (const char *)jit_value_get_nint_constant(keyVal);
 
-		const char *name = jit_function_get_meta(member->value.function.func, PTRS_JIT_FUNCTIONMETA_NAME);
-		jit_insn_call(func, name, member->value.function.func, NULL, args, 3, 0);
-	}
-	else if(member->type == PTRS_STRUCTMEMBER_TYPED)
-	{
-		ptrs_nativetype_info_t *type = member->value.type;
-		jit_value_t val;
-		if(type->varType == PTRS_TYPE_FLOAT)
-			val = ptrs_jit_vartof(func, value);
+		if(meta.type != PTRS_TYPE_STRUCT)
+			ptrs_error(node, "Cannot set property %s of value of type %t", key, meta.type);
+
+		struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_GETTER, node);
+		if(member == NULL)
+			ptrs_error(node, "Struct %s has no property named %s", struc->name, key);
+		else if(member->type == PTRS_STRUCTMEMBER_GETTER)
+			ptrs_error(node, "Cannot set getter only property %s of struct %s", key, struc->name);
+
+		if(jit_value_is_constant(base.val) && !jit_value_is_true(base.val))
+			ptrs_error(node, "Property %s of struct %s is only available on instances", member->name, struc->name);
+
+		if(member->type == PTRS_STRUCTMEMBER_VAR)
+		{
+			jit_insn_store_relative(func, base.val, member->offset, value.val);
+			jit_insn_store_relative(func, base.val, member->offset + sizeof(ptrs_val_t), value.meta);
+		}
+		else if(member->type == PTRS_STRUCTMEMBER_SETTER)
+		{
+			jit_value_t args[3] = {base.val, value.val, value.meta};
+
+			const char *name = jit_function_get_meta(member->value.function.func, PTRS_JIT_FUNCTIONMETA_NAME);
+			jit_insn_call(func, name, member->value.function.func, NULL, args, 3, 0);
+		}
+		else if(member->type == PTRS_STRUCTMEMBER_TYPED)
+		{
+			ptrs_nativetype_info_t *type = member->value.type;
+			jit_value_t val;
+			if(type->varType == PTRS_TYPE_FLOAT)
+				val = ptrs_jit_vartof(func, value);
+			else
+				val = ptrs_jit_vartoi(func, value);
+
+			val = jit_insn_convert(func, val, type->jitType, 0);
+			jit_insn_store_relative(func, base.val, member->offset, val);
+		}
 		else
-			val = ptrs_jit_vartoi(func, value);
-
-		val = jit_insn_convert(func, val, type->jitType, 0);
-		jit_insn_store_relative(func, data, member->offset, val);
+		{
+			ptrs_error(node, "Property %s of struct %s is not a valid lvalue", member->name, struc->name);
+		}
 	}
 	else
 	{
-		ptrs_error(ast, "Property %s of struct %s is not a valid lvalue", member->name, struc->name);
+		ptrs_jit_reusableCallVoid(func, ptrs_struct_set,
+			(
+				jit_type_void_ptr,
+				jit_type_long,
+				jit_type_ulong,
+				jit_type_void_ptr,
+				jit_type_long,
+				jit_type_ulong
+			), (
+				jit_const_int(func, void_ptr, (uintptr_t)node),
+				base.val,
+				base.meta,
+				keyVal,
+				value.val,
+				value.meta
+			)
+		);
 	}
 }
 
@@ -361,27 +412,41 @@ ptrs_var_t ptrs_struct_addressOf(ptrs_ast_t *ast, void *instance, ptrs_meta_t me
 	return ptrs_struct_addressOfMember(ast, instance, struc, member);
 }
 
-ptrs_jit_var_t ptrs_jit_struct_call(jit_function_t func, ptrs_ast_t *ast,
-	ptrs_scope_t *scope, jit_value_t data, ptrs_struct_t *struc,
-	const char *key, ptrs_nativetype_info_t *retType, struct ptrs_astlist *args)
+ptrs_jit_var_t ptrs_jit_struct_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+	ptrs_jit_var_t base, jit_value_t keyVal, ptrs_nativetype_info_t *retType, struct ptrs_astlist *args)
 {
-	struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, ast);
-	if(member == NULL)
-		ptrs_error(ast, "Struct %s has no property named %s", struc->name, key);
-	else if(member->type == PTRS_STRUCTMEMBER_SETTER)
-		ptrs_error(ast, "Cannot call setter only property %s of struct %s", key, struc->name);
-
-	if(jit_value_is_constant(data) && !jit_value_is_true(data))
-		ptrs_error(ast, "Property %s of struct %s is only available on instances", member->name, struc->name);
-
-	if(member->type == PTRS_STRUCTMEMBER_FUNCTION)
+	if(jit_value_is_constant(base.meta) && jit_value_is_constant(keyVal))
 	{
-		return ptrs_jit_callnested(func, scope, data, member->value.function.func, args);
+		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(base.meta);
+		ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
+		const char *key = (const char *)jit_value_get_nint_constant(keyVal);
+
+		if(meta.type != PTRS_TYPE_STRUCT)
+			ptrs_error(node, "Cannot set property %s of value of type %t", key, meta.type);
+
+		struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, node);
+		if(member == NULL)
+			ptrs_error(node, "Struct %s has no property named %s", struc->name, key);
+		else if(member->type == PTRS_STRUCTMEMBER_SETTER)
+			ptrs_error(node, "Cannot call setter only property %s of struct %s", key, struc->name);
+
+		if(jit_value_is_constant(base.val) && !jit_value_is_true(base.val))
+			ptrs_error(node, "Property %s of struct %s is only available on instances", member->name, struc->name);
+
+		if(member->type == PTRS_STRUCTMEMBER_FUNCTION)
+		{
+			return ptrs_jit_callnested(func, scope, base.val, member->value.function.func, args);
+		}
+		else
+		{
+			ptrs_jit_var_t callee = ptrs_jit_struct_get(node, func, scope, base, keyVal);
+			return ptrs_jit_call(node, func, scope, retType, base.val, callee, args);
+		}
 	}
 	else
 	{
-		ptrs_jit_var_t callee = ptrs_jit_struct_get(func, ast, scope, data, struc, key);
-		ptrs_jit_call(ast, func, scope, retType, data, callee, args);
+		ptrs_jit_var_t callee = ptrs_jit_struct_get(node, func, scope, base, keyVal);
+		return ptrs_jit_call(node, func, scope, retType, base.val, callee, args);
 	}
 }
 
