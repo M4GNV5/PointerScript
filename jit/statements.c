@@ -494,10 +494,13 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 		else if(curr->isStatic && curr->type == PTRS_STRUCTMEMBER_VAR)
 		{
 			ptrs_ast_t *ast = curr->value.startval;
-			ptrs_jit_var_t startVal = ast->handler(ast, func, scope);
-			jit_value_t addr = jit_insn_add_relative(func, staticData, curr->offset);
-			jit_insn_store_relative(func, addr, 0, startVal.val);
-			jit_insn_store_relative(func, addr, sizeof(ptrs_val_t), startVal.meta);
+			if(ast != NULL)
+			{
+				ptrs_jit_var_t startVal = ast->handler(ast, func, scope);
+				jit_value_t addr = jit_insn_add_relative(func, staticData, curr->offset);
+				jit_insn_store_relative(func, addr, 0, startVal.val);
+				jit_insn_store_relative(func, addr, sizeof(ptrs_val_t), startVal.meta);
+			}
 		}
 		else if(curr->isStatic && curr->type == PTRS_STRUCTMEMBER_ARRAY)
 		{
