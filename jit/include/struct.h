@@ -31,6 +31,8 @@ void ptrs_jit_struct_set(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *sc
 ptrs_var_t ptrs_struct_addressOfMember(ptrs_ast_t *ast, void *data, ptrs_struct_t *struc,
 	struct ptrs_structmember *member);
 ptrs_var_t ptrs_struct_addressOf(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta, const char *key);
+ptrs_jit_var_t ptrs_jit_struct_addressof(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+	ptrs_jit_var_t base, jit_value_t keyVal);
 
 ptrs_jit_var_t ptrs_jit_struct_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_jit_var_t base, jit_value_t keyVal, ptrs_nativetype_info_t *retType, struct ptrs_astlist *args);

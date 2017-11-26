@@ -108,16 +108,9 @@ ptrs_jit_var_t ptrs_handle_addressof_member(ptrs_ast_t *node, jit_function_t fun
 {
 	struct ptrs_ast_member *expr = &node->arg.member;
 	ptrs_jit_var_t base = expr->base->handler(expr->base, func, scope);
+	jit_value_t key = jit_const_int(func, void_ptr, (uintptr_t)expr->name);
 
-	jit_value_t ret;
-	jit_value_t astVal = jit_const_int(func, void_ptr, (uintptr_t)node);
-	jit_value_t nameVal = jit_const_int(func, void_ptr, (uintptr_t)expr->name);
-	ptrs_jit_reusableCall(func, ptrs_struct_addressOf, ret, ptrs_jit_getVarType(),
-		(jit_type_void_ptr, jit_type_long, jit_type_ulong, jit_type_void_ptr),
-		(astVal, base.val, base.meta, nameVal)
-	);
-
-	return ptrs_jit_valToVar(func, ret);
+	return ptrs_jit_struct_addressof(node, func, scope, base, key);
 }
 ptrs_jit_var_t ptrs_handle_call_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments)
@@ -336,18 +329,26 @@ void ptrs_handle_assign_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 }
 ptrs_jit_var_t ptrs_handle_addressof_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	ptrs_jit_var_t result;
-	result.val = jit_value_create(func, jit_type_long);
+	ptrs_jit_var_t result = {
+		.val = jit_value_create(func, jit_type_long),
+		.meta = jit_value_create(func, jit_type_ulong),
+		.constType = -1,
+	};
 
 	ptrs_handle_index_common(
 		{
-			/* TODO */
+			ptrs_jit_var_t _result = ptrs_jit_struct_addressof(node, func, scope, base, strIndex.val);
+			jit_insn_store(func, result.val, _result.val);
+			jit_insn_store(func, result.meta, _result.meta);
+
+			if(base.constType == PTRS_TYPE_STRUCT)
+				result.constType = _result.constType;
 		},
 		{
 			result.constType = base.constType;
 
 			jit_value_t newSize = jit_insn_sub(func, ptrs_jit_getArraySize(func, base.meta), intIndex);
-			result.meta = ptrs_jit_setArraySize(func, base.meta, newSize);
+			jit_insn_store(func, result.meta, ptrs_jit_setArraySize(func, base.meta, newSize));
 		},
 		{
 			jit_insn_store(func, result.val,

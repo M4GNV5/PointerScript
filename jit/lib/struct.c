@@ -411,6 +411,58 @@ ptrs_var_t ptrs_struct_addressOf(ptrs_ast_t *ast, void *instance, ptrs_meta_t me
 
 	return ptrs_struct_addressOfMember(ast, instance, struc, member);
 }
+ptrs_jit_var_t ptrs_jit_struct_addressof(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+	ptrs_jit_var_t base, jit_value_t keyVal)
+{
+	if(jit_value_is_constant(base.meta) && jit_value_is_constant(keyVal))
+	{
+		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(base.meta);
+		ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
+		const char *key = (const char *)jit_value_get_nint_constant(keyVal);
+
+		if(meta.type != PTRS_TYPE_STRUCT)
+			ptrs_error(node, "Cannot get property %s of value of type %t", key, meta.type);
+
+		struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, node);
+		if(member == NULL)
+			ptrs_error(node, "Struct %s has no property named %s", struc->name, key);
+		else if(member->type == PTRS_STRUCTMEMBER_SETTER)
+			ptrs_error(node, "Cannot get setter only property %s of struct %s", key, struc->name);
+
+		if(jit_value_is_constant(base.val) && !jit_value_is_true(base.val))
+			ptrs_error(node, "Property %s of struct %s is only available on instances", member->name, struc->name);
+
+		ptrs_jit_var_t result;
+		if(member->type == PTRS_STRUCTMEMBER_VAR)
+		{
+			result.constType = PTRS_TYPE_POINTER;
+			result.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_POINTER, false, 1);
+			result.val = jit_insn_add_relative(func, base.val, member->offset);
+		}
+		else if(member->type == PTRS_STRUCTMEMBER_TYPED)
+		{
+			result.constType = PTRS_TYPE_NATIVE;
+			result.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_NATIVE, false, member->value.type->size);
+			result.val = jit_insn_add_relative(func, base.val, member->offset);
+		}
+		else
+		{
+			ptrs_error(node, "Property %s of struct %s is not a valid lvalue", member->name, struc->name);
+		}
+		return result;
+	}
+	else
+	{
+		jit_value_t ret;
+		jit_value_t astVal = jit_const_int(func, void_ptr, (uintptr_t)node);
+		ptrs_jit_reusableCall(func, ptrs_struct_addressOf, ret, ptrs_jit_getVarType(),
+			(jit_type_void_ptr, jit_type_long, jit_type_ulong, jit_type_void_ptr),
+			(astVal, base.val, base.meta, keyVal)
+		);
+
+		return ptrs_jit_valToVar(func, ret);
+	}
+}
 
 ptrs_jit_var_t ptrs_jit_struct_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_jit_var_t base, jit_value_t keyVal, ptrs_nativetype_info_t *retType, struct ptrs_astlist *args)
