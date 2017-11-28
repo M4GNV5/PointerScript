@@ -45,7 +45,13 @@ void ptrs_compile(ptrs_result_t *result, char *src, const char *filename)
 
 	result->ast->handler(result->ast, result->func, &scope);
 
-	jit_insn_default_return(result->func);
+	ptrs_jit_var_t undefined = {
+		.val = jit_const_int(result->func, long, 0),
+		.meta = ptrs_jit_const_meta(result->func, PTRS_TYPE_UNDEFINED),
+		.constType = PTRS_TYPE_UNDEFINED
+	};
+	jit_insn_return(result->func, ptrs_jit_varToVal(result->func, undefined));
+
 	ptrs_jit_placeAssertions(result->func, &scope);
 
 	if(ptrs_compileAot && jit_function_compile(result->func) == 0)
