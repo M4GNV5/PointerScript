@@ -111,8 +111,8 @@ char *ptrs_backtrace(int traceSkip)
 		if(func)
 		{
 			const char *name = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_NAME);
-			const char *file = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_FILE);
-			buffptr += sprintf(buffptr, "    at %s (%s)\n", name, file);
+			ptrs_ast_t *ast = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_AST);
+			buffptr += sprintf(buffptr, "    at %s (%s)\n", name, ast->file);
 		}
 		else
 		{
