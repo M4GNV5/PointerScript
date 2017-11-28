@@ -56,7 +56,17 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 				{
 					//if(args->expand) //TODO
 					//if(args->lazy) //TODO
-					ptrs_jit_var_t val = args->entry->handler(args->entry, func, scope);
+
+					ptrs_jit_var_t val;
+					if(args->entry == NULL)
+					{
+						val.val = jit_const_int(func, long, 0);
+						val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
+					}
+					else
+					{
+						val = args->entry->handler(args->entry, func, scope);
+					}
 
 					paramDef[i * 2 + 1] = jit_type_long;
 					paramDef[i * 2 + 2] = jit_type_ulong;
@@ -154,24 +164,38 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 ptrs_jit_var_t ptrs_jit_callnested(jit_function_t func, ptrs_scope_t *scope,
 	jit_value_t thisPtr, jit_function_t callee, struct ptrs_astlist *args)
 {
-	int narg = ptrs_arglist_length(args);
-	jit_value_t _args[narg * 2 + 1];
+	int minArgs = jit_type_num_params(jit_function_get_signature(callee));
+	int narg = ptrs_arglist_length(args) * 2 + 1;
+	if(minArgs > narg)
+		narg = minArgs;
+
+	jit_value_t _args[narg];
 	_args[0] = thisPtr;
 
-	for(int i = 0; args != NULL; i++)
+	for(int i = 0; i < narg / 2; i++)
 	{
 		//if(args->expand) //TODO
 		//if(args->lazy) //TODO
-		ptrs_jit_var_t val = args->entry->handler(args->entry, func, scope);
+		ptrs_jit_var_t val;
+		if(args == NULL || args->entry == NULL)
+		{
+			val.val = jit_const_int(func, long, 0);
+			val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
+		}
+		else
+		{
+			val = args->entry->handler(args->entry, func, scope);
+		}
 
 		_args[i * 2 + 1] = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
 		_args[i * 2 + 2] = val.meta;
 
-		args = args->next;
+		if(args != NULL)
+			args = args->next;
 	}
 
 	const char *name = jit_function_get_meta(callee, PTRS_JIT_FUNCTIONMETA_NAME);
-	jit_value_t ret = jit_insn_call(func, name, callee, NULL, _args, narg * 2 + 1, 0);
+	jit_value_t ret = jit_insn_call(func, name, callee, NULL, _args, narg, 0);
 
 	return ptrs_jit_valToVar(func, ret);
 }
