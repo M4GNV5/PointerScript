@@ -6958,6 +6958,61 @@ jit_insn_return(jit_function_t func, jit_value_t value)
 }
 
 /*@
+ * @deftypefun int jit_insn_return (jit_function_t @var{func}, jit_value_t @var{value})
+ * Output an instruction to return @var{reg1} and @var{reg2} as the function's
+ * result. This only works when the function's return type is a small struct
+ * and reg1 and reg2 fit in one register each.
+ * @end deftypefun
+@*/
+int
+jit_insn_return_struct_from_values(jit_function_t func, jit_value_t val1, jit_value_t val2)
+{
+	/* Ensure that we have a function builder */
+	if(!_jit_function_ensure_builder(func) || !val1 || !val2)
+	{
+		return 0;
+	}
+
+#if !defined(JIT_BACKEND_INTERP)
+	/* We need to pop the "setjmp" context */
+	if(func->has_try)
+	{
+		jit_type_t type = jit_type_create_signature(jit_abi_cdecl, jit_type_void, 0, 0, 1);
+		if(!type)
+		{
+			return 0;
+		}
+		jit_insn_call_native(func, "_jit_unwind_pop_setjmp",
+				     (void *) _jit_unwind_pop_setjmp, type,
+				     0, 0, JIT_CALL_NOTHROW);
+		jit_type_free(type);
+	}
+#endif
+
+	/* This function has an ordinary return path */
+	func->builder->ordinary_return = 1;
+
+	/* Output an appropriate instruction to return to the caller */
+	jit_type_t type = jit_type_get_return(func->signature);
+	if(type->kind != JIT_TYPE_UNION && type->kind != JIT_TYPE_STRUCT)
+	{
+		return 0;
+	}
+	
+	/* Return the structure via registers */
+	if(!create_note(func, JIT_OP_RETURN_STRUCT_FROM_REGS, val1, val2))
+	{
+		return 0;
+	}
+	
+	/* Mark the current block as "ends in dead" */
+	func->builder->current_block->ends_in_dead = 1;
+
+	/* Start a new block just after the "return" instruction */
+	return jit_insn_new_block(func);
+}
+
+/*@
  * @deftypefun int jit_insn_return_ptr (jit_function_t @var{func}, jit_value_t @var{value}, jit_type_t @var{type})
  * Output an instruction to return @code{*@var{value}} as the function's result.
  * This is normally used for returning @code{struct} and @code{union}

@@ -668,6 +668,11 @@ JIT_OP_RETURN_SMALL_STRUCT: note
 		inst = jump_to_epilog(gen, inst, block);
 	}
 
+JIT_OP_RETURN_STRUCT_FROM_REGS: note
+    [reg("rax"), reg("rdx")] -> {
+        inst = jump_to_epilog(gen, inst, block);
+    }
+
 /*
  * Pointer-relative loads and stores.
  */

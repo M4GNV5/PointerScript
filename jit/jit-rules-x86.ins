@@ -1800,6 +1800,11 @@ JIT_OP_RETURN_SMALL_STRUCT: note
 		inst = jump_to_epilog(gen, inst, block);
 	}
 
+JIT_OP_RETURN_STRUCT_FROM_REGS: note
+    [reg("eax"), reg("edx")] -> {
+        inst = jump_to_epilog(gen, inst, block);
+    }
+
 /*
  * Exception handling.
  */

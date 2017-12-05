@@ -279,6 +279,8 @@ int jit_insn_defer_pop_stack
 int jit_insn_flush_defer_pop
 	(jit_function_t func, jit_nint num_items) JIT_NOTHROW;
 int jit_insn_return(jit_function_t func, jit_value_t value) JIT_NOTHROW;
+int jit_insn_return_struct_from_values(jit_function_t func, jit_value_t val1,
+	jit_value_t val2) JIT_NOTHROW;
 int jit_insn_return_ptr
 	(jit_function_t func, jit_value_t value, jit_type_t type) JIT_NOTHROW;
 int jit_insn_default_return(jit_function_t func) JIT_NOTHROW;
