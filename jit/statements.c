@@ -404,9 +404,7 @@ ptrs_jit_var_t ptrs_handle_return(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	node = node->arg.astval;
 	ptrs_jit_var_t ret = node->handler(node, func, scope);
 
-	jit_value_t val = ptrs_jit_varToVal(func, ret);
-	jit_insn_return(func, val);
-
+	jit_insn_return_struct_from_values(func, ret.val, ret.meta);
 	return ret;
 }
 
