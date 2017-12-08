@@ -95,14 +95,9 @@ struct ptrs_structmember *ptrs_struct_find(ptrs_struct_t *struc, const char *key
 		if(strcmp(struc->member[i].name, key) == 0)
 		{
 			if(struc->member[i].type == exclude)
-			{
 				ignored = &struc->member[i];
-			}
-			else
-			{
-				ptrs_struct_canAccess(ast, struc, &struc->member[i]);
+			else if(ptrs_struct_canAccess(ast, struc, &struc->member[i]))
 				return &struc->member[i];
-			}
 		}
 
 		i = (i + 1) % struc->memberCount;
@@ -255,7 +250,8 @@ ptrs_jit_var_t ptrs_jit_struct_get(ptrs_ast_t *node, jit_function_t func, ptrs_s
 		struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, node);
 		if(member == NULL)
 		{
-			jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_member, true);
+			bool isInstance = !jit_value_is_constant(base.val) || jit_value_is_true(base.val);
+			jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_member, isInstance);
 			if(overload == NULL)
 				ptrs_error(node, "Struct %s has no property named %s", struc->name, key);
 
@@ -393,7 +389,8 @@ void ptrs_jit_struct_set(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *sc
 		struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_GETTER, node);
 		if(member == NULL)
 		{
-			jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_assign_member, true);
+			bool isInstance = !jit_value_is_constant(base.val) || jit_value_is_true(base.val);
+			jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_assign_member, isInstance);
 			if(overload == NULL)
 				ptrs_error(node, "Struct %s has no property named %s", struc->name, key);
 
@@ -513,7 +510,8 @@ ptrs_jit_var_t ptrs_jit_struct_addressof(ptrs_ast_t *node, jit_function_t func, 
 		struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, node);
 		if(member == NULL)
 		{
-			jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_addressof_member, true);
+			bool isInstance = !jit_value_is_constant(base.val) || jit_value_is_true(base.val);
+			jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_addressof_member, isInstance);
 			if(overload == NULL)
 				ptrs_error(node, "Struct %s has no property named %s", struc->name, key);
 
