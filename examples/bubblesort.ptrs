@@ -1,6 +1,6 @@
 import printf, srand, rand, time from "libc.so.6";
 
-const len = 10000;
+const len = 100;
 var parts = new array[len];
 
 srand(time(NULL));

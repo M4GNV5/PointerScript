@@ -35,26 +35,6 @@ struct Foo
 			this.value = a + b;
 	}
 
-	//you can overload all binary operators
-	operator this / val
-	{
-		return this.value / val;
-	}
-	operator val / this
-	{
-		return val / this.value;
-	}
-
-	//and unary operators
-	operator ++this
-	{
-		return ++this.value;
-	}
-	operator this++
-	{
-		return this.value++;
-	}
-
 	//there are also a few special operators you can overload
 	operator this.name
 	{
@@ -74,13 +54,9 @@ struct Foo
 var val = new Foo();
 val.dump();
 
-printf("val / 10f = %g\n", val / 10f);
-printf("100f / val = %g\n", 100f / val);
-printf("val++ = %d\n", val++);
-printf("++val = %d\n", ++val);
 printf("val.foo = %s\n", val.foo);
 printf("val[\"foo\"] = %s\n", val["foo"]);
-printf("val(1337, 10) = %d\n", val(1337, 10));
+//printf("val(1337, 10) = %d\n", val(1337, 10));
 
 val.dump();
 delete val;

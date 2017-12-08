@@ -21,6 +21,5 @@ runExample types
 runExample array
 runExample struct
 runExample fork
-runExample asm
 runExample bubblesort
 runExample threads
