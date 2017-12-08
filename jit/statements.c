@@ -6,6 +6,7 @@
 #include <libgen.h>
 #include <jit/jit.h>
 
+#include "jit.h"
 #include "../parser/ast.h"
 #include "../parser/common.h"
 #include "include/conversion.h"
@@ -476,11 +477,37 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	jit_insn_store_relative(func, jit_const_int(func, void_ptr, (uintptr_t)struc),
 		offsetof(ptrs_struct_t, parentFrame), jit_insn_get_frame_pointer(func));
 
+	int len = snprintf(NULL, 0, "%s.(data initializer)", struc->name);
+	char *ctorName = malloc(len);
+	sprintf(ctorName, "%s.(data initializer)", struc->name);
+
+	ptrs_jit_reusableSignature(func, ctorSignature, ptrs_jit_getVarType(), (jit_type_void_ptr));
+	jit_function_t ctor = ptrs_jit_createFunction(node, func, ctorSignature, ctorName);
+	jit_value_t ctorData = jit_value_get_param(ctor, 0);
+	ptrs_scope_t ctorScope;
+	ptrs_initScope(&ctorScope, scope);
+
 	for(int i = 0; i < struc->memberCount; i++)
 	{
 		struct ptrs_structmember *curr = &struc->member[i];
 		if(curr->name == NULL) //hashmap filler entry
 			continue;
+
+		jit_function_t currFunc;
+		jit_value_t currData;
+		ptrs_scope_t *currScope;
+		if(curr->isStatic)
+		{
+			currFunc = func;
+			currData = staticData;
+			currScope = scope;
+		}
+		else
+		{
+			currFunc = ctor;
+			currData = ctorData;
+			currScope = &ctorScope;
+		}
 
 		if(curr->type == PTRS_STRUCTMEMBER_FUNCTION
 			|| curr->type == PTRS_STRUCTMEMBER_GETTER
@@ -489,40 +516,79 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 			curr->value.function.func = ptrs_jit_compileFunction(node, func,
 				scope, curr->value.function.ast, struc);
 		}
-		else if(curr->isStatic && curr->type == PTRS_STRUCTMEMBER_VAR)
+		else if(curr->type == PTRS_STRUCTMEMBER_VAR)
 		{
 			ptrs_ast_t *ast = curr->value.startval;
 			if(ast != NULL)
 			{
-				ptrs_jit_var_t startVal = ast->handler(ast, func, scope);
-				jit_value_t addr = jit_insn_add_relative(func, staticData, curr->offset);
-				jit_insn_store_relative(func, addr, 0, startVal.val);
-				jit_insn_store_relative(func, addr, sizeof(ptrs_val_t), startVal.meta);
+				ptrs_jit_var_t startVal = ast->handler(ast, currFunc, currScope);
+				jit_value_t addr = jit_insn_add_relative(currFunc, currData, curr->offset);
+				jit_insn_store_relative(currFunc, addr, 0, startVal.val);
+				jit_insn_store_relative(currFunc, addr, sizeof(ptrs_val_t), startVal.meta);
 			}
 		}
-		else if(curr->isStatic && curr->type == PTRS_STRUCTMEMBER_ARRAY)
+		else if(curr->type == PTRS_STRUCTMEMBER_ARRAY)
 		{
-			ptrs_astlist_handleByte(curr->value.array.init, func, scope,
-				jit_insn_add(func, staticData, jit_const_int(func, nuint, curr->offset)),
-				jit_const_int(func, nuint, curr->value.array.size)
+			ptrs_astlist_handleByte(curr->value.array.init, currFunc, currScope,
+				jit_insn_add(currFunc, currData, jit_const_int(currFunc, nuint, curr->offset)),
+				jit_const_int(currFunc, nuint, curr->value.array.size)
 			);
 		}
-		else if(curr->isStatic && curr->type == PTRS_STRUCTMEMBER_VARARRAY)
+		else if(curr->type == PTRS_STRUCTMEMBER_VARARRAY)
 		{
-			ptrs_astlist_handle(curr->value.array.init, func, scope,
-				jit_insn_add(func, staticData, jit_const_int(func, nuint, curr->offset)),
-				jit_const_int(func, nuint, curr->value.array.size / sizeof(ptrs_var_t))
+			ptrs_astlist_handle(curr->value.array.init, currFunc, currScope,
+				jit_insn_add(currFunc, currData, jit_const_int(currFunc, nuint, curr->offset)),
+				jit_const_int(currFunc, nuint, curr->value.array.size / sizeof(ptrs_var_t))
 			);
 		}
 	}
 
+	jit_insn_default_return(ctor);
+	ptrs_jit_placeAssertions(ctor, &ctorScope);
+
+	if(ptrs_compileAot && jit_function_compile(ctor) == 0)
+		ptrs_error(node, "Failed compiling the constructor of function %s", struc->name);
+
+	bool hasCtor = false;
 	struct ptrs_opoverload *curr = struc->overloads;
 	while(curr != NULL)
 	{
 		//TODO include non static member initializers in the ptrs_handle_new overload
 		curr->handlerFunc = ptrs_jit_compileFunction(node, func,
 			scope, curr->handler, struc);
+
+		if(curr->op == (void *)ptrs_handle_new)
+		{
+			jit_label_t initStart = jit_label_undefined;
+			jit_insn_label(curr->handlerFunc, &initStart);
+
+			jit_value_t thisPtr = jit_value_get_param(curr->handlerFunc, 0);
+			jit_insn_call(curr->handlerFunc, ctorName, ctor, NULL, &thisPtr, 1, 0);
+
+			jit_label_t initEnd = jit_label_undefined;
+			jit_insn_label(curr->handlerFunc, &initEnd);
+			jit_insn_move_blocks_to_start(curr->handlerFunc, initStart, initEnd);
+
+			const char *name = jit_function_get_meta(curr->handlerFunc, PTRS_JIT_FUNCTIONMETA_NAME);
+			if(ptrs_compileAot && jit_function_compile(curr->handlerFunc) == 0)
+				ptrs_error(node, "Failed compiling function %s", name);
+
+			hasCtor = true;
+		}
+
 		curr = curr->next;
+	}
+
+	if(!hasCtor)
+	{
+		struct ptrs_opoverload *ctorOverload = malloc(sizeof(struct ptrs_opoverload));
+		ctorOverload->op = ptrs_handle_new;
+		ctorOverload->isStatic = true;
+		ctorOverload->handler = NULL;
+		ctorOverload->handlerFunc = ctor;
+
+		ctorOverload->next = struc->overloads;
+		struc->overloads = ctorOverload;
 	}
 
 	struc->location->val = jit_const_long(func, long, 0);
