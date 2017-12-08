@@ -107,6 +107,7 @@ void ptrs_astlist_handleByte(struct ptrs_astlist *list, jit_function_t func, ptr
 				result = ptrs_jit_vartoi(func, _result);
 			}
 
+			result = jit_insn_convert(func, result, jit_type_ubyte, 0);
 			jit_insn_store_relative(func, val, i, result);
 			list = list->next;
 		}
