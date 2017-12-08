@@ -29,7 +29,10 @@ jit_function_t ptrs_struct_getOverload(ptrs_struct_t *struc, void *handler, bool
 void *ptrs_struct_getOverloadClosure(ptrs_struct_t *struc, void *handler, bool isInstance)
 {
 	jit_function_t func = ptrs_struct_getOverload(struc, handler, isInstance);
-	return jit_function_to_closure(func);
+	if(func == NULL)
+		return NULL;
+	else
+		return jit_function_to_closure(func);
 }
 
 const char const *accessorNames[] = {
@@ -220,9 +223,20 @@ ptrs_var_t ptrs_struct_get(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta, co
 
 	struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, ast);
 	if(member == NULL)
-		ptrs_error(ast, "Struct %s has no property named %s", struc->name, key);
+	{
+		jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_member, instance != NULL);
+		if(overload == NULL)
+			ptrs_error(ast, "Struct %s has no property named %s", struc->name, key);
+
+		ptrs_var_t result;
+		uint64_t nameMeta = ptrs_const_arrayMeta(PTRS_TYPE_NATIVE, true, 0);
+		ptrs_jit_applyNested(overload, &result, struc->parentFrame, instance, (&key, &nameMeta));
+		return result;
+	}
 	else if(member->type == PTRS_STRUCTMEMBER_SETTER)
+	{
 		ptrs_error(ast, "Cannot get setter only property %s of struct %s", key, struc->name);
+	}
 
 	return ptrs_struct_getMember(ast, instance, struc, member);
 }
@@ -240,9 +254,22 @@ ptrs_jit_var_t ptrs_jit_struct_get(ptrs_ast_t *node, jit_function_t func, ptrs_s
 
 		struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, node);
 		if(member == NULL)
-			ptrs_error(node, "Struct %s has no property named %s", struc->name, key);
+		{
+			jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_member, true);
+			if(overload == NULL)
+				ptrs_error(node, "Struct %s has no property named %s", struc->name, key);
+
+			ptrs_jit_var_t arg = {
+				.val = keyVal,
+				.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_NATIVE, true, 0),
+				.constType = PTRS_TYPE_NATIVE
+			};
+			return ptrs_jit_ncallnested(func, base.val, overload, 1, &arg);
+		}
 		else if(member->type == PTRS_STRUCTMEMBER_SETTER)
+		{
 			ptrs_error(node, "Cannot get setter only property %s of struct %s", key, struc->name);
+		}
 
 		jit_value_t data;
 		if(member->isStatic)
@@ -333,9 +360,21 @@ void ptrs_struct_set(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta, const ch
 
 	struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_GETTER, ast);
 	if(member == NULL)
-		ptrs_error(ast, "Struct %s has no property named %s", struc->name, key);
+	{
+		jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_assign_member, instance != NULL);
+		if(overload == NULL)
+			ptrs_error(ast, "Struct %s has no property named %s", struc->name, key);
+
+		ptrs_var_t result;
+		uint64_t nameMeta = ptrs_const_arrayMeta(PTRS_TYPE_NATIVE, true, 0);
+		ptrs_jit_applyNested(overload, &result, struc->parentFrame,
+			instance, (&key, &nameMeta, &val, &valMeta));
+		return;
+	}
 	else if(member->type == PTRS_STRUCTMEMBER_GETTER)
+	{
 		ptrs_error(ast, "Cannot set getter only property %s of struct %s", key, struc->name);
+	}
 
 	ptrs_struct_setMember(ast, instance, struc, member, val, valMeta);
 }
@@ -353,9 +392,24 @@ void ptrs_jit_struct_set(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *sc
 
 		struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_GETTER, node);
 		if(member == NULL)
-			ptrs_error(node, "Struct %s has no property named %s", struc->name, key);
+		{
+			jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_assign_member, true);
+			if(overload == NULL)
+				ptrs_error(node, "Struct %s has no property named %s", struc->name, key);
+
+			ptrs_jit_var_t args[2];
+			args[0].constType = PTRS_TYPE_NATIVE;
+			args[0].val = keyVal;
+			args[0].meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_NATIVE, true, 0);
+			args[1] = value;
+
+			ptrs_jit_ncallnested(func, base.val, overload, 2, args);
+			return;
+		}
 		else if(member->type == PTRS_STRUCTMEMBER_GETTER)
+		{
 			ptrs_error(node, "Cannot set getter only property %s of struct %s", key, struc->name);
+		}
 
 		jit_value_t data;
 		if(member->isStatic)
@@ -431,7 +485,16 @@ ptrs_var_t ptrs_struct_addressOf(ptrs_ast_t *ast, void *instance, ptrs_meta_t me
 
 	struct ptrs_structmember *member = ptrs_struct_find(struc, key, -1, ast);
 	if(member == NULL)
-		ptrs_error(ast, "Struct %s has no property named %s", struc->name, key);
+	{
+		jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_addressof_member, instance != NULL);
+		if(overload == NULL)
+			ptrs_error(ast, "Struct %s has no property named %s", struc->name, key);
+
+		ptrs_var_t result;
+		uint64_t nameMeta = ptrs_const_arrayMeta(PTRS_TYPE_NATIVE, true, 0);
+		ptrs_jit_applyNested(overload, &result, struc->parentFrame, instance, (&key, &nameMeta));
+		return result;
+	}
 
 	return ptrs_struct_addressOfMember(ast, instance, struc, member);
 }
@@ -449,9 +512,18 @@ ptrs_jit_var_t ptrs_jit_struct_addressof(ptrs_ast_t *node, jit_function_t func, 
 
 		struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, node);
 		if(member == NULL)
-			ptrs_error(node, "Struct %s has no property named %s", struc->name, key);
-		else if(member->type == PTRS_STRUCTMEMBER_SETTER)
-			ptrs_error(node, "Cannot get setter only property %s of struct %s", key, struc->name);
+		{
+			jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_addressof_member, true);
+			if(overload == NULL)
+				ptrs_error(node, "Struct %s has no property named %s", struc->name, key);
+
+			ptrs_jit_var_t arg = {
+				.val = keyVal,
+				.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_NATIVE, true, 0),
+				.constType = PTRS_TYPE_NATIVE
+			};
+			return ptrs_jit_ncallnested(func, base.val, overload, 1, &arg);
+		}
 
 		jit_value_t data;
 		if(member->isStatic)
@@ -513,22 +585,18 @@ ptrs_jit_var_t ptrs_jit_struct_call(ptrs_ast_t *node, jit_function_t func, ptrs_
 			ptrs_error(node, "Cannot set property %s of value of type %t", key, meta.type);
 
 		struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, node);
-		if(member == NULL)
-			ptrs_error(node, "Struct %s has no property named %s", struc->name, key);
-		else if(member->type == PTRS_STRUCTMEMBER_SETTER)
-			ptrs_error(node, "Cannot call setter only property %s of struct %s", key, struc->name);
-
-		if(jit_value_is_constant(base.val) && !jit_value_is_true(base.val))
-			ptrs_error(node, "Property %s of struct %s is only available on instances", member->name, struc->name);
-
-		if(member->type == PTRS_STRUCTMEMBER_FUNCTION)
-		{
-			return ptrs_jit_callnested(func, scope, base.val, member->value.function.func, args);
-		}
-		else
+		if(member == NULL || member->type != PTRS_STRUCTMEMBER_FUNCTION)
 		{
 			ptrs_jit_var_t callee = ptrs_jit_struct_get(node, func, scope, base, keyVal);
 			return ptrs_jit_call(node, func, scope, retType, base.val, callee, args);
+		}
+		else if(!member->isStatic && jit_value_is_constant(base.val) && !jit_value_is_true(base.val))
+		{
+			ptrs_error(node, "Property %s of struct %s is only available on instances", member->name, struc->name);
+		}
+		else //member->type == PTRS_STRUCTMEMBER_FUNCTION
+		{
+			return ptrs_jit_callnested(func, scope, base.val, member->value.function.func, args);
 		}
 	}
 	else

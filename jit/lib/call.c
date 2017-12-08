@@ -200,6 +200,23 @@ ptrs_jit_var_t ptrs_jit_callnested(jit_function_t func, ptrs_scope_t *scope,
 	return ptrs_jit_valToVar(func, ret);
 }
 
+ptrs_jit_var_t ptrs_jit_ncallnested(jit_function_t func,
+	jit_value_t thisPtr, jit_function_t callee, size_t narg, ptrs_jit_var_t *args)
+{
+	jit_value_t _args[narg * 2 + 1];
+	_args[0] = thisPtr;
+	for(int i = 0; i < narg; i++)
+	{
+		_args[i * 2 + 1] = args[i].val;
+		_args[i * 2 + 2] = args[i].meta;
+	}
+
+	const char *name = jit_function_get_meta(callee, PTRS_JIT_FUNCTIONMETA_NAME);
+	jit_value_t ret = jit_insn_call(func, name, callee, NULL, _args, narg * 2 + 1, 0);
+
+	return ptrs_jit_valToVar(func, ret);
+}
+
 jit_function_t ptrs_jit_createFunction(ptrs_ast_t *node, jit_function_t parent,
 	jit_type_t signature, const char *name)
 {
