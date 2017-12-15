@@ -17,28 +17,41 @@ void ptrs_initArray(ptrs_var_t *array, size_t len, ptrs_val_t val, ptrs_meta_t m
 void ptrs_astlist_handle(struct ptrs_astlist *list, jit_function_t func, ptrs_scope_t *scope,
 	jit_value_t val, jit_value_t size)
 {
-	int i;
+	int i = 0;
 	jit_value_t zero = jit_const_long(func, ulong, 0);
 	ptrs_jit_var_t result = {zero, zero, PTRS_TYPE_UNDEFINED};
 
-	for(i = 0; list != NULL; i++)
+	if(list == NULL)
 	{
-		//if(list->expand) //TODO
-
-		if(list->entry == NULL)
+		result.val = zero;
+		result.meta = zero;
+		result.constType = PTRS_TYPE_UNDEFINED;
+	}
+	else if(list->next == NULL)
+	{
+		result = list->entry->handler(list->entry, func, scope);
+	}
+	else
+	{
+		for(; list != NULL; i++)
 		{
-			result.val = zero;
-			result.meta = zero;
-		}
-		else
-		{
-			result = list->entry->handler(list->entry, func, scope);
-		}
+			//if(list->expand) //TODO
 
-		jit_insn_store_relative(func, val, i * sizeof(ptrs_var_t), result.val);
-		jit_insn_store_relative(func, val, i * sizeof(ptrs_var_t) + sizeof(ptrs_val_t), result.meta);
+			if(list->entry == NULL)
+			{
+				result.val = zero;
+				result.meta = zero;
+			}
+			else
+			{
+				result = list->entry->handler(list->entry, func, scope);
+			}
 
-		list = list->next;
+			jit_insn_store_relative(func, val, i * sizeof(ptrs_var_t), result.val);
+			jit_insn_store_relative(func, val, i * sizeof(ptrs_var_t) + sizeof(ptrs_val_t), result.meta);
+
+			list = list->next;
+		}
 	}
 
 	if(jit_value_is_constant(result.val) && jit_value_is_constant(result.meta)
@@ -49,7 +62,7 @@ void ptrs_astlist_handle(struct ptrs_astlist *list, jit_function_t func, ptrs_sc
 		size = jit_insn_shl(func, size, jit_const_int(func, long, 4)); //size = size * 16
 		jit_insn_memset(func, val, zero, size);
 	}
-	else if(jit_value_is_constant(size) && jit_value_get_nint_constant(size) < 16)
+	else if(jit_value_is_constant(size) && jit_value_get_nint_constant(size) <= 8)
 	{
 		size_t len = jit_value_get_nint_constant(size);
 		for(; i < len; i++)
@@ -90,6 +103,7 @@ void ptrs_astlist_handleByte(struct ptrs_astlist *list, jit_function_t func, ptr
 	{
 		ptrs_jit_var_t _result = list->entry->handler(list->entry, func, scope);
 		result = ptrs_jit_vartoi(func, _result);
+		result = jit_insn_convert(func, result, jit_type_ubyte, 0);
 	}
 	else
 	{
