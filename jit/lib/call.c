@@ -3,19 +3,8 @@
 #include "../include/error.h"
 #include "../include/util.h"
 #include "../include/run.h"
+#include "../include/astlist.h"
 #include "../include/conversion.h"
-
-static int ptrs_arglist_length(struct ptrs_astlist *curr)
-{
-	int len = 0;
-	while(curr != NULL)
-	{
-		len++;
-		curr = curr->next;
-	}
-
-	return len;
-}
 
 static void ptrs_arglist_handle(jit_function_t func, ptrs_scope_t *scope,
 	struct ptrs_astlist *curr, ptrs_jit_var_t *buff)
@@ -34,7 +23,7 @@ static void ptrs_arglist_handle(jit_function_t func, ptrs_scope_t *scope,
 ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_nativetype_info_t *retType, jit_value_t thisPtr, ptrs_jit_var_t callee, struct ptrs_astlist *args)
 {
-	int narg = ptrs_arglist_length(args);
+	int narg = ptrs_astlist_length(args);
 	jit_type_t paramDef[narg * 2 + 1];
 	jit_value_t _args[narg * 2 + 1];
 
@@ -165,7 +154,7 @@ ptrs_jit_var_t ptrs_jit_callnested(jit_function_t func, ptrs_scope_t *scope,
 	jit_value_t thisPtr, jit_function_t callee, struct ptrs_astlist *args)
 {
 	int minArgs = jit_type_num_params(jit_function_get_signature(callee));
-	int narg = ptrs_arglist_length(args) * 2 + 1;
+	int narg = ptrs_astlist_length(args) * 2 + 1;
 	if(minArgs > narg)
 		narg = minArgs;
 

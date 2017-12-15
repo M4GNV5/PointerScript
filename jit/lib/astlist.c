@@ -6,6 +6,21 @@
 #include "../include/conversion.h"
 #include "../include/util.h"
 
+int ptrs_astlist_length(struct ptrs_astlist *curr)
+{
+	int len = 0;
+	while(curr != NULL)
+	{
+		if(curr->expand)
+			return -1;
+
+		len++;
+		curr = curr->next;
+	}
+
+	return len;
+}
+
 void ptrs_initArray(ptrs_var_t *array, size_t len, ptrs_val_t val, ptrs_meta_t meta)
 {
 	for(int i = 0; i < len; i++)

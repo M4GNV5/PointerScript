@@ -120,6 +120,10 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	ptrs_jit_var_t val;
 	jit_value_t size;
 
+	ptrs_jit_var_t init;
+	if(stmt->isInitExpr)
+		init = stmt->initExpr->handler(stmt->initExpr, func, scope);
+
 	if(stmt->value != NULL)
 	{
 		val = stmt->value->handler(stmt->value, func, scope);
@@ -127,7 +131,24 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	}
 	else
 	{
-		//TODO
+		int constSize;
+		if(stmt->isInitExpr)
+		{
+			if(!jit_value_is_constant(init.meta))
+				ptrs_error(node, "Initializer expression of an unsized array must have a constant size");
+
+			ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(init.meta);
+			constSize = meta.array.size;
+		}
+		else
+		{
+			constSize = ptrs_astlist_length(stmt->initVal);
+
+			if(constSize == -1)
+				ptrs_error(node, "Initializer of unsized array cannot contain array expansions");
+		}
+
+		size = jit_const_int(func, long, constSize);
 	}
 
 	//make sure array is not too big
@@ -191,7 +212,12 @@ ptrs_jit_var_t ptrs_handle_vararray(ptrs_ast_t *node, jit_function_t func, ptrs_
 	}
 	else
 	{
-		//TODO
+		int constSize = ptrs_astlist_length(stmt->initVal);
+		if(constSize == -1)
+			ptrs_error(node, "Initializer of unsized array cannot contain array expansions");
+
+		size = jit_const_int(func, long, constSize);
+		byteSize = jit_const_int(func, long, constSize * sizeof(ptrs_var_t));
 	}
 
 	//make sure array is not too big
