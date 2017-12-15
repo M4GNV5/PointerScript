@@ -481,16 +481,20 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	char *ctorName = malloc(len);
 	sprintf(ctorName, "%s.(data initializer)", struc->name);
 
-	ptrs_jit_reusableSignature(func, ctorSignature, ptrs_jit_getVarType(), (jit_type_void_ptr));
-	jit_function_t ctor = ptrs_jit_createFunction(node, func, ctorSignature, ctorName);
-	jit_value_t ctorData = jit_value_get_param(ctor, 0);
+	bool needsCtor = false;
+	jit_function_t ctor;
+	jit_value_t ctorData;
 	ptrs_scope_t ctorScope;
-	ptrs_initScope(&ctorScope, scope);
 
 	for(int i = 0; i < struc->memberCount; i++)
 	{
 		struct ptrs_structmember *curr = &struc->member[i];
 		if(curr->name == NULL) //hashmap filler entry
+			continue;
+		else if(curr->type == PTRS_STRUCTMEMBER_VAR && curr->value.startval == NULL)
+			continue;
+		else if((curr->type == PTRS_STRUCTMEMBER_ARRAY || curr->type == PTRS_STRUCTMEMBER_VARARRAY)
+			&& curr->value.array.init == NULL)
 			continue;
 
 		jit_function_t currFunc;
@@ -504,6 +508,16 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 		}
 		else
 		{
+			if(!needsCtor)
+			{
+				ptrs_jit_reusableSignature(func, ctorSignature, ptrs_jit_getVarType(), (jit_type_void_ptr));
+				ctor = ptrs_jit_createFunction(node, func, ctorSignature, ctorName);
+				ctorData = jit_value_get_param(ctor, 0);
+				ptrs_initScope(&ctorScope, scope);
+
+				needsCtor = true;
+			}
+
 			currFunc = ctor;
 			currData = ctorData;
 			currScope = &ctorScope;
@@ -519,13 +533,10 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 		else if(curr->type == PTRS_STRUCTMEMBER_VAR)
 		{
 			ptrs_ast_t *ast = curr->value.startval;
-			if(ast != NULL)
-			{
-				ptrs_jit_var_t startVal = ast->handler(ast, currFunc, currScope);
-				jit_value_t addr = jit_insn_add_relative(currFunc, currData, curr->offset);
-				jit_insn_store_relative(currFunc, addr, 0, startVal.val);
-				jit_insn_store_relative(currFunc, addr, sizeof(ptrs_val_t), startVal.meta);
-			}
+			ptrs_jit_var_t startVal = ast->handler(ast, currFunc, currScope);
+			jit_value_t addr = jit_insn_add_relative(currFunc, currData, curr->offset);
+			jit_insn_store_relative(currFunc, addr, 0, startVal.val);
+			jit_insn_store_relative(currFunc, addr, sizeof(ptrs_val_t), startVal.meta);
 		}
 		else if(curr->type == PTRS_STRUCTMEMBER_ARRAY)
 		{
@@ -543,8 +554,11 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 		}
 	}
 
-	jit_insn_default_return(ctor);
-	ptrs_jit_placeAssertions(ctor, &ctorScope);
+	if(needsCtor)
+	{
+		jit_insn_default_return(ctor);
+		ptrs_jit_placeAssertions(ctor, &ctorScope);
+	}
 
 	if(ptrs_compileAot && jit_function_compile(ctor) == 0)
 		ptrs_error(node, "Failed compiling the constructor of function %s", struc->name);
@@ -557,7 +571,7 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 		curr->handlerFunc = ptrs_jit_compileFunction(node, func,
 			scope, curr->handler, struc);
 
-		if(curr->op == (void *)ptrs_handle_new)
+		if(curr->op == (void *)ptrs_handle_new && needsCtor)
 		{
 			jit_label_t initStart = jit_label_undefined;
 			jit_insn_label(curr->handlerFunc, &initStart);
@@ -579,7 +593,7 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 		curr = curr->next;
 	}
 
-	if(!hasCtor)
+	if(needsCtor && !hasCtor)
 	{
 		struct ptrs_opoverload *ctorOverload = malloc(sizeof(struct ptrs_opoverload));
 		ctorOverload->op = ptrs_handle_new;
