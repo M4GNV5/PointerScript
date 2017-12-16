@@ -41,10 +41,11 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 				paramDef[0] = jit_type_void_ptr;
 				_args[0] = thisPtr;
 
-				for(int i = 0; args != NULL; i++)
+                struct ptrs_astlist *curr = args;
+				for(int i = 0; curr != NULL; i++)
 				{
-					//if(args->expand) //TODO
-					//if(args->lazy) //TODO
+					//if(curr->expand) //TODO
+					//if(curr->lazy) //TODO
 
 					ptrs_jit_var_t val;
 					if(args->entry == NULL)
@@ -54,7 +55,7 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 					}
 					else
 					{
-						val = args->entry->handler(args->entry, func, scope);
+						val = curr->entry->handler(curr->entry, func, scope);
 					}
 
 					paramDef[i * 2 + 1] = jit_type_long;
@@ -63,7 +64,7 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 					_args[i * 2 + 1] = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
 					_args[i * 2 + 2] = val.meta;
 
-					args = args->next;
+					curr = curr->next;
 				}
 
 				jit_value_t parentFrame = ptrs_jit_getMetaPointer(func, callee.meta);
@@ -82,12 +83,13 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 
 		case PTRS_TYPE_NATIVE:
 			{
-				for(int i = 0; args != NULL; i++)
+                struct ptrs_astlist *curr = args;
+				for(int i = 0; curr != NULL; i++)
 				{
 					//if(args->expand) //TODO
 					//if(args->lazy) //TODO
-					ptrs_jit_var_t val = args->entry->handler(args->entry, func, scope);
-					args = args->next;
+					ptrs_jit_var_t val = curr->entry->handler(curr->entry, func, scope);
+					curr = curr->next;
 
 					switch(val.constType)
 					{
