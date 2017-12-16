@@ -20,7 +20,6 @@ typedef enum
 	PTRS_SYMBOL_FUNCTION,
 	PTRS_SYMBOL_CONST,
 	PTRS_SYMBOL_TYPED,
-	PTRS_SYMBOL_LAZY,
 	PTRS_SYMBOL_IMPORTED,
 } ptrs_symboltype_t;
 
@@ -31,11 +30,6 @@ struct symbollist
 		void *data;
 		ptrs_jit_var_t *location;
 		jit_function_t *function;
-		struct
-		{
-			ptrs_jit_var_t *location;
-			ptrs_ast_t *value;
-		} lazy;
 		struct
 		{
 			ptrs_nativetype_info_t *type; //optional
@@ -203,16 +197,6 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 						memcpy(ast, curr->arg.data, sizeof(ptrs_ast_t));
 						break;
 
-					case PTRS_SYMBOL_LAZY:
-						*node = ast = talloc(ptrs_ast_t);
-						ast->handler = ptrs_handle_lazy;
-						ast->setHandler = NULL;
-						ast->addressHandler = NULL;
-						ast->callHandler = NULL;
-						ast->arg.lazy.location = curr->arg.lazy.location;
-						ast->arg.lazy.value = curr->arg.lazy.value;
-						break;
-
 					case PTRS_SYMBOL_IMPORTED:
 						*node = ast = talloc(ptrs_ast_t);
 						ast->handler = ptrs_handle_importedsymbol;
@@ -341,7 +325,6 @@ int parseIdentifierList(code_t *code, char *end, ptrs_jit_var_t **symbols, char 
 struct argdeflist
 {
 	char *name;
-	bool isLazy;
 	ptrs_ast_t *value;
 	struct argdeflist *next;
 };
@@ -372,21 +355,14 @@ static int parseArgumentDefinitionList(code_t *code, ptrs_jit_var_t **args, ptrs
 		for(;;)
 		{
 			char *name;
-			bool isLazy;
 
 			if(lookahead(code, "_"))
 			{
 				name = NULL;
 			}
-			else if(lookahead(code, "lazy"))
-			{
-				name = readIdentifier(code);
-				isLazy = true;
-			}
 			else
 			{
 				name = readIdentifier(code);
-				isLazy = false;
 
 				if(vararg != NULL && lookahead(code, "..."))
 				{
@@ -401,7 +377,6 @@ static int parseArgumentDefinitionList(code_t *code, ptrs_jit_var_t **args, ptrs
 			list = list->next;
 
 			list->name = name;
-			list->isLazy = isLazy;
 
 			if(argv != NULL)
 			{
@@ -438,12 +413,6 @@ static int parseArgumentDefinitionList(code_t *code, ptrs_jit_var_t **args, ptrs
 			if(list->name == NULL)
 			{
 				//ignore
-			}
-			if(list->isLazy)
-			{
-				struct symbollist *symbol = addSpecialSymbol(code, readIdentifier(code), PTRS_SYMBOL_LAZY);
-				symbol->arg.lazy.location = *args + i;
-				symbol->arg.lazy.value = NULL;
 			}
 			else
 			{
@@ -1518,7 +1487,6 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end)
 	for(;;)
 	{
 		curr->expand = false;
-		curr->lazy = false;
 
 		if(lookahead(code, "_"))
 		{
@@ -1531,14 +1499,6 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end)
 			if(curr->entry->handler != ptrs_handle_identifier
 				&& curr->entry->handler != ptrs_handle_constant)
 				unexpectedm(code, NULL, "Array spreading can only be used on identifiers and constants");
-
-			if(curr->entry == NULL)
-				unexpected(code, "Expression");
-		}
-		else if(lookahead(code, "lazy"))
-		{
-			curr->lazy = true;
-			curr->entry = parseExpression(code, true);
 
 			if(curr->entry == NULL)
 				unexpected(code, "Expression");

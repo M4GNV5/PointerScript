@@ -12,7 +12,6 @@ static void ptrs_arglist_handle(jit_function_t func, ptrs_scope_t *scope,
 	for(int i = 0; curr != NULL; i++)
 	{
 		//if(list->expand) //TODO
-		//if(list->lazy) //TODO
 
 		buff[i] = curr->entry->handler(curr->entry, func, scope);
 
@@ -45,7 +44,6 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 				for(int i = 0; curr != NULL; i++)
 				{
 					//if(curr->expand) //TODO
-					//if(curr->lazy) //TODO
 
 					ptrs_jit_var_t val;
 					if(args->entry == NULL)
@@ -87,7 +85,6 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 				for(int i = 0; curr != NULL; i++)
 				{
 					//if(args->expand) //TODO
-					//if(args->lazy) //TODO
 					ptrs_jit_var_t val = curr->entry->handler(curr->entry, func, scope);
 					curr = curr->next;
 
@@ -166,7 +163,6 @@ ptrs_jit_var_t ptrs_jit_callnested(jit_function_t func, ptrs_scope_t *scope,
 	for(int i = 0; i < narg / 2; i++)
 	{
 		//if(args->expand) //TODO
-		//if(args->lazy) //TODO
 		ptrs_jit_var_t val;
 		if(args == NULL || args->entry == NULL)
 		{

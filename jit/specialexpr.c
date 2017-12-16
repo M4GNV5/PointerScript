@@ -777,11 +777,6 @@ ptrs_jit_var_t ptrs_handle_constant(ptrs_ast_t *node, jit_function_t func, ptrs_
 	return ptrs_jit_varFromConstant(func, node->arg.constval);
 }
 
-ptrs_jit_var_t ptrs_handle_lazy(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
-{
-	//TODO
-}
-
 ptrs_jit_var_t ptrs_handle_prefix_typeof(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	node = node->arg.astval;

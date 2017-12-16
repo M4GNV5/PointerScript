@@ -25,12 +25,6 @@ struct ptrs_ast_define
 	uint8_t isTyped : 1;
 };
 
-struct ptrs_ast_lazy
-{
-	ptrs_jit_var_t *location;
-	struct ptrs_ast *value;
-};
-
 struct ptrs_ast_member
 {
 	struct ptrs_ast *base;
@@ -211,7 +205,6 @@ union ptrs_ast_arg
 	struct ptrs_algorithmlist *algolist;
 
 	struct ptrs_ast_define define;
-	struct ptrs_ast_lazy lazy;
 	struct ptrs_ast_member member;
 	struct ptrs_ast_import import;
 	struct ptrs_ast_importedsymbol importedsymbol;
@@ -257,7 +250,6 @@ struct ptrs_astlist
 	struct ptrs_ast *entry;
 	struct ptrs_astlist *next;
 	uint8_t expand : 1;
-	uint8_t lazy : 1;
 };
 
 struct ptrs_stringformat
