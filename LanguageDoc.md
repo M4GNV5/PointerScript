@@ -51,7 +51,6 @@
 	- [CastBuiltinExpression](#castbuiltinexpression)
 	- [CastToStringExpression](#casttostringexpression)
 	- [CastExpression](#castexpression)
-	- [CastStackExpression](#caststackexpression)
 	- [IdentifierExpression](#identifierexpression)
 	- [ConstantExpression](#constantexpression)
 	- [BinaryExpression](#binaryexpression)
@@ -67,13 +66,11 @@ Valid options are:
 | Option | Argument | Description | Default |
 |--------|----------|-------------|---------|
 | `--help` | - | Print usage and argument information | - |
-| `--stack-size` | `size` | Set stack size to 'size' bytes | 0x1000 |
-| `--array-max` | `size` | Set maximal allowed array size to 'size' bytes | `0x1000` |
-| `--asm-size` | `size` | Set size of memory region containing inline assembly | `0x1000` |
-| `--error` | `file` | Set where error messages are written to | `/dev/stderr` |
+| `--array-max` | `size` | Set maximal allowed array size to 'size' bytes | `UINT32_MAX` |
 | `--no-sig` | - | Do not listen to signals | `false` |
-| `--zero-mem` | - | Zero memory allocated on the stack | `false` |
-| `--interactive` | - | Enter interactive PointerScript shell | - |
+| `--no-aot` | - | Do not compile functions ahead of time | `false` |
+| `--asmdump` | - | Dump the generated assembly instructions | `false` |
+| `--error` | `file` | Set where error messages are written to | `/dev/stderr` |
 
 ## Types
 
@@ -89,20 +86,20 @@ if(typeof myVal == type<int>)
 
 Converting a variable to an `int` or `float` or `string`.
 Casting to string will allocate memory on the stack and return a stringified
-value of type native.
+value of type `native`.
 ```js
-var myVal = cast<float>"3.14";
-var myInt = cast<int>myVal;
-var myString = cast<string>(myInt * myVal);
+let myVal = cast<float>"3.14";
+let myInt = cast<int>myVal;
+let myString = cast<string>(myInt * myVal);
 ```
 
 Changing the type of a variable. Note: this will not touch the actual value.
 ```js
-var x = 3;
-var y = as<pointer>3;
+let x = 3;
+let y = as<pointer>3;
 
 //by default all native functions return an int
-var ptr = malloc!native(1024);
+let ptr = malloc!native(1024);
 ```
 
 ### Type List
@@ -165,8 +162,7 @@ struct Request
 
 //create a new instance of Request
 //alternatively you could use
-//	var req : Request("m4gnus.de"); //this would allocate memory for 'req' on the stack
-var req = new Request("m4gnus.de");
+let req = new Request("m4gnus.de");
 
 //call the execute method
 req.execute();
@@ -301,6 +297,20 @@ Defines a variable, optionally initializing it with a start value.
 var foo;
 var bar = "Hello";
 var tar = 42 * 3112;
+```
+
+## TypedDefinitionStatement
+Defines a variable with a constant type. Using this instead of
+[DefinitionStatement](#definitionstatement) is generally a good idea, as the
+compiler can optimize especially arithmetic expressions better when the types
+of both arguments are known. The type has to be specified explicitly when either
+no initializer is given or the initializers type is not known.
+```js
+//'let' Identifier [ ':' TypeName ] [ '=' Expression ] ';'
+let x = 3;
+let y = 3f;
+let z: native;
+let a: float = someFunction();
 ```
 
 ## ArrayDefinitionStatement
@@ -474,7 +484,6 @@ Defines a function.
 function foo(a, b) { /* ... */ }
 function bar(x, y = 42, z = foo(x, y)) { /* ... */ }
 function foobar(m, _, n) { /* ... */ }
-function log(lazy msg)  { /* ... */ }
 function tar(name, args...) { /* ... */ }
 ```
 ### ArgumentDefinition
@@ -485,11 +494,6 @@ Arguments will be set to the value the caller provides or the default value if p
 `_` means that this argument will be ignored
 ```js
 //'_'
-```
-A `lazy` argument will only be evaluated when used. The caller must prefix the argument with lazy or it
-will be passed non-lazy (aka evaluated when calling the function) (see [CallExpression](#callexpression))
-```js
-//'lazy' Identifier [ '=' Expression ]
 ```
 The varargs argument will be set to an array of all additional arguments passed. This must be the last argument.
 For information on how to use varargs see the [Variable Arguments](#variable-arguments) section
@@ -506,7 +510,7 @@ struct Person
 	family;
 	private _age = 18;
 	name{128}; //128 bytes
-	items[16]; //16 variables (16 * VARSIZE bytes)
+	items[16]; //16 variables (16 * sizeof var bytes)
 
 	operator this + val
 	{
@@ -604,72 +608,43 @@ constructor(x, y = 10, z = x + y)
 destructor()
 {
 }
-//'operator' 'this' Operator Identifier '{' StatementList '}'
-operator this / val
-{
-	return this.age / val;
-}
-//'operator' Identifier Operator 'this' '{' StatementList '}'
-operator val / this
-{
-	return val / this.age;
-}
-//'operator' 'this' SuffixedUnaryOperator '{' StatementList '}'
-operator this++
-{
 
-}
-//'operator' PrefixedUnaryOperator 'this' '{' StatementList '}'
-operator --this
-{
-
-}
+/*
+	Note that for all of the following operator overloads you can use either the
+	this.key or this[key] notation where key can be any identifier which defines
+	the name of the local variable which will hold the name of the accessed field
+*/
 //'operator' 'this' '.' Identifier '{' StatementList '}'
+//'operator' 'this' '[' Identifier ']' '{' StatementList '}'
 operator this.key
 {
 	printf("tried to get this.%s\n", key);
 }
 //'operator' 'this' '.' Identifier '=' Identifier '{' StatementList '}'
-operator this.key = val
+//'operator' 'this' '[' Identifier ']' '=' Identifier '{' StatementList '}'
+operator this.key = val //here key and val can be named however you like.
 {
 	printf("tried to set this.%s to %d\n", key, cast<int>val);
 }
 //'operator' '&' 'this' '.' Identifier '{' StatementList '}'
+//'operator' '&' 'this' '[' Identifier ']' '{' StatementList '}'
 operator &this.key
 {
 	printf("tried to get the address of this.%s\n", key);
 }
-//'operator' 'this' '.' Identifier '(' IdentifierList ')' '{' StatementList '}'
+//'operator' 'this' '.' Identifier '(' ArgumentDefinitionList ')' '{' StatementList '}'
+//'operator' 'this' '.' Identifier '(' ArgumentDefinitionList ')' '{' StatementList '}'
 operator this.key(foo, bar...)
 {
 	printf("calling this.%s\n", key);
 }
-//'operator' 'this' '[' Identifier ']' '{' StatementList '}'
-operator this[key]
-{
-	printf("tried to get this[\"%s\"]\n", key);
-}
-//'operator' 'this' '[' Identifier ']' '=' Identifier '{' StatementList '}'
-operator this[key] = val
-{
-	printf("tried to set this[\"%s\"] to %d\n", key, cast<int>val);
-}
-//'operator' '&' 'this' '[' Identifier ']' '{' StatementList '}'
-operator &this[key]
-{
-	printf("tried to get the address of this.%s\n", key);
-}
-//'operator' 'this' '.' Identifier '(' IdentifierList ')' '{' StatementList '}'
-operator this[key](foo, bar...)
-{
-	printf("calling this.%s\n", key);
-}
+
 //'operator' 'this' '(' ArgumentDefinitionList ')' '{' StatementList '}'
 operator this(a, b) //will be called when the struct is called like a function
 {
 	return a + b;
 }
-//'operator' 'in' 'this' '{' StatementList '}'
+//'operator' 'foreach' 'in' 'this' '{' StatementList '}'
 operator foreach in this //overloads the foreach statement
 {
 	for(var i = 0; i < 16; i++)
@@ -813,7 +788,6 @@ Arguments can be one of:
 - `'_'` do not pass the argument (use default value)
 - `Expression` pass a value
 - `'...' Expression` expand an array as multiple arguments (expanding it)
-- `'lazy' Expression` pass a lazy argument
 ```js
 function foo(a = 3) { /* ... */ }
 foo(_); //a will be 3
@@ -824,20 +798,12 @@ bar(5); //a will be 5
 function doSomething(x, y, z) { /* ... */ }
 var args[] = [42, 1337, "foo"];
 doSomething(...args); //x will be 42, y will be 1336 and z will be "foo"
-
-function log(lazy str)
-{
-	if(LOGGING_ENABLED)
-		puts(str);
-}
-//calculateHeavyErrorMessage will only be called if logging is enabled
-log(lazy calculateHeavyErrorMessage());
 ```
 
 ## LambdaExpression
 Function expression. For information about the argument syntax see [FunctionStatement](#functionstatement).
 `LambdaArgumentList` is similar to `ArgumentDefinitionList` but does not support
-default values and lazy arguments.
+default values.
 ```js
 //'(' LambdaArgumentList ')' -> Expression
 //'(' LambdaArgumentList ')' -> '{' StatementList '}'
@@ -1053,7 +1019,6 @@ cast<string>3.14 //returns "3.14"
 ## CastExpression
 Creates a struct of a specific type using the provided expression as the memory region.
 This allows interop to C structs. This will **not** call the struct constructor
-Note that this will allocate memory for struct metadata that has to be free'd using 'delete'
 ```js
 //'cast' '<' Identifier '>' Expression
 
@@ -1069,15 +1034,6 @@ struct dirent
 //... (you probably want to do a diropen first)
 var entry = cast<dirent>readdir(dp);
 //... (you probably want to use 'entry' here)
-delete entry; //cast will allocate memory that can be freed using 'delete'
-```
-
-## CastStackExpression
-Same as [CastExpression](#castexpression) but the memory for the struct metadata will be allocated
-on the stack, thus a 'delete' is not necessary
-```js
-//'cast_stack' '<' Identifier '>' Expression
-cast_stack<foo>bar;
 ```
 
 ## IdentifierExpression
