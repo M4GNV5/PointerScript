@@ -449,18 +449,38 @@ ptrs_jit_var_t ptrs_handle_continue(ptrs_ast_t *node, jit_function_t func, ptrs_
 	return ret;
 }
 
+void ptrs_delete(ptrs_ast_t *node, ptrs_val_t val, ptrs_meta_t meta)
+{
+	if(meta.type == PTRS_TYPE_STRUCT)
+	{
+		ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
+		if(val.structval == NULL)
+			ptrs_error(node, "Cannot delete constructor of struct %s", struc->name);
+
+		jit_function_t ctor = ptrs_struct_getOverload(struc, ptrs_handle_new, true);
+		if(ctor != NULL)
+		{
+			ptrs_var_t result;
+			ptrs_jit_applyNested(ctor, &result, struc->parentFrame, val.structval, ());
+		}
+	}
+	else if(meta.type != PTRS_TYPE_NATIVE && meta.type != PTRS_TYPE_POINTER)
+	{
+		ptrs_error(node, "Cannot delete value of type %t", meta.type);
+	}
+
+	free(val.nativeval);
+}
 ptrs_jit_var_t ptrs_handle_delete(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	ptrs_ast_t *ast = node->arg.astval;
 	ptrs_jit_var_t val = ast->handler(ast, func, scope);
 
-	jit_value_t type = ptrs_jit_getType(func, val.meta);
-	ptrs_jit_assert(node, func, scope, jit_insn_ge(func, type, jit_const_long(func, ulong, PTRS_TYPE_NATIVE)),
-		1, "Cannot delete value of type %t", type);
-
-	//TODO structs
-
-	ptrs_jit_reusableCallVoid(func, free, (jit_type_void_ptr), (val.val));
+	jit_value_t astval = jit_const_int(func, void_ptr, (uintptr_t)node);
+	ptrs_jit_reusableCallVoid(func, ptrs_delete,
+		(jit_type_void_ptr, jit_type_void_ptr, jit_type_void_ptr),
+		(astval, val.val, val.meta)
+	);
 }
 
 ptrs_jit_var_t ptrs_handle_throw(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
@@ -593,7 +613,6 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	struct ptrs_opoverload *curr = struc->overloads;
 	while(curr != NULL)
 	{
-		//TODO include non static member initializers in the ptrs_handle_new overload
 		curr->handlerFunc = ptrs_jit_compileFunction(node, func,
 			scope, curr->handler, struc);
 
