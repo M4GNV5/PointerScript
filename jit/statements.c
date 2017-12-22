@@ -431,21 +431,39 @@ ptrs_jit_var_t ptrs_handle_return(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	node = node->arg.astval;
 	ptrs_jit_var_t ret = node->handler(node, func, scope);
 
-	jit_insn_return_struct_from_values(func, ret.val, ret.meta);
+	if(scope->returnAddr == NULL)
+	{
+		jit_insn_return_struct_from_values(func, ret.val, ret.meta);
+	}
+	else
+	{
+		jit_insn_store_relative(func, scope->returnAddr, 0, ret.val);
+		jit_insn_store_relative(func, scope->returnAddr, sizeof(ptrs_val_t), ret.meta);
+		jit_insn_return(func, jit_const_int(func, ubyte, 3));
+	}
+
 	return ret;
 }
 
 ptrs_jit_var_t ptrs_handle_break(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	jit_insn_branch(func, &scope->breakLabel);
-	ptrs_jit_var_t ret = {NULL, NULL};
+	if(scope->returnAddr != NULL)
+		jit_insn_return(func, jit_const_int(func, ubyte, 2));
+	else
+		jit_insn_branch(func, &scope->breakLabel);
+
+	ptrs_jit_var_t ret = {NULL, NULL, -1};
 	return ret;
 }
 
 ptrs_jit_var_t ptrs_handle_continue(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	jit_insn_branch(func, &scope->continueLabel);
-	ptrs_jit_var_t ret = {NULL, NULL};
+	if(scope->returnAddr != NULL)
+		jit_insn_return(func, jit_const_int(func, ubyte, 1));
+	else
+		jit_insn_branch(func, &scope->continueLabel);
+
+	ptrs_jit_var_t ret = {NULL, NULL, -1};
 	return ret;
 }
 
@@ -987,7 +1005,6 @@ ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	jit_label_t returnVal = jit_label_undefined;
 	jit_label_t done = jit_label_undefined;
 	jit_value_t ret = jit_value_create(func, ptrs_jit_getVarType());
-	jit_value_set_addressable(ret);
 	jit_value_t retAddr = jit_insn_address_of(func, ret);
 
 	ptrs_jit_typeSwitch(node, func, scope, val,
@@ -1022,16 +1039,14 @@ ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	//handle the body function
 	for(int i = 0; i < stmt->varcount; i++)
 	{
-		stmt->varsymbols[i].val = jit_value_create(body, jit_type_long);
-		stmt->varsymbols[i].meta = jit_value_create(body, jit_type_ulong);
+		stmt->varsymbols[i].val = jit_value_get_param(body, i * 2 + 1);
+		stmt->varsymbols[i].meta = jit_value_get_param(body, i * 2 + 2);
 		stmt->varsymbols[i].constType = -1;
-
-		jit_insn_store(body, stmt->varsymbols[i].val, jit_value_get_param(body, i * 2 + 1));
-		jit_insn_store(body, stmt->varsymbols[i].meta, jit_value_get_param(body, i * 2 + 2));
 	}
 
 	ptrs_scope_t bodyScope;
 	ptrs_initScope(&bodyScope, scope);
+	bodyScope.returnAddr = jit_value_get_param(body, 0);
 
 	stmt->body->handler(stmt->body, body, &bodyScope);
 
@@ -1048,30 +1063,53 @@ ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 
 ptrs_jit_var_t ptrs_handle_scopestatement(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	static jit_type_t bodySignature = NULL;
-	if(bodySignature == NULL)
-		bodySignature = jit_type_create_signature(jit_abi_cdecl, jit_type_void, NULL, 0, 0);
-
 	ptrs_ast_t *body = node->arg.astval;
-	jit_function_t bodyFunc = jit_function_create_nested(ptrs_jit_context, bodySignature, func);
+	ptrs_jit_reusableSignature(func, bodySignature, jit_type_ubyte, (jit_type_void_ptr));
+	jit_function_t bodyFunc = ptrs_jit_createFunction(node, func, bodySignature, "(scoped body)");
+
 	ptrs_scope_t bodyScope;
 	ptrs_initScope(&bodyScope, scope);
+	bodyScope.returnAddr = jit_value_get_param(bodyFunc, 0);
 
-	ptrs_jit_var_t val = body->handler(body, bodyFunc, &bodyScope);
-
-	jit_value_t ret = jit_insn_call(func, "(scoped body)", bodyFunc, bodySignature, NULL, 0, 0);
-	//TODO handle ret
-
-	jit_insn_default_return(bodyFunc);
+	body->handler(body, bodyFunc, &bodyScope);
+	jit_insn_return(func, jit_const_int(func, ubyte, 0));
 	ptrs_jit_placeAssertions(bodyFunc, scope);
 
 	if(ptrs_compileAot && jit_function_compile(bodyFunc) == 0)
 		ptrs_error(node, "Failed compiling the scoped statement body");
 
-	val.val = ret;
-	val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
-	val.constType = PTRS_TYPE_UNDEFINED;
-	return val;
+	jit_value_t returnAddr;
+	if(scope->returnAddr != NULL)
+		returnAddr = scope->returnAddr;
+	else
+		returnAddr = jit_insn_address_of(func, jit_value_create(func, ptrs_jit_getVarType()));
+	jit_value_t status = jit_insn_call(func, "(scoped body)", bodyFunc, bodySignature, &returnAddr, 1, 0);
+
+	jit_label_t ok = jit_label_undefined;
+	jit_insn_branch_if(func, jit_insn_eq(func, status, jit_const_int(func, ubyte, 0)), &ok);
+
+	if(scope->returnAddr != NULL)
+	{
+		jit_insn_return(func, status);
+	}
+	else
+	{
+		//continue;
+		jit_insn_branch_if(func, jit_insn_eq(func, status, jit_const_int(func, ubyte, 1)),
+			&scope->continueLabel);
+
+		//break;
+		jit_insn_branch_if(func, jit_insn_eq(func, status, jit_const_int(func, ubyte, 2)),
+			&scope->breakLabel);
+
+		//return;
+		jit_insn_return_ptr(func, returnAddr, ptrs_jit_getVarType());
+	}
+
+	jit_insn_label(func, &ok);
+
+	ptrs_jit_var_t stmtRet = {NULL, NULL, -1};
+	return stmtRet;
 }
 
 ptrs_jit_var_t ptrs_handle_exprstatement(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)

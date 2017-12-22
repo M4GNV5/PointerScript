@@ -36,6 +36,7 @@ void ptrs_initScope(ptrs_scope_t *scope, ptrs_scope_t *parent)
 	scope->breakLabel = jit_label_undefined;
 	scope->firstAssertion = NULL;
 	scope->lastAssertion = NULL;
+	scope->returnAddr = NULL;
 	scope->indexSize = NULL;
 
 	if(parent != NULL)

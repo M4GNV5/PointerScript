@@ -48,6 +48,7 @@ typedef struct
 	jit_label_t breakLabel;
 	struct ptrs_assertion *firstAssertion;
 	struct ptrs_assertion *lastAssertion;
+	jit_value_t returnAddr;
 	jit_value_t indexSize;
 	jit_function_t rootFunc;
 	void **rootFrame;
