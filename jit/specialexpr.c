@@ -383,7 +383,18 @@ ptrs_jit_var_t ptrs_handle_call_index(ptrs_ast_t *node, jit_function_t func, ptr
 			_base = base;
 		},
 		{
-			/* TODO */
+			if(base.constType == PTRS_TYPE_NATIVE)
+			{
+				ptrs_error(node, "Cannot call an index of a byte array");
+			}
+			else
+			{
+				jit_value_t msg = jit_const_int(func, void_ptr, (uintptr_t)"Cannot call index %d of a byte array");
+				({ptrs_jit_reusableCallVoid(func, ptrs_error,
+					(jit_type_void_ptr, jit_type_void_ptr, jit_type_nint),
+					(jit_const_int(func, void_ptr, (uintptr_t)node), msg, intIndex)
+				);});
+			}
 		},
 		{
 			intIndex = jit_insn_shl(func, intIndex, jit_const_int(func, nint, 1));

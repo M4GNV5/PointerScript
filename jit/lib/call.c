@@ -40,7 +40,7 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 				paramDef[0] = jit_type_void_ptr;
 				_args[0] = thisPtr;
 
-                struct ptrs_astlist *curr = args;
+				struct ptrs_astlist *curr = args;
 				for(int i = 0; curr != NULL; i++)
 				{
 					//if(curr->expand) //TODO
@@ -81,7 +81,7 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 
 		case PTRS_TYPE_NATIVE:
 			{
-                struct ptrs_astlist *curr = args;
+				struct ptrs_astlist *curr = args;
 				for(int i = 0; curr != NULL; i++)
 				{
 					//if(args->expand) //TODO
