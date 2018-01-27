@@ -215,7 +215,6 @@ jit_function_t ptrs_jit_createFunction(ptrs_ast_t *node, jit_function_t parent,
 
 	jit_function_set_meta(func, PTRS_JIT_FUNCTIONMETA_NAME, (char *)name, NULL, 0);
 	jit_function_set_meta(func, PTRS_JIT_FUNCTIONMETA_AST, node, NULL, 0);
-	jit_function_set_meta(func, PTRS_JIT_FUNCTIONMETA_CLOSURE, NULL, NULL, 0);
 
 	return func;
 }

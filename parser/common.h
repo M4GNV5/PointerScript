@@ -69,7 +69,6 @@ typedef enum
 {
 	PTRS_JIT_FUNCTIONMETA_NAME,
 	PTRS_JIT_FUNCTIONMETA_AST,
-	PTRS_JIT_FUNCTIONMETA_CLOSURE,
 } ptrs_jit_functionmeta_t;
 typedef struct
 {

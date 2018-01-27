@@ -223,6 +223,13 @@ static ptrs_ast_t *parseStmtList(code_t *code, char end)
 {
 	ptrs_ast_t *elem = talloc(ptrs_ast_t);
 	elem->handler = ptrs_handle_body;
+	elem->setHandler = NULL;
+	elem->callHandler = NULL;
+	elem->addressHandler = NULL;
+	elem->codepos = code->pos;
+	elem->code = code->src;
+	elem->file = code->filename;
+
 	if(code->curr == end || code->curr == 0)
 	{
 		elem->arg.astlist = NULL;
