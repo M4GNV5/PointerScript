@@ -503,7 +503,16 @@ ptrs_jit_var_t ptrs_handle_delete(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 
 ptrs_jit_var_t ptrs_handle_throw(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	//TODO
+	ptrs_ast_t *ast = node->arg.astval;
+	ptrs_jit_var_t val = ast->handler(ast, func, scope);
+	val = ptrs_jit_vartoa(func, val);
+
+	jit_value_t nodeVal = jit_const_int(func, void_ptr, (uintptr_t)node);
+	jit_value_t format = jit_const_int(func, void_ptr, (uintptr_t)"%s");
+	ptrs_jit_reusableCallVoid(func, ptrs_error,
+		(jit_type_void_ptr, jit_type_void_ptr, jit_type_void_ptr),
+		(nodeVal, format, val.val)
+	);
 }
 
 ptrs_jit_var_t ptrs_handle_trycatch(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
