@@ -140,12 +140,10 @@ jit_value_t ptrs_jit_vartoi(jit_function_t func, ptrs_jit_var_t val)
 			break; //use intrinsic
 		case PTRS_TYPE_UNDEFINED:
 			return jit_const_long(func, long, 0);
-		case PTRS_TYPE_INT:
-		case PTRS_TYPE_POINTER:
-		case PTRS_TYPE_STRUCT:
-			return val.val;
 		case PTRS_TYPE_FLOAT:
 			return jit_insn_convert(func, ptrs_jit_reinterpretCast(func, val.val, jit_type_float64), jit_type_long, 0);
+		default:
+			return val.val;
 	}
 
 	jit_intrinsic_descr_t descr = {
@@ -176,12 +174,10 @@ jit_value_t ptrs_jit_vartof(jit_function_t func, ptrs_jit_var_t val)
 			break; //use instrinsic
 		case PTRS_TYPE_UNDEFINED:
 			return jit_const_long(func, long, 0);
-		case PTRS_TYPE_INT:
-		case PTRS_TYPE_POINTER:
-		case PTRS_TYPE_STRUCT:
-			return jit_insn_convert(func, val.val, jit_type_float64, 0);
 		case PTRS_TYPE_FLOAT:
 			return ptrs_jit_reinterpretCast(func, val.val, jit_type_float64);
+		default:
+			return jit_insn_convert(func, val.val, jit_type_float64, 0);
 	}
 
 	jit_intrinsic_descr_t descr = {
@@ -229,6 +225,10 @@ void ptrs_ptoa(char *buff, ptrs_val_t val)
 void ptrs_stoa(char *buff, ptrs_val_t val)
 {
 	sprintf(buff, "%s:%p", val.structval->name, val.structval);
+}
+void ptrs_functoa(char *buff, ptrs_val_t val)
+{
+	sprintf(buff, "function:%p", val.nativeval);
 }
 ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, ptrs_jit_var_t val)
 {
@@ -329,6 +329,7 @@ ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, ptrs_jit_var_t val)
 			[PTRS_TYPE_FLOAT] = ptrs_ftoa,
 			[PTRS_TYPE_POINTER] = ptrs_ptoa,
 			[PTRS_TYPE_STRUCT] = ptrs_stoa,
+			[PTRS_TYPE_FUNCTION] = ptrs_functoa,
 		};
 
 		val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
@@ -455,6 +456,9 @@ const char *ptrs_vartoa(ptrs_val_t val, ptrs_meta_t meta, char *buff, size_t max
 			break;
 		case PTRS_TYPE_STRUCT:
 			snprintf(buff, maxlen, "%s:%p", val.structval->name, val.structval);
+			break;
+		case PTRS_TYPE_FUNCTION:
+			snprintf(buff, maxlen, "function:%p", val.nativeval);
 			break;
 	}
 	buff[maxlen - 1] = 0;
