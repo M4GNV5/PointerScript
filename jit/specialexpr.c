@@ -10,6 +10,7 @@
 #include "include/struct.h"
 #include "include/util.h"
 #include "include/run.h"
+#include "include/astlist.h"
 
 ptrs_jit_var_t ptrs_handle_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
@@ -857,5 +858,58 @@ ptrs_jit_var_t ptrs_handle_op_in(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 
 ptrs_jit_var_t ptrs_handle_yield(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	//TODO
+	struct ptrs_ast_yield *expr = &node->arg.yield;
+	size_t narg = ptrs_astlist_length(expr->values);
+
+	jit_value_t retVal = jit_value_create(func, ptrs_jit_getVarType());
+
+	ptrs_jit_var_t yieldVal;
+	if(jit_value_get_function(expr->yieldVal->val) != func)
+	{
+		jit_value_t ptr = jit_insn_import(func, expr->yieldVal->val);
+		yieldVal.val = jit_insn_load_relative(func, ptr, 0, jit_type_void_ptr);
+		ptr = jit_insn_import(func, expr->yieldVal->meta);
+		yieldVal.meta = jit_insn_load_relative(func, ptr, 0, jit_type_ulong);
+	}
+	else
+	{
+		yieldVal = *expr->yieldVal;
+	}
+
+	jit_type_t argDef[narg * 2 + 1];
+	jit_value_t args[narg * 2 + 1];
+
+	argDef[0] = jit_type_void_ptr;
+	args[0] = jit_insn_address_of(func, retVal);
+
+	struct ptrs_astlist *curr = expr->values;
+	for(int i = 0; i < narg; i++)
+	{
+		//TODO curr->expand
+
+		argDef[i * 2 + 1] = jit_type_long;
+		argDef[i * 2 + 2] = jit_type_ulong;
+
+		ptrs_jit_var_t val = curr->entry->handler(curr->entry, func, scope);
+		args[i * 2 + 1] = val.val;
+		args[i * 2 + 2] = val.meta;
+
+		curr = curr->next;
+	}
+
+	jit_value_t parentFrame = ptrs_jit_getMetaPointer(func, yieldVal.meta);
+	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, jit_type_ubyte, argDef, narg * 2 + 1, 1);
+
+	jit_value_t retFlag = jit_insn_call_nested_indirect(func, yieldVal.val,
+		parentFrame, signature, args, narg * 2 + 1, 0);
+
+	jit_type_free(signature);
+
+	//TODO somwhow pass retVal to the caller of the caller
+	ptrs_jit_var_t ret = {
+		.val = retFlag,
+		.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT),
+		.constType = PTRS_TYPE_INT
+	};
+	return ret;
 }

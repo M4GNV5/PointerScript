@@ -6,7 +6,7 @@
 #include "../include/astlist.h"
 #include "../include/conversion.h"
 
-static void ptrs_arglist_handle(jit_function_t func, ptrs_scope_t *scope,
+void ptrs_arglist_handle(jit_function_t func, ptrs_scope_t *scope,
 	struct ptrs_astlist *curr, ptrs_jit_var_t *buff)
 {
 	for(int i = 0; curr != NULL; i++)
