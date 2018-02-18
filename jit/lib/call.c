@@ -24,7 +24,29 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 {
 	int narg = ptrs_astlist_length(args);
 	jit_type_t paramDef[narg * 2 + 1];
+	ptrs_jit_var_t evaledArgs[narg];
 	jit_value_t _args[narg * 2 + 1];
+
+	jit_value_t zero = jit_const_int(func, long, 0);
+	jit_value_t undefined = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
+	struct ptrs_astlist *curr = args;
+	for(int i = 0; i < narg; i++)
+	{
+		//if(curr->expand) //TODO
+
+		ptrs_jit_var_t val;
+		if(args->entry == NULL)
+		{
+			evaledArgs[i].val = zero;
+			evaledArgs[i].meta = undefined;
+		}
+		else
+		{
+			evaledArgs[i] = curr->entry->handler(curr->entry, func, scope);
+		}
+
+		curr = curr->next;
+	}
 
 	ptrs_jit_var_t ret = {
 		jit_value_create(func, jit_type_long),
@@ -40,29 +62,13 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 				paramDef[0] = jit_type_void_ptr;
 				_args[0] = thisPtr;
 
-				struct ptrs_astlist *curr = args;
-				for(int i = 0; curr != NULL; i++)
+				for(int i = 0; i < narg; i++)
 				{
-					//if(curr->expand) //TODO
-
-					ptrs_jit_var_t val;
-					if(args->entry == NULL)
-					{
-						val.val = jit_const_int(func, long, 0);
-						val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
-					}
-					else
-					{
-						val = curr->entry->handler(curr->entry, func, scope);
-					}
-
 					paramDef[i * 2 + 1] = jit_type_long;
 					paramDef[i * 2 + 2] = jit_type_ulong;
 
-					_args[i * 2 + 1] = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
-					_args[i * 2 + 2] = val.meta;
-
-					curr = curr->next;
+					_args[i * 2 + 1] = ptrs_jit_reinterpretCast(func, evaledArgs[i].val, jit_type_long);
+					_args[i * 2 + 2] = evaledArgs[i].meta;
 				}
 
 				jit_value_t parentFrame = ptrs_jit_getMetaPointer(func, callee.meta);
@@ -81,31 +87,28 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 
 		case PTRS_TYPE_NATIVE:
 			{
-				struct ptrs_astlist *curr = args;
-				for(int i = 0; curr != NULL; i++)
+				for(int i = 0; i < narg; i++)
 				{
-					//if(args->expand) //TODO
-					ptrs_jit_var_t val = curr->entry->handler(curr->entry, func, scope);
-					curr = curr->next;
-
-					switch(val.constType)
+					switch(evaledArgs[i].constType)
 					{
 						case PTRS_TYPE_UNDEFINED:
 							paramDef[i] = jit_type_long;
 							_args[i] = jit_const_int(func, long, 0);
 							break;
 						case -1:
+							//TODO this should get special care
+							/* fallthrough */
 						case PTRS_TYPE_INT:
 							paramDef[i] = jit_type_long;
-							_args[i] = val.val;
+							_args[i] = evaledArgs[i].val;
 							break;
 						case PTRS_TYPE_FLOAT:
 							paramDef[i] = jit_type_float64;
-							_args[i] = ptrs_jit_reinterpretCast(func, val.val, jit_type_float64);
+							_args[i] = ptrs_jit_reinterpretCast(func, evaledArgs[i].val, jit_type_float64);
 							break;
 						default: //pointer type
 							paramDef[i] = jit_type_void_ptr;
-							_args[i] = val.val;
+							_args[i] = evaledArgs[i].val;
 							break;
 					}
 				}
