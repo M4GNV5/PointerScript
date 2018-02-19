@@ -2127,9 +2127,9 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				nameFormat = "%1$s.op foreach in this";
 				overload->op = ptrs_handle_forin;
 
-				code->yield = talloc(ptrs_jit_var_t);
+				code->yield = malloc(sizeof(ptrs_jit_var_t) * 2);
 
-				func->argc = 1;
+				func->argc = 2;
 				func->args = code->yield;
 			}
 			else if(lookahead(code, "cast"))

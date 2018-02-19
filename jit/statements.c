@@ -1000,24 +1000,29 @@ static void foreachInArray(struct ptrs_ast_forin *stmt, jit_function_t func, ptr
 	jit_insn_branch(func, &loop);
 }
 
-typedef uint8_t (*foreach_body_t)(void *parentFrame, void *this,
+typedef uint8_t (*foreach_body_t)(void *parentFrame, ptrs_var_t *retAddr,
 	const char *name, ptrs_meta_t nameMeta, ptrs_val_t val, ptrs_meta_t meta);
-static void foreachInStruct(ptrs_ast_t *node, void *data, ptrs_meta_t meta, void *bodyParent, foreach_body_t body)
+typedef void (*foreach_overload_t)(void *parentFrame, void *this,
+	foreach_body_t body, ptrs_meta_t bodyMeta, ptrs_var_t *retAddr, uint8_t *retStatus);
+static uint8_t foreachInStruct(ptrs_ast_t *node, void *data, ptrs_meta_t meta,
+	ptrs_var_t *retAddr, void *bodyParent, foreach_body_t body)
 {
 	if(meta.type != PTRS_TYPE_STRUCT)
 		ptrs_error(node, "Called forinStruct with an argument of type %t", meta.type);
 
 	ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
-
-	typedef void (*foreach_handler_t)(void *parentFrame, void *this, ptrs_val_t yieldVal, ptrs_meta_t yieldMeta);
-	foreach_handler_t overload = ptrs_struct_getOverloadClosure(struc, ptrs_handle_forin, data != NULL);
+	foreach_overload_t overload = ptrs_struct_getOverloadClosure(struc, ptrs_handle_forin, data != NULL);
 
 	if(overload != NULL)
 	{
 		ptrs_meta_t yieldMeta;
-		yieldMeta.type = PTRS_TYPE_FUNCTION;
 		ptrs_meta_setPointer(yieldMeta, bodyParent);
-		overload(struc->parentFrame, data, *(ptrs_val_t *)&body, yieldMeta);
+		yieldMeta.type = PTRS_TYPE_FUNCTION;
+
+		uint8_t retStatus = 0;
+		overload(struc->parentFrame, data, body, yieldMeta, retAddr, &retStatus);
+
+		return retStatus;
 	}
 	else
 	{
@@ -1032,13 +1037,16 @@ static void foreachInStruct(ptrs_ast_t *node, void *data, ptrs_meta_t meta, void
 			uint64_t nameMeta = ptrs_const_arrayMeta(PTRS_TYPE_NATIVE, true, curr->namelen);
 			ptrs_var_t val = ptrs_struct_getMember(node, data, struc, curr);
 
-			uint8_t ret = body(bodyParent, data, curr->name, *(ptrs_meta_t *)&nameMeta, val.value, val.meta);
+			uint8_t ret = body(bodyParent, retAddr, curr->name, *(ptrs_meta_t *)&nameMeta, val.value, val.meta);
+			//ret == 1 means continue;
 			if(ret == 2)
 				break;
 			else if(ret == 3)
-				break; //TODO get the return value
+				return 3;
 		}
 	}
+
+	return 0;
 }
 
 ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
@@ -1131,12 +1139,21 @@ ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 			jit_value_t nodeVal = jit_const_int(func, void_ptr, (uintptr_t)node);
 			jit_value_t bodyParent = jit_insn_get_parent_frame_pointer_of(func, body);
 			jit_value_t bodyVal = jit_const_int(func, void_ptr, (uintptr_t)jit_function_to_closure(body));
-			ptrs_jit_reusableCallVoid(func, foreachInStruct,
-				(jit_type_void_ptr, jit_type_long, jit_type_ulong, jit_type_void_ptr, jit_type_void_ptr),
-				(nodeVal, val.val, val.meta, bodyParent, bodyVal)
+
+			jit_value_t retFlag;
+			ptrs_jit_reusableCall(func, foreachInStruct, retFlag, jit_type_ubyte,
+				(
+					jit_type_void_ptr, //node
+					jit_type_long, //struct data
+					jit_type_ulong, //struct meta
+					jit_type_void_ptr, //return address
+					jit_type_void_ptr, //body's parent frame
+					jit_type_void_ptr //body
+				),
+				(nodeVal, val.val, val.meta, retAddr, bodyParent, bodyVal)
 			);
 
-			jit_insn_branch(func, &done); //TODO
+			jit_insn_branch_if(func, jit_insn_ne(func, retFlag, jit_const_int(func, ubyte, 3)), &done);
 			break;
 	);
 

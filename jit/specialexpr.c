@@ -830,14 +830,15 @@ ptrs_jit_var_t ptrs_handle_yield(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	jit_type_t argDef[narg * 2 + 1];
 	jit_value_t args[narg * 2 + 1];
 
+	ptrs_jit_var_t bodyFunc;
+	bodyFunc.val = ptrs_jit_import(node, func, expr->yieldVal[0].val, false);
+	bodyFunc.meta = ptrs_jit_import(node, func, expr->yieldVal[0].meta, false);
 
-	ptrs_jit_var_t yieldVal;
-	yieldVal.val = ptrs_jit_import(node, func, expr->yieldVal->val, false);
-	yieldVal.meta = ptrs_jit_import(node, func, expr->yieldVal->meta, false);
+	jit_value_t retAddr = ptrs_jit_import(node, func, expr->yieldVal[1].val, false);
+	jit_value_t retStatus = ptrs_jit_import(node, func, expr->yieldVal[1].meta, false);
 
-	jit_value_t retVal = jit_value_create(func, ptrs_jit_getVarType());
 	argDef[0] = jit_type_void_ptr;
-	args[0] = jit_insn_address_of(func, retVal);
+	args[0] = retAddr;
 
 	struct ptrs_astlist *curr = expr->values;
 	for(int i = 0; i < narg; i++)
@@ -854,17 +855,18 @@ ptrs_jit_var_t ptrs_handle_yield(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 		curr = curr->next;
 	}
 
-	jit_value_t parentFrame = ptrs_jit_getMetaPointer(func, yieldVal.meta);
+	jit_value_t parentFrame = ptrs_jit_getMetaPointer(func, bodyFunc.meta);
 	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, jit_type_ubyte, argDef, narg * 2 + 1, 1);
 
-	jit_value_t retFlag = jit_insn_call_nested_indirect(func, yieldVal.val,
+	jit_value_t _retStatus = jit_insn_call_nested_indirect(func, bodyFunc.val,
 		parentFrame, signature, args, narg * 2 + 1, 0);
+
+	jit_insn_store_relative(func, retStatus, 0, _retStatus);
 
 	jit_type_free(signature);
 
-	//TODO somwhow pass retVal to the caller of the caller
 	ptrs_jit_var_t ret = {
-		.val = retFlag,
+		.val = jit_insn_convert(func, _retStatus, jit_type_long, 0),
 		.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT),
 		.constType = PTRS_TYPE_INT
 	};
