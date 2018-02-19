@@ -228,6 +228,39 @@ jit_value_t ptrs_jit_allocate(jit_function_t func, jit_value_t size, bool onStac
 	}
 }
 
+jit_value_t ptrs_jit_import(ptrs_ast_t *node, jit_function_t func, jit_value_t val, bool asPtr)
+{
+	if(jit_value_is_constant(val))
+	{
+		if(asPtr)
+			ptrs_error(node, "Cannot get the address of a constant value");
+		else
+			return val;
+	}
+
+	jit_function_t targetFunc = jit_value_get_function(val);
+	if(targetFunc == func)
+	{
+		if(asPtr)
+			return jit_insn_address_of(func, val);
+		else
+			return val;
+	}
+
+	jit_value_t ptr = jit_insn_import(func, val);
+	if(ptr == NULL)
+	{
+		const char *funcName = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_NAME);
+		const char *targetFuncName = jit_function_get_meta(targetFunc, PTRS_JIT_FUNCTIONMETA_NAME);
+		ptrs_error(node, "Cannot access value of function %s from function %s", targetFuncName, funcName);
+	}
+
+	if(asPtr)
+		return ptr;
+	else
+		return jit_insn_load_relative(func, ptr, 0, jit_value_get_type(val));
+}
+
 void ptrs_jit_typeSwitch_setup(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_jit_var_t *val, jit_value_t valType,
 	int *count, uint8_t *types, jit_label_t *labels,

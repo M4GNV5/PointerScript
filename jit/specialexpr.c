@@ -645,28 +645,10 @@ ptrs_jit_var_t ptrs_handle_addressof_importedsymbol(ptrs_ast_t *node,
 ptrs_jit_var_t ptrs_handle_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	ptrs_jit_var_t target = *node->arg.varval;
-	jit_function_t targetFunc = jit_value_get_function(target.val);
+	target.val = ptrs_jit_import(node, func, target.val, false);
+	target.meta = ptrs_jit_import(node, func, target.meta, false);
 
-	if(func == targetFunc)
-	{
-		return target;
-	}
-	else
-	{
-		target.val = jit_insn_import(func, target.val);
-		if(target.val == NULL)
-			ptrs_error(node, "Cannot access that variable from here");
-
-		target.val = jit_insn_load_relative(func, target.val, 0, jit_type_long);
-
-		if(!jit_value_is_constant(target.meta))
-		{
-			target.meta = jit_insn_import(func, target.meta);
-			target.meta = jit_insn_load_relative(func, target.meta, 0, jit_type_ulong);
-		}
-
-		return target;
-	}
+	return target;
 }
 void ptrs_handle_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
 {
@@ -721,11 +703,7 @@ void ptrs_handle_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_s
 		}
 		else
 		{
-			if(func != targetFunc)
-			{
-				target.meta = jit_insn_import(func, target.meta);
-				target.meta = jit_insn_load_relative(func, target.meta, 0, jit_type_ulong);
-			}
+			target.meta = ptrs_jit_import(node, func, target.meta, false);
 
 			ptrs_jit_assert(node, func, scope, jit_insn_eq(func, target.meta, val.meta),
 				2, "The right side's meta value does not match the defined meta"
@@ -746,21 +724,10 @@ void ptrs_handle_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_s
 ptrs_jit_var_t ptrs_handle_addressof_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	ptrs_jit_var_t target = *node->arg.varval;
-	jit_function_t targetFunc = jit_value_get_function(target.val);
-
-	if(func == targetFunc)
-	{
-		target.val = jit_insn_address_of(func, target.val);
-	}
-	else
-	{
-		target.val = jit_insn_import(func, target.val);
-		if(target.val == NULL)
-			ptrs_error(node, "Cannot access that variable from here");
-	}
-
-	target.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_POINTER, 0, 1);
+	target.val = ptrs_jit_import(node, func, target.val, true);
+	target.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_POINTER, false, 1);
 	target.constType = PTRS_TYPE_POINTER;
+
 	return target;
 }
 
@@ -860,25 +827,15 @@ ptrs_jit_var_t ptrs_handle_yield(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 {
 	struct ptrs_ast_yield *expr = &node->arg.yield;
 	size_t narg = ptrs_astlist_length(expr->values);
-
-	jit_value_t retVal = jit_value_create(func, ptrs_jit_getVarType());
-
-	ptrs_jit_var_t yieldVal;
-	if(jit_value_get_function(expr->yieldVal->val) != func)
-	{
-		jit_value_t ptr = jit_insn_import(func, expr->yieldVal->val);
-		yieldVal.val = jit_insn_load_relative(func, ptr, 0, jit_type_void_ptr);
-		ptr = jit_insn_import(func, expr->yieldVal->meta);
-		yieldVal.meta = jit_insn_load_relative(func, ptr, 0, jit_type_ulong);
-	}
-	else
-	{
-		yieldVal = *expr->yieldVal;
-	}
-
 	jit_type_t argDef[narg * 2 + 1];
 	jit_value_t args[narg * 2 + 1];
 
+
+	ptrs_jit_var_t yieldVal;
+	yieldVal.val = ptrs_jit_import(node, func, expr->yieldVal->val, false);
+	yieldVal.meta = ptrs_jit_import(node, func, expr->yieldVal->meta, false);
+
+	jit_value_t retVal = jit_value_create(func, ptrs_jit_getVarType());
 	argDef[0] = jit_type_void_ptr;
 	args[0] = jit_insn_address_of(func, retVal);
 
