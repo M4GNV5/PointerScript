@@ -429,7 +429,18 @@ ptrs_jit_var_t ptrs_handle_import(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 ptrs_jit_var_t ptrs_handle_return(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	node = node->arg.astval;
-	ptrs_jit_var_t ret = node->handler(node, func, scope);
+
+	ptrs_jit_var_t ret;
+	if(node == NULL)
+	{
+		ret.val = jit_const_int(func, long, 0);
+		ret.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
+		ret.constType = PTRS_TYPE_UNDEFINED;
+	}
+	else
+	{
+		ret = node->handler(node, func, scope);
+	}
 
 	if(scope->returnAddr == NULL)
 	{
@@ -1124,6 +1135,8 @@ ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 				(jit_type_void_ptr, jit_type_long, jit_type_ulong, jit_type_void_ptr, jit_type_void_ptr),
 				(nodeVal, val.val, val.meta, bodyParent, bodyVal)
 			);
+
+			jit_insn_branch(func, &done); //TODO
 			break;
 	);
 
