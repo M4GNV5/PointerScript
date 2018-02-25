@@ -1120,7 +1120,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		}
 		else
 		{
-			unexpectedm(code, NULL, "Yield expressions are only allowed in foreach and algorithm overloads");
+			unexpectedm(code, NULL, "Yield expressions are only allowed in foreach overloads");
 		}
 	}
 	else if(lookahead(code, "function"))
