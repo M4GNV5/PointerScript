@@ -32,11 +32,11 @@ Remember you can run and modify this code in your browser on the [playground](ht
 import puts, qsort;
 
 //this defines an array of 4 variables, here they are all initialized with int's,
-//but you can actually but anything in there (floats, strings, functions, etc.)
+//but you can actually put anything in there (floats, strings, functions, etc.).
 //defining arrays using curly brackets like var foo{128}; creates byte arrays instead
 var nums[4] = [1337, 666, 3112, 42];
 
-//as we can call any C function here we call qsort to sort the array we just defined
+//as we can call any C function here we call qsort to sort the array we just defined.
 //the last argument to qsort is a function pointer, here we use a lambda expression
 qsort(nums, sizeof nums, sizeof var, (a, b) -> *as<pointer>a - *as<pointer>b);
 
@@ -45,8 +45,7 @@ qsort(nums, sizeof nums, sizeof var, (a, b) -> *as<pointer>a - *as<pointer>b);
 foreach(i, val in nums)
 {
 	//string literals can be turned into string format expressions by putting $variableName
-	//inside. Alternatively you could just use printf("nums[%d] = %d", i, val); but then
-	//you need to be sure i and val are actually of type int
+	//inside. Alternatively you could just use printf("nums[%d] = %d", i, val);
 	puts("nums[$i] = $val");
 }
 ```
@@ -88,8 +87,8 @@ make
 bin/ptrs --help
 ```
 
-There is also syntax highlighting for atom in the [language-atom](https://github.com/M4GNV5/language-pointerscript) repository.
-Use the following commands to install:
+There is also syntax highlighting for atom in the [language-atom](https://github.com/M4GNV5/language-pointerscript)
+repository. Use the following commands to install:
 ```bash
 git clone https://github.com/M4GNV5/language-pointerscript
 cd language-pointerscript
