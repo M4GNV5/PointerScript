@@ -63,22 +63,16 @@ bool ptrs_struct_canAccess(ptrs_ast_t *node, ptrs_struct_t *struc, struct ptrs_s
 		accessorNames[member->protection], member->name, struc->name);
 }
 
-unsigned long ptrs_struct_hashName(const char *key)
+size_t ptrs_struct_hashName(const char *key)
 {
-	//TODO find a better hashing algorithm
-	unsigned long hash = toupper(*key++) - '0';
+	//see https://stackoverflow.com/a/2624210
+	size_t hash = 7;
 	while(*key != 0)
 	{
-		if(isupper(*key) || isdigit(*key))
-		{
-			hash <<= 3;
-			hash += toupper(*(key - 1)) - '0';
-			hash ^= toupper(*key) - '0';
-		}
+		hash = hash * 31 + *key;
 		key++;
 	}
 
-	hash += toupper(*--key);
 	return hash;
 }
 
@@ -88,7 +82,7 @@ struct ptrs_structmember *ptrs_struct_find(ptrs_struct_t *struc, const char *key
 	if(struc->memberCount == 0)
 		return NULL;
 
-	int i = ptrs_struct_hashName(key) % struc->memberCount;
+	size_t i = ptrs_struct_hashName(key) % struc->memberCount;
 	struct ptrs_structmember *ignored = NULL;
 	while(struc->member[i].name != NULL)
 	{

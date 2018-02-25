@@ -10,7 +10,7 @@ void *ptrs_struct_getOverloadClosure(ptrs_struct_t *struc, void *handler, bool i
 
 bool ptrs_struct_canAccess(ptrs_ast_t *ast, ptrs_struct_t *struc, struct ptrs_structmember *member);
 
-unsigned long ptrs_struct_hashName(const char *key);
+size_t ptrs_struct_hashName(const char *key);
 
 struct ptrs_structmember *ptrs_struct_find(ptrs_struct_t *struc, const char *key,
 	enum ptrs_structmembertype exclude, ptrs_ast_t *ast);

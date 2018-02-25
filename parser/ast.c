@@ -1845,10 +1845,9 @@ static void createStructHashmap(code_t *code, ptrs_struct_t *struc, struct ptrs_
 
 	while(curr != NULL)
 	{
-		int i = ptrs_struct_hashName(curr->member.name) % count;
+		size_t i = ptrs_struct_hashName(curr->member.name) % count;
 		while(member[i].name != NULL)
 		{
-			//printf("collision %s >< %s\n", curr->member.name, member[i].name);
 			i = (i + 1) % count;
 		}
 
