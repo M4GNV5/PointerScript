@@ -689,7 +689,6 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	else if(lookahead(code, "function"))
 	{
 		stmt->handler = ptrs_handle_function;
-		stmt->arg.function.isAnonymous = false;
 
 		ptrs_function_t *func = &stmt->arg.function.func;
 		func->name = readIdentifier(code);
@@ -1127,7 +1126,6 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 	{
 		ast = talloc(ptrs_ast_t);
 		ast->handler = ptrs_handle_function;
-		ast->arg.function.isAnonymous = true;
 
 		ptrs_function_t *func = &ast->arg.function.func;
 		func->name = "(anonymous function)";
@@ -1274,7 +1272,6 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 
 				ast = talloc(ptrs_ast_t);
 				ast->handler = ptrs_handle_function;
-				ast->arg.function.isAnonymous = true;
 
 				ptrs_function_t *func = &ast->arg.function.func;
 				func->name = "(lambda expression)";

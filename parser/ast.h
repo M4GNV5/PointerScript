@@ -81,7 +81,6 @@ struct ptrs_ast_asm
 struct ptrs_ast_function
 {
 	jit_function_t *symbol;
-	bool isAnonymous;
 	ptrs_function_t func;
 };
 
