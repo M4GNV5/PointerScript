@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "../../parser/common.h"
 #include "../../parser/ast.h"
 #include "../include/error.h"
@@ -5,6 +7,8 @@
 #include "../include/run.h"
 #include "../include/astlist.h"
 #include "../include/conversion.h"
+
+void *ptrs_jit_createCallback(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, void *closure);
 
 void ptrs_arglist_handle(jit_function_t func, ptrs_scope_t *scope,
 	struct ptrs_astlist *curr, ptrs_jit_var_t *buff)
@@ -106,6 +110,21 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 							paramDef[i] = jit_type_float64;
 							_args[i] = ptrs_jit_reinterpretCast(func, evaledArgs[i].val, jit_type_float64);
 							break;
+						case PTRS_TYPE_FUNCTION:
+							if(jit_value_is_constant(evaledArgs[i].val))
+							{
+								void *closure = ptrs_jit_value_getValConstant(evaledArgs[i].val).nativeval;
+								jit_function_t funcArg = jit_function_from_closure(ptrs_jit_context, closure);
+								if(funcArg && jit_function_get_nested_parent(funcArg) == scope->rootFunc)
+								{
+									void *callback = ptrs_jit_createCallback(node, funcArg, scope, closure);
+									paramDef[i] = jit_type_void_ptr;
+									_args[i] = jit_const_int(func, void_ptr, (uintptr_t)callback);
+									break;
+								}
+								//TODO create callbacks on the fly
+							}
+							/* fallthrough */
 						default: //pointer type
 							paramDef[i] = jit_type_void_ptr;
 							_args[i] = evaledArgs[i].val;
@@ -216,10 +235,66 @@ jit_function_t ptrs_jit_createFunction(ptrs_ast_t *node, jit_function_t parent,
 	else
 		func = jit_function_create_nested(ptrs_jit_context, signature, parent);
 
-	jit_function_set_meta(func, PTRS_JIT_FUNCTIONMETA_NAME, (char *)name, NULL, 0);
-	jit_function_set_meta(func, PTRS_JIT_FUNCTIONMETA_AST, node, NULL, 0);
+	if(name != NULL)
+		jit_function_set_meta(func, PTRS_JIT_FUNCTIONMETA_NAME, (char *)name, NULL, 0);
+	if(node != NULL)
+		jit_function_set_meta(func, PTRS_JIT_FUNCTIONMETA_AST, node, NULL, 0);
 
 	return func;
+}
+
+void *ptrs_jit_createCallback(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, void *closure)
+{
+	void *callbackClosure = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_CALLBACK);
+	if(callbackClosure != NULL)
+		return callbackClosure;
+
+	char *funcName = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_NAME);
+	if(funcName == NULL)
+		funcName = "?";
+
+	char callbackName[strlen("(callback )") + strlen(funcName) + 1];
+	sprintf(callbackName, "(callback %s)", funcName);
+
+	jit_type_t signature = jit_function_get_signature(func);
+	unsigned argc = jit_type_num_params(signature);
+	unsigned callbackArgc = (argc - 1) / 2;
+
+	jit_type_t argDef[callbackArgc];
+	for(unsigned i = 0; i < callbackArgc; i++)
+		argDef[i] = jit_type_long;
+
+	jit_type_t callbackSignature = jit_type_create_signature(jit_abi_cdecl, jit_type_long, argDef, callbackArgc, 0);
+	jit_function_t callback = ptrs_jit_createFunction(node, NULL, callbackSignature, strdup(callbackName));
+
+	jit_value_t parentFrame = jit_insn_load_relative(callback,
+		jit_const_int(callback, void_ptr, (uintptr_t)scope->rootFrame),
+		0, jit_type_void_ptr
+	);
+
+	jit_value_t args[argc];
+	args[0] = jit_const_int(func, void_ptr, 0);
+
+	jit_value_t meta = ptrs_jit_const_meta(callback, PTRS_TYPE_INT);
+	for(unsigned i = 0; i < callbackArgc; i++)
+	{
+		args[i * 2 + 1] = jit_value_get_param(callback, i);
+		args[i * 2 + 2] = meta;
+	}
+
+	jit_value_t ret = jit_insn_call_nested_indirect(callback,
+		jit_const_int(callback, void_ptr, (uintptr_t)closure), parentFrame,
+		signature, args, argc, 0
+	);
+	ptrs_jit_var_t retVar = ptrs_jit_valToVar(callback, ret);
+	jit_insn_return(callback, retVar.val);
+
+	if(ptrs_compileAot && jit_function_compile(callback) == 0)
+		ptrs_error(node, "Failed compiling function %s", callbackName);
+
+	callbackClosure = jit_function_to_closure(callback);
+	jit_function_set_meta(func, PTRS_JIT_FUNCTIONMETA_CALLBACK, callbackClosure, NULL, 0);
+	return callbackClosure;
 }
 
 jit_function_t ptrs_jit_compileFunction(ptrs_ast_t *node, jit_function_t parent, ptrs_scope_t *scope,
