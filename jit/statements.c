@@ -536,7 +536,8 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 	struct ptrs_ast_function *ast = &node->arg.function;
 
 	jit_function_t self = ptrs_jit_compileFunction(node, func, scope, &ast->func, NULL);
-	*ast->symbol = self;
+	if(ast->symbol != NULL)
+		*ast->symbol = self;
 
 	ptrs_jit_var_t ret;
 	ret.val = jit_const_long(func, long, (uintptr_t)jit_function_to_closure(self));
