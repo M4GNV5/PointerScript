@@ -1,18 +1,4 @@
-import printf, strcmp, gettimeofday;
-
-//C compatible structs
-struct Time
-{
-	seconds : i64;
-	microseconds : i32;
-};
-var now = new Time();
-
-gettimeofday(now, NULL);
-printf("milliseconds since epoch: %lld\n", now.seconds * 1000 + now.microseconds / 1000);
-delete now;
-
-
+import puts, printf, gettimeofday;
 
 struct Foo
 {
@@ -25,7 +11,7 @@ struct Foo
 	//and function-members
 	dump()
 	{
-		printf("%-20p%-20ld%-20p\n", this, this.value, this.myValues);
+		puts("$this - ${this.value}");
 	}
 
 	//there is also a 'constructor' and 'destructor'
@@ -35,14 +21,11 @@ struct Foo
 			this.value = a + b;
 	}
 
-	//there are also a few special operators you can overload
+	//and a few special operators you can overload (see the language docs for more)
 	operator this.name
 	{
+		printf("getting property %s", name);
 		return name;
-	}
-	operator this[key]
-	{
-		return "getting property $key";
 	}
 
 	operator this(a, b, c = 3)
@@ -55,8 +38,21 @@ var val = new Foo();
 val.dump();
 
 printf("val.foo = %s\n", val.foo);
-printf("val[\"foo\"] = %s\n", val["foo"]);
 //printf("val(1337, 10) = %d\n", val(1337, 10));
 
 val.dump();
 delete val;
+
+
+
+//C compatible structs
+struct Time
+{
+	seconds : i64;
+	microseconds : i32;
+};
+var now = new Time();
+
+gettimeofday(now, NULL);
+printf("milliseconds since epoch: %lld\n", now.seconds * 1000 + now.microseconds / 1000);
+delete now;
