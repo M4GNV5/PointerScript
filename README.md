@@ -1,6 +1,6 @@
 # PointerScript
 
-Dynamically typed scripting language with pointers and native library access. PointerScript
+Scripting language with pointers and native library access. PointerScript
 feels like C but has awesome features like operator overloading, dynamic typing and
 even though you have direct low level access your code is more safe thanks to boundary
 checks. Additionally finding errors is less painful as you get a full backtrace when a
@@ -10,16 +10,16 @@ runtime error occurs or you receive e.g. a segmentation fault.
 
 ## Language
 
+### Documentation
+Most of PointerScript is similar to Javascript and/or C. For a full Documentation see [LanguageDoc.md](LanguageDoc.md)
+
 ### Standard Library
 PointerScript has no standard-library. You can use all C libraries using the built-in ffi ([Import statement](LanguageDoc.md#importstatement)).
-There are a couple of useful libraries and bindings (sockets, regexp, http, json, lists, maps etc.)
+There are a couple of easy-to-use libraries (sockets, regexp, http, json, lists, maps etc.)
 in [this repository](https://github.com/M4GNV5/PtrsStuff)
 
 ### Testing
-You can run tests for the interpreter by executing the `runTests.sh` script in the repository
-
-### Documentation
-Most of PointerScript is similar to Javascript and/or C. For a full Documentation see [LanguageDoc.md](LanguageDoc.md)
+You can run tests for the interpreter by executing the `runTests.sh` script in the repository.
 
 ### Introduction
 The following is quite a bit of unknown code, we'll go through it (and some other things) below.
@@ -55,12 +55,11 @@ There are examples including the usage of Types, Structs, Arrays, Threading and 
 the [examples](examples/) directory of this repository. The most interresting ones are listed here:
 
 - [pi](examples/pi.ptrs) and [circle](examples/circle.ptrs) Basic mathematic expressions and loops
-- [types](examples/types.ptrs) Using typeof and type<...>
+- [types](examples/types.ptrs) Using `var` and `let`
 - [fork](examples/fork.ptrs) Using posix functions for creating child processes
 - [array](examples/array.ptrs) and [bubblesort](examples/bubblesort.ptrs) Basic array usage
 - [struct](examples/struct.ptrs) Basic struct usage
-- [asm](examples/asm.ptrs) Basic inline assembly usage
-- [threads](examples/threads.ptrs) Using libpthread (or generally native functions that take function pointer arguments) with Pointerscript
+- [threads](examples/threads.ptrs) Using libpthread (or generally native functions that take function pointer arguments)
 - [gtk](examples/gtk.ptrs) Using GTK for creating a window with a clickable button.
 - [window](examples/window.ptrs) Using libSDL for creating X windows. (Example orginally by [@Webfreak001](https://github.com/WebFreak001))
 
@@ -78,10 +77,10 @@ git clone --recursive https://github.com/M4GNV5/PointerScriptJIT
 cd PointerScript/libjit
 ./bootstrap
 ./configure
-make -j4 #the j is optional but speeds up compilation (replace 4 by the number of your cores)
+make -j4 #the -j is optional but speeds up compilation (replace 4 by the number of your cores)
 
 cd ..
-make
+make -j4 #see the comment above for information about -j
 
 #done! PointerScript is at ./bin/ptrs
 bin/ptrs --help
