@@ -8,8 +8,9 @@
 	- [Variable Arguments](#variable-arguments)
 - [Operators](#operators)
 	- [Binary](#binaryoperators)
-	- [Prefixed](#prefixedoperators)
-	- [Suffixed](#suffixedoperators)
+	- [Prefixed](#prefixed-operators)
+	- [Suffixed](#suffixed-operators)
+	- [Operator result tables](#operator-result-tables)
 - [Statements](#statements)
 	- [ExpressionStatement](#expressionstatement)
 	- [DefinitionStatement](#definitionstatement)
@@ -263,7 +264,7 @@ function printfln(fmt, args...)
 
 # Operators
 
-## BinaryOperators
+## Binary Operators
 | Precedence | Operator | Description | Associativity |
 |------------|----------|-------------|---------------|
 | 1 | <code>= += -= *= /= %= <<= >>= &= ^= &#124;=</code> | Assignment operators | Right-to-Left |
@@ -282,7 +283,7 @@ function printfln(fmt, args...)
 | 13 | `+ -` | Addition, subtraction | Left-to-Right |
 | 14 | `* / %` | Multiplication, division, division remainder | Left-to-Right |
 
-## PrefixedOperators
+## Prefixed Operators
 | Operator | Description |
 |------------|----------|
 | `++ --` | Increment, decrement |
@@ -294,10 +295,80 @@ function printfln(fmt, args...)
 | `*` | Dereference |
 | `+ -` | Unary plus, minus |
 
-## SuffixedOperators
+## Suffixed Operators
 | Operator | Description |
 |------------|----------|
 | `++ --` | Increment, decrement |
+
+## Operator result Tables
+The following table indicate the result type when using the corresponding operator(s).
+Some types may be omitted, meaning they always cause an error when used with the specific operator.
+For binary expressions in the form of `x op y` the types in the column headers
+refer to the type of `x` and the types in the row headers refer to the type of `y`.
+Operators which write to `x` and can be rewritten as `x = x op y` and are not listed in
+the tables below as they work the same as their non-assigning counterpart.
+
+### Addition
+| `+`     | int     | float   | native  | pointer |
+|---------|---------|---------|---------|---------|
+| int     | int     | float   | native  | pointer |
+| float   | float   | float   | *error* | *error* |
+| native  | native  | *error* | *error* | *error* |
+| pointer | pointer | *error* | *error* | *error* |
+
+### Subtraction
+| `-`     | int     | float   | native  | pointer |
+|---------|---------|---------|---------|---------|
+| int     | int     | float   | native  | pointer |
+| float   | float   | float   | *error* | *error* |
+| native  | *error* | *error* | int     | *error* |
+| pointer | *error* | *error* | *error* | int     |
+
+### Multiplication & Division
+| `* /`   | int     | float   |
+|---------|---------|---------|
+| int     | int     | float   |
+| float   | float   | float   |
+
+### Integer only
+| <code>&#124; ^ & >> << %</code> | int |
+|---------------------------------|-----|
+| int                             | int |
+
+### Comparasion
+All comparasion operators (`== != > < >= <=`) return either `true` aka `1` or `false` aka `0`.
+Or in other words, their return type is always int. The type safe comparasion operators `=== !==`
+return `false` when `typeof x != typeof y` otherwise they behave life `== !=`
+
+### Prefixed Operators
+| `++ -- ~` | int | float | native | pointer |
+|-----------|-----|-------|--------|---------|
+|           | int | float | native | pointer |
+
+| `! typeof` | int | float | native | pointer | function | struct |
+|------------|-----|-------|--------|---------|----------|--------|
+|            | int | int   | int    | int     | int      | int    |
+
+| `sizeof`   | native | pointer | struct |
+|------------|--------|---------|--------|
+|            | int    | int     | int    |
+
+| `&`        | `&variable` | `&native[y]` | `&pointer[y]` |
+|------------|-----------|------------|-------------|
+|            | pointer   | native     | pointer     |
+
+| `*`        | native | pointer   |
+|------------|--------|-----------|
+|            | int    | *unknown* |
+
+| `+ -`      | int | float |
+|------------|-----|-------|
+|            | int | float |
+
+### Suffixed Operators
+| `++ --` | int | float | native | pointer |
+|-----------|-----|-------|--------|---------|
+|           | int | float | native | pointer |
 
 # Statements
 ## ExpressionStatement
