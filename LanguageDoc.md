@@ -266,12 +266,12 @@ function printfln(fmt, args...)
 ## BinaryOperators
 | Precedence | Operator | Description | Associativity |
 |------------|----------|-------------|---------------|
-| 1 | `= += -= *= /= %= <<= >>= &= ^= |=` | Assignment operators | Right-to-Left |
+| 1 | <code>= += -= *= /= %= <<= >>= &= ^= &#124;=</code> | Assignment operators | Right-to-Left |
 | 2 | `?:` | Ternary | Left-to-Right |
-| 3 | `||` | Logical OR | Left-to-Right |
+| 3 | <code>&#124;&#124;</code> | Logical OR | Left-to-Right |
 | 4 | `^^` | Logical XOR | Left-to-Right |
 | 5 | `&&` | Logical AND | Left-to-Right |
-| 6 | `|` | Bitwise OR | Left-to-Right |
+| 6 | <code>&#124;</code> | Bitwise OR | Left-to-Right |
 | 7 | `^` | Bitwise XOR | Left-to-Right |
 | 8 | `&` | Bitwise AND | Left-to-Right |
 | 9 | `== != === !==` | (Typesafe-) Comparasion operators | Left-to-Right |
