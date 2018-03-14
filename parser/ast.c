@@ -2020,39 +2020,33 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			if(isAddressOf || lookahead(code, "this"))
 			{
 				char curr = code->curr;
-				if(curr == '.' || curr == '[')
+				if(curr == '[')
 				{
 					next(code);
 					otherName = readIdentifier(code);
-					func->argc = 1;
-
-					if(curr == '.')
-					{
-						nameFormat = "%1$s.op this.%3$s%2$s";
-					}
-					else
-					{
-						nameFormat = "%1$s.op this[%3$s]%2$s";
-						consumec(code, ']');
-					}
+					consumec(code, ']');
 
 					if(isAddressOf)
 					{
+						func->argc = 1;
 						func->args = talloc(ptrs_jit_var_t);
 						addSymbol(code, otherName, func->args);
 
-						nameFormat = curr == '.' ? "%1$s.op &this.%3$s" : "%1$s.op &this[%3$s]";
-						overload->op = curr == '.' ? ptrs_handle_addressof_member : ptrs_handle_addressof_index;
+
+						nameFormat = "%1$s.op &this[%3$s]";
+						overload->op = ptrs_handle_addressof_member;
 					}
 					else if(lookahead(code, "="))
 					{
 						func->argc = 2;
 						func->args = malloc(sizeof(ptrs_jit_var_t) * 2);
 						addSymbol(code, otherName, &func->args[0]);
-						addSymbol(code, readIdentifier(code), &func->args[1]);
 
-						opLabel = " = value";
-						overload->op = curr == '.' ? ptrs_handle_assign_member : ptrs_handle_assign_index;
+						opLabel = readIdentifier(code);
+						addSymbol(code, (char *)opLabel, &func->args[1]);
+
+						nameFormat = "%1$s.op this[%3$s] = %2$s";
+						overload->op = ptrs_handle_assign_member;
 					}
 					else if(code->curr == '(')
 					{
@@ -2060,9 +2054,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 							&func->args, &func->argv, &func->vararg);
 						func->argc++;
 
-						opLabel = "()";
-						overload->op = curr == '.' ? ptrs_handle_call_member : ptrs_handle_call_index;
-
+						nameFormat = "%1$s.op this[%3$s]()";
+						overload->op = ptrs_handle_call_member;
 
 						ptrs_jit_var_t *newArgs = malloc(sizeof(ptrs_jit_var_t) * func->argc);
 						addSymbol(code, otherName, &newArgs[0]);
@@ -2084,11 +2077,12 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					}
 					else
 					{
+						func->argc = 1;
 						func->args = talloc(ptrs_jit_var_t);
 						addSymbol(code, otherName, func->args);
 
-						opLabel = "";
-						overload->op = curr == '.' ? ptrs_handle_member : ptrs_handle_index;
+						nameFormat = "%1$s.op this[%3$s]";
+						overload->op = ptrs_handle_member;
 					}
 				}
 				else if(curr == '(')
@@ -2097,7 +2091,6 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 						&func->args, &func->argv, &func->vararg);
 					overload->op = ptrs_handle_call;
 
-					opLabel = "()";
 					nameFormat = "%1$s.op this()";
 				}
 				else
