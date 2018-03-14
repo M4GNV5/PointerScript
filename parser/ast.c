@@ -2165,8 +2165,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					overload->op = ptrs_handle_op_in;
 
 					func->argc = 1;
-					func->args = talloc(ptrs_symbol_t);
-					func->args[0] = addSymbol(code, otherName);
+					func->args = talloc(ptrs_jit_var_t);
+					addSymbol(code, otherName, func->args);
 				}
 			}
 
