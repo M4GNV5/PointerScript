@@ -8,6 +8,7 @@
 #include "../../parser/common.h"
 
 const char *ptrs_typetoa(ptrs_vartype_t type);
+bool ptrs_vartob(ptrs_val_t val, ptrs_meta_t meta);
 int64_t ptrs_vartoi(ptrs_val_t val, ptrs_meta_t meta);
 double ptrs_vartof(ptrs_val_t val, ptrs_meta_t meta);
 const char *ptrs_vartoa(ptrs_val_t val, ptrs_meta_t meta, char *buff, size_t maxlen);

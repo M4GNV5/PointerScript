@@ -14,6 +14,8 @@ size_t ptrs_struct_hashName(const char *key);
 
 struct ptrs_structmember *ptrs_struct_find(ptrs_struct_t *struc, const char *key,
 	enum ptrs_structmembertype exclude, ptrs_ast_t *ast);
+bool ptrs_struct_hasKey(void *data, ptrs_struct_t *struc,
+	const char *key, ptrs_meta_t keyMeta, ptrs_ast_t *ast);
 
 ptrs_var_t ptrs_struct_getMember(ptrs_ast_t *ast, void *data, ptrs_struct_t *struc,
 	struct ptrs_structmember *member);

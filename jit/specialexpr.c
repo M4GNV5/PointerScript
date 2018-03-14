@@ -129,14 +129,37 @@ ptrs_jit_var_t ptrs_handle_prefix_sizeof(ptrs_ast_t *node, jit_function_t func, 
 
 	ptrs_jit_var_t val = node->handler(node, func, scope);
 
-	ptrs_jit_typeRangeCheck(node, func, scope, val, PTRS_TYPE_NATIVE, PTRS_TYPE_POINTER,
-		1, "Cannot get size of variable of type %t", TYPECHECK_TYPE);
+	ptrs_jit_var_t ret = {
+		.val = jit_value_create(func, jit_type_long),
+		.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT),
+		.constType = PTRS_TYPE_INT
+	};
 
-	val.val = ptrs_jit_getArraySize(func, val.meta);
-	val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
-	val.constType = PTRS_TYPE_INT;
+	ptrs_jit_typeSwitch(node, func, scope, val,
+		(1, "Cannot get the size of a value of type %t", TYPESWITCH_TYPE),
+		(PTRS_TYPE_NATIVE, PTRS_TYPE_POINTER, PTRS_TYPE_STRUCT),
+		case PTRS_TYPE_NATIVE:
+		case PTRS_TYPE_POINTER:
+			jit_insn_store(func, ret.val, ptrs_jit_getArraySize(func, val.meta));
+			break;
 
-	return val;
+		case PTRS_TYPE_STRUCT:
+			if(jit_value_is_constant(val.meta))
+			{
+				ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(val.meta);
+				ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
+				jit_insn_store(func, ret.val, jit_const_long(func, long, struc->size));
+			}
+			else
+			{
+				jit_value_t struc = ptrs_jit_getMetaPointer(func, val.meta);
+				jit_insn_store(func, ret.val, jit_insn_load_relative(func, struc,
+					offsetof(ptrs_struct_t, size), jit_type_uint));
+			}
+			break;
+	);
+
+	return ret;
 }
 
 ptrs_jit_var_t ptrs_handle_prefix_address(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
@@ -794,33 +817,45 @@ ptrs_jit_var_t ptrs_handle_op_in(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	ptrs_jit_var_t left = expr->left->handler(expr->left, func, scope);
 	ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope);
 
+	ptrs_jit_var_t ret = {
+		.val = NULL,
+		.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT),
+		.constType = PTRS_TYPE_INT
+	};
+
 	if(jit_value_is_constant(left.val) && jit_value_is_constant(left.meta) && jit_value_is_constant(right.meta))
 	{
 		ptrs_val_t nameVal = ptrs_jit_value_getValConstant(left.val);
 		ptrs_meta_t nameMeta = ptrs_jit_value_getMetaConstant(left.meta);
 		ptrs_meta_t strucMeta = ptrs_jit_value_getMetaConstant(right.meta);
+		ptrs_struct_t *struc = ptrs_meta_getPointer(strucMeta);
 
 		char buff[32];
 		const char *name = ptrs_vartoa(nameVal, nameMeta, buff, 32);
 
-		bool result = ptrs_struct_find(ptrs_meta_getPointer(strucMeta), name, -1, node);
-		left.val = jit_const_long(func, long, result);
-	}
-	else
-	{
-		ptrs_jit_var_t name = ptrs_jit_vartoa(func, left);
-		jit_value_t struc = ptrs_jit_getMetaPointer(func, right.meta);
-		jit_value_t nodeVal = jit_const_int(func, void_ptr, (uintptr_t)node);
-
-		ptrs_jit_reusableCall(func, ptrs_struct_find, left.val, ptrs_jit_getVarType(),
-			(jit_type_void_ptr, jit_type_void_ptr, jit_type_nint, jit_type_void_ptr),
-			(struc, name.val, jit_const_int(func, nint, -1), nodeVal)
-		);
+		if(ptrs_struct_find(struc, name, -1, node) != NULL)
+		{
+			ret.val = jit_const_long(func, long, true);
+			return ret;
+		}
+		else if(ptrs_struct_getOverload(struc, ptrs_handle_op_in, true) == NULL)
+		{
+			ret.val = jit_const_long(func, long, false);
+			return ret;
+		}
 	}
 
-	left.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
-	left.constType = PTRS_TYPE_INT;
-	return left;
+	ptrs_jit_var_t name = ptrs_jit_vartoa(func, left);
+	jit_value_t struc = ptrs_jit_getMetaPointer(func, right.meta);
+	jit_value_t nodeVal = jit_const_int(func, void_ptr, (uintptr_t)node);
+
+	ptrs_jit_reusableCall(func, ptrs_struct_hasKey, ret.val, jit_type_sbyte,
+		(jit_type_void_ptr, jit_type_void_ptr, jit_type_void_ptr, jit_type_ulong, jit_type_void_ptr),
+		(right.val, struc, name.val, name.meta, nodeVal)
+	);
+
+	ret.val = jit_insn_convert(func, ret.val, jit_type_long, 0);
+	return ret;
 }
 
 ptrs_jit_var_t ptrs_handle_yield(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)

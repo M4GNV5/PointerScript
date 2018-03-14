@@ -100,6 +100,23 @@ struct ptrs_structmember *ptrs_struct_find(ptrs_struct_t *struc, const char *key
 	return ignored;
 }
 
+bool ptrs_struct_hasKey(void *data, ptrs_struct_t *struc,
+	const char *key, ptrs_meta_t keyMeta, ptrs_ast_t *ast)
+{
+	if(ptrs_struct_find(struc, key, -1, ast) != NULL)
+		return true;
+
+	jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_op_in, data != NULL);
+	if(overload == NULL)
+		return false;
+
+	ptrs_var_t result;
+	ptrs_jit_applyNested(overload, &result,
+		struc->parentFrame, data, (&key, &keyMeta));
+
+	return ptrs_vartob(result.value, result.meta);
+}
+
 ptrs_var_t ptrs_struct_getMember(ptrs_ast_t *ast, void *data, ptrs_struct_t *struc,
 	struct ptrs_structmember *member)
 {
