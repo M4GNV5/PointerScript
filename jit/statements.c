@@ -591,7 +591,9 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 			currData = staticData;
 			currScope = scope;
 		}
-		else
+		else if(curr->type == PTRS_STRUCTMEMBER_VAR
+			|| curr->type == PTRS_STRUCTMEMBER_ARRAY
+			|| curr->type == PTRS_STRUCTMEMBER_VARARRAY)
 		{
 			if(!needsCtor)
 			{
