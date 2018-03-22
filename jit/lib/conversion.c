@@ -12,6 +12,8 @@
 #include "../../parser/common.h"
 #include "../include/conversion.h"
 #include "../include/util.h"
+#include "../include/struct.h"
+#include "../jit.h"
 
 void ptrs_jit_branch_if(jit_function_t func, jit_label_t *target, ptrs_jit_var_t val)
 {
@@ -130,13 +132,23 @@ jit_value_t ptrs_jit_vartoi(jit_function_t func, ptrs_jit_var_t val)
 		ptrs_val_t constVal = ptrs_jit_value_getValConstant(val.val);
 		ptrs_meta_t constMeta = ptrs_jit_value_getMetaConstant(val.meta);
 
-		return jit_const_long(func, long, ptrs_vartoi(constVal, constMeta));
+		if(constMeta.type != PTRS_TYPE_STRUCT)
+			return jit_const_long(func, long, ptrs_vartoi(constVal, constMeta));
 	}
 
 	switch(val.constType)
 	{
 		case -1:
 		case PTRS_TYPE_NATIVE:
+			break; //use intrinsic
+		case PTRS_TYPE_STRUCT:
+			if(jit_value_is_constant(val.meta))
+			{
+				ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(val.meta);
+				ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
+				if(ptrs_struct_getOverload(struc, ptrs_handle_cast_builtin, true) == NULL)
+					return val.val;
+			}
 			break; //use intrinsic
 		case PTRS_TYPE_UNDEFINED:
 			return jit_const_long(func, long, 0);
@@ -146,15 +158,12 @@ jit_value_t ptrs_jit_vartoi(jit_function_t func, ptrs_jit_var_t val)
 			return val.val;
 	}
 
-	jit_intrinsic_descr_t descr = {
-		.return_type = jit_type_long,
-		.ptr_result_type = NULL,
-		.arg1_type = jit_type_long,
-		.arg2_type = jit_type_ulong
-	};
-
+	jit_value_t ret;
 	val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
-	return jit_insn_call_intrinsic(func, NULL, ptrs_vartoi, &descr, val.val, val.meta);
+	ptrs_jit_reusableCall(func, ptrs_vartof, ret, jit_type_long,
+		(jit_type_long, jit_type_ulong), (val.val, val.meta));
+
+	return ret;
 }
 
 jit_value_t ptrs_jit_vartof(jit_function_t func, ptrs_jit_var_t val)
@@ -164,7 +173,8 @@ jit_value_t ptrs_jit_vartof(jit_function_t func, ptrs_jit_var_t val)
 		ptrs_val_t constVal = ptrs_jit_value_getValConstant(val.val);
 		ptrs_meta_t constMeta = ptrs_jit_value_getMetaConstant(val.meta);
 
-		return jit_const_float(func, ptrs_vartof(constVal, constMeta));
+		if(constMeta.type != PTRS_TYPE_STRUCT)
+			return jit_const_float(func, ptrs_vartof(constVal, constMeta));
 	}
 
 	switch(val.constType)
@@ -172,6 +182,15 @@ jit_value_t ptrs_jit_vartof(jit_function_t func, ptrs_jit_var_t val)
 		case -1:
 		case PTRS_TYPE_NATIVE:
 			break; //use instrinsic
+		case PTRS_TYPE_STRUCT:
+			if(jit_value_is_constant(val.meta))
+			{
+				ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(val.meta);
+				ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
+				if(ptrs_struct_getOverload(struc, ptrs_handle_cast_builtin, true) == NULL)
+					return jit_insn_convert(func, val.val, jit_type_float64, 0);
+			}
+			break; //use intrinsic
 		case PTRS_TYPE_UNDEFINED:
 			return jit_const_long(func, long, 0);
 		case PTRS_TYPE_FLOAT:
@@ -180,22 +199,19 @@ jit_value_t ptrs_jit_vartof(jit_function_t func, ptrs_jit_var_t val)
 			return jit_insn_convert(func, val.val, jit_type_float64, 0);
 	}
 
-	jit_intrinsic_descr_t descr = {
-		.return_type = jit_type_float64,
-		.ptr_result_type = NULL,
-		.arg1_type = jit_type_long,
-		.arg2_type = jit_type_ulong
-	};
-
+	jit_value_t ret;
 	val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
-	return jit_insn_call_intrinsic(func, NULL, ptrs_vartof, &descr, val.val, val.meta);
+	ptrs_jit_reusableCall(func, ptrs_vartof, ret, jit_type_float64,
+		(jit_type_long, jit_type_ulong), (val.val, val.meta));
+
+	return ret;
 }
 
 void ptrs_itoa(char *buff, ptrs_val_t val)
 {
 	sprintf(buff, "%"PRId64, val.intval);
 }
-void ptrs_ftona(char *buff, int maxlen, ptrs_val_t val)
+void ptrs_ftona(char *buff, size_t maxlen, ptrs_val_t val)
 {
 	snprintf(buff, maxlen, "%.8f", val.floatval);
 
@@ -222,9 +238,20 @@ void ptrs_ptoa(char *buff, ptrs_val_t val)
 {
 	sprintf(buff, "pointer:%p", val.ptrval);
 }
-void ptrs_stoa(char *buff, ptrs_val_t val)
+const char *ptrs_stoa(ptrs_val_t val, ptrs_meta_t meta, char *buff)
 {
-	sprintf(buff, "%s:%p", val.structval->name, val.structval);
+	ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
+	jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_tostring, val.nativeval != NULL);
+	if(overload != NULL)
+	{
+		ptrs_var_t ret;
+		ptrs_jit_applyNested(overload, &ret, struc->parentFrame, val.nativeval, ());
+
+		return ptrs_vartoa(ret.value, ret.meta, buff, 32);
+	}
+
+	sprintf(buff, "%s:%p", struc->name, val.structval);
+	return buff;
 }
 void ptrs_functoa(char *buff, ptrs_val_t val)
 {
@@ -323,12 +350,19 @@ ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, ptrs_jit_var_t val)
 				jit_const_int(func, nuint, strlen("undefined")));
 			return ret;
 		}
+		else if(val.constType == PTRS_TYPE_STRUCT)
+		{
+			ptrs_jit_reusableCall(func, ptrs_stoa, ret.val, jit_type_void_ptr,
+				(jit_type_long, jit_type_long, jit_type_void_ptr),
+				(val.val, val.meta, buff)
+			);
+			return ret;
+		}
 
 		void *converters[] = {
 			[PTRS_TYPE_INT] = ptrs_itoa,
 			[PTRS_TYPE_FLOAT] = ptrs_ftoa,
 			[PTRS_TYPE_POINTER] = ptrs_ptoa,
-			[PTRS_TYPE_STRUCT] = ptrs_stoa,
 			[PTRS_TYPE_FUNCTION] = ptrs_functoa,
 		};
 
@@ -385,6 +419,22 @@ int64_t ptrs_vartoi(ptrs_val_t val, ptrs_meta_t meta)
 		case PTRS_TYPE_NATIVE:
 			if(meta.array.size > 0)
 				return strntol(val.strval, meta.array.size);
+			return (intptr_t)val.nativeval;
+		case PTRS_TYPE_STRUCT:
+			;
+			ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
+			jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_cast_builtin, val.nativeval != NULL);
+			if(overload != NULL)
+			{
+				ptrs_var_t ret;
+				ptrs_val_t arg0 = {.intval = PTRS_TYPE_INT};
+				ptrs_meta_t arg1 = {.type = PTRS_TYPE_INT};
+				ptrs_jit_applyNested(overload, &ret, struc->parentFrame, val.nativeval,
+					(&arg0, &arg1));
+
+				return ptrs_vartoi(ret.value, ret.meta);
+			}
+			/* fallthrough */
 		default: //pointer type
 			return (intptr_t)val.nativeval;
 	}
@@ -419,6 +469,22 @@ double ptrs_vartof(ptrs_val_t val, ptrs_meta_t meta)
 		case PTRS_TYPE_NATIVE:
 			if(meta.array.size > 0)
 				return strntod(val.strval, meta.array.size);
+			return (intptr_t)val.nativeval;
+		case PTRS_TYPE_STRUCT:
+			;
+			ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
+			jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_cast_builtin, val.nativeval != NULL);
+			if(overload != NULL)
+			{
+				ptrs_var_t ret;
+				ptrs_val_t arg0 = {.intval = PTRS_TYPE_FLOAT};
+				ptrs_meta_t arg1 = {.type = PTRS_TYPE_INT};
+				ptrs_jit_applyNested(overload, &ret, struc->parentFrame, val.nativeval,
+					(&arg0, &arg1));
+
+				return ptrs_vartoi(ret.value, ret.meta);
+			}
+			/* fallthrough */
 		default: //pointer type
 			return (intptr_t)val.nativeval;
 	}
@@ -429,7 +495,8 @@ const char *ptrs_vartoa(ptrs_val_t val, ptrs_meta_t meta, char *buff, size_t max
 	switch(meta.type)
 	{
 		case PTRS_TYPE_UNDEFINED:
-			strcpy(buff, "undefined");
+			strncpy(buff, "undefined", maxlen - 1);
+			buff[maxlen] = 0;
 			break;
 		case PTRS_TYPE_INT:
 			snprintf(buff, maxlen, "%"PRId64, val.intval);
@@ -455,7 +522,17 @@ const char *ptrs_vartoa(ptrs_val_t val, ptrs_meta_t meta, char *buff, size_t max
 			snprintf(buff, maxlen, "pointer:%p", val.ptrval);
 			break;
 		case PTRS_TYPE_STRUCT:
-			snprintf(buff, maxlen, "%s:%p", val.structval->name, val.structval);
+			;
+			ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
+			jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_tostring, val.nativeval != NULL);
+			if(overload != NULL)
+			{
+				ptrs_var_t ret;
+				ptrs_jit_applyNested(overload, &ret, struc->parentFrame, val.nativeval, ());
+				return ptrs_vartoa(ret.value, ret.meta, buff, maxlen);
+			}
+
+			snprintf(buff, maxlen, "%s:%p", struc->name, val.structval);
 			break;
 		case PTRS_TYPE_FUNCTION:
 			snprintf(buff, maxlen, "function:%p", val.nativeval);
