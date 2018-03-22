@@ -444,6 +444,7 @@ ptrs_jit_var_t ptrs_handle_return(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 
 	if(scope->returnAddr == NULL)
 	{
+		ret.val = ptrs_jit_reinterpretCast(func, ret.val, jit_type_long);
 		jit_insn_return_struct_from_values(func, ret.val, ret.meta);
 	}
 	else
