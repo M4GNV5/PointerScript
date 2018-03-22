@@ -1097,7 +1097,7 @@ cast<int>3.14 //returns 3
 ```
 
 ## CastToStringExpression
-Converts an expression to a string (0-terminated byte sequence). If the argument is already of type `native` and its `strlen` is within its array size the orginal value is returned, otherwise memory is allocated on the stack and the value is stringyfied.
+Converts an expression to a string (0-terminated byte sequence). If the argument is already of type `native` with a non zero `size` the value is returned (even if the string is not terminated within `size` bytes!).
 ```js
 //'cast' '<' 'string' '>' Expression
 cast<string>3.14 //returns "3.14"

@@ -260,35 +260,13 @@ void ptrs_functoa(char *buff, ptrs_val_t val)
 ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, ptrs_jit_var_t val)
 {
 	jit_value_t buff;
+	ptrs_jit_var_t ret;
+	ret.constType = PTRS_TYPE_NATIVE;
 
 	if(val.constType == -1)
 	{
-		buff = jit_value_create(func, jit_type_void_ptr);
-		jit_value_t size = jit_value_create(func, jit_type_ulong);
-
-		jit_label_t genericConversion = jit_label_undefined;
-		jit_label_t done = jit_label_undefined;
-
-		jit_value_t isNative = ptrs_jit_hasType(func, val.meta, PTRS_TYPE_NATIVE);
-		jit_insn_branch_if_not(func, isNative, &genericConversion);
-
-		jit_value_t _size = ptrs_jit_getArraySize(func, val.meta);
-		jit_value_t zeroLength = jit_insn_eq(func, _size, jit_const_long(func, ulong, 0));
-		jit_insn_branch_if(func, zeroLength, &genericConversion);
-
-		//sized variable of type native (i.e. already a (sized) string)
-		jit_insn_store(func, size, jit_insn_add(func, _size, jit_const_int(func, nuint, 1)));
-		jit_insn_store(func, buff, jit_insn_alloca(func, size));
-
-		jit_insn_memcpy(func, buff, val.val, _size);
-		jit_insn_store_elem(func, buff, _size, jit_const_int(func, ubyte, 0));
-
-		jit_insn_branch(func, &done);
-
-		//other type that needs to be converted
-		jit_insn_label(func, &genericConversion);
-		jit_insn_store(func, size, jit_const_int(func, nuint, 32));
-		jit_insn_store(func, buff, jit_insn_alloca(func, size));
+		jit_value_t size = jit_const_int(func, nuint, 32);
+		buff = jit_insn_alloca(func, size);
 
 		val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
 		ptrs_jit_reusableCallVoid(func, ptrs_vartoa,
@@ -301,40 +279,17 @@ ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, ptrs_jit_var_t val)
 			(val.val, val.meta, buff, size)
 		);
 
-		jit_insn_label(func, &done);
-
-		ptrs_jit_var_t ret;
 		ret.val = buff;
 		ret.meta = ptrs_jit_arrayMeta(func,
 			jit_const_long(func, ulong, PTRS_TYPE_NATIVE),
 			jit_const_long(func, ulong, 0),
 			size);
-		ret.constType = PTRS_TYPE_NATIVE;
 		return ret;
 	}
 	else
 	{
 		if(val.constType == PTRS_TYPE_NATIVE)
 		{
-			jit_value_t size = ptrs_jit_getArraySize(func, val.meta);
-
-			jit_value_t buffSize = jit_insn_add(func, size, jit_const_int(func, nint, 1));
-			val.meta = ptrs_jit_arrayMeta(func,
-				jit_const_int(func, ulong, PTRS_TYPE_NATIVE),
-				jit_const_int(func, ulong, 0),
-				buffSize
-			);
-
-			if(jit_value_is_constant(size))
-				buff = jit_insn_array(func, jit_value_get_long_constant(buffSize));
-			else
-				buff = jit_insn_alloca(func, buffSize);
-
-			jit_insn_memcpy(func, buff, val.val, size);
-			jit_insn_store_elem(func, buff, size, jit_const_int(func, ubyte, 0));
-
-			val.constType = PTRS_TYPE_NATIVE;
-			val.val = buff;
 			return val;
 		}
 
@@ -358,20 +313,22 @@ ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, ptrs_jit_var_t val)
 			);
 			return ret;
 		}
+		else
+		{
+			void *converters[] = {
+				[PTRS_TYPE_INT] = ptrs_itoa,
+				[PTRS_TYPE_FLOAT] = ptrs_ftoa,
+				[PTRS_TYPE_POINTER] = ptrs_ptoa,
+				[PTRS_TYPE_FUNCTION] = ptrs_functoa,
+			};
 
-		void *converters[] = {
-			[PTRS_TYPE_INT] = ptrs_itoa,
-			[PTRS_TYPE_FLOAT] = ptrs_ftoa,
-			[PTRS_TYPE_POINTER] = ptrs_ptoa,
-			[PTRS_TYPE_FUNCTION] = ptrs_functoa,
-		};
-
-		val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
-		ptrs_jit_reusableCallVoid(func, converters[val.constType],
-			(jit_type_void_ptr, jit_type_long),
-			(buff, val.val)
-		);
-		return ret;
+			val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
+			ptrs_jit_reusableCallVoid(func, converters[val.constType],
+				(jit_type_void_ptr, jit_type_long),
+				(buff, val.val)
+			);
+			return ret;
+		}
 	}
 }
 
