@@ -22,7 +22,7 @@ struct Foo
 	}
 
 	//and a few special operators you can overload (see the language docs for more)
-	operator this.name
+	operator this[name]
 	{
 		printf("getting property %s", name);
 		return name;

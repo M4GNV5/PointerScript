@@ -646,10 +646,11 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	{
 		jit_insn_default_return(ctor);
 		ptrs_jit_placeAssertions(ctor, &ctorScope);
+
+		if(ptrs_compileAot && jit_function_compile(ctor) == 0)
+			ptrs_error(node, "Failed compiling the constructor of function %s", struc->name);
 	}
 
-	if(ptrs_compileAot && jit_function_compile(ctor) == 0)
-		ptrs_error(node, "Failed compiling the constructor of function %s", struc->name);
 
 	bool hasCtor = false;
 	struct ptrs_opoverload *curr = struc->overloads;
