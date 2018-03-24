@@ -160,7 +160,7 @@ jit_value_t ptrs_jit_vartoi(jit_function_t func, ptrs_jit_var_t val)
 
 	jit_value_t ret;
 	val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
-	ptrs_jit_reusableCall(func, ptrs_vartof, ret, jit_type_long,
+	ptrs_jit_reusableCall(func, ptrs_vartoi, ret, jit_type_long,
 		(jit_type_long, jit_type_ulong), (val.val, val.meta));
 
 	return ret;
