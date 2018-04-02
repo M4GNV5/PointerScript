@@ -240,7 +240,8 @@ ptrs_jit_var_t ptrs_handle_indexlength(ptrs_ast_t *node, jit_function_t func, pt
 		ptrs_jit_var_t base = expr->left->handler(expr->left, func, scope); \
 		\
 		jit_value_t oldSize = scope->indexSize; \
-		scope->indexSize = ptrs_jit_getArraySize(func, base.meta); \
+		jit_value_t arraySize = ptrs_jit_getArraySize(func, base.meta); \
+		scope->indexSize = arraySize; \
 		ptrs_jit_var_t index = expr->right->handler(expr->right, func, scope); \
 		scope->indexSize = oldSize; \
 		\
@@ -274,6 +275,13 @@ ptrs_jit_var_t ptrs_handle_indexlength(ptrs_ast_t *node, jit_function_t func, pt
 		{ \
 			jit_insn_label(func, &isArray); \
 			jit_value_t intIndex = ptrs_jit_vartoi(func, index); \
+			\
+			struct ptrs_assertion *assert = ptrs_jit_assert(node, func, scope, \
+				jit_insn_ge(func, intIndex, jit_const_int(func, nuint, 0)), \
+				3, "Cannot get index %v of array of size %d", index.val, index.meta, arraySize); \
+			\
+			ptrs_jit_appendAssert(func, assert, \
+				jit_insn_le(func, intIndex, arraySize)); \
 			\
 			arraySetup \
 			\

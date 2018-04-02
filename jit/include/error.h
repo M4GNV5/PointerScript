@@ -8,6 +8,7 @@
 
 extern FILE *ptrs_errorfile;
 extern bool ptrs_enableExceptions;
+extern bool ptrs_enableSafety;
 
 typedef struct
 {

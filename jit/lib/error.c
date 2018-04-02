@@ -26,6 +26,7 @@ struct ptrs_assertion
 
 FILE *ptrs_errorfile = NULL;
 bool ptrs_enableExceptions = false;
+bool ptrs_enableSafety = true;
 
 extern jit_context_t ptrs_jit_context;
 
@@ -309,6 +310,9 @@ void ptrs_handle_signals(jit_function_t func)
 struct ptrs_assertion *ptrs_jit_vassert(ptrs_ast_t *ast, jit_function_t func, ptrs_scope_t *scope,
 	jit_value_t condition, size_t argCount, const char *text, va_list ap)
 {
+	if(!ptrs_enableSafety)
+		return NULL;
+
 	argCount += 2;
 
 	struct ptrs_assertion *assertion = malloc(sizeof(struct ptrs_assertion) + argCount * sizeof(jit_value_t));
@@ -352,7 +356,8 @@ struct ptrs_assertion *ptrs_jit_assert(ptrs_ast_t *ast, jit_function_t func, ptr
 
 void ptrs_jit_appendAssert(jit_function_t func, struct ptrs_assertion *assertion, jit_value_t condition)
 {
-	jit_insn_branch_if_not(func, condition, &assertion->label);
+	if(ptrs_enableSafety)
+		jit_insn_branch_if_not(func, condition, &assertion->label);
 }
 
 void ptrs_jit_placeAssertions(jit_function_t func, ptrs_scope_t *scope)

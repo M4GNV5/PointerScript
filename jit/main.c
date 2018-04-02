@@ -24,7 +24,8 @@ static struct option options[] = {
 	{"no-sig", no_argument, 0, 3},
 	{"no-aot", no_argument, 0, 4},
 	{"asmdump", no_argument, 0, 5},
-	{"error", required_argument, 0, 6},
+	{"unsafe", no_argument, 0, 6},
+	{"error", required_argument, 0, 7},
 	{0, 0, 0, 0}
 };
 
@@ -47,6 +48,7 @@ static int parseOptions(int argc, char **argv)
 						"\t--no-sig             Do not listen to signals.\n"
 						"\t--no-aot             Disable AOT compilation\n"
 						"\t--asmdump            Output disassembly of generated instructions\n"
+						"\t--unsafe             Disable all assertions (including type checks)\n"
 					"Source code can be found at https://github.com/M4GNV5/PointerScript\n", UINT32_MAX);
 				exit(EXIT_SUCCESS);
 			case 2:
@@ -62,6 +64,9 @@ static int parseOptions(int argc, char **argv)
 				dumpOps = true;
 				break;
 			case 6:
+				ptrs_enableSafety = false;
+				break;
+			case 7:
 				ptrs_errorfile = fopen(optarg, "w");
 				if(ptrs_errorfile == NULL)
 				{

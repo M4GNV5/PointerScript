@@ -75,10 +75,13 @@ ptrs_jit_var_t ptrs_handle_typeddefine(ptrs_ast_t *node, jit_function_t func, pt
 				stmt->type, val.constType);
 		else
 			stmt->location.constType = val.constType;
+
+		ptrs_jit_typeCheck(node, func, scope, val, stmt->type,
+			"Initializer type %t does not match the variables defined type");
 	}
 	else
 	{
-		val.val = jit_value_create_long_constant(func, jit_type_long, 0);
+		val.val = jit_const_int(func, long, 0);
 		val.meta = ptrs_jit_const_meta(func, stmt->type);
 		stmt->location.constType = stmt->type;
 	}
@@ -106,7 +109,7 @@ ptrs_jit_var_t ptrs_handle_typeddefine(ptrs_ast_t *node, jit_function_t func, pt
 	}
 	else
 	{
-		stmt->location.meta = jit_value_create(func, jit_type_long);
+		stmt->location.meta = jit_value_create(func, jit_type_ulong);
 		jit_insn_store(func, stmt->location.meta, val.meta);
 	}
 

@@ -81,35 +81,18 @@ jit_value_t ptrs_jit_import(ptrs_ast_t *node, jit_function_t func, jit_value_t v
 	{ \
 		if(val.constType == -1) \
 		{ \
-			jit_value_t actualType = ptrs_jit_getType(func, val.meta); \
-			ptrs_jit_assert(node, func, scope, \
-				jit_insn_eq(func, actualType, jit_const_int(func, sbyte, type)), \
-				1, msg, actualType \
-			); \
+			if(ptrs_enableSafety) \
+			{ \
+				jit_value_t actualType = ptrs_jit_getType(func, val.meta); \
+				ptrs_jit_assert(node, func, scope, \
+					jit_insn_eq(func, actualType, jit_const_int(func, sbyte, type)), \
+					1, msg, actualType \
+				); \
+			} \
 		} \
 		else if(val.constType != type) \
 		{ \
 			ptrs_error(node, msg, val.constType); \
-		} \
-	} while(0)
-
-#define ptrs_jit_typeRangeCheck(node, func, scope, val, start, end, argCount, msg, ...) \
-	do \
-	{ \
-		if(val.constType == -1) \
-		{ \
-			jit_value_t TYPECHECK_TYPE = ptrs_jit_getType(func, val.meta); \
-			struct ptrs_assertion *assertion = ptrs_jit_assert(node, func, scope, \
-				jit_insn_ge(func, TYPECHECK_TYPE, jit_const_int(func, sbyte, start)), \
-				argCount, msg, __VA_ARGS__ \
-			); \
-			ptrs_jit_appendAssert(func, assertion, \
-				jit_insn_le(func, TYPECHECK_TYPE, jit_const_int(func, sbyte, end))); \
-		} \
-		else if(val.constType < start || val.constType > end) \
-		{ \
-			ptrs_vartype_t TYPECHECK_TYPE = val.constType; \
-			ptrs_error(node, msg, __VA_ARGS__); \
 		} \
 	} while(0)
 
