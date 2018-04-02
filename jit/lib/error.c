@@ -309,9 +309,6 @@ void ptrs_handle_signals(jit_function_t func)
 struct ptrs_assertion *ptrs_jit_vassert(ptrs_ast_t *ast, jit_function_t func, ptrs_scope_t *scope,
 	jit_value_t condition, size_t argCount, const char *text, va_list ap)
 {
-	if(jit_value_is_constant(condition) && !jit_value_is_true(condition))
-		_ptrs_verror(ast, 0, text, ap);
-
 	argCount += 2;
 
 	struct ptrs_assertion *assertion = malloc(sizeof(struct ptrs_assertion) + argCount * sizeof(jit_value_t));
@@ -327,8 +324,7 @@ struct ptrs_assertion *ptrs_jit_vassert(ptrs_ast_t *ast, jit_function_t func, pt
 
 	assertion->label = jit_label_undefined;
 
-	if(!jit_value_is_constant(condition))
-		jit_insn_branch_if_not(func, condition, &assertion->label);
+	jit_insn_branch_if_not(func, condition, &assertion->label);
 
 	assertion->next = NULL;
 	if(scope->lastAssertion == NULL)
