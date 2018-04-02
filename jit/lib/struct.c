@@ -619,7 +619,7 @@ ptrs_jit_var_t ptrs_struct_construct(ptrs_ast_t *ast, jit_function_t func, ptrs_
 	ptrs_jit_var_t constructor, struct ptrs_astlist *arguments, bool allocateOnStack)
 {
 	ptrs_jit_typeCheck(ast, func, scope, constructor, PTRS_TYPE_STRUCT,
-		1, "Value of type %t is not a constructor", TYPECHECK_TYPE);
+		"Value of type %t is not a constructor");
 
 	jit_value_t instance;
 	if(jit_value_is_constant(constructor.meta))

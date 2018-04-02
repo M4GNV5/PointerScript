@@ -538,7 +538,7 @@ ptrs_jit_var_t ptrs_handle_cast(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 
 	ptrs_jit_var_t type = expr->type->handler(expr->type, func, scope);
 	ptrs_jit_typeCheck(node, func, scope, type, PTRS_TYPE_STRUCT,
-		2, "Cast target is of type %t not struct", TYPECHECK_TYPE);
+		"Cast target is of type %t not struct");
 
 	ptrs_jit_var_t val = expr->value->handler(expr->value, func, scope);
 

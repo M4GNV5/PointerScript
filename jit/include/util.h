@@ -76,21 +76,20 @@ jit_value_t ptrs_jit_import(ptrs_ast_t *node, jit_function_t func, jit_value_t v
 	} while(0)
 
 
-#define ptrs_jit_typeCheck(node, func, scope, val, type, argCount, msg, ...) \
+#define ptrs_jit_typeCheck(node, func, scope, val, type, msg) \
 	do \
 	{ \
 		if(val.constType == -1) \
 		{ \
-			jit_value_t TYPECHECK_TYPE = ptrs_jit_getType(func, val.meta); \
+			jit_value_t actualType = ptrs_jit_getType(func, val.meta); \
 			ptrs_jit_assert(node, func, scope, \
-				jit_insn_eq(func, TYPECHECK_TYPE, jit_const_int(func, sbyte, type)), \
-				argCount, msg, __VA_ARGS__ \
+				jit_insn_eq(func, actualType, jit_const_int(func, sbyte, type)), \
+				1, msg, actualType \
 			); \
 		} \
 		else if(val.constType != type) \
 		{ \
-			ptrs_vartype_t TYPECHECK_TYPE = val.constType; \
-			ptrs_error(node, msg, __VA_ARGS__); \
+			ptrs_error(node, msg, val.constType); \
 		} \
 	} while(0)
 

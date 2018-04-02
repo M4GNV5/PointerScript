@@ -177,7 +177,7 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 
 		//check type of initExpr
 		ptrs_jit_typeCheck(node, func, scope, init, PTRS_TYPE_NATIVE,
-			1, "Array init expression must be of type native not %t", TYPECHECK_TYPE);
+			"Array init expression must be of type native not %t");
 
 		//check initExpr.size <= array.size
 		jit_value_t initSize = ptrs_jit_getArraySize(func, init.meta);
