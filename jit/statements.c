@@ -176,8 +176,6 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 
 	if(stmt->isInitExpr)
 	{
-		ptrs_jit_var_t init = stmt->initExpr->handler(stmt->initExpr, func, scope);
-
 		//check type of initExpr
 		ptrs_jit_typeCheck(node, func, scope, init, PTRS_TYPE_NATIVE,
 			"Array init expression must be of type native not %t");
