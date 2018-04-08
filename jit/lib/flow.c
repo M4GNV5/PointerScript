@@ -208,6 +208,14 @@ static const void *binaryIntFloatHandler[] = {
 	ptrs_handle_op_mul,
 	ptrs_handle_op_div
 };
+static const void *unaryIntFloatHandler[] = {
+	ptrs_handle_prefix_inc,
+	ptrs_handle_prefix_dec,
+	ptrs_handle_prefix_not,
+	ptrs_handle_prefix_minus,
+	ptrs_handle_suffix_inc,
+	ptrs_handle_suffix_dec
+};
 
 #define typecomp(a, b) ((PTRS_TYPE_##a << 3) | PTRS_TYPE_##b)
 #define calc_typecomp(a, b) ((a << 3) | b)
@@ -517,6 +525,14 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 					return PTRS_TYPE_INT;
 				else
 					return -2;
+			}
+		}
+
+		for(int i = 0; i < sizeof(unaryIntFloatHandler) / sizeof(void *); i++)
+		{
+			if(node->handler == unaryIntFloatHandler[i])
+			{
+				return analyzeExpression(flow, node->arg.astval);
 			}
 		}
 
