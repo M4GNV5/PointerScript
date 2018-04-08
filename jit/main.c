@@ -17,15 +17,17 @@ static bool dumpOps = false;
 
 extern size_t ptrs_arraymax;
 extern bool ptrs_compileAot;
+extern bool ptrs_analyzeFlow;
 
 static struct option options[] = {
 	{"help", no_argument, 0, 1},
 	{"array-max", required_argument, 0, 2},
 	{"no-sig", no_argument, 0, 3},
 	{"no-aot", no_argument, 0, 4},
-	{"asmdump", no_argument, 0, 5},
-	{"unsafe", no_argument, 0, 6},
-	{"error", required_argument, 0, 7},
+	{"no-flow", no_argument, 0, 5},
+	{"asmdump", no_argument, 0, 6},
+	{"unsafe", no_argument, 0, 7},
+	{"error", required_argument, 0, 8},
 	{0, 0, 0, 0}
 };
 
@@ -47,6 +49,7 @@ static int parseOptions(int argc, char **argv)
 						"\t--error <file>       Set where error messages are written to. Default: /dev/stderr\n"
 						"\t--no-sig             Do not listen to signals.\n"
 						"\t--no-aot             Disable AOT compilation\n"
+						"\t--no-flow            Disable data flow analyzation\n"
 						"\t--asmdump            Output disassembly of generated instructions\n"
 						"\t--unsafe             Disable all assertions (including type checks)\n"
 					"Source code can be found at https://github.com/M4GNV5/PointerScript\n", UINT32_MAX);
@@ -61,12 +64,15 @@ static int parseOptions(int argc, char **argv)
 				ptrs_compileAot = false;
 				break;
 			case 5:
-				dumpOps = true;
+				ptrs_analyzeFlow = false;
 				break;
 			case 6:
-				ptrs_enableSafety = false;
+				dumpOps = true;
 				break;
 			case 7:
+				ptrs_enableSafety = false;
+				break;
+			case 8:
 				ptrs_errorfile = fopen(optarg, "w");
 				if(ptrs_errorfile == NULL)
 				{
