@@ -20,6 +20,7 @@ RUN_OBJECTS += $(BIN)/lib/run.o
 RUN_OBJECTS += $(BIN)/lib/nativetypes.o
 RUN_OBJECTS += $(BIN)/lib/struct.o
 RUN_OBJECTS += $(BIN)/lib/util.o
+RUN_OBJECTS += $(BIN)/lib/flow.o
 
 RUN_OBJECTS += $(BIN)/ops/binary.o
 RUN_OBJECTS += $(BIN)/ops/unary.o

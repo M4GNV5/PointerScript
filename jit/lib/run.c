@@ -10,6 +10,7 @@
 #include "../include/error.h"
 #include "../include/util.h"
 #include "../include/call.h"
+#include "../include/flow.h"
 
 jit_context_t ptrs_jit_context = NULL;
 bool ptrs_compileAot = true;
@@ -24,6 +25,8 @@ void ptrs_compile(ptrs_result_t *result, char *src, const char *filename)
 
 	result->symbols = NULL;
 	result->ast = ptrs_parse(src, filename, &result->symbols);
+
+	ptrs_flow_analyze(result->ast);
 
 	jit_context_build_start(ptrs_jit_context);
 

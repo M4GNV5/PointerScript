@@ -179,7 +179,8 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 						ast->addressHandler = ptrs_handle_addressof_identifier;
 						ast->callHandler = NULL;
 
-						ast->arg.varval = curr->arg.location;
+						ast->arg.identifier.location = curr->arg.location;
+						ast->arg.identifier.predictedType = -1;
 						break;
 
 					case PTRS_SYMBOL_FUNCTION:

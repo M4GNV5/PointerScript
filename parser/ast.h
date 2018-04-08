@@ -25,6 +25,12 @@ struct ptrs_ast_define
 	uint8_t isTyped : 1;
 };
 
+struct ptrs_ast_identifier
+{
+	ptrs_jit_var_t *location;
+	int8_t predictedType;
+};
+
 struct ptrs_ast_member
 {
 	struct ptrs_ast *base;
@@ -200,6 +206,7 @@ union ptrs_ast_arg
 	struct ptrs_algorithmlist *algolist;
 
 	struct ptrs_ast_define define;
+	struct ptrs_ast_identifier identifier;
 	struct ptrs_ast_member member;
 	struct ptrs_ast_import import;
 	struct ptrs_ast_importedsymbol importedsymbol;
@@ -221,7 +228,6 @@ union ptrs_ast_arg
 	struct ptrs_ast_yield yield;
 };
 
-typedef struct jit jit_state_t;
 typedef ptrs_jit_var_t (*ptrs_asthandler_t)(struct ptrs_ast *, jit_function_t, ptrs_scope_t *);
 typedef void (*ptrs_sethandler_t)(struct ptrs_ast *, jit_function_t, ptrs_scope_t *, ptrs_jit_var_t);
 typedef ptrs_jit_var_t (*ptrs_callhandler_t)(struct ptrs_ast *, jit_function_t, ptrs_scope_t *,

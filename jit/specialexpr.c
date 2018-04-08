@@ -675,15 +675,18 @@ ptrs_jit_var_t ptrs_handle_addressof_importedsymbol(ptrs_ast_t *node,
 
 ptrs_jit_var_t ptrs_handle_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	ptrs_jit_var_t target = *node->arg.varval;
+	struct ptrs_ast_identifier *expr = &node->arg.identifier;
+
+	ptrs_jit_var_t target = *expr->location;
 	target.val = ptrs_jit_import(node, func, target.val, false);
 	target.meta = ptrs_jit_import(node, func, target.meta, false);
+	target.constType = expr->predictedType;
 
 	return target;
 }
 void ptrs_handle_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
 {
-	ptrs_jit_var_t target = *node->arg.varval;
+	ptrs_jit_var_t target = *node->arg.identifier.location;
 	jit_function_t targetFunc = jit_value_get_function(target.val);
 
 	if(func == targetFunc)
@@ -754,7 +757,7 @@ void ptrs_handle_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_s
 }
 ptrs_jit_var_t ptrs_handle_addressof_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	ptrs_jit_var_t target = *node->arg.varval;
+	ptrs_jit_var_t target = *node->arg.identifier.location;
 	target.val = ptrs_jit_import(node, func, target.val, true);
 	target.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_POINTER, false, 1);
 	target.constType = PTRS_TYPE_POINTER;
