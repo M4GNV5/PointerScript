@@ -194,7 +194,8 @@ static const void *comparasionHandler[] = {
 	ptrs_handle_op_greaterequal,
 	ptrs_handle_op_less,
 	ptrs_handle_op_greater,
-	ptrs_handle_op_in
+	ptrs_handle_op_in,
+	ptrs_handle_op_logicxor
 };
 static const void *binaryIntOnlyHandler[] = {
 	ptrs_handle_op_or,
@@ -212,6 +213,7 @@ static const void *unaryIntFloatHandler[] = {
 	ptrs_handle_prefix_inc,
 	ptrs_handle_prefix_dec,
 	ptrs_handle_prefix_not,
+	ptrs_handle_prefix_plus,
 	ptrs_handle_prefix_minus,
 	ptrs_handle_suffix_inc,
 	ptrs_handle_suffix_dec
@@ -246,7 +248,7 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 
 		if(stmt->isInitExpr)
 			analyzeExpression(flow, stmt->initExpr);
-		
+
 		if(stmt->value != NULL) //size
 			analyzeExpression(flow, stmt->value);
 
@@ -279,7 +281,7 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 	else if(node->handler == ptrs_handle_stringformat)
 	{
 		struct ptrs_ast_strformat *expr = &node->arg.strformat;
-		
+
 		struct ptrs_stringformat *curr = expr->insertions;
 		while(curr != NULL)
 		{
@@ -420,6 +422,23 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 	{
 		struct ptrs_ast_binary *expr = &node->arg.binary;
 		analyzeLValue(flow, expr->left, analyzeExpression(flow, expr->right));
+	}
+	else if(node->handler == ptrs_handle_op_ternary)
+	{
+		struct ptrs_ast_ternary *expr = &node->arg.ternary;
+		analyzeExpression(flow, expr->condition);
+		int8_t left = analyzeExpression(flow, expr->trueVal);
+		int8_t right = analyzeExpression(flow, expr->falseVal);
+
+		if(left == right)
+			return left;
+		else
+			return -1;
+	}
+	else if(node->handler == ptrs_handle_prefix_logicnot)
+	{
+		analyzeExpression(flow, node->arg.astval);
+		return PTRS_TYPE_INT;
 	}
 	else if(node->handler == ptrs_handle_op_add)
 	{
@@ -576,7 +595,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node)
 
 		if(stmt->isInitExpr)
 			analyzeExpression(flow, stmt->initExpr);
-		
+
 		if(stmt->value != NULL) //size
 			analyzeExpression(flow, stmt->value);
 
