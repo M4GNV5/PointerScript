@@ -275,55 +275,6 @@ static jit_type_t getIntrinsicSignature()
 		return right; \
 	}
 
-#define handle_binary_intrinsic_assign(name, opName) \
-	ptrs_jit_var_t ptrs_handle_op_##name(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope) \
-	{ \
-		struct ptrs_ast_binary *expr = &node->arg.binary; \
-		\
-		ptrs_jit_var_t left = expr->left->handler(expr->left, func, scope); \
-		ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope); \
-		\
-		jit_value_t args[5] = { \
-			jit_const_int(func, void_ptr, (uintptr_t)node), \
-			ptrs_jit_reinterpretCast(func, left.val, jit_type_long), \
-			left.meta, \
-			ptrs_jit_reinterpretCast(func, right.val, jit_type_long), \
-			right.meta \
-		}; \
-		\
-		jit_value_t ret = jit_insn_call_native(func, "(op " #opName ")", \
-			ptrs_intrinsic_##opName, getIntrinsicSignature(), args, 5, 0); \
-		\
-		ptrs_jit_var_t val = ptrs_jit_valToVar(func, ret); \
-		expr->left->setHandler(expr->left, func, scope, val); \
-		\
-		return val; \
-	}
-
-#define handle_binary_intonly_assign(name, operator) \
-	ptrs_jit_var_t ptrs_handle_op_##name(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope) \
-	{ \
-		struct ptrs_ast_binary *expr = &node->arg.binary; \
-		\
-		ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope); \
-		ptrs_jit_var_t left = expr->left->handler(expr->left, func, scope); \
-		\
-		jit_value_t leftType = ptrs_jit_getType(func, left.meta); \
-		jit_value_t rightType = ptrs_jit_getType(func, right.meta); \
-		\
-		struct ptrs_assertion *assertion = ptrs_jit_assert(node, func, scope, \
-			jit_insn_eq(func, leftType, jit_const_int(func, nuint, PTRS_TYPE_INT)), \
-			2, "Cannot use operator " #operator " on variables of type %t and %t", leftType, rightType \
-		); \
-		ptrs_jit_appendAssert(func, assertion, \
-			jit_insn_eq(func, rightType, jit_const_int(func, nuint, PTRS_TYPE_INT))); \
-		\
-		left.val = jit_insn_##operator(func, left.val, right.val); \
-		expr->left->setHandler(expr->left, func, scope, left); \
-		\
-		return left; \
-	}
-
 #define handle_binary_typecompare(comparer, constOp) \
 	if(left.constType != -1 && right.constType != -1) \
 	{ \
@@ -441,15 +392,5 @@ handle_binary_intrinsic(sub, -, sub, binary_sub_cases, binary_sub_jit_cases) //-
 handle_binary_intrinsic(mul, *, mul, , ) //*
 handle_binary_intrinsic(div, /, div, , ) ///
 handle_binary_intonly(mod, rem, %) //%
-handle_binary_intrinsic_assign(addassign, add) //+=
-handle_binary_intrinsic_assign(subassign, sub) //-=
-handle_binary_intrinsic_assign(mulassign, mul) //*=
-handle_binary_intrinsic_assign(divassign, div) ///=
-handle_binary_intonly_assign(modassign, rem) //%=
-handle_binary_intonly_assign(shrassign, sshr) //>>=
-handle_binary_intonly_assign(shlassign, shl) //<<=
-handle_binary_intonly_assign(andassign, and) //&=
-handle_binary_intonly_assign(xorassign, xor) //^=
-handle_binary_intonly_assign(orassign, or) //|=
 handle_binary_logic(logicor, if, !=) //||
 handle_binary_logic(logicand, if_not, ==) //&&

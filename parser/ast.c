@@ -793,7 +793,7 @@ struct opinfo
 {
 	const char *op;
 	int precendence;
-	bool rightToLeft;
+	bool isAssignOp;
 	ptrs_asthandler_t handler;
 };
 
@@ -813,16 +813,16 @@ struct opinfo binaryOps[] = {
 	{">", 10, false, ptrs_handle_op_greater},
 
 	{"=", 1, true, ptrs_handle_op_assign},
-	{"+=", 1, true, ptrs_handle_op_addassign},
-	{"-=", 1, true, ptrs_handle_op_subassign},
-	{"*=", 1, true, ptrs_handle_op_mulassign},
-	{"/=", 1, true, ptrs_handle_op_divassign},
-	{"%=", 1, true, ptrs_handle_op_modassign},
-	{">>=", 1, true, ptrs_handle_op_shrassign},
-	{"<<=", 1, true, ptrs_handle_op_shlassign},
-	{"&=", 1, true, ptrs_handle_op_andassign},
-	{"^=", 1, true, ptrs_handle_op_xorassign},
-	{"|=", 1, true, ptrs_handle_op_orassign},
+	{"+=", 1, true, ptrs_handle_op_add},
+	{"-=", 1, true, ptrs_handle_op_sub},
+	{"*=", 1, true, ptrs_handle_op_mul},
+	{"/=", 1, true, ptrs_handle_op_div},
+	{"%=", 1, true, ptrs_handle_op_mod},
+	{">>=", 1, true, ptrs_handle_op_shr},
+	{"<<=", 1, true, ptrs_handle_op_shl},
+	{"&=", 1, true, ptrs_handle_op_and},
+	{"^=", 1, true, ptrs_handle_op_xor},
+	{"|=", 1, true, ptrs_handle_op_or},
 
 	{"?", 2, true, ptrs_handle_op_ternary},
 	{":", -1, true, ptrs_handle_op_ternary},
@@ -908,19 +908,22 @@ static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 			ahead = peekBinaryOp(code);
 		}
 
+		ptrs_ast_t *_left = left;
+
 		if(op->handler == ptrs_handle_op_ternary)
 		{
-			ptrs_ast_t *ast = talloc(ptrs_ast_t);
-			ast->handler = ptrs_handle_op_ternary;
-			ast->arg.ternary.condition = left;
-			ast->arg.ternary.trueVal = right;
+			ptrs_ast_t *left = talloc(ptrs_ast_t);
+			left->handler = ptrs_handle_op_ternary;
+			left->arg.ternary.condition = _left;
+			left->arg.ternary.trueVal = right;
 			consumec(code, ':');
-			ast->arg.ternary.falseVal = parseExpression(code, true);
-			left = ast;
+			left->arg.ternary.falseVal = parseExpression(code, true);
+			left->codepos = pos;
+			left->code = code->src;
+			left->file = code->filename;
 			continue;
 		}
 
-		ptrs_ast_t *_left = left;
 		left = talloc(ptrs_ast_t);
 		left->handler = op->handler;
 		left->setHandler = NULL;
@@ -932,8 +935,23 @@ static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 		left->code = code->src;
 		left->file = code->filename;
 
-		if(op->rightToLeft && _left->setHandler == NULL)
+		if(op->isAssignOp && _left->setHandler == NULL)
 			PTRS_HANDLE_ASTERROR(left, "Invalid assign expression, left side is not a valid lvalue");
+
+		if(op->isAssignOp && op->handler != ptrs_handle_op_assign)
+		{
+			right = left;
+			left = talloc(ptrs_ast_t);
+			left->handler = ptrs_handle_op_assign;
+			left->setHandler = NULL;
+			left->addressHandler = NULL;
+			left->callHandler = NULL;
+			left->arg.binary.left = _left;
+			left->arg.binary.right = right;
+			left->codepos = pos;
+			left->code = code->src;
+			left->file = code->filename;
+		}
 	}
 	return left;
 }

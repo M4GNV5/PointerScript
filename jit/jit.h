@@ -83,16 +83,6 @@ ptrs_jit_var_t ptrs_handle_op_greaterequal(ptrs_ast_t *node, jit_function_t func
 ptrs_jit_var_t ptrs_handle_op_less(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_op_greater(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_op_assign(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
-ptrs_jit_var_t ptrs_handle_op_addassign(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
-ptrs_jit_var_t ptrs_handle_op_subassign(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
-ptrs_jit_var_t ptrs_handle_op_mulassign(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
-ptrs_jit_var_t ptrs_handle_op_divassign(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
-ptrs_jit_var_t ptrs_handle_op_modassign(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
-ptrs_jit_var_t ptrs_handle_op_shrassign(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
-ptrs_jit_var_t ptrs_handle_op_shlassign(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
-ptrs_jit_var_t ptrs_handle_op_andassign(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
-ptrs_jit_var_t ptrs_handle_op_xorassign(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
-ptrs_jit_var_t ptrs_handle_op_orassign(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_op_logicor(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_op_logicxor(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_op_logicand(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
