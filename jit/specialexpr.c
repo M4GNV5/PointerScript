@@ -680,7 +680,9 @@ ptrs_jit_var_t ptrs_handle_identifier(ptrs_ast_t *node, jit_function_t func, ptr
 	ptrs_jit_var_t target = *expr->location;
 	target.val = ptrs_jit_import(node, func, target.val, false);
 	target.meta = ptrs_jit_import(node, func, target.meta, false);
-	target.constType = expr->predictedType;
+
+	if(target.constType == -1 && expr->predictedType != -1)
+		target.constType = expr->predictedType;
 
 	return target;
 }
@@ -711,7 +713,9 @@ void ptrs_handle_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_s
 			jit_value_t type = ptrs_jit_getType(func, val.meta);
 			ptrs_jit_assert(node, func, scope,
 				jit_insn_eq(func, type, jit_const_long(func, ulong, target.constType)),
-				2, "Cannot assign value of type %mt to variable of type %t", type, target.constType);
+				2, "Cannot assign value of type %mt to variable of type %t",
+				type, jit_const_int(func, sbyte, target.constType)
+			);
 		}
 		else if(val.constType != target.constType)
 		{

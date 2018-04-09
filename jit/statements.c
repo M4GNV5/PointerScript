@@ -76,8 +76,11 @@ ptrs_jit_var_t ptrs_handle_typeddefine(ptrs_ast_t *node, jit_function_t func, pt
 		else
 			stmt->location.constType = val.constType;
 
-		ptrs_jit_typeCheck(node, func, scope, val, stmt->type,
-			"Initializer type %t does not match the variables defined type");
+		if(stmt->type < PTRS_NUM_TYPES)
+		{
+			ptrs_jit_typeCheck(node, func, scope, val, stmt->type,
+				"Initializer type %t does not match the variables defined type");
+		}
 	}
 	else
 	{
