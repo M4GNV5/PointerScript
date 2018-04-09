@@ -23,6 +23,7 @@ typedef struct
 } ptrs_flow_t;
 
 static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node);
+static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node);
 
 static ptrs_predictions_t *dupPredictions(ptrs_predictions_t *curr)
 {
@@ -152,6 +153,27 @@ static void analyzeList(ptrs_flow_t *flow, struct ptrs_astlist *list)
 	}
 }
 
+static void analyzeFunction(ptrs_function_t *ast)
+{
+	ptrs_flow_t flow;
+	flow.updatePredictions = true;
+	flow.predictions = NULL;
+
+	ptrs_funcparameter_t *curr = ast->args;
+	for(; curr != NULL; curr = curr->next)
+	{
+		if(curr->type != -1)
+			setPrediction(&flow, &curr->arg, curr->type);
+	}
+
+	setPrediction(&flow, &ast->thisVal, PTRS_TYPE_STRUCT);
+	setPrediction(&flow, &ast->vararg, PTRS_TYPE_POINTER);
+
+	analyzeStatement(&flow, ast->body);
+	
+	freePredictions(flow.predictions);
+}
+
 static void analyzeLValue(ptrs_flow_t *flow, ptrs_ast_t *node, int8_t type)
 {
 	if(node->setHandler == ptrs_handle_assign_identifier)
@@ -263,6 +285,11 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 			analyzeExpression(flow, stmt->value);
 
 		analyzeList(flow, stmt->initVal);
+	}
+	else if(node->handler == ptrs_handle_function)
+	{
+		analyzeFunction(&node->arg.function.func);
+		return PTRS_TYPE_FUNCTION;
 	}
 	else if(node->handler == ptrs_handle_call)
 	{
@@ -634,7 +661,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node)
 	}
 	else if(node->handler == ptrs_handle_function)
 	{
-		//TODO
+		analyzeFunction(&node->arg.function.func);
 	}
 	else if(node->handler == ptrs_handle_if)
 	{

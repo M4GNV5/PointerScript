@@ -382,11 +382,15 @@ static ptrs_funcparameter_t *parseArgumentDefinitionList(code_t *code, ptrs_jit_
 		curr->arg.val = NULL;
 		curr->arg.meta = NULL;
 		curr->arg.constType = -1;
+		curr->type = -1;
 		curr->argv = NULL;
 		curr->next = NULL;
 
 		if(name != NULL)
 		{
+			if(lookahead(code, ":"))
+				curr->type = readTypeName(code);
+
 			if(lookahead(code, "="))
 				curr->argv = parseExpression(code, true);
 
@@ -1248,7 +1252,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			if(code->curr != ')')
 				free(readIdentifier(code));
 
-			if(code->curr == ',' || (lookahead(code, ")") && lookahead(code, "->")))
+			if(code->curr == ',' || code->curr == ':' || (lookahead(code, ")") && lookahead(code, "->")))
 			{
 				code->pos = start;
 				code->curr = code->src[start];
@@ -1952,6 +1956,7 @@ static ptrs_funcparameter_t *createParameterList(code_t *code, size_t count, ...
 		curr->arg.val = NULL;
 		curr->arg.meta = NULL;
 		curr->arg.constType = -1;
+		curr->type = va_arg(ap, ptrs_vartype_t);
 		curr->argv = NULL;
 		curr->next = NULL;
 
@@ -2037,7 +2042,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 					if(isAddressOf)
 					{
-						func->args = createParameterList(code, 1, otherName);
+						func->args = createParameterList(code, 1, otherName, PTRS_TYPE_NATIVE);
 
 						nameFormat = "%1$s.op &this[%3$s]";
 						overload->op = ptrs_handle_addressof_member;
@@ -2045,7 +2050,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					else if(lookahead(code, "="))
 					{
 						opLabel = readIdentifier(code);
-						func->args = createParameterList(code, 2, otherName, opLabel);
+						func->args = createParameterList(code, 2,
+							otherName, PTRS_TYPE_NATIVE, opLabel, (ptrs_vartype_t)-1);
 
 						nameFormat = "%1$s.op this[%3$s] = %2$s";
 						overload->op = ptrs_handle_assign_member;
@@ -2070,7 +2076,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					}
 					else
 					{
-						func->args = createParameterList(code, 1, otherName);
+						func->args = createParameterList(code, 1, otherName, PTRS_TYPE_NATIVE);
 
 						nameFormat = "%1$s.op this[%3$s]";
 						overload->op = ptrs_handle_member;
@@ -2105,7 +2111,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				nameFormat = "%1$s.op foreach in this";
 				overload->op = ptrs_handle_forin;
 
-				func->args = createParameterList(code, 2, NULL, NULL);
+				func->args = createParameterList(code, 2, NULL, NULL, NULL, NULL);
 
 				//code->yield = TODO
 			}
@@ -2127,7 +2133,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					nameFormat = "%1$s.op cast<%3$s>this";
 					overload->op = ptrs_handle_cast_builtin;
 
-					func->args = createParameterList(code, 1, otherName);
+					func->args = createParameterList(code, 1, otherName, PTRS_TYPE_NATIVE);
 				}
 
 				consumec(code, '>');
@@ -2142,7 +2148,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					nameFormat = "%1$s.op %3$s in this";
 					overload->op = ptrs_handle_op_in;
 
-					func->args = createParameterList(code, 1, otherName);
+					func->args = createParameterList(code, 1, otherName, PTRS_TYPE_NATIVE);
 				}
 			}
 
@@ -2256,7 +2262,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			{
 				curr->type = PTRS_STRUCTMEMBER_SETTER;
 
-				func->args = createParameterList(code, 1, "value");
+				func->args = createParameterList(code, 1, "value", (ptrs_vartype_t)-1);
 				sprintf(func->name, "%s.set %s", structName, name);
 			}
 

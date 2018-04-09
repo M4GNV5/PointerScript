@@ -75,6 +75,7 @@ typedef struct ptrs_funcparameter
 {
 	char *name;
 	ptrs_jit_var_t arg;
+	int8_t type;
 	struct ptrs_ast *argv;
 	struct ptrs_funcparameter *next;
 } ptrs_funcparameter_t;
