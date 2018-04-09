@@ -71,14 +71,19 @@ typedef enum
 	PTRS_JIT_FUNCTIONMETA_AST,
 	PTRS_JIT_FUNCTIONMETA_CALLBACK,
 } ptrs_jit_functionmeta_t;
+typedef struct ptrs_funcparameter
+{
+	char *name;
+	ptrs_jit_var_t arg;
+	struct ptrs_ast *argv;
+	struct ptrs_funcparameter *next;
+} ptrs_funcparameter_t;
 typedef struct
 {
 	char *name;
-	int argc;
 	ptrs_jit_var_t thisVal;
 	ptrs_jit_var_t vararg;
-	ptrs_jit_var_t *args;
-	struct ptrs_ast **argv;
+	ptrs_funcparameter_t *args;
 	struct ptrs_ast *body;
 } ptrs_function_t;
 

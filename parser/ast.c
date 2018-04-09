@@ -1,12 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdarg.h>
 #include <ctype.h>
 #include <string.h>
 #include <math.h>
 
 #include "common.h"
+#ifdef JIT_INCLUDE
 #include JIT_INCLUDE
+#else
+#include "../jit/jit.h"
+#endif
 #include "ast.h"
 
 #define talloc(type) calloc(sizeof(type), 1)
@@ -330,113 +335,74 @@ int parseIdentifierList(code_t *code, char *end, ptrs_jit_var_t **symbols, char 
 	return count;
 }
 
-struct argdeflist
+static ptrs_funcparameter_t *parseArgumentDefinitionList(code_t *code, ptrs_jit_var_t *vararg)
 {
-	char *name;
-	ptrs_ast_t *value;
-	struct argdeflist *next;
-};
-static int parseArgumentDefinitionList(code_t *code, ptrs_jit_var_t **args, ptrs_ast_t ***argv, ptrs_jit_var_t *vararg)
-{
-	bool hasArgv = false;
-	int argc = 0;
-	consumecm(code, '(', "Expected ( as the beginning of an argument definition");
+	consumec(code, '(');
 
 	if(vararg != NULL)
 	{
 		vararg->val = NULL;
 		vararg->meta = NULL;
+		vararg->constType = -1;
 	}
 
 	if(code->curr == ')')
 	{
 		next(code);
-		*args = NULL;
-		if(argv != NULL)
-			*argv = NULL;
-		return argc;
+		return NULL;
 	}
-	else
+
+	ptrs_funcparameter_t *first;
+	ptrs_funcparameter_t **nextPtr = &first;
+
+	for(;;)
 	{
-		struct argdeflist first;
-		struct argdeflist *list = &first;
-		for(;;)
+		char *name;
+		if(lookahead(code, "_"))
 		{
-			char *name;
-
-			if(lookahead(code, "_"))
+			name = NULL;
+		}
+		else
+		{
+			name = readIdentifier(code);
+			if(vararg != NULL && lookahead(code, "..."))
 			{
-				name = NULL;
-			}
-			else
-			{
-				name = readIdentifier(code);
+				consumecm(code, ')', "Vararg argument has to be the last argument");
 
-				if(vararg != NULL && lookahead(code, "..."))
-				{
-					consumecm(code, ')', "Vararg argument has to be the last argument");
-
-					addSymbol(code, name, vararg);
-					break;
-				}
-			}
-
-			list->next = talloc(struct argdeflist);
-			list = list->next;
-
-			list->name = name;
-
-			if(argv != NULL)
-			{
-				if(name != NULL && lookahead(code, "="))
-				{
-					list->value = parseExpression(code, true);
-					hasArgv = true;
-				}
-				else
-				{
-					list->value = NULL;
-				}
-			}
-
-			argc++;
-
-			if(code->curr == ')')
-			{
-				next(code);
+				addSymbol(code, name, vararg);
 				break;
 			}
-			consumecm(code, ',', "Expected , between two arguments");
 		}
 
-		*args = malloc(sizeof(ptrs_jit_var_t) * argc);
-		if(hasArgv)
-			*argv = malloc(sizeof(ptrs_ast_t *) * argc);
-		else if(argv != NULL)
-			*argv = NULL;
+		ptrs_funcparameter_t *curr = talloc(ptrs_funcparameter_t);
+		*nextPtr = curr;
+		nextPtr = &curr->next;
+		
+		curr->name = name;
+		curr->arg.val = NULL;
+		curr->arg.meta = NULL;
+		curr->arg.constType = -1;
+		curr->argv = NULL;
+		curr->next = NULL;
 
-		list = first.next;
-		for(int i = 0; i < argc; i++)
+		if(name != NULL)
 		{
-			if(list->name == NULL)
-			{
-				//ignore
-			}
-			else
-			{
-				addSymbol(code, list->name, *args + i);
-			}
+			if(lookahead(code, "="))
+				curr->argv = parseExpression(code, true);
 
-			if(hasArgv)
-				(*argv)[i] = list->value;
-
-			struct argdeflist *old = list;
-			list = list->next;
-			free(old);
+			addSymbol(code, strdup(curr->name), &curr->arg);
 		}
 
-		return argc;
+		if(code->curr == ')')
+		{
+			next(code);
+			break;
+		}
+
+		consumec(code, ',');
 	}
+
+	return first;
 }
 
 static ptrs_ast_t *parseScopelessBody(code_t *code, bool allowStmt)
@@ -476,7 +442,7 @@ static ptrs_function_t *parseFunction(code_t *code, char *name)
 
 	addSymbol(code, strdup("this"), &func->thisVal);
 
-	func->argc = parseArgumentDefinitionList(code, &func->args, &func->argv, &func->vararg);
+	func->args = parseArgumentDefinitionList(code, &func->vararg);
 	func->body = parseBody(code, false, true);
 
 	return func;
@@ -651,7 +617,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		if(lookahead(code, "catch"))
 		{
 			symbolScope_increase(code);
-			stmt->arg.trycatch.argc = parseArgumentDefinitionList(code, &stmt->arg.trycatch.args, NULL, NULL);
+			stmt->arg.trycatch.args = parseArgumentDefinitionList(code, NULL);
 			stmt->arg.trycatch.catchBody = parseScopelessBody(code, true);
 			symbolScope_decrease(code);
 		}
@@ -703,7 +669,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		symbolScope_increase(code);
 		addSymbol(code, strdup("this"), &func->thisVal);
 
-		func->argc = parseArgumentDefinitionList(code, &func->args, &func->argv, &func->vararg);
+		func->args = parseArgumentDefinitionList(code, &func->vararg);
 		func->body = parseBody(code, false, true);
 	}
 	else if(lookahead(code, "struct"))
@@ -1152,7 +1118,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		symbolScope_increase(code);
 		addSymbol(code, strdup("this"), &func->thisVal);
 
-		func->argc = parseArgumentDefinitionList(code, &func->args, &func->argv, &func->vararg);
+		func->args = parseArgumentDefinitionList(code, &func->vararg);
 		func->body = parseBody(code, false, true);
 	}
 	else if(lookahead(code, "map_stack"))
@@ -1295,8 +1261,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 				ptrs_function_t *func = &ast->arg.function.func;
 				func->name = "(lambda expression)";
 				addSymbol(code, strdup("this"), &func->thisVal);
-				func->argv = NULL;
-				func->argc = parseArgumentDefinitionList(code, &func->args, NULL, &func->vararg);
+				func->args = parseArgumentDefinitionList(code, &func->vararg);
 
 				consume(code, "->");
 				if(lookahead(code, "{"))
@@ -1929,7 +1894,7 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 			ptrs_function_t *func = curr->member.value.function.ast = talloc(ptrs_function_t);
 			addSymbol(code, strdup("this"), &func->thisVal);
 			func->name = "(map function member)";
-			func->argc = parseArgumentDefinitionList(code, &func->args, &func->argv, &func->vararg);
+			func->args = parseArgumentDefinitionList(code, &func->vararg);
 
 			consume(code, "->");
 			if(lookahead(code, "{"))
@@ -1969,6 +1934,33 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 	consumec(code, '}');
 }
 
+static ptrs_funcparameter_t *createParameterList(code_t *code, size_t count, ...)
+{
+	va_list ap;
+	va_start(ap, count);
+
+	ptrs_funcparameter_t *first;
+	ptrs_funcparameter_t **next = &first;
+
+	while(count-- > 0)
+	{
+		ptrs_funcparameter_t *curr = talloc(ptrs_funcparameter_t);
+		*next = curr;
+		next = &curr->next;
+
+		curr->name = va_arg(ap, char *);
+		curr->arg.val = NULL;
+		curr->arg.meta = NULL;
+		curr->arg.constType = -1;
+		curr->argv = NULL;
+		curr->next = NULL;
+
+		if(curr->name != NULL)	
+			addSymbol(code, strdup(curr->name), &curr->arg);
+	}
+
+	return first;
+}
 static void parseStruct(code_t *code, ptrs_struct_t *struc)
 {
 	char *name;
@@ -2021,8 +2013,6 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 			ptrs_function_t *func = talloc(ptrs_function_t);
 			addSymbol(code, strdup("this"), &func->thisVal);
-			func->argc = 0;
-			func->argv = NULL;
 			func->vararg.val = NULL;
 			func->vararg.meta = NULL;
 
@@ -2047,58 +2037,40 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 					if(isAddressOf)
 					{
-						func->argc = 1;
-						func->args = talloc(ptrs_jit_var_t);
-						addSymbol(code, otherName, func->args);
-
+						func->args = createParameterList(code, 1, otherName);
 
 						nameFormat = "%1$s.op &this[%3$s]";
 						overload->op = ptrs_handle_addressof_member;
 					}
 					else if(lookahead(code, "="))
 					{
-						func->argc = 2;
-						func->args = malloc(sizeof(ptrs_jit_var_t) * 2);
-						addSymbol(code, otherName, &func->args[0]);
-
 						opLabel = readIdentifier(code);
-						addSymbol(code, (char *)opLabel, &func->args[1]);
+						func->args = createParameterList(code, 2, otherName, opLabel);
 
 						nameFormat = "%1$s.op this[%3$s] = %2$s";
 						overload->op = ptrs_handle_assign_member;
 					}
 					else if(code->curr == '(')
 					{
-						func->argc = parseArgumentDefinitionList(code,
-							&func->args, &func->argv, &func->vararg);
-						func->argc++;
+						func->args = parseArgumentDefinitionList(code, &func->vararg);
+
+						ptrs_funcparameter_t *nameArg = talloc(ptrs_funcparameter_t);
+						nameArg->name = otherName;
+						nameArg->arg.val = NULL;
+						nameArg->arg.meta = NULL;
+						nameArg->arg.constType = -1;
+						nameArg->argv = NULL;
+						nameArg->next = func->args;
+
+						func->args = nameArg;
+						addSymbol(code, strdup(otherName), &nameArg->arg);
 
 						nameFormat = "%1$s.op this[%3$s]()";
 						overload->op = ptrs_handle_call_member;
-
-						ptrs_jit_var_t *newArgs = malloc(sizeof(ptrs_jit_var_t) * func->argc);
-						addSymbol(code, otherName, &newArgs[0]);
-
-						memcpy(newArgs + 1, func->args, sizeof(ptrs_jit_var_t) * (func->argc - 1));
-						free(func->args);
-						func->args = newArgs;
-
-
-						if(func->argv != NULL)
-						{
-							ptrs_ast_t **newArgv = malloc(sizeof(ptrs_jit_var_t) * func->argc);
-							newArgv[0] = NULL;
-
-							memcpy(newArgv + 1, func->argv, sizeof(ptrs_jit_var_t) * (func->argc - 1));
-							free(func->argv);
-							func->argv = newArgv;
-						}
 					}
 					else
 					{
-						func->argc = 1;
-						func->args = talloc(ptrs_jit_var_t);
-						addSymbol(code, otherName, func->args);
+						func->args = createParameterList(code, 1, otherName);
 
 						nameFormat = "%1$s.op this[%3$s]";
 						overload->op = ptrs_handle_member;
@@ -2106,8 +2078,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				}
 				else if(curr == '(')
 				{
-					func->argc = parseArgumentDefinitionList(code,
-						&func->args, &func->argv, &func->vararg);
+					func->args = parseArgumentDefinitionList(code, &func->vararg);
 					overload->op = ptrs_handle_call;
 
 					nameFormat = "%1$s.op this()";
@@ -2124,7 +2095,6 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				nameFormat = "%1$s.op sizeof this";
 				overload->op = ptrs_handle_prefix_sizeof;
 
-				func->argc = 0;
 				func->args = NULL;
 			}
 			else if(lookahead(code, "foreach"))
@@ -2135,10 +2105,9 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				nameFormat = "%1$s.op foreach in this";
 				overload->op = ptrs_handle_forin;
 
-				code->yield = malloc(sizeof(ptrs_jit_var_t) * 2);
+				func->args = createParameterList(code, 2, NULL, NULL);
 
-				func->argc = 2;
-				func->args = code->yield;
+				//code->yield = TODO
 			}
 			else if(lookahead(code, "cast"))
 			{
@@ -2150,7 +2119,6 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					nameFormat = "%1$s.op cast<string>this";
 					overload->op = ptrs_handle_tostring;
 
-					func->argc = 0;
 					func->args = NULL;
 				}
 				else
@@ -2159,9 +2127,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					nameFormat = "%1$s.op cast<%3$s>this";
 					overload->op = ptrs_handle_cast_builtin;
 
-					func->argc = 1;
-					func->args = talloc(ptrs_jit_var_t);
-					addSymbol(code, otherName, func->args);
+					func->args = createParameterList(code, 1, otherName);
 				}
 
 				consumec(code, '>');
@@ -2176,9 +2142,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					nameFormat = "%1$s.op %3$s in this";
 					overload->op = ptrs_handle_op_in;
 
-					func->argc = 1;
-					func->args = talloc(ptrs_jit_var_t);
-					addSymbol(code, otherName, func->args);
+					func->args = createParameterList(code, 1, otherName);
 				}
 			}
 
@@ -2285,18 +2249,14 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			{
 				curr->type = PTRS_STRUCTMEMBER_GETTER;
 
-				func->argc = 0;
 				func->args = NULL;
-				func->argv = NULL;
 				sprintf(func->name, "%s.get %s", structName, name);
 			}
 			else
 			{
 				curr->type = PTRS_STRUCTMEMBER_SETTER;
 
-				func->argc = 1;
-				func->args = talloc(ptrs_jit_var_t);
-				addSymbol(code, strdup("value"), func->args);
+				func->args = createParameterList(code, 1, "value");
 				sprintf(func->name, "%s.set %s", structName, name);
 			}
 

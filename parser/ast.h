@@ -64,8 +64,7 @@ struct ptrs_ast_trycatch
 	struct ptrs_ast *tryBody;
 	struct ptrs_ast *catchBody;
 	struct ptrs_ast *finallyBody;
-	int argc;
-	ptrs_jit_var_t *args;
+	ptrs_funcparameter_t *args;
 	ptrs_jit_var_t retVal;
 };
 

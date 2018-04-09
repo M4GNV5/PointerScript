@@ -300,9 +300,14 @@ void *ptrs_jit_createCallback(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 jit_function_t ptrs_jit_compileFunction(ptrs_ast_t *node, jit_function_t parent, ptrs_scope_t *scope,
 	ptrs_function_t *ast, ptrs_struct_t *thisType)
 {
-	jit_type_t paramDef[ast->argc * 2 + 1];
+	size_t argc = 0;
+	ptrs_funcparameter_t *curr = ast->args;
+	for(; curr != NULL; argc++)
+		curr = curr->next;
+
+	jit_type_t paramDef[argc * 2 + 1];
 	paramDef[0] = jit_type_void_ptr; //reserved
-	for(int i = 1; i < ast->argc * 2 + 1;)
+	for(int i = 1; i < argc * 2 + 1;)
 	{
 		paramDef[i++] = jit_type_long;
 		paramDef[i++] = jit_type_ulong;
@@ -311,7 +316,7 @@ jit_function_t ptrs_jit_compileFunction(ptrs_ast_t *node, jit_function_t parent,
 	//TODO variadic functions
 
 	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl,
-		ptrs_jit_getVarType(), paramDef, ast->argc * 2 + 1, 0);
+		ptrs_jit_getVarType(), paramDef, argc * 2 + 1, 0);
 	jit_function_t func = ptrs_jit_createFunction(node, parent, signature, ast->name);
 
 	ptrs_scope_t funcScope;
@@ -330,25 +335,28 @@ jit_function_t ptrs_jit_compileFunction(ptrs_ast_t *node, jit_function_t parent,
 		ast->thisVal.constType = PTRS_TYPE_STRUCT;
 	}
 
-	for(int i = 0; i < ast->argc; i++)
-	{
-		ast->args[i].val = jit_value_get_param(func, i * 2 + 1);
-		ast->args[i].meta = jit_value_get_param(func, i * 2 + 2);
-		ast->args[i].constType = -1;
+	curr = ast->args;
+	for(int i = 0; i < argc; i++)
+	{	
+		curr->arg.val = jit_value_get_param(func, i * 2 + 1);
+		curr->arg.meta = jit_value_get_param(func, i * 2 + 2);
+		curr->arg.constType = -1;
 
-		if(ast->argv != NULL && ast->argv[i] != NULL)
+		if(curr->argv != NULL)
 		{
 			jit_label_t given = jit_label_undefined;
-			jit_value_t isGiven = ptrs_jit_hasType(func, ast->args[i].meta, PTRS_TYPE_UNDEFINED);
+			jit_value_t isGiven = ptrs_jit_hasType(func, curr->arg.meta, PTRS_TYPE_UNDEFINED);
 			jit_insn_branch_if_not(func, isGiven, &given);
 
-			ptrs_jit_var_t val = ast->argv[i]->handler(ast->argv[i], func, &funcScope);
+			ptrs_jit_var_t val = curr->argv->handler(curr->argv, func, &funcScope);
 			val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
-			jit_insn_store(func, ast->args[i].val, val.val);
-			jit_insn_store(func, ast->args[i].meta, val.meta);
+			jit_insn_store(func, curr->arg.val, val.val);
+			jit_insn_store(func, curr->arg.meta, val.meta);
 
 			jit_insn_label(func, &given);
 		}
+
+		curr = curr->next;
 	}
 
 	ast->body->handler(ast->body, func, &funcScope);

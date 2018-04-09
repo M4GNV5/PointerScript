@@ -52,7 +52,7 @@ bool ptrs_struct_canAccess(ptrs_ast_t *node, ptrs_struct_t *struc, struct ptrs_s
 			else
 				break;
 		default:
-			//TODO
+			return true; //TODO make sure private properties aren't accessed from outside
 			break;
 	}
 
