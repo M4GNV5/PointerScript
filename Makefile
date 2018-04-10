@@ -66,7 +66,7 @@ clean:
 clean-deps:
 	$(MAKE) -C libjit clean
 
-$(RUN): $(MYJIT_BIN) $(BIN) $(PARSER_OBJECTS) $(RUN_OBJECTS)
+$(RUN): $(LIBJIT_BIN) $(BIN) $(PARSER_OBJECTS) $(RUN_OBJECTS)
 	$(CC) $(PARSER_OBJECTS) $(RUN_OBJECTS) -o $(BIN)/ptrs -rdynamic $(EXTERN_LIBS)
 
 $(BIN):
@@ -75,9 +75,9 @@ $(BIN):
 	mkdir $(BIN)/ops
 
 $(LIBJIT_BIN):
-	cd myjit && ./bootstrap
-	cd myjit && ./configure
-	$(MAKE) -C myjit
+	cd libjit && ./bootstrap
+	cd libjit && ./configure
+	$(MAKE) -C libjit
 
 $(BIN)/%.o: parser/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
