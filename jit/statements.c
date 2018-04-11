@@ -45,14 +45,36 @@ ptrs_jit_var_t ptrs_handle_define(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 		val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
 	}
 
-	stmt->location.val = jit_value_create(func, jit_type_long);
-	stmt->location.meta = jit_value_create(func, jit_type_ulong);
-	stmt->location.constType = -1;
+	//stmt->type is set by flow.c to -1 if the type is dynamic or changes
+	// or a constant when it's the same over the whole lifetime
+	stmt->location.constType = stmt->type;
 
-	val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
-
+	if(stmt->type == PTRS_TYPE_FLOAT)
+	{
+		stmt->location.val = jit_value_create(func, jit_type_float64);
+		val.val = jit_insn_convert(func, val.val, jit_type_float64, 0);
+	}
+	else
+	{
+		stmt->location.val = jit_value_create(func, jit_type_long);
+		val.val = jit_insn_convert(func, val.val, jit_type_long, 0);
+	}
 	jit_insn_store(func, stmt->location.val, val.val);
-	jit_insn_store(func, stmt->location.meta, val.meta);
+
+	//TODO when stmt->type == PTRS_TYPE_STRUCT make the variables meta
+	// a constant when we can be sure the struct type never changes
+	if(stmt->type == PTRS_TYPE_UNDEFINED
+		|| stmt->type == PTRS_TYPE_INT
+		|| stmt->type == PTRS_TYPE_FLOAT)
+	{
+		stmt->location.meta = ptrs_jit_const_meta(func, stmt->type);
+	}
+	else
+	{
+		stmt->location.meta = jit_value_create(func, jit_type_ulong);
+		jit_insn_store(func, stmt->location.meta, val.meta);
+	}
+
 	return stmt->location;
 }
 

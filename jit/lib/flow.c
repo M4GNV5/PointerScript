@@ -12,6 +12,8 @@ typedef struct ptrs_flowprediction
 {
 	ptrs_jit_var_t *variable;
 	int8_t type;
+	bool multipleTypes;
+	struct ptrs_ast_define *definition;
 	struct ptrs_flowprediction *next;
 } ptrs_predictions_t;
 
@@ -43,10 +45,13 @@ static ptrs_predictions_t *dupPredictions(ptrs_predictions_t *curr)
 	return start;
 }
 
-static void freePredictions(ptrs_predictions_t *curr)
+static void applyAndFreePredictions(ptrs_predictions_t *curr)
 {
 	while(curr != NULL)
 	{
+		if(curr->definition != NULL)
+			curr->definition->type = curr->multipleTypes ? -1 : curr->type;
+
 		ptrs_predictions_t *next = curr->next;
 		free(curr);
 		curr = next;
@@ -64,7 +69,10 @@ static void mergePredictions(ptrs_flow_t *dest, ptrs_predictions_t *src)
 			if(curr->variable == src->variable)
 			{
 				if(curr->type != src->type)
+				{
+					curr->multipleTypes = true;
 					curr->type = -1;
+				}
 
 				found = true;
 				break;
@@ -88,6 +96,21 @@ static void mergePredictions(ptrs_flow_t *dest, ptrs_predictions_t *src)
 	}
 }
 
+static void createPrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var,
+	int8_t type, struct ptrs_ast_define *definition)
+{
+	if(!flow->updatePredictions)
+		return;
+
+	ptrs_predictions_t *curr = malloc(sizeof(ptrs_predictions_t));
+	curr->variable = var;
+	curr->type = type;
+	curr->multipleTypes = type == -1;
+	curr->definition = definition;
+
+	curr->next = flow->predictions;
+	flow->predictions = curr;
+}
 static void setPrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var, int8_t type)
 {
 	if(!flow->updatePredictions)
@@ -109,14 +132,10 @@ static void setPrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var, int8_t type)
 		{
 			if(curr->variable == var)
 			{
-				if(type == -1)
-				{
-					*prev = curr->next;
-					free(curr);
-				}
-				else
+				if(curr->type != type)
 				{
 					curr->type = type;
+					curr->multipleTypes = true;
 				}
 				return;
 			}
@@ -128,6 +147,7 @@ static void setPrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var, int8_t type)
 
 	curr->variable = var;
 	curr->type = type;
+	curr->multipleTypes = type == -1;
 	curr->next = NULL;
 }
 static int8_t getPrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var)
@@ -162,16 +182,17 @@ static void analyzeFunction(ptrs_function_t *ast)
 	ptrs_funcparameter_t *curr = ast->args;
 	for(; curr != NULL; curr = curr->next)
 	{
-		if(curr->type != -1)
-			setPrediction(&flow, &curr->arg, curr->type);
+		//TODO make it possible to pass the parameter definition here, instead of NULL
+		if(curr->type != -1) 
+			createPrediction(&flow, &curr->arg, curr->type, NULL);
 	}
 
-	setPrediction(&flow, &ast->thisVal, PTRS_TYPE_STRUCT);
-	setPrediction(&flow, &ast->vararg, PTRS_TYPE_POINTER);
+	createPrediction(&flow, &ast->thisVal, PTRS_TYPE_STRUCT, NULL);
+	createPrediction(&flow, &ast->vararg, PTRS_TYPE_POINTER, NULL);
 
 	analyzeStatement(&flow, ast->body);
 	
-	freePredictions(flow.predictions);
+	applyAndFreePredictions(flow.predictions);
 }
 
 static void analyzeLValue(ptrs_flow_t *flow, ptrs_ast_t *node, int8_t type)
@@ -614,7 +635,8 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node)
 	{
 		struct ptrs_ast_define *stmt = &node->arg.define;
 		int8_t type = analyzeExpression(flow, stmt->value);
-		setPrediction(flow, &stmt->location, type);
+
+		createPrediction(flow, &stmt->location, type, stmt);
 	}
 	else if(node->handler == ptrs_handle_array)
 	{
@@ -766,5 +788,5 @@ void ptrs_flow_analyze(ptrs_ast_t *ast)
 		curr = curr->next;
 	}
 
-	freePredictions(flow.predictions);
+	applyAndFreePredictions(flow.predictions);
 }
