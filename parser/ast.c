@@ -567,10 +567,12 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		else if(lookahead(code, "="))
 		{
 			stmt->arg.define.value = parseExpression(code, true);
+			stmt->arg.define.type = -1;
 		}
 		else
 		{
 			stmt->arg.define.value = NULL;
+			stmt->arg.define.type = -1;
 		}
 
 		consumec(code, ';');

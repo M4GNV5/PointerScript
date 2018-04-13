@@ -120,7 +120,7 @@ ptrs_jit_var_t ptrs_handle_call_member(ptrs_ast_t *node, jit_function_t func, pt
 	ptrs_jit_var_t base = expr->base->handler(expr->base, func, scope);
 	jit_value_t key = jit_const_int(func, void_ptr, (uintptr_t)expr->name);
 
-	ptrs_jit_struct_call(node, func, scope, base, key, retType, arguments);
+	return ptrs_jit_struct_call(node, func, scope, base, key, retType, arguments);
 }
 
 ptrs_jit_var_t ptrs_handle_prefix_sizeof(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)

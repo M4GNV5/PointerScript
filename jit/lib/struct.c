@@ -591,7 +591,7 @@ ptrs_jit_var_t ptrs_jit_struct_call(ptrs_ast_t *node, jit_function_t func, ptrs_
 		const char *key = (const char *)jit_value_get_nint_constant(keyVal);
 
 		if(meta.type != PTRS_TYPE_STRUCT)
-			ptrs_error(node, "Cannot set property %s of value of type %t", key, meta.type);
+			ptrs_error(node, "Cannot call property %s of value of type %t", key, meta.type);
 
 		struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, node);
 		if(member == NULL || member->type != PTRS_STRUCTMEMBER_FUNCTION)

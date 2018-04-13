@@ -52,12 +52,12 @@ ptrs_jit_var_t ptrs_handle_define(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	if(stmt->type == PTRS_TYPE_FLOAT)
 	{
 		stmt->location.val = jit_value_create(func, jit_type_float64);
-		val.val = jit_insn_convert(func, val.val, jit_type_float64, 0);
+		val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_float64);
 	}
 	else
 	{
 		stmt->location.val = jit_value_create(func, jit_type_long);
-		val.val = jit_insn_convert(func, val.val, jit_type_long, 0);
+		val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
 	}
 	jit_insn_store(func, stmt->location.val, val.val);
 

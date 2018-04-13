@@ -175,10 +175,15 @@ static jit_type_t getIntrinsicSignature()
 				); \
 				\
 				ptrs_jit_var_t ret = { \
-					.val = jit_const_long(func, long, val.value.intval), \
 					.meta = jit_const_long(func, ulong, *(uint64_t *)&val.meta), \
 					.constType = val.meta.type, \
 				}; \
+				\
+				if(val.meta.type == PTRS_TYPE_FLOAT) \
+					ret.val = jit_const_float(func, val.value.floatval); \
+				else \
+					ret.val = jit_const_long(func, long, val.value.intval); \
+				\
 				return ret; \
 			} \
 			else \
