@@ -70,7 +70,7 @@ struct code
 	ptrs_symboltable_t *symbols;
 	bool insideIndex;
 	ptrs_jit_var_t *thisVar;
-	ptrs_jit_var_t *yield;
+	ptrs_jit_var_t **yield;
 };
 
 static ptrs_ast_t *parseStmtList(code_t *code, char end);
@@ -1105,7 +1105,8 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		{
 			ast = talloc(ptrs_ast_t);
 			ast->handler = ptrs_handle_yield;
-			ast->arg.yield.yieldVal = code->yield;
+			ast->arg.yield.body = code->yield[0];
+			ast->arg.yield.returnInfo = code->yield[1];
 			ast->arg.yield.values = parseExpressionList(code, ';');
 		}
 		else
@@ -2013,7 +2014,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 		{
 			symbolScope_increase(code);
 
-			ptrs_jit_var_t *oldYield = code->yield;
+			ptrs_jit_var_t **oldYield = code->yield;
 			const char *nameFormat = NULL;
 			const char *opLabel = NULL;
 			char *otherName = NULL;
@@ -2115,7 +2116,9 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 				func->args = createParameterList(code, 2, NULL, NULL, NULL, NULL);
 
-				//code->yield = TODO
+				code->yield = alloca(2 * sizeof(ptrs_jit_var_t *));
+				code->yield[0] = &func->args->arg;
+				code->yield[1] = &func->args->next->arg;
 			}
 			else if(lookahead(code, "cast"))
 			{

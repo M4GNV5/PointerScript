@@ -188,7 +188,8 @@ struct ptrs_ast_forin
 
 struct ptrs_ast_yield
 {
-	ptrs_jit_var_t *yieldVal;
+	ptrs_jit_var_t *body;
+	ptrs_jit_var_t *returnInfo;
 	struct ptrs_astlist *values;
 };
 

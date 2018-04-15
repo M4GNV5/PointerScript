@@ -881,11 +881,11 @@ ptrs_jit_var_t ptrs_handle_yield(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	jit_value_t args[narg * 2 + 1];
 
 	ptrs_jit_var_t bodyFunc;
-	bodyFunc.val = ptrs_jit_import(node, func, expr->yieldVal[0].val, false);
-	bodyFunc.meta = ptrs_jit_import(node, func, expr->yieldVal[0].meta, false);
+	bodyFunc.val = ptrs_jit_import(node, func, expr->body->val, false);
+	bodyFunc.meta = ptrs_jit_import(node, func, expr->body->meta, false);
 
-	jit_value_t retAddr = ptrs_jit_import(node, func, expr->yieldVal[1].val, false);
-	jit_value_t retStatus = ptrs_jit_import(node, func, expr->yieldVal[1].meta, false);
+	jit_value_t retAddr = ptrs_jit_import(node, func, expr->returnInfo->val, false);
+	jit_value_t retStatus = ptrs_jit_import(node, func, expr->returnInfo->meta, false);
 
 	argDef[0] = jit_type_void_ptr;
 	args[0] = retAddr;
