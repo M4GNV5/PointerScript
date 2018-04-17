@@ -79,8 +79,8 @@ $(LIBJIT_BIN):
 	cd libjit && ./configure
 	$(MAKE) -C libjit
 
-$(BIN)/%.o: parser/%.c
+$(BIN)/%.o: parser/%.c $(LIBJIT_BIN)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(BIN)/%.o: jit/%.c
+$(BIN)/%.o: jit/%.c $(LIBJIT_BIN)
 	$(CC) $(CFLAGS) -c $< -o $@

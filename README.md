@@ -59,30 +59,25 @@ the [examples](examples/) directory of this repository. The most interresting on
 - [fork](examples/fork.ptrs) Using posix functions for creating child processes
 - [array](examples/array.ptrs) and [bubblesort](examples/bubblesort.ptrs) Basic array usage
 - [struct](examples/struct.ptrs) Basic struct usage
-- [threads](examples/threads.ptrs) Using libpthread (or generally native functions that take function pointer arguments)
+- [threads](examples/threads.ptrs) Using libpthread
 - [gtk](examples/gtk.ptrs) Using GTK for creating a window with a clickable button.
 - [window](examples/window.ptrs) Using libSDL for creating X windows. (Example orginally by [@Webfreak001](https://github.com/WebFreak001))
 
 ## Installing
-Pointerscript uses [libjit](https://www.gnu.org/software/libjit/) which has to
-be built first and is included in the repository as a submodule.
+Pointerscript uses [libjit](https://www.gnu.org/software/libjit/) which is included in the repository as a submodule.
 ```bash
-#this line might differ if you dont have a debian based distro
-sudo apt-get install build-essential autoconf automake libtool
+#Install dependencies (this might differ if you are not using debian)
+# everything below apart from git and build-essential is required by libjit
+sudo apt install git build-essential bison flex autoconf automake libtool texinfo
 
-#Clone the repository
-git clone --recursive https://github.com/M4GNV5/PointerScriptJIT
+#Recursively clone the repository
+git clone --recursive https://github.com/M4GNV5/PointerScript
 
-#Build libjit
-cd PointerScript/libjit
-./bootstrap
-./configure
-make -j4 #the -j is optional but speeds up compilation (replace 4 by the number of your cores)
+#Compile...
+cd PointerScript
+make -j4 #-j specifies the number of tasks to run in parallel
 
-cd ..
-make -j4 #see the comment above for information about -j
-
-#done! PointerScript is at ./bin/ptrs
+#Done! PointerScript is at ./bin/ptrs
 bin/ptrs --help
 ```
 
