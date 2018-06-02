@@ -513,7 +513,7 @@ void ptrs_delete(ptrs_ast_t *node, ptrs_val_t val, ptrs_meta_t meta)
 		if(val.structval == NULL)
 			ptrs_error(node, "Cannot delete constructor of struct %s", struc->name);
 
-		jit_function_t ctor = ptrs_struct_getOverload(struc, ptrs_handle_new, true);
+		jit_function_t ctor = ptrs_struct_getOverload(struc, ptrs_handle_delete, true);
 		if(ctor != NULL)
 		{
 			ptrs_var_t result;

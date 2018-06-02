@@ -352,7 +352,7 @@ static ptrs_funcparameter_t *parseArgumentDefinitionList(code_t *code, ptrs_jit_
 		return NULL;
 	}
 
-	ptrs_funcparameter_t *first;
+	ptrs_funcparameter_t *first = NULL;
 	ptrs_funcparameter_t **nextPtr = &first;
 
 	for(;;)
@@ -1740,7 +1740,7 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 		ast->arg.define.location.val = NULL;
 		ast->arg.define.location.meta = NULL;
 		ast->arg.define.initExpr = NULL;
-		ast->arg.define.isInitExpr = true;
+		ast->arg.define.isInitExpr = false;
 		ast->arg.define.onStack = onStack;
 
 		if(lookahead(code, "["))
@@ -1752,7 +1752,6 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 
 			if(lookahead(code, "["))
 			{
-				ast->arg.define.isInitExpr = false;
 				ast->arg.define.initVal = parseExpressionList(code, ']');
 				consumec(code, ']');
 			}
@@ -1770,7 +1769,6 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 
 			if(lookahead(code, "{"))
 			{
-				ast->arg.define.isInitExpr = false;
 				ast->arg.define.initVal = parseExpressionList(code, '}');
 				consumec(code, '}');
 			}
@@ -2576,7 +2574,7 @@ static char *readIdentifier(code_t *code)
 
 static char *readString(code_t *code, int *length, struct ptrs_stringformat **insertions, int *insertionCount)
 {
-	int buffSize = 1024;
+	int buffSize = 32;
 	int i = 0;
 	uint8_t insertionMode = 0; //0 = no insertions or % yet, 1 = no insertions but had %, 2 = had insertion
 

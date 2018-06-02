@@ -13,6 +13,7 @@ typedef struct ptrs_flowprediction
 	ptrs_jit_var_t *variable;
 	int8_t type;
 	uint8_t multipleTypes : 1;
+	uint8_t lockPrediction : 1;
 	uint8_t isFunctionParameter : 1;
 	union
 	{
@@ -48,16 +49,6 @@ static ptrs_predictions_t *dupPredictions(ptrs_predictions_t *curr)
 
 	*ptr = NULL;
 	return start;
-}
-
-static void freePredictions(ptrs_predictions_t *curr)
-{
-	while(curr != NULL)
-	{
-		ptrs_predictions_t *next = curr->next;
-		free(curr);
-		curr = next;
-	}
 }
 
 static void applyAndFreePredictions(ptrs_predictions_t *curr)
@@ -129,6 +120,7 @@ static void createPrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var,
 	curr->variable = var;
 	curr->type = type;
 	curr->multipleTypes = type == -1;
+	curr->lockPrediction = false;
 	curr->isFunctionParameter = isParameter;
 	if(isParameter)
 		curr->definition.parameter = definition;
@@ -159,7 +151,7 @@ static void setPrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var, int8_t type)
 		{
 			if(curr->variable == var)
 			{
-				if(curr->type != type)
+				if(curr->type != type && !curr->lockPrediction)
 				{
 					curr->type = type;
 					curr->multipleTypes = true;
@@ -175,6 +167,9 @@ static void setPrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var, int8_t type)
 	curr->variable = var;
 	curr->type = type;
 	curr->multipleTypes = type == -1;
+	curr->lockPrediction = false;
+	curr->isFunctionParameter = false;
+	curr->definition.variable = NULL;
 	curr->next = NULL;
 }
 static int8_t getPrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var)
@@ -190,6 +185,22 @@ static int8_t getPrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var)
 
 	return -1;
 }
+static void lockPrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var)
+{
+	ptrs_predictions_t *curr = flow->predictions;
+	while(curr != NULL)
+	{
+		if(curr->variable == var)
+		{
+			curr->lockPrediction = true;
+			curr->multipleTypes = true;
+			curr->type = -1;
+			return;
+		}
+
+		curr = curr->next;
+	}
+}
 
 static void analyzeList(ptrs_flow_t *flow, struct ptrs_astlist *list)
 {
@@ -200,24 +211,18 @@ static void analyzeList(ptrs_flow_t *flow, struct ptrs_astlist *list)
 	}
 }
 
-static void analyzeFunction(ptrs_function_t *ast)
+static void analyzeFunction(ptrs_flow_t *flow, ptrs_function_t *ast)
 {
-	ptrs_flow_t flow;
-	flow.updatePredictions = true;
-	flow.predictions = NULL;
-
 	ptrs_funcparameter_t *curr = ast->args;
 	for(; curr != NULL; curr = curr->next)
 	{
-		createPrediction(&flow, &curr->arg, curr->type, true, curr);
+		createPrediction(flow, &curr->arg, curr->type, true, curr);
 	}
 
-	createPrediction(&flow, &ast->thisVal, PTRS_TYPE_STRUCT, true, NULL);
-	createPrediction(&flow, &ast->vararg, PTRS_TYPE_POINTER, true, NULL);
+	createPrediction(flow, &ast->thisVal, PTRS_TYPE_STRUCT, true, NULL);
+	createPrediction(flow, &ast->vararg, PTRS_TYPE_POINTER, true, NULL);
 
-	analyzeStatement(&flow, ast->body);
-	
-	applyAndFreePredictions(flow.predictions);
+	analyzeStatement(flow, ast->body);
 }
 
 static void analyzeLValue(ptrs_flow_t *flow, ptrs_ast_t *node, int8_t type)
@@ -338,7 +343,7 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 	}
 	else if(node->handler == ptrs_handle_function)
 	{
-		analyzeFunction(&node->arg.function.func);
+		analyzeFunction(flow, &node->arg.function.func);
 		return PTRS_TYPE_FUNCTION;
 	}
 	else if(node->handler == ptrs_handle_call)
@@ -396,11 +401,16 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 
 		//TODO ptrs_handle_addressof_member
 		if(target->addressHandler == ptrs_handle_addressof_identifier)
+		{
+			struct ptrs_ast_identifier *expr = &target->arg.identifier;
+			lockPrediction(flow, expr->location);
 			return PTRS_TYPE_POINTER;
-		else if(target->addressHandler == ptrs_handle_addressof_importedsymbol)
-			return PTRS_TYPE_NATIVE;
+		}
+		//TODO ptrs_handle_addressof_importedsymbol
 		else
+		{
 			return -1;
+		}
 	}
 	else if(node->handler == ptrs_handle_prefix_dereference)
 	{
@@ -701,6 +711,11 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node)
 	{
 		analyzeExpression(flow, node->arg.astval);
 	}
+	else if(node->handler == ptrs_handle_continue
+		|| node->handler == ptrs_handle_break)
+	{
+		//nothing
+	}
 	else if(node->handler == ptrs_handle_trycatch)
 	{
 		//TODO
@@ -719,14 +734,14 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node)
 				|| curr->type == PTRS_STRUCTMEMBER_GETTER
 				|| curr->type == PTRS_STRUCTMEMBER_SETTER)
 			{
-				analyzeFunction(curr->value.function.ast);
+				analyzeFunction(flow, curr->value.function.ast);
 			}
 		}
 
 		struct ptrs_opoverload *curr = struc->overloads;
 		while(curr != NULL)
 		{
-			analyzeFunction(curr->handler);
+			analyzeFunction(flow, curr->handler);
 			curr = curr->next;
 		}
 
@@ -734,7 +749,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node)
 	}
 	else if(node->handler == ptrs_handle_function)
 	{
-		analyzeFunction(&node->arg.function.func);
+		analyzeFunction(flow, &node->arg.function.func);
 	}
 	else if(node->handler == ptrs_handle_if)
 	{

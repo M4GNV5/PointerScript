@@ -23,20 +23,19 @@ struct Test
 	get property
 	{
 		lastAction = "get property";
-		return privVal;
+		return this.privVal;
 	}
 	set property
 	{
 		lastAction = "set property";
-		privVal = value;
+		this.privVal = value;
 	}
 
 	constructor(a, b)
 	{
 		lastAction = "constructor";
-		normal = a + b;
-		assertEq(a + b, normal);
-		assertEq(normal, this.normal);
+		this.normal = a + b;
+		assertEq(a + b, this.normal);
 	}
 	destructor()
 	{
@@ -50,7 +49,7 @@ struct Test
 	func()
 	{
 		lastAction = "none";
-		privFunc();
+		this.privFunc();
 		assertEq("privFunc", lastAction);
 
 		lastAction = "func";
@@ -96,4 +95,6 @@ assertEq(24.12, val.staticVal);
 assertEq(24.12, val2.staticVal);
 
 delete val;
+assertEq("destructor", lastAction);
+delete val2;
 assertEq("destructor", lastAction);

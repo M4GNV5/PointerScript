@@ -88,14 +88,16 @@ static jit_type_t getIntrinsicSignature()
 		left.meta = ptrs_jit_setArraySize(func, left.meta, \
 			jit_insn_sub(func, ptrs_jit_getArraySize(func, left.meta), right.val) \
 		); \
-		left.val = jit_insn_add(func, left.val, right.val); \
+		left.val = jit_insn_add(func, left.val, \
+			jit_insn_shl(func, right.val, jit_const_int(func, int, 4))); \
 		break; \
 	case const_typecomp(INT, POINTER): \
 		left.constType = PTRS_TYPE_POINTER; \
 		left.meta = ptrs_jit_setArraySize(func, right.meta, \
 			jit_insn_sub(func, ptrs_jit_getArraySize(func, right.meta), left.val) \
 		); \
-		left.val = jit_insn_add(func, left.val, right.val); \
+		left.val = jit_insn_add(func, \
+			jit_insn_shl(func, left.val, jit_const_int(func, int, 4)), right.val); \
 		break;
 
 #define binary_sub_jit_cases \

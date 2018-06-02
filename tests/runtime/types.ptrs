@@ -26,7 +26,6 @@ struct Struc
 {
 	x;
 };
-var instance : Struc();
 assertEq(type<struct>, typeof Struc);
-assertEq(type<struct>, typeof instance);
+assertEq(type<struct>, typeof new_stack Struc());
 assertEq(type<struct>, typeof new Struc());

@@ -85,7 +85,7 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 
 				ptrs_jit_var_t _ret = ptrs_jit_valToVar(func, retVal);
 				jit_insn_store(func, ret.val, _ret.val);
-				jit_insn_store(func, ret.val, _ret.meta);
+				jit_insn_store(func, ret.meta, _ret.meta);
 			}
 			break;
 

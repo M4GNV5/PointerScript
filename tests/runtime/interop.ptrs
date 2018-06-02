@@ -1,11 +1,10 @@
-import atoi, atof, strcmp, qsort, puts;
+import atoi, atof, qsort, puts, str*;
 import pow, sin from "libm.so.6";
 import assert, assertEq from "../common.ptrs";
-import str*;
-import ptrs_nativeTypeCount : int, ptrs_zeroMemory : u8;
+import ptrs_nativeTypeCount : int;
 
 var str = "hello!";
-var str2{} = str;
+var str2{64} = str;
 assert(strcmp(str, str2) == 0);
 assert(str != str2);
 
@@ -17,7 +16,8 @@ assertEq(1f, sin!double(PI / 2));
 assertEq(15.625, pow!double(2.5, 3f));
 
 var vals = new array[] [4, 0, 1, 3, 2];
-qsort(vals, sizeof vals, VARSIZE, (a, b) -> *as<pointer>a - *as<pointer>b);
+assertEq(5, sizeof vals);
+qsort(vals, sizeof vals, sizeof var, (a, b) -> *as<pointer>a - *as<pointer>b);
 for(var i = 0; i < sizeof vals; i++)
 	assertEq(i, vals[i]);
 
@@ -29,4 +29,4 @@ assertEq(0, strncmp(buff, "hello", 5));
 assertEq(buff + 6, strstr!native(buff, "world"));
 
 assertEq(28, ptrs_nativeTypeCount);
-assertEq(0, ptrs_zeroMemory);
+//assertEq(0, ptrs_zeroMemory);

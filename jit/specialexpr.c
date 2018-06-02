@@ -348,7 +348,7 @@ void ptrs_handle_assign_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 		/* nothing */,
 		{
 			jit_value_t intVal = ptrs_jit_vartoi(func, val);
-			jit_value_t uByteVal = jit_insn_convert(func, intVal, jit_type_ubyte, 1);
+			jit_value_t uByteVal = jit_insn_convert(func, intVal, jit_type_ubyte, 0);
 			jit_insn_store_elem(func, base.val, intIndex, uByteVal);
 		},
 		{
@@ -847,7 +847,7 @@ ptrs_jit_var_t ptrs_handle_op_in(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 		ptrs_struct_t *struc = ptrs_meta_getPointer(strucMeta);
 
 		char buff[32];
-		const char *name = ptrs_vartoa(nameVal, nameMeta, buff, 32);
+		const char *name = ptrs_vartoa(nameVal, nameMeta, buff, 32).value.strval;
 
 		if(ptrs_struct_find(struc, name, -1, node) != NULL)
 		{
@@ -917,9 +917,10 @@ ptrs_jit_var_t ptrs_handle_yield(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	jit_type_free(signature);
 
 	ptrs_jit_var_t ret = {
-		.val = jit_insn_convert(func, _retStatus, jit_type_long, 0),
 		.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT),
 		.constType = PTRS_TYPE_INT
 	};
+	ret.val = jit_insn_gt(func, _retStatus, jit_const_int(func, ubyte, 1));
+	ret.val = jit_insn_convert(func, ret.val, jit_type_long, 0);
 	return ret;
 }

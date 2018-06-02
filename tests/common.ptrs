@@ -1,4 +1,4 @@
-import printf, strcmp;
+import puts, strcmp;
 
 function assert(val, msg = "Assertion failed")
 {

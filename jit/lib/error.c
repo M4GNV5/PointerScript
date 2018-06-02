@@ -185,7 +185,7 @@ void *ptrs_formatErrorMsg(const char *msg, va_list ap)
 				case 'v':
 					val = va_arg(ap, uintptr_t);
 					uintptr_t meta = va_arg(ap, uintptr_t);
-					str = ptrs_vartoa(*(ptrs_val_t *)&val, *(ptrs_meta_t *)&meta, valbuff, 32);
+					str = ptrs_vartoa(*(ptrs_val_t *)&val, *(ptrs_meta_t *)&meta, valbuff, 32).value.strval;
 					break;
 				default:
 					;

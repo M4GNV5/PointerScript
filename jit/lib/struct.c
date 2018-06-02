@@ -483,7 +483,7 @@ void ptrs_jit_struct_set(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *sc
 				base.val,
 				base.meta,
 				keyVal,
-				value.val,
+				ptrs_jit_reinterpretCast(func, value.val, jit_type_long),
 				value.meta
 			)
 		);
@@ -615,6 +615,7 @@ ptrs_jit_var_t ptrs_jit_struct_call(ptrs_ast_t *node, jit_function_t func, ptrs_
 	}
 	else
 	{
+		
 		ptrs_jit_var_t callee = ptrs_jit_struct_get(node, func, scope, base, keyVal);
 		return ptrs_jit_call(node, func, scope, retType, base.val, callee, args);
 	}

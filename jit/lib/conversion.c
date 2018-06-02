@@ -247,7 +247,7 @@ const char *ptrs_stoa(ptrs_val_t val, ptrs_meta_t meta, char *buff)
 		ptrs_var_t ret;
 		ptrs_jit_applyNested(overload, &ret, struc->parentFrame, val.nativeval, ());
 
-		return ptrs_vartoa(ret.value, ret.meta, buff, 32);
+		return ptrs_vartoa(ret.value, ret.meta, buff, 32).value.strval;
 	}
 
 	sprintf(buff, "%s:%p", struc->name, val.structval);
@@ -269,7 +269,8 @@ ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, ptrs_jit_var_t val)
 		buff = jit_insn_alloca(func, size);
 
 		val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
-		ptrs_jit_reusableCallVoid(func, ptrs_vartoa,
+		jit_value_t retVal;
+		ptrs_jit_reusableCall(func, ptrs_vartoa, retVal, ptrs_jit_getVarType(),
 			(
 				jit_type_long, //ptrs_val_t
 				jit_type_ulong, //ptrs_meta_t
@@ -279,11 +280,8 @@ ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, ptrs_jit_var_t val)
 			(val.val, val.meta, buff, size)
 		);
 
-		ret.val = buff;
-		ret.meta = ptrs_jit_arrayMeta(func,
-			jit_const_long(func, ulong, PTRS_TYPE_NATIVE),
-			jit_const_long(func, ulong, 0),
-			size);
+		ret = ptrs_jit_valToVar(func, retVal);
+		ret.constType = PTRS_TYPE_NATIVE;
 		return ret;
 	}
 	else
@@ -447,8 +445,14 @@ double ptrs_vartof(ptrs_val_t val, ptrs_meta_t meta)
 	}
 }
 
-const char *ptrs_vartoa(ptrs_val_t val, ptrs_meta_t meta, char *buff, size_t maxlen)
+ptrs_var_t ptrs_vartoa(ptrs_val_t val, ptrs_meta_t meta, char *buff, size_t maxlen)
 {
+	ptrs_var_t result;
+	result.value.nativeval = buff;
+	result.meta.type = PTRS_TYPE_NATIVE;
+	result.meta.array.readOnly = false;
+	result.meta.array.size = maxlen;
+
 	switch(meta.type)
 	{
 		case PTRS_TYPE_UNDEFINED:
@@ -471,9 +475,14 @@ const char *ptrs_vartoa(ptrs_val_t val, ptrs_meta_t meta, char *buff, size_t max
 
 			int len = strnlen(val.strval, meta.array.size);
 			if(len < meta.array.size)
-				return val.strval;
+			{
+				result.value = val;
+				result.meta = meta;
+			}
 			else
+			{
 				snprintf(buff, maxlen, "%.*s", len, val.strval); //wat do when maxlen < len? :(
+			}
 			break;
 		case PTRS_TYPE_POINTER:
 			snprintf(buff, maxlen, "pointer:%p", val.ptrval);
@@ -495,8 +504,9 @@ const char *ptrs_vartoa(ptrs_val_t val, ptrs_meta_t meta, char *buff, size_t max
 			snprintf(buff, maxlen, "function:%p", val.nativeval);
 			break;
 	}
+
 	buff[maxlen - 1] = 0;
-	return buff;
+	return result;
 }
 
 const char * const ptrs_typeStrings[] = {
