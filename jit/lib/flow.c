@@ -50,6 +50,16 @@ static ptrs_predictions_t *dupPredictions(ptrs_predictions_t *curr)
 	return start;
 }
 
+static void freePredictions(ptrs_predictions_t *curr)
+{
+	while(curr != NULL)
+	{
+		ptrs_predictions_t *next = curr->next;
+		free(curr);
+		curr = next;
+	}
+}
+
 static void applyAndFreePredictions(ptrs_predictions_t *curr)
 {
 	while(curr != NULL)
@@ -693,7 +703,30 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node)
 	}
 	else if(node->handler == ptrs_handle_struct)
 	{
-		//TODO
+		ptrs_struct_t *struc = &node->arg.structval;
+
+		for(int i = 0; i < struc->memberCount; i++)
+		{
+			struct ptrs_structmember *curr = &struc->member[i];
+			if(curr->name == NULL) //hashmap filler entry
+				continue;
+
+			if(curr->type == PTRS_STRUCTMEMBER_FUNCTION
+				|| curr->type == PTRS_STRUCTMEMBER_GETTER
+				|| curr->type == PTRS_STRUCTMEMBER_SETTER)
+			{
+				analyzeFunction(curr->value.function.ast);
+			}
+		}
+
+		struct ptrs_opoverload *curr = struc->overloads;
+		while(curr != NULL)
+		{
+			analyzeFunction(curr->handler);
+			curr = curr->next;
+		}
+
+		createPrediction(flow, struc->location, PTRS_TYPE_STRUCT, false, NULL);
 	}
 	else if(node->handler == ptrs_handle_function)
 	{
@@ -725,7 +758,29 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node)
 	}
 	else if(node->handler == ptrs_handle_switch)
 	{
-		//TODO
+		struct ptrs_ast_switch *stmt = &node->arg.switchcase;
+		struct ptrs_ast_case *curr = stmt->cases;
+
+		analyzeStatement(flow, stmt->defaultCase);
+
+		while(curr)
+		{
+			ptrs_predictions_t *casePredictions;
+			if(flow->updatePredictions)
+				casePredictions = dupPredictions(flow->predictions);
+			else
+				casePredictions = flow->predictions;
+
+			ptrs_predictions_t *defaultPredictions = flow->predictions;
+			flow->predictions = casePredictions;
+			analyzeStatement(flow, curr->body);
+
+			flow->predictions = defaultPredictions;
+			if(flow->updatePredictions)
+				mergePredictions(flow, casePredictions);
+
+			curr = curr->next;
+		}
 	}
 	else if(node->handler == ptrs_handle_while)
 	{
