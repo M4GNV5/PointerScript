@@ -59,7 +59,7 @@ jit_type_t ptrs_jit_getVarType()
 		vartype = jit_type_create_struct(fields, 2, 0);
 	}
 
-	return vartype;
+	return jit_type_copy(vartype);
 }
 
 ptrs_jit_var_t ptrs_jit_valToVar(jit_function_t func, jit_value_t val)

@@ -139,6 +139,7 @@ typedef struct
 	struct ptrs_opoverload *overloads;
 	uint32_t size;
 	uint16_t memberCount;
+	size_t lastCodepos;
 	void *staticData;
 	void *parentFrame;
 } ptrs_struct_t;

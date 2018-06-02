@@ -52,7 +52,12 @@ bool ptrs_struct_canAccess(ptrs_ast_t *node, ptrs_struct_t *struc, struct ptrs_s
 			else
 				break;
 		default:
-			return true; //TODO make sure private properties aren't accessed from outside
+			if(strcmp(node->file, struc->ast->file) == 0
+				&& node->codepos >= struc->ast->codepos
+				&& node->codepos < struc->lastCodepos)
+				return true;
+			else
+				break;
 			break;
 	}
 

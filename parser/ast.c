@@ -1939,6 +1939,8 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 	symbolScope_decrease(code);
 
 	consumec(code, '}');
+
+	struc->lastCodepos = code->pos;
 }
 
 static ptrs_funcparameter_t *createParameterList(code_t *code, size_t count, ...)
@@ -2403,6 +2405,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 	symbolScope_decrease(code);
 	consumec(code, '}');
 	consumec(code, ';');
+
+	struc->lastCodepos = code->pos;
 }
 
 const char * const typeNames[] = {

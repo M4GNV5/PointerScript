@@ -589,8 +589,7 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	jit_insn_store_relative(func, jit_const_int(func, void_ptr, (uintptr_t)struc),
 		offsetof(ptrs_struct_t, parentFrame), jit_insn_get_frame_pointer(func));
 
-	int len = snprintf(NULL, 0, "%s.(data initializer)", struc->name);
-	char *ctorName = malloc(len);
+	char *ctorName = malloc(strlen(struc->name) + strlen(".(data initializer)") + 1);
 	sprintf(ctorName, "%s.(data initializer)", struc->name);
 
 	bool needsCtor = false;

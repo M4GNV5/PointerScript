@@ -322,6 +322,8 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 
 		if(!stmt->isInitExpr)
 			analyzeList(flow, stmt->initVal);
+
+		return PTRS_TYPE_NATIVE;
 	}
 	else if(node->handler == ptrs_handle_vararray)
 	{
@@ -331,6 +333,8 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 			analyzeExpression(flow, stmt->value);
 
 		analyzeList(flow, stmt->initVal);
+
+		return PTRS_TYPE_POINTER;
 	}
 	else if(node->handler == ptrs_handle_function)
 	{

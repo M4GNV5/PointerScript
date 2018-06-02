@@ -240,7 +240,7 @@ struct ptrs_ast
 	ptrs_sethandler_t setHandler;
 	ptrs_asthandler_t addressHandler;
 	ptrs_callhandler_t callHandler;
-	int codepos;
+	size_t codepos;
 	char *code;
 	const char *file;
 };
