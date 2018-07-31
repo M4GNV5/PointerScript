@@ -222,7 +222,7 @@ printf("Nanoseconds remainder: %d\n", time.usec);
 printf("Milliseconds since epoch: %f\n", time.sec * 1000 + cast<float>time.usec / 1000);
 ```
 
-When you have a function that returns `val` - a pointer to a struct you can also use `cast<structType>val` to create a struct of type `structType` using the memory pointed to by `val`. Note: you have to delete/free both `val` and the by `cast` created struct
+When you have a function that returns `val` - a pointer to a struct you can also use `cast<structType>val` to create a struct of type `structType` using the memory pointed to by `val`
 
 ## Type list
 | Type | Description | Name in C |

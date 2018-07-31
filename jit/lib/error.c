@@ -234,6 +234,8 @@ void *ptrs_formatErrorMsg(const char *msg, va_list ap)
 
 static void _ptrs_verror(ptrs_ast_t *ast, int skipTrace, const char *msg, va_list ap)
 {
+	static __thread int hadError = false;
+
 	ptrs_error_t *error = malloc(sizeof(ptrs_error_t));
 	error->message = ptrs_formatErrorMsg(msg, ap);
 
@@ -249,9 +251,11 @@ static void _ptrs_verror(ptrs_ast_t *ast, int skipTrace, const char *msg, va_lis
 		ptrs_getpos(&error->pos, ast);
 	}
 
-	if(ptrs_enableExceptions)
+	if(ptrs_enableExceptions && !hadError)
 	{
+		hadError = true;
 		error->backtrace = ptrs_backtrace(skipTrace);
+		hadError = false;
 		jit_exception_throw(error);
 	}
 	else

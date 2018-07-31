@@ -23,6 +23,7 @@ struct ptrs_ast_define
 	uint8_t isInitExpr : 1;
 	uint8_t onStack : 1;
 	uint8_t isTyped : 1;
+	uint8_t isArrayExpr : 1;
 };
 
 struct ptrs_ast_identifier

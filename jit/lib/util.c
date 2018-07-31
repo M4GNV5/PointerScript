@@ -129,20 +129,28 @@ ptrs_jit_var_t ptrs_jit_varFromConstant(jit_function_t func, ptrs_var_t val)
 	return ret;
 }
 
+static bool isFloatKind(int kind)
+{
+	switch(kind)
+	{
+		case JIT_TYPE_FLOAT32:
+		case JIT_TYPE_FLOAT64:
+		case JIT_TYPE_NFLOAT:
+			return true;
+
+		default:
+			return false;
+	}
+}
+
 void ptrs_jit_assignTypedFromVar(jit_function_t func,
 	jit_value_t target, jit_type_t type, ptrs_jit_var_t val)
 {
 	jit_type_t normalized = jit_type_normalize(jit_type_promote_int(type));
-	switch(jit_type_get_kind(normalized))
-	{
-		case JIT_TYPE_FLOAT32:
-		case JIT_TYPE_FLOAT64:
-			val.val = ptrs_jit_vartof(func, val);
-			break;
-		default: //int, uint, long, ulong, pointer
-			val.val = ptrs_jit_vartoi(func, val);
-			break;
-	}
+	if(isFloatKind(jit_type_get_kind(normalized)))
+		val.val = ptrs_jit_vartof(func, val);
+	else
+		val.val = ptrs_jit_vartoi(func, val);
 
 	val.val = jit_insn_convert(func, val.val, type, 0);
 	jit_insn_store_relative(func, target, 0, val.val);
@@ -150,7 +158,10 @@ void ptrs_jit_assignTypedFromVar(jit_function_t func,
 
 jit_value_t ptrs_jit_reinterpretCast(jit_function_t func, jit_value_t val, jit_type_t newType)
 {
-	if(jit_value_get_type(val) == newType)
+	int oldKind = jit_type_get_kind(jit_value_get_type(val));
+	int newKind = jit_type_get_kind(newType);
+
+	if(oldKind == newKind)
 		return val;
 
 	if(jit_value_is_constant(val))
@@ -165,6 +176,13 @@ jit_value_t ptrs_jit_reinterpretCast(jit_function_t func, jit_value_t val, jit_t
 		else if(type == jit_type_float64)
 			return jit_value_create_float64_constant(func, newType, constVal.un.float64_value);
 	}
+
+	bool oldIsFloat = isFloatKind(oldKind);
+	bool newIsFloat = isFloatKind(newKind);
+	if(oldIsFloat && newIsFloat)
+		return jit_insn_convert(func, val, newType, 0);
+	else if(!oldIsFloat && !newIsFloat)
+		return jit_insn_convert(func, val, newType, 0);
 
 	if(jit_value_is_addressable(val))
 	{
@@ -226,6 +244,8 @@ jit_value_t ptrs_jit_allocate(jit_function_t func, jit_value_t size, bool onStac
 			(size)
 		);
 	}
+
+	return ret;
 }
 
 jit_value_t ptrs_jit_import(ptrs_ast_t *node, jit_function_t func, jit_value_t val, bool asPtr)

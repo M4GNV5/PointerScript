@@ -511,6 +511,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		stmt->handler = ptrs_handle_define;
 		addSymbol(code, readIdentifier(code), &stmt->arg.define.location);
 		stmt->arg.define.onStack = true;
+		stmt->arg.define.isArrayExpr = false;
 
 		if(lookahead(code, "["))
 		{
@@ -1741,6 +1742,7 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 		ast->arg.define.location.meta = NULL;
 		ast->arg.define.initExpr = NULL;
 		ast->arg.define.isInitExpr = false;
+		ast->arg.define.isArrayExpr = true;
 		ast->arg.define.onStack = onStack;
 
 		if(lookahead(code, "["))

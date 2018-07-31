@@ -192,12 +192,15 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	);
 	val.constType = PTRS_TYPE_NATIVE;
 
-	//store the array
-	stmt->location.val = jit_value_create(func, jit_type_long);
-	stmt->location.meta = jit_value_create(func, jit_type_ulong);
-	stmt->location.constType = PTRS_TYPE_NATIVE;
-	jit_insn_store(func, stmt->location.val, val.val);
-	jit_insn_store(func, stmt->location.meta, val.meta);
+	if(!stmt->isArrayExpr)
+	{
+		//store the array
+		stmt->location.val = jit_value_create(func, jit_type_long);
+		stmt->location.meta = jit_value_create(func, jit_type_ulong);
+		stmt->location.constType = PTRS_TYPE_NATIVE;
+		jit_insn_store(func, stmt->location.val, val.val);
+		jit_insn_store(func, stmt->location.meta, val.meta);
+	}
 
 	if(stmt->isInitExpr)
 	{
@@ -260,12 +263,15 @@ ptrs_jit_var_t ptrs_handle_vararray(ptrs_ast_t *node, jit_function_t func, ptrs_
 	);
 	val.constType = PTRS_TYPE_POINTER;
 
-	//store the array
-	stmt->location.val = jit_value_create(func, jit_type_long);
-	stmt->location.meta = jit_value_create(func, jit_type_ulong);
-	stmt->location.constType = PTRS_TYPE_POINTER;
-	jit_insn_store(func, stmt->location.val, val.val);
-	jit_insn_store(func, stmt->location.meta, val.meta);
+	if(!stmt->isArrayExpr)
+	{
+		//store the array
+		stmt->location.val = jit_value_create(func, jit_type_long);
+		stmt->location.meta = jit_value_create(func, jit_type_ulong);
+		stmt->location.constType = PTRS_TYPE_POINTER;
+		jit_insn_store(func, stmt->location.val, val.val);
+		jit_insn_store(func, stmt->location.meta, val.meta);
+	}
 
 	ptrs_astlist_handle(stmt->initVal, func, scope, val.val, size);
 	return val;
