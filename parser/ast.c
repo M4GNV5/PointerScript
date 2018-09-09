@@ -56,6 +56,7 @@ struct wildcardsymbol
 
 struct ptrs_symboltable
 {
+	bool functionBoundary;
 	struct symbollist *current;
 	struct wildcardsymbol *wildcards;
 	ptrs_symboltable_t *outer;
@@ -100,7 +101,7 @@ static double readDouble(code_t *code);
 static void addSymbol(code_t *code, char *text, ptrs_jit_var_t *location);
 static struct symbollist *addSpecialSymbol(code_t *code, char *symbol, ptrs_symboltype_t type);
 static ptrs_ast_t *getSymbol(code_t *code, char *text);
-static void symbolScope_increase(code_t *code);
+static void symbolScope_increase(code_t *code, bool functionBoundary);
 static void symbolScope_decrease(code_t *code);
 
 static bool lookahead(code_t *code, const char *str);
@@ -132,7 +133,7 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 	if(symbols == NULL || *symbols == NULL)
 	{
 		code.symbols = NULL;
-		symbolScope_increase(&code);
+		symbolScope_increase(&code, true);
 		//addSymbol(&code, strdup("arguments"), TODO argumentsLocation);
 	}
 	else
@@ -164,6 +165,8 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 
 int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **node)
 {
+	bool functionBoundary = false;
+
 	if(node != NULL)
 		*node = NULL;
 
@@ -186,6 +189,9 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 
 						ast->arg.identifier.location = curr->arg.location;
 						ast->arg.identifier.predictedType = -1;
+
+						if(functionBoundary)
+							ast->arg.identifier.location->addressable = 1;
 						break;
 
 					case PTRS_SYMBOL_FUNCTION:
@@ -220,6 +226,7 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 			curr = curr->next;
 		}
 
+		functionBoundary = functionBoundary || symbols->functionBoundary;
 		symbols = symbols->outer;
 	}
 	return 1;
@@ -428,7 +435,7 @@ static ptrs_ast_t *parseScopelessBody(code_t *code, bool allowStmt)
 static ptrs_ast_t *parseBody(code_t *code, bool allowStmt, bool isFunction)
 {
 	if(!isFunction)
-		symbolScope_increase(code);
+		symbolScope_increase(code, false);
 
 	ptrs_ast_t *result = parseScopelessBody(code, allowStmt);
 
@@ -439,7 +446,7 @@ static ptrs_ast_t *parseBody(code_t *code, bool allowStmt, bool isFunction)
 
 static ptrs_function_t *parseFunction(code_t *code, char *name)
 {
-	symbolScope_increase(code);
+	symbolScope_increase(code, true);
 
 	ptrs_function_t *func = talloc(ptrs_function_t);
 	func->name = name;
@@ -613,7 +620,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	else if(lookahead(code, "scoped"))
 	{
 		stmt->handler = ptrs_handle_scopestatement;
-		symbolScope_increase(code);
+		symbolScope_increase(code, true);
 		stmt->arg.astval = parseBody(code, true, true);
 	}
 	else if(lookahead(code, "try"))
@@ -623,7 +630,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 
 		if(lookahead(code, "catch"))
 		{
-			symbolScope_increase(code);
+			symbolScope_increase(code, true);
 			stmt->arg.trycatch.args = parseArgumentDefinitionList(code, NULL);
 			stmt->arg.trycatch.catchBody = parseScopelessBody(code, true);
 			symbolScope_decrease(code);
@@ -635,7 +642,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 
 		if(lookahead(code, "finally"))
 		{
-			symbolScope_increase(code);
+			symbolScope_increase(code, true);
 			if(code->curr == '(')
 			{
 				consumec(code, '(');
@@ -673,7 +680,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		struct symbollist *symbol = addSpecialSymbol(code, strdup(func->name), PTRS_SYMBOL_FUNCTION);
 		symbol->arg.function = stmt->arg.function.symbol;
 
-		symbolScope_increase(code);
+		symbolScope_increase(code, true);
 		addSymbol(code, strdup("this"), &func->thisVal);
 
 		func->args = parseArgumentDefinitionList(code, &func->vararg);
@@ -713,7 +720,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "do"))
 	{
-		symbolScope_increase(code);
+		symbolScope_increase(code, false);
 		stmt->handler = ptrs_handle_dowhile;
 		stmt->arg.control.body = parseScopelessBody(code, true);
 		consume(code, "while");
@@ -727,7 +734,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	else if(lookahead(code, "foreach"))
 	{
 		consumec(code, '(');
-		symbolScope_increase(code);
+		symbolScope_increase(code, true);
 		stmt->arg.forin.varcount = parseIdentifierList(code, "in", &stmt->arg.forin.varsymbols, NULL);
 
 		consume(code, "in");
@@ -741,7 +748,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	else if(lookahead(code, "for"))
 	{
 		stmt->handler = ptrs_handle_for;
-		symbolScope_increase(code);
+		symbolScope_increase(code, false);
 
 		consumec(code, '(');
 		stmt->arg.forstatement.init = parseStatement(code);
@@ -965,10 +972,20 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		ast->handler = handler;
 		ast->addressHandler = NULL;
 		ast->callHandler = NULL;
+
 		if(handler == ptrs_handle_prefix_dereference)
 			ast->setHandler = ptrs_handle_assign_dereference;
 		else
 			ast->setHandler = NULL;
+
+		if(handler == ptrs_handle_prefix_address)
+		{
+			ptrs_ast_t *child = ast->arg.astval;
+			if(child == NULL || child->handler == NULL)
+				unexpectedm(code, NULL, "Cannot get the address of this expression");
+			else if(child->handler == ptrs_handle_identifier)
+				child->arg.identifier.location->addressable = 1;
+		}
 
 		ast->codepos = pos;
 		ast->code = code->src;
@@ -1123,7 +1140,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		ptrs_function_t *func = &ast->arg.function.func;
 		func->name = "(anonymous function)";
 
-		symbolScope_increase(code);
+		symbolScope_increase(code, true);
 		addSymbol(code, strdup("this"), &func->thisVal);
 
 		func->args = parseArgumentDefinitionList(code, &func->vararg);
@@ -1261,7 +1278,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 				code->pos = start;
 				code->curr = code->src[start];
 
-				symbolScope_increase(code);
+				symbolScope_increase(code, true);
 
 				ast = talloc(ptrs_ast_t);
 				ast->handler = ptrs_handle_function;
@@ -1865,7 +1882,7 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 	struc->staticData = NULL;
 
 	consumec(code, '{');
-	symbolScope_increase(code);
+	symbolScope_increase(code, false);
 
 	int count = 0;
 	struct ptrs_structParseList *start = NULL;
@@ -1896,7 +1913,7 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 		if(code->curr == '(')
 		{
 			curr->member.type = PTRS_STRUCTMEMBER_FUNCTION;
-			symbolScope_increase(code);
+			symbolScope_increase(code, true);
 
 			ptrs_function_t *func = curr->member.value.function.ast = talloc(ptrs_function_t);
 			addSymbol(code, strdup("this"), &func->thisVal);
@@ -1998,7 +2015,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 	struc->size = 0;
 	consumec(code, '{');
 
-	symbolScope_increase(code);
+	symbolScope_increase(code, false);
 	int memberCount = 0;
 	struct ptrs_structParseList *start = NULL;
 	struct ptrs_structParseList *currList = NULL;
@@ -2014,7 +2031,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 		if(lookahead(code, "operator"))
 		{
-			symbolScope_increase(code);
+			symbolScope_increase(code, true);
 
 			ptrs_jit_var_t **oldYield = code->yield;
 			const char *nameFormat = NULL;
@@ -2250,7 +2267,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 		if(isProperty > 0)
 		{
-			symbolScope_increase(code);
+			symbolScope_increase(code, true);
 
 			ptrs_function_t *func = talloc(ptrs_function_t);
 			func->name = malloc(structNameLen + strlen(name) + 6);
@@ -2855,12 +2872,13 @@ static ptrs_ast_t *getSymbol(code_t *code, char *text)
 	return ast; //doh
 }
 
-static void symbolScope_increase(code_t *code)
+static void symbolScope_increase(code_t *code, bool functionBoundary)
 {
 	ptrs_symboltable_t *new = talloc(ptrs_symboltable_t);
 	new->outer = code->symbols;
 	new->current = NULL;
 	new->wildcards = NULL;
+	new->functionBoundary = functionBoundary;
 
 	code->symbols = new;
 }

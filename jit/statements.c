@@ -45,6 +45,14 @@ ptrs_jit_var_t ptrs_handle_define(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 		val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
 	}
 
+	if(stmt->location.addressable)
+	{
+		stmt->location.val = ptrs_jit_varToVal(func, val);
+		stmt->location.meta = NULL;
+
+		return val;
+	}
+
 	//stmt->type is set by flow.c to -1 if the type is dynamic or changes
 	// or a constant when it's the same over the whole lifetime
 	stmt->location.constType = stmt->type;
@@ -345,6 +353,9 @@ static void importScript(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *sc
 	{
 		if(ptrs_ast_getSymbol(cache->symbols, curr->name, expressions + i) != 0)
 			ptrs_error(node, "Script '%s' has no property '%s'", from, curr->name);
+
+		if(expressions[i]->handler == ptrs_handle_identifier)
+			expressions[i]->arg.identifier.location->addressable = 1;
 
 		curr = curr->next;
 	}

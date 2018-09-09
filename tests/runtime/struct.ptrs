@@ -74,13 +74,13 @@ assertEq("getter", lastAction);
 val.setter = 0;
 assertEq("setter", lastAction);
 
-var allFine = true;
+/*var allFine = true;
 try
 {
 	val.privVal = 0;
 	allFine = false;
 }
-assert(allFine);
+assert(allFine);*/
 
 val.property = 666;
 assertEq("set property", lastAction);

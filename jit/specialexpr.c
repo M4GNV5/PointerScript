@@ -679,11 +679,22 @@ ptrs_jit_var_t ptrs_handle_identifier(ptrs_ast_t *node, jit_function_t func, ptr
 	struct ptrs_ast_identifier *expr = &node->arg.identifier;
 
 	ptrs_jit_var_t target = *expr->location;
-	target.val = ptrs_jit_import(node, func, target.val, false);
-	target.meta = ptrs_jit_import(node, func, target.meta, false);
+	if(target.addressable)
+	{
+		jit_value_t ptr = ptrs_jit_import(node, func, target.val, true);
+		target.val = jit_insn_load_relative(func, ptr, 0, jit_type_long);
+		target.meta = jit_insn_load_relative(func, ptr, sizeof(ptrs_val_t), jit_type_ulong);
+		target.constType = -1;
+		target.addressable = 0;
+	}
+	else
+	{
+		target.val = ptrs_jit_import(node, func, target.val, false);
+		target.meta = ptrs_jit_import(node, func, target.meta, false);
 
-	if(target.constType == -1 && expr->predictedType != -1)
-		target.constType = expr->predictedType;
+		if(target.constType == -1 && expr->predictedType != -1)
+			target.constType = expr->predictedType;
+	}
 
 	return target;
 }
@@ -691,6 +702,14 @@ void ptrs_handle_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_s
 {
 	ptrs_jit_var_t target = *node->arg.identifier.location;
 	jit_function_t targetFunc = jit_value_get_function(target.val);
+
+	if(target.addressable)
+	{
+		jit_value_t ptr = ptrs_jit_import(node, func, target.val, true);
+		jit_insn_store_relative(func, ptr, 0, val.val);
+		jit_insn_store_relative(func, ptr, sizeof(ptrs_val_t), val.meta);
+		return;
+	}
 
 	if(func == targetFunc)
 	{
@@ -763,6 +782,9 @@ void ptrs_handle_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_s
 ptrs_jit_var_t ptrs_handle_addressof_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	ptrs_jit_var_t target = *node->arg.identifier.location;
+	if(!target.addressable)
+		ptrs_error(node, "Variable is not marked as addressable. This is probably an internal error");
+
 	target.val = ptrs_jit_import(node, func, target.val, true);
 	target.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_POINTER, false, 1);
 	target.constType = PTRS_TYPE_POINTER;

@@ -337,7 +337,7 @@ jit_function_t ptrs_jit_compileFunction(ptrs_ast_t *node, jit_function_t parent,
 
 	curr = ast->args;
 	for(int i = 0; i < argc; i++)
-	{	
+	{
 		curr->arg.val = jit_value_get_param(func, i * 2 + 1);
 		curr->arg.meta = jit_value_get_param(func, i * 2 + 2);
 		curr->arg.constType = -1;
