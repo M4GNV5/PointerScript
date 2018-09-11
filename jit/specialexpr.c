@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <string.h>
 #include <inttypes.h>
 #include <assert.h>
 
@@ -93,8 +94,9 @@ ptrs_jit_var_t ptrs_handle_member(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	struct ptrs_ast_member *expr = &node->arg.member;
 	ptrs_jit_var_t base = expr->base->handler(expr->base, func, scope);
 	jit_value_t key = jit_const_int(func, void_ptr, (uintptr_t)expr->name);
+	jit_value_t keyLen = jit_const_int(func, int, expr->namelen);
 
-	return ptrs_jit_struct_get(node, func, scope, base, key);
+	return ptrs_jit_struct_get(node, func, scope, base, key, keyLen);
 }
 void ptrs_handle_assign_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_jit_var_t val)
@@ -102,16 +104,18 @@ void ptrs_handle_assign_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 	struct ptrs_ast_member *expr = &node->arg.member;
 	ptrs_jit_var_t base = expr->base->handler(expr->base, func, scope);
 	jit_value_t key = jit_const_int(func, void_ptr, (uintptr_t)expr->name);
+	jit_value_t keyLen = jit_const_int(func, int, expr->namelen);
 
-	ptrs_jit_struct_set(node, func, scope, base, key, val);
+	ptrs_jit_struct_set(node, func, scope, base, key, keyLen, val);
 }
 ptrs_jit_var_t ptrs_handle_addressof_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_member *expr = &node->arg.member;
 	ptrs_jit_var_t base = expr->base->handler(expr->base, func, scope);
 	jit_value_t key = jit_const_int(func, void_ptr, (uintptr_t)expr->name);
+	jit_value_t keyLen = jit_const_int(func, int, expr->namelen);
 
-	return ptrs_jit_struct_addressof(node, func, scope, base, key);
+	return ptrs_jit_struct_addressof(node, func, scope, base, key, keyLen);
 }
 ptrs_jit_var_t ptrs_handle_call_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments)
@@ -119,8 +123,9 @@ ptrs_jit_var_t ptrs_handle_call_member(ptrs_ast_t *node, jit_function_t func, pt
 	struct ptrs_ast_member *expr = &node->arg.member;
 	ptrs_jit_var_t base = expr->base->handler(expr->base, func, scope);
 	jit_value_t key = jit_const_int(func, void_ptr, (uintptr_t)expr->name);
+	jit_value_t keyLen = jit_const_int(func, int, expr->namelen);
 
-	return ptrs_jit_struct_call(node, func, scope, base, key, retType, arguments);
+	return ptrs_jit_struct_call(node, func, scope, base, key, keyLen, retType, arguments);
 }
 
 ptrs_jit_var_t ptrs_handle_prefix_sizeof(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
@@ -314,7 +319,9 @@ ptrs_jit_var_t ptrs_handle_index(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 
 	ptrs_handle_index_common(
 		{
-			ptrs_jit_var_t _result = ptrs_jit_struct_get(node, func, scope, base, strIndex.val);
+			jit_value_t keyLen = ptrs_jit_getArraySize(func, strIndex.meta);
+			ptrs_jit_var_t _result = ptrs_jit_struct_get(node, func, scope,
+				base, strIndex.val, keyLen);
 			jit_insn_store(func, result.val, _result.val);
 			jit_insn_store(func, result.meta, _result.meta);
 
@@ -343,7 +350,9 @@ void ptrs_handle_assign_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 {
 	ptrs_handle_index_common(
 		{
-			ptrs_jit_struct_set(node, func, scope, base, strIndex.val, val);
+			jit_value_t keyLen = ptrs_jit_getArraySize(func, strIndex.meta);
+			ptrs_jit_struct_set(node, func, scope,
+				base, strIndex.val, keyLen, val);
 		},
 		/* nothing */,
 		{
@@ -369,7 +378,9 @@ ptrs_jit_var_t ptrs_handle_addressof_index(ptrs_ast_t *node, jit_function_t func
 
 	ptrs_handle_index_common(
 		{
-			ptrs_jit_var_t _result = ptrs_jit_struct_addressof(node, func, scope, base, strIndex.val);
+			jit_value_t keyLen = ptrs_jit_getArraySize(func, strIndex.meta);
+			ptrs_jit_var_t _result = ptrs_jit_struct_addressof(node, func, scope,
+				base, strIndex.val, keyLen);
 			jit_insn_store(func, result.val, _result.val);
 			jit_insn_store(func, result.meta, _result.meta);
 
@@ -406,8 +417,10 @@ ptrs_jit_var_t ptrs_handle_call_index(ptrs_ast_t *node, jit_function_t func, ptr
 
 	ptrs_handle_index_common(
 		{
+			jit_value_t keyLen = ptrs_jit_getArraySize(func, strIndex.meta);
 			_base = base;
-			ptrs_jit_var_t _result = ptrs_jit_struct_get(node, func, scope, base, strIndex.val);
+			ptrs_jit_var_t _result = ptrs_jit_struct_get(node, func, scope,
+				base, strIndex.val, keyLen);
 			jit_insn_store(func, callee.val, _result.val);
 			jit_insn_store(func, callee.meta, _result.meta);
 		},
@@ -871,8 +884,9 @@ ptrs_jit_var_t ptrs_handle_op_in(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 
 		char buff[32];
 		const char *name = ptrs_vartoa(nameVal, nameMeta, buff, 32).value.strval;
+		int32_t nameLen = strlen(name);
 
-		if(ptrs_struct_find(struc, name, -1, node) != NULL)
+		if(ptrs_struct_find(struc, name, nameLen, -1, node) != NULL)
 		{
 			ret.val = jit_const_long(func, long, true);
 			return ret;

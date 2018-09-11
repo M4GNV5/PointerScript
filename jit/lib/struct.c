@@ -81,17 +81,35 @@ size_t ptrs_struct_hashName(const char *key)
 	return hash;
 }
 
-struct ptrs_structmember *ptrs_struct_find(ptrs_struct_t *struc, const char *key,
+size_t ptrs_struct_nHashName(const char *key, uint32_t keyLen)
+{
+	size_t hash = 7;
+	while(*key != 0 && keyLen > 0)
+	{
+		hash = hash * 31 + *key;
+		key++;
+		keyLen--;
+	}
+
+	return hash;
+}
+
+struct ptrs_structmember *ptrs_struct_find(ptrs_struct_t *struc,
+	const char *key, uint32_t keyLen,
 	enum ptrs_structmembertype exclude, ptrs_ast_t *ast)
 {
 	if(struc->memberCount == 0)
 		return NULL;
 
-	size_t i = ptrs_struct_hashName(key) % struc->memberCount;
+	bool isTerminated = memrchr(key, 0, keyLen) != NULL;
+
+	size_t i = ptrs_struct_nHashName(key, keyLen) % struc->memberCount;
 	struct ptrs_structmember *ignored = NULL;
-	while(struc->member[i].name != NULL)
+	const char *name = struc->member[i].name;
+
+	while(name != NULL)
 	{
-		if(strcmp(struc->member[i].name, key) == 0)
+		if(strncmp(name, key, keyLen) == 0 && (isTerminated || name[keyLen] == 0))
 		{
 			if(struc->member[i].type == exclude)
 				ignored = &struc->member[i];
@@ -100,6 +118,7 @@ struct ptrs_structmember *ptrs_struct_find(ptrs_struct_t *struc, const char *key
 		}
 
 		i = (i + 1) % struc->memberCount;
+		name = struc->member[i].name;
 	}
 
 	return ignored;
@@ -108,7 +127,7 @@ struct ptrs_structmember *ptrs_struct_find(ptrs_struct_t *struc, const char *key
 bool ptrs_struct_hasKey(void *data, ptrs_struct_t *struc,
 	const char *key, ptrs_meta_t keyMeta, ptrs_ast_t *ast)
 {
-	if(ptrs_struct_find(struc, key, -1, ast) != NULL)
+	if(ptrs_struct_find(struc, key, keyMeta.array.size, -1, ast) != NULL)
 		return true;
 
 	jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_op_in, data != NULL);
@@ -226,13 +245,15 @@ ptrs_var_t ptrs_struct_addressOfMember(ptrs_ast_t *ast, void *data, ptrs_struct_
 	return result;
 }
 
-ptrs_var_t ptrs_struct_get(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta, const char *key)
+ptrs_var_t ptrs_struct_get(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta,
+	const char *key, uint32_t keyLen)
 {
 	if(meta.type != PTRS_TYPE_STRUCT)
 		ptrs_error(ast, "Cannot get property %s of a value of type %t", key, meta.type);
 	ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
 
-	struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, ast);
+	struct ptrs_structmember *member = ptrs_struct_find(struc, key, keyLen,
+		PTRS_STRUCTMEMBER_SETTER, ast);
 	if(member == NULL)
 	{
 		jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_member, instance != NULL);
@@ -240,7 +261,7 @@ ptrs_var_t ptrs_struct_get(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta, co
 			ptrs_error(ast, "Struct %s has no property named %s", struc->name, key);
 
 		ptrs_var_t result;
-		uint64_t nameMeta = ptrs_const_arrayMeta(PTRS_TYPE_NATIVE, true, 0);
+		uint64_t nameMeta = ptrs_const_arrayMeta(PTRS_TYPE_NATIVE, true, keyLen);
 		ptrs_jit_applyNested(overload, &result, struc->parentFrame, instance, (&key, &nameMeta));
 		return result;
 	}
@@ -252,18 +273,22 @@ ptrs_var_t ptrs_struct_get(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta, co
 	return ptrs_struct_getMember(ast, instance, struc, member);
 }
 ptrs_jit_var_t ptrs_jit_struct_get(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
-	ptrs_jit_var_t base, jit_value_t keyVal)
+	ptrs_jit_var_t base, jit_value_t keyVal, jit_value_t keyLen)
 {
-	if(jit_value_is_constant(base.meta) && jit_value_is_constant(keyVal))
+	if(jit_value_is_constant(base.meta)
+		&& jit_value_is_constant(keyVal)
+		&& jit_value_is_constant(keyLen))
 	{
 		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(base.meta);
 		ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
 		const char *key = (const char *)jit_value_get_nint_constant(keyVal);
+		uint32_t constKeyLen = jit_value_get_nint_constant(keyLen);
 
 		if(meta.type != PTRS_TYPE_STRUCT)
 			ptrs_error(node, "Cannot get property %s of value of type %t", key, meta.type);
 
-		struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, node);
+		struct ptrs_structmember *member = ptrs_struct_find(struc, key, constKeyLen,
+			PTRS_STRUCTMEMBER_SETTER, node);
 		if(member == NULL)
 		{
 			bool isInstance = !jit_value_is_constant(base.val) || jit_value_is_true(base.val);
@@ -355,22 +380,23 @@ ptrs_jit_var_t ptrs_jit_struct_get(ptrs_ast_t *node, jit_function_t func, ptrs_s
 		jit_value_t ret;
 		jit_value_t astVal = jit_const_int(func, void_ptr, (uintptr_t)node);
 		ptrs_jit_reusableCall(func, ptrs_struct_get, ret, ptrs_jit_getVarType(),
-			(jit_type_void_ptr, jit_type_long, jit_type_ulong, jit_type_void_ptr),
-			(astVal, base.val, base.meta, keyVal)
+			(jit_type_void_ptr, jit_type_long, jit_type_ulong, jit_type_void_ptr, jit_type_int),
+			(astVal, base.val, base.meta, keyVal, keyLen)
 		);
 
 		return ptrs_jit_valToVar(func, ret);
 	}
 }
 
-void ptrs_struct_set(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta, const char *key,
-	ptrs_val_t val, ptrs_meta_t valMeta)
+void ptrs_struct_set(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta,
+	const char *key, uint32_t keyLen, ptrs_val_t val, ptrs_meta_t valMeta)
 {
 	if(meta.type != PTRS_TYPE_STRUCT)
 		ptrs_error(ast, "Cannot set property %s of a value of type %t", key, meta.type);
 	ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
 
-	struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_GETTER, ast);
+	struct ptrs_structmember *member = ptrs_struct_find(struc, key, keyLen,
+		PTRS_STRUCTMEMBER_GETTER, ast);
 	if(member == NULL)
 	{
 		jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_assign_member, instance != NULL);
@@ -378,7 +404,7 @@ void ptrs_struct_set(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta, const ch
 			ptrs_error(ast, "Struct %s has no property named %s", struc->name, key);
 
 		ptrs_var_t result;
-		uint64_t nameMeta = ptrs_const_arrayMeta(PTRS_TYPE_NATIVE, true, 0);
+		uint64_t nameMeta = ptrs_const_arrayMeta(PTRS_TYPE_NATIVE, true, keyLen);
 		ptrs_jit_applyNested(overload, &result, struc->parentFrame,
 			instance, (&key, &nameMeta, &val, &valMeta));
 		return;
@@ -391,18 +417,22 @@ void ptrs_struct_set(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta, const ch
 	ptrs_struct_setMember(ast, instance, struc, member, val, valMeta);
 }
 void ptrs_jit_struct_set(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
-	ptrs_jit_var_t base, jit_value_t keyVal, ptrs_jit_var_t value)
+	ptrs_jit_var_t base, jit_value_t keyVal, jit_value_t keyLen, ptrs_jit_var_t value)
 {
-	if(jit_value_is_constant(base.meta) && jit_value_is_constant(keyVal))
+	if(jit_value_is_constant(base.meta)
+		&& jit_value_is_constant(keyVal)
+		&& jit_value_is_constant(keyLen))
 	{
 		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(base.meta);
 		ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
 		const char *key = (const char *)jit_value_get_nint_constant(keyVal);
+		uint32_t constKeyLen = jit_value_get_nint_constant(keyLen);
 
 		if(meta.type != PTRS_TYPE_STRUCT)
 			ptrs_error(node, "Cannot set property %s of value of type %t", key, meta.type);
 
-		struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_GETTER, node);
+		struct ptrs_structmember *member = ptrs_struct_find(struc, key, constKeyLen,
+			PTRS_STRUCTMEMBER_GETTER, node);
 		if(member == NULL)
 		{
 			bool isInstance = !jit_value_is_constant(base.val) || jit_value_is_true(base.val);
@@ -476,6 +506,7 @@ void ptrs_jit_struct_set(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *sc
 				jit_type_long,
 				jit_type_ulong,
 				jit_type_void_ptr,
+				jit_type_int,
 				jit_type_long,
 				jit_type_ulong
 			), (
@@ -483,6 +514,7 @@ void ptrs_jit_struct_set(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *sc
 				base.val,
 				base.meta,
 				keyVal,
+				keyLen,
 				ptrs_jit_reinterpretCast(func, value.val, jit_type_long),
 				value.meta
 			)
@@ -490,13 +522,14 @@ void ptrs_jit_struct_set(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *sc
 	}
 }
 
-ptrs_var_t ptrs_struct_addressOf(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta, const char *key)
+ptrs_var_t ptrs_struct_addressOf(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta,
+	const char *key, uint32_t keyLen)
 {
 	if(meta.type != PTRS_TYPE_STRUCT)
 		ptrs_error(ast, "Cannot get the address of property %s of value of type %t", key, meta.type);
 	ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
 
-	struct ptrs_structmember *member = ptrs_struct_find(struc, key, -1, ast);
+	struct ptrs_structmember *member = ptrs_struct_find(struc, key, keyLen, -1, ast);
 	if(member == NULL)
 	{
 		jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_addressof_member, instance != NULL);
@@ -504,7 +537,7 @@ ptrs_var_t ptrs_struct_addressOf(ptrs_ast_t *ast, void *instance, ptrs_meta_t me
 			ptrs_error(ast, "Struct %s has no property named %s", struc->name, key);
 
 		ptrs_var_t result;
-		uint64_t nameMeta = ptrs_const_arrayMeta(PTRS_TYPE_NATIVE, true, 0);
+		uint64_t nameMeta = ptrs_const_arrayMeta(PTRS_TYPE_NATIVE, true, keyLen);
 		ptrs_jit_applyNested(overload, &result, struc->parentFrame, instance, (&key, &nameMeta));
 		return result;
 	}
@@ -512,18 +545,22 @@ ptrs_var_t ptrs_struct_addressOf(ptrs_ast_t *ast, void *instance, ptrs_meta_t me
 	return ptrs_struct_addressOfMember(ast, instance, struc, member);
 }
 ptrs_jit_var_t ptrs_jit_struct_addressof(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
-	ptrs_jit_var_t base, jit_value_t keyVal)
+	ptrs_jit_var_t base, jit_value_t keyVal, jit_value_t keyLen)
 {
-	if(jit_value_is_constant(base.meta) && jit_value_is_constant(keyVal))
+	if(jit_value_is_constant(base.meta)
+		&& jit_value_is_constant(keyVal)
+		&& jit_value_is_constant(keyLen))
 	{
 		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(base.meta);
 		ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
 		const char *key = (const char *)jit_value_get_nint_constant(keyVal);
+		uint32_t constKeyLen = jit_value_get_nint_constant(keyLen);
 
 		if(meta.type != PTRS_TYPE_STRUCT)
 			ptrs_error(node, "Cannot get property %s of value of type %t", key, meta.type);
 
-		struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, node);
+		struct ptrs_structmember *member = ptrs_struct_find(struc, key, constKeyLen,
+			PTRS_STRUCTMEMBER_SETTER, node);
 		if(member == NULL)
 		{
 			bool isInstance = !jit_value_is_constant(base.val) || jit_value_is_true(base.val);
@@ -578,8 +615,8 @@ ptrs_jit_var_t ptrs_jit_struct_addressof(ptrs_ast_t *node, jit_function_t func, 
 		jit_value_t ret;
 		jit_value_t astVal = jit_const_int(func, void_ptr, (uintptr_t)node);
 		ptrs_jit_reusableCall(func, ptrs_struct_addressOf, ret, ptrs_jit_getVarType(),
-			(jit_type_void_ptr, jit_type_long, jit_type_ulong, jit_type_void_ptr),
-			(astVal, base.val, base.meta, keyVal)
+			(jit_type_void_ptr, jit_type_long, jit_type_ulong, jit_type_void_ptr, jit_type_int),
+			(astVal, base.val, base.meta, keyVal, keyLen)
 		);
 
 		return ptrs_jit_valToVar(func, ret);
@@ -587,21 +624,26 @@ ptrs_jit_var_t ptrs_jit_struct_addressof(ptrs_ast_t *node, jit_function_t func, 
 }
 
 ptrs_jit_var_t ptrs_jit_struct_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
-	ptrs_jit_var_t base, jit_value_t keyVal, ptrs_nativetype_info_t *retType, struct ptrs_astlist *args)
+	ptrs_jit_var_t base, jit_value_t keyVal, jit_value_t keyLen,
+	ptrs_nativetype_info_t *retType, struct ptrs_astlist *args)
 {
-	if(jit_value_is_constant(base.meta) && jit_value_is_constant(keyVal))
+	if(jit_value_is_constant(base.meta)
+		&& jit_value_is_constant(keyVal)
+		&& jit_value_is_constant(keyLen))
 	{
 		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(base.meta);
 		ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
 		const char *key = (const char *)jit_value_get_nint_constant(keyVal);
+		uint32_t constKeyLen = jit_value_get_nint_constant(keyLen);
 
 		if(meta.type != PTRS_TYPE_STRUCT)
 			ptrs_error(node, "Cannot call property %s of value of type %t", key, meta.type);
 
-		struct ptrs_structmember *member = ptrs_struct_find(struc, key, PTRS_STRUCTMEMBER_SETTER, node);
+		struct ptrs_structmember *member = ptrs_struct_find(struc, key, constKeyLen,
+			PTRS_STRUCTMEMBER_SETTER, node);
 		if(member == NULL || member->type != PTRS_STRUCTMEMBER_FUNCTION)
 		{
-			ptrs_jit_var_t callee = ptrs_jit_struct_get(node, func, scope, base, keyVal);
+			ptrs_jit_var_t callee = ptrs_jit_struct_get(node, func, scope, base, keyVal, keyLen);
 			return ptrs_jit_call(node, func, scope, retType, base.val, callee, args);
 		}
 		else if(!member->isStatic && jit_value_is_constant(base.val) && !jit_value_is_true(base.val))
@@ -615,8 +657,7 @@ ptrs_jit_var_t ptrs_jit_struct_call(ptrs_ast_t *node, jit_function_t func, ptrs_
 	}
 	else
 	{
-		
-		ptrs_jit_var_t callee = ptrs_jit_struct_get(node, func, scope, base, keyVal);
+		ptrs_jit_var_t callee = ptrs_jit_struct_get(node, func, scope, base, keyVal, keyLen);
 		return ptrs_jit_call(node, func, scope, retType, base.val, callee, args);
 	}
 }
