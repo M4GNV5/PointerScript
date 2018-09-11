@@ -14,6 +14,10 @@ ptrs_jit_var_t ptrs_jit_ncallnested(jit_function_t func,
 
 jit_function_t ptrs_jit_createFunction(ptrs_ast_t *node, jit_function_t parent,
 	jit_type_t signature, const char *name);
+jit_function_t ptrs_jit_createFunctionFromAst(ptrs_ast_t *node, jit_function_t parent,
+	ptrs_function_t *ast);
+void ptrs_jit_buildFunction(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+	ptrs_function_t *ast, ptrs_struct_t *thisType);
 jit_function_t ptrs_jit_compileFunction(ptrs_ast_t *node, jit_function_t parent, ptrs_scope_t *scope,
 	ptrs_function_t *ast, ptrs_struct_t *thisType);
 

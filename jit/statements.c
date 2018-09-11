@@ -354,9 +354,6 @@ static void importScript(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *sc
 		if(ptrs_ast_getSymbol(cache->symbols, curr->name, expressions + i) != 0)
 			ptrs_error(node, "Script '%s' has no property '%s'", from, curr->name);
 
-		if(expressions[i]->handler == ptrs_handle_identifier)
-			expressions[i]->arg.identifier.location->addressable = 1;
-
 		curr = curr->next;
 	}
 }
@@ -606,13 +603,24 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	jit_insn_store_relative(func, jit_const_int(func, void_ptr, (uintptr_t)struc),
 		offsetof(ptrs_struct_t, parentFrame), jit_insn_get_frame_pointer(func));
 
-	char *ctorName = malloc(strlen(struc->name) + strlen(".(data initializer)") + 1);
-	sprintf(ctorName, "%s.(data initializer)", struc->name);
-
-	bool needsCtor = false;
-	jit_function_t ctor;
+	bool hasCtorOverload = false;
+	jit_function_t ctor = NULL;
 	jit_value_t ctorData;
 	ptrs_scope_t ctorScope;
+
+	for(struct ptrs_opoverload *curr = struc->overloads; curr != NULL; curr = curr->next)
+	{
+		curr->handlerFunc = ptrs_jit_createFunctionFromAst(node, func, curr->handler);
+
+		if(curr->op == (void *)ptrs_handle_new)
+		{
+			ctor = curr->handlerFunc;
+			ctorData = jit_value_get_param(ctor, 0);
+			ptrs_initScope(&ctorScope, scope);
+
+			hasCtorOverload = true;
+		}
+	}
 
 	for(int i = 0; i < struc->memberCount; i++)
 	{
@@ -638,14 +646,15 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 			|| curr->type == PTRS_STRUCTMEMBER_ARRAY
 			|| curr->type == PTRS_STRUCTMEMBER_VARARRAY)
 		{
-			if(!needsCtor)
+			if(ctor == NULL)
 			{
+				char *ctorName = malloc(strlen(struc->name) + strlen(".(data initializer)") + 1);
+				sprintf(ctorName, "%s.(data initializer)", struc->name);
+
 				ptrs_jit_reusableSignature(func, ctorSignature, ptrs_jit_getVarType(), (jit_type_void_ptr));
 				ctor = ptrs_jit_createFunction(node, func, ctorSignature, ctorName);
 				ctorData = jit_value_get_param(ctor, 0);
 				ptrs_initScope(&ctorScope, scope);
-
-				needsCtor = true;
 			}
 
 			currFunc = ctor;
@@ -657,8 +666,8 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 			|| curr->type == PTRS_STRUCTMEMBER_GETTER
 			|| curr->type == PTRS_STRUCTMEMBER_SETTER)
 		{
-			curr->value.function.func = ptrs_jit_compileFunction(node, func,
-				scope, curr->value.function.ast, struc);
+			curr->value.function.func = ptrs_jit_createFunctionFromAst(node, func,
+				curr->value.function.ast);
 		}
 		else if(curr->type == PTRS_STRUCTMEMBER_VAR)
 		{
@@ -684,47 +693,21 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 		}
 	}
 
-	if(needsCtor)
+	//build all overloads
+	for(struct ptrs_opoverload *curr = struc->overloads; curr != NULL; curr = curr->next)
+	{
+		ptrs_jit_buildFunction(node, curr->handlerFunc, scope, curr->handler, struc);
+	}
+
+	//build the data initializer if the function has no real constructor
+	if(ctor != NULL && !hasCtorOverload)
 	{
 		jit_insn_default_return(ctor);
 		ptrs_jit_placeAssertions(ctor, &ctorScope);
 
 		if(ptrs_compileAot && jit_function_compile(ctor) == 0)
 			ptrs_error(node, "Failed compiling the constructor of function %s", struc->name);
-	}
 
-
-	bool hasCtor = false;
-	struct ptrs_opoverload *curr = struc->overloads;
-	while(curr != NULL)
-	{
-		curr->handlerFunc = ptrs_jit_compileFunction(node, func,
-			scope, curr->handler, struc);
-
-		if(curr->op == (void *)ptrs_handle_new && needsCtor)
-		{
-			jit_label_t initStart = jit_label_undefined;
-			jit_insn_label(curr->handlerFunc, &initStart);
-
-			jit_value_t thisPtr = jit_value_get_param(curr->handlerFunc, 0);
-			jit_insn_call(curr->handlerFunc, ctorName, ctor, NULL, &thisPtr, 1, 0);
-
-			jit_label_t initEnd = jit_label_undefined;
-			jit_insn_label(curr->handlerFunc, &initEnd);
-			jit_insn_move_blocks_to_start(curr->handlerFunc, initStart, initEnd);
-
-			const char *name = jit_function_get_meta(curr->handlerFunc, PTRS_JIT_FUNCTIONMETA_NAME);
-			if(ptrs_compileAot && jit_function_compile(curr->handlerFunc) == 0)
-				ptrs_error(node, "Failed compiling function %s", name);
-
-			hasCtor = true;
-		}
-
-		curr = curr->next;
-	}
-
-	if(needsCtor && !hasCtor)
-	{
 		struct ptrs_opoverload *ctorOverload = malloc(sizeof(struct ptrs_opoverload));
 		ctorOverload->op = ptrs_handle_new;
 		ctorOverload->isStatic = true;
@@ -733,6 +716,21 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 
 		ctorOverload->next = struc->overloads;
 		struc->overloads = ctorOverload;
+	}
+
+	//build all functions
+	for(int i = 0; i < struc->memberCount; i++)
+	{
+		struct ptrs_structmember *curr = &struc->member[i];
+		if(curr->name == NULL)
+			continue;
+		if(curr->type != PTRS_STRUCTMEMBER_FUNCTION
+			&& curr->type != PTRS_STRUCTMEMBER_GETTER
+			&& curr->type != PTRS_STRUCTMEMBER_SETTER)
+			continue;
+
+		ptrs_jit_buildFunction(node, curr->value.function.func, scope,
+			curr->value.function.ast, struc);
 	}
 
 	struc->location->val = jit_const_long(func, long, 0);

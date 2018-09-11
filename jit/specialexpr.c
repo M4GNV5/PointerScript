@@ -679,7 +679,8 @@ ptrs_jit_var_t ptrs_handle_identifier(ptrs_ast_t *node, jit_function_t func, ptr
 	struct ptrs_ast_identifier *expr = &node->arg.identifier;
 
 	ptrs_jit_var_t target = *expr->location;
-	if(target.addressable)
+	if(target.addressable
+		&& (!jit_value_is_constant(target.val) || !jit_value_is_constant(target.meta)))
 	{
 		jit_value_t ptr = ptrs_jit_import(node, func, target.val, true);
 		target.val = jit_insn_load_relative(func, ptr, 0, jit_type_long);
@@ -929,7 +930,7 @@ ptrs_jit_var_t ptrs_handle_yield(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	}
 
 	jit_value_t parentFrame = ptrs_jit_getMetaPointer(func, bodyFunc.meta);
-	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, jit_type_ubyte, argDef, narg * 2 + 1, 1);
+	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, jit_type_ubyte, argDef, narg * 2 + 1, 0);
 
 	jit_value_t _retStatus = jit_insn_call_nested_indirect(func, bodyFunc.val,
 		parentFrame, signature, args, narg * 2 + 1, 0);

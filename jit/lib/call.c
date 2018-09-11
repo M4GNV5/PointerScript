@@ -77,7 +77,7 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 
 				jit_value_t parentFrame = ptrs_jit_getMetaPointer(func, callee.meta);
 				jit_type_t signature = jit_type_create_signature(jit_abi_cdecl,
-					ptrs_jit_getVarType(), paramDef, narg * 2 + 1, 1);
+					ptrs_jit_getVarType(), paramDef, narg * 2 + 1, 0);
 
 				jit_value_t retVal = jit_insn_call_nested_indirect(func, callee.val,
 					parentFrame, signature, _args, narg * 2 + 1, 0);
@@ -138,7 +138,7 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 				else
 					_retType = retType->jitType;
 
-				jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, _retType, paramDef, narg, 1);
+				jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, _retType, paramDef, narg, 0);
 				jit_value_t retVal = jit_insn_call_indirect(func, callee.val, signature, _args, narg, 0);
 				jit_type_free(signature);
 
@@ -243,6 +243,29 @@ jit_function_t ptrs_jit_createFunction(ptrs_ast_t *node, jit_function_t parent,
 	return func;
 }
 
+jit_function_t ptrs_jit_createFunctionFromAst(ptrs_ast_t *node, jit_function_t parent,
+	ptrs_function_t *ast)
+{
+	size_t argc = 0;
+	ptrs_funcparameter_t *curr = ast->args;
+	for(; curr != NULL; argc++)
+		curr = curr->next;
+
+	jit_type_t paramDef[argc * 2 + 1];
+	paramDef[0] = jit_type_void_ptr; //this pointer
+	for(int i = 1; i < argc * 2 + 1;)
+	{
+		paramDef[i++] = jit_type_long;
+		paramDef[i++] = jit_type_ulong;
+	}
+
+	//TODO variadic functions
+
+	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl,
+		ptrs_jit_getVarType(), paramDef, argc * 2 + 1, 0);
+	return ptrs_jit_createFunction(node, parent, signature, ast->name);
+}
+
 void *ptrs_jit_createCallback(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, void *closure)
 {
 	void *callbackClosure = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_CALLBACK);
@@ -297,28 +320,9 @@ void *ptrs_jit_createCallback(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 	return callbackClosure;
 }
 
-jit_function_t ptrs_jit_compileFunction(ptrs_ast_t *node, jit_function_t parent, ptrs_scope_t *scope,
+void ptrs_jit_buildFunction(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_function_t *ast, ptrs_struct_t *thisType)
 {
-	size_t argc = 0;
-	ptrs_funcparameter_t *curr = ast->args;
-	for(; curr != NULL; argc++)
-		curr = curr->next;
-
-	jit_type_t paramDef[argc * 2 + 1];
-	paramDef[0] = jit_type_void_ptr; //reserved
-	for(int i = 1; i < argc * 2 + 1;)
-	{
-		paramDef[i++] = jit_type_long;
-		paramDef[i++] = jit_type_ulong;
-	}
-
-	//TODO variadic functions
-
-	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl,
-		ptrs_jit_getVarType(), paramDef, argc * 2 + 1, 0);
-	jit_function_t func = ptrs_jit_createFunction(node, parent, signature, ast->name);
-
 	ptrs_scope_t funcScope;
 	ptrs_initScope(&funcScope, scope);
 
@@ -335,8 +339,8 @@ jit_function_t ptrs_jit_compileFunction(ptrs_ast_t *node, jit_function_t parent,
 		ast->thisVal.constType = PTRS_TYPE_STRUCT;
 	}
 
-	curr = ast->args;
-	for(int i = 0; i < argc; i++)
+	ptrs_funcparameter_t *curr = ast->args;
+	for(int i = 0; curr != NULL; i++)
 	{
 		curr->arg.val = jit_value_get_param(func, i * 2 + 1);
 		curr->arg.meta = jit_value_get_param(func, i * 2 + 2);
@@ -366,6 +370,12 @@ jit_function_t ptrs_jit_compileFunction(ptrs_ast_t *node, jit_function_t parent,
 
 	if(ptrs_compileAot && jit_function_compile(func) == 0)
 		ptrs_error(node, "Failed compiling function %s", ast->name);
+}
 
+jit_function_t ptrs_jit_compileFunction(ptrs_ast_t *node, jit_function_t parent, ptrs_scope_t *scope,
+	ptrs_function_t *ast, ptrs_struct_t *thisType)
+{
+	jit_function_t func = ptrs_jit_createFunctionFromAst(node, parent, ast);
+	ptrs_jit_buildFunction(node, func, scope, ast, thisType);
 	return func;
 }
