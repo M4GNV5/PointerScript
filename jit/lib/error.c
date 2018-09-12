@@ -30,18 +30,18 @@ bool ptrs_enableSafety = true;
 
 extern jit_context_t ptrs_jit_context;
 
-void ptrs_getpos(ptrs_codepos_t *pos, ptrs_ast_t *ast)
+void ptrs_getpos(ptrs_codepos_t *pos, const char *code, size_t index)
 {
 	int line = 1;
 	int column = 1;
-	char *currLine = ast->code;
-	for(int i = 0; i < ast->codepos; i++)
+	const char *currLine = code;
+	for(int i = 0; i < index; i++)
 	{
-		if(ast->code[i] == '\n')
+		if(code[i] == '\n')
 		{
 			line++;
 			column = 1;
-			currLine = &(ast->code[i + 1]);
+			currLine = &(code[i + 1]);
 		}
 		else
 		{
@@ -85,18 +85,12 @@ char *ptrs_backtrace(int traceSkip)
 	char *buffptr = buff;
 	buff[0] = 0;
 
-#ifdef _GNU_SOURCE
-	void *trace[32];
-	int count = backtrace(trace, 32);
-#else
 	jit_stack_trace_t trace = jit_exception_get_stack_trace();
 	int count = jit_stack_trace_get_size(trace);
-	traceSkip = 0;
-#endif
 
 	for(int i = traceSkip; i < count; i++)
 	{
-		if(buffptr - buff > bufflen - 128)
+		if(buffptr - buff > bufflen - 256)
 		{
 			int diff = buffptr - buff;
 			bufflen *= 2;
@@ -104,22 +98,37 @@ char *ptrs_backtrace(int traceSkip)
 			buffptr = buff + diff;
 		}
 
-#ifdef _GNU_SOURCE
-		jit_function_t func = jit_function_from_pc(ptrs_jit_context, trace[i], NULL);
-#else
+		void *ptr = jit_stack_trace_get_pc(trace, i);
+
 		jit_function_t func = jit_stack_trace_get_function(ptrs_jit_context, trace, i);
-#endif
 		if(func)
 		{
 			const char *name = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_NAME);
 			ptrs_ast_t *ast = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_AST);
-			buffptr += sprintf(buffptr, "    at %s (%s)\n", name, ast->file);
+			size_t offset = jit_stack_trace_get_offset(ptrs_jit_context, trace, i);
+
+			if(name != NULL)
+				buffptr += sprintf(buffptr, "    at %s", name);
+			else
+				buffptr += sprintf(buffptr, "    at %p", ptr);
+
+			if(ast != NULL && offset != JIT_NO_OFFSET)
+			{
+				ptrs_codepos_t pos;
+				ptrs_getpos(&pos, ast->code, offset);
+
+				buffptr += sprintf(buffptr, " (%s:%d:%d)\n", ast->file, pos.line, pos.column);
+			}
+			else if(ast != NULL)
+			{
+				buffptr += sprintf(buffptr, " (%s)\n", ast->file);
+			}
 		}
 		else
 		{
 #ifdef _GNU_SOURCE
 			Dl_info info;
-			if(dladdr(trace[i], &info) == 0)
+			if(dladdr(ptr, &info) == 0)
 			{
 				info.dli_sname = NULL;
 				info.dli_fname = NULL;
@@ -128,18 +137,19 @@ char *ptrs_backtrace(int traceSkip)
 			if(info.dli_sname != NULL)
 				buffptr += sprintf(buffptr, "    at %s ", info.dli_sname);
 			else
-				buffptr += sprintf(buffptr, "    at %p ", trace[i]);
+				buffptr += sprintf(buffptr, "    at %p ", ptr);
 
 			if(info.dli_fname != NULL)
 				buffptr += sprintf(buffptr, "(%s)\n", info.dli_fname);
 			else
-				buffptr += sprintf(buffptr, "(unknown)\n");
+				buffptr += sprintf(buffptr, "\n");
 #else
-			buffptr += sprintf(buffptr, "    at %p (unknown)\n", jit_stack_trace_get_pc(trace, i));
+			buffptr += sprintf(buffptr, "    at %p\n", ptr);
 #endif
 		}
 	}
 
+	jit_stack_trace_free(trace);
 	return buff;
 }
 
@@ -248,7 +258,7 @@ static void _ptrs_verror(ptrs_ast_t *ast, int skipTrace, const char *msg, va_lis
 	}
 	else
 	{
-		ptrs_getpos(&error->pos, ast);
+		ptrs_getpos(&error->pos, ast->code, ast->codepos);
 	}
 
 	if(ptrs_enableExceptions && !hadError)

@@ -326,6 +326,8 @@ void ptrs_jit_buildFunction(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t 
 	ptrs_scope_t funcScope;
 	ptrs_initScope(&funcScope, scope);
 
+	jit_insn_mark_offset(func, node->codepos);
+
 	if(thisType == NULL)
 	{
 		ast->thisVal.val = jit_const_long(func, long, 0);

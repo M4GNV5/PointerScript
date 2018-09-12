@@ -23,7 +23,7 @@ ptrs_jit_var_t ptrs_handle_body(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 
 	while(list != NULL)
 	{
-		jit_insn_mark_offset(func, node->codepos);
+		jit_insn_mark_offset(func, list->entry->codepos);
 
 		result = list->entry->handler(list->entry, func, scope);
 		list = list->next;
@@ -1269,8 +1269,5 @@ ptrs_jit_var_t ptrs_handle_exprstatement(ptrs_ast_t *node, jit_function_t func, 
 	ptrs_ast_t *expr = node->arg.astval;
 
 	if(expr != NULL)
-	{
-		jit_insn_mark_offset(func, expr->codepos);
 		return expr->handler(expr, func, scope);
-	}
 }

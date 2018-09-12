@@ -12,7 +12,7 @@ extern bool ptrs_enableSafety;
 
 typedef struct
 {
-	char *currLine;
+	const char *currLine;
 	int line;
 	int column;
 } ptrs_codepos_t;
@@ -24,8 +24,6 @@ typedef struct ptrs_error
 	ptrs_ast_t *ast;
 	ptrs_codepos_t pos;
 } ptrs_error_t;
-
-void ptrs_getpos(ptrs_codepos_t *pos, ptrs_ast_t *ast);
 
 void ptrs_handle_signals();
 void ptrs_printError(ptrs_error_t *error);
