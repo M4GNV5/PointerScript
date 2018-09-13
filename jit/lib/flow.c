@@ -220,7 +220,7 @@ static void analyzeFunction(ptrs_flow_t *flow, ptrs_function_t *ast)
 	}
 
 	createPrediction(flow, &ast->thisVal, PTRS_TYPE_STRUCT, true, NULL);
-	createPrediction(flow, &ast->vararg, PTRS_TYPE_POINTER, true, NULL);
+	createPrediction(flow, ast->vararg, PTRS_TYPE_POINTER, true, NULL);
 
 	analyzeStatement(flow, ast->body);
 }

@@ -341,16 +341,12 @@ int parseIdentifierList(code_t *code, char *end, ptrs_jit_var_t **symbols, char 
 	return count;
 }
 
-static ptrs_funcparameter_t *parseArgumentDefinitionList(code_t *code, ptrs_jit_var_t *vararg)
+static ptrs_funcparameter_t *parseArgumentDefinitionList(code_t *code, ptrs_jit_var_t **vararg)
 {
 	consumec(code, '(');
 
 	if(vararg != NULL)
-	{
-		vararg->val = NULL;
-		vararg->meta = NULL;
-		vararg->constType = -1;
-	}
+		*vararg = NULL;
 
 	if(code->curr == ')')
 	{
@@ -375,7 +371,8 @@ static ptrs_funcparameter_t *parseArgumentDefinitionList(code_t *code, ptrs_jit_
 			{
 				consumecm(code, ')', "Vararg argument has to be the last argument");
 
-				addSymbol(code, name, vararg);
+				*vararg = talloc(ptrs_jit_var_t);
+				addSymbol(code, name, *vararg);
 				break;
 			}
 		}
@@ -2039,8 +2036,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 			ptrs_function_t *func = talloc(ptrs_function_t);
 			addSymbol(code, strdup("this"), &func->thisVal);
-			func->vararg.val = NULL;
-			func->vararg.meta = NULL;
+			func->vararg = NULL;
 
 			struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
 			overload->isStatic = isStatic;
@@ -2271,8 +2267,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			ptrs_function_t *func = talloc(ptrs_function_t);
 			func->name = malloc(structNameLen + strlen(name) + 6);
 			addSymbol(code, strdup("this"), &func->thisVal);
-			func->vararg.val = NULL;
-			func->vararg.meta = NULL;
+			func->vararg = NULL;
 
 			if(isProperty == 1)
 			{

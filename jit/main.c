@@ -125,6 +125,7 @@ int main(int argc, char **argv)
 
 	ptrs_result_t result;
 	ptrs_compilefile(&result, file);
+	ptrs_lastAst = NULL;
 
 	exitOnError();
 

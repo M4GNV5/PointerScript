@@ -259,7 +259,8 @@ jit_function_t ptrs_jit_createFunctionFromAst(ptrs_ast_t *node, jit_function_t p
 		paramDef[i++] = jit_type_ulong;
 	}
 
-	//TODO variadic functions
+	if(ast->vararg != NULL)
+		ptrs_error(ast->body, "Support for variadic argument functions is not implemented");
 
 	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl,
 		ptrs_jit_getVarType(), paramDef, argc * 2 + 1, 0);

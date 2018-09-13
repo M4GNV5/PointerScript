@@ -25,6 +25,7 @@ struct ptrs_assertion
 };
 
 FILE *ptrs_errorfile = NULL;
+ptrs_ast_t *ptrs_lastAst = NULL;
 bool ptrs_enableExceptions = false;
 bool ptrs_enableSafety = true;
 
@@ -292,6 +293,23 @@ void ptrs_error(ptrs_ast_t *ast, const char *msg, ...)
 
 void ptrs_handle_sig(int sig, siginfo_t *info, void *data)
 {
+	if(ptrs_lastAst != NULL)
+	{
+		fprintf(ptrs_errorfile, "Received signal %s while compiling.\n"
+			"This is probably bug within PointerScript, please open an issue on github.\n",
+			strsignal(sig));
+
+		ptrs_error_t *error = malloc(sizeof(ptrs_error_t));
+		error->ast = ptrs_lastAst;
+		error->message = "";
+		error->backtrace = ""; //TODO
+
+		ptrs_getpos(&error->pos, ptrs_lastAst->code, ptrs_lastAst->codepos);
+
+		ptrs_printError(error);
+		exit(EXIT_FAILURE);
+	}
+
 	_ptrs_error(NULL, 5, "Received signal: %s", strsignal(sig));
 }
 

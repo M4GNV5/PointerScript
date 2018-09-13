@@ -23,6 +23,7 @@ ptrs_jit_var_t ptrs_handle_body(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 
 	while(list != NULL)
 	{
+		ptrs_lastAst = list->entry;
 		jit_insn_mark_offset(func, list->entry->codepos);
 
 		result = list->entry->handler(list->entry, func, scope);
@@ -341,6 +342,7 @@ static void importScript(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *sc
 		char *src = ptrs_readFile(from);
 
 		cache = malloc(sizeof(ptrs_cache_t));
+		cache->path = from;
 		cache->symbols = NULL;
 		cache->ast = ptrs_parse(src, from, &cache->symbols);
 

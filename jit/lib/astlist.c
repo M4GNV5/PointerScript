@@ -12,7 +12,7 @@ int ptrs_astlist_length(struct ptrs_astlist *curr)
 	while(curr != NULL)
 	{
 		if(curr->expand)
-			return -1;
+			ptrs_error(curr->entry, "Argument array expansion is not implemented");
 
 		len++;
 		curr = curr->next;

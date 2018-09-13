@@ -84,7 +84,7 @@ typedef struct
 {
 	char *name;
 	ptrs_jit_var_t thisVal;
-	ptrs_jit_var_t vararg;
+	ptrs_jit_var_t *vararg;
 	ptrs_funcparameter_t *args;
 	struct ptrs_ast *body;
 } ptrs_function_t;

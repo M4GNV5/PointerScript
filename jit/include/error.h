@@ -7,6 +7,7 @@
 #include "../../parser/common.h"
 
 extern FILE *ptrs_errorfile;
+extern ptrs_ast_t *ptrs_lastAst;
 extern bool ptrs_enableExceptions;
 extern bool ptrs_enableSafety;
 
