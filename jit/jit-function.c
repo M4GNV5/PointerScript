@@ -254,6 +254,7 @@ _jit_function_destroy(jit_function_t func)
 		context->functions = func->next;
 	}
 
+	_jit_function_free_live_ranges(func);
 	_jit_function_free_builder(func);
 	_jit_varint_free_data(func->bytecode_offset);
 	jit_meta_destroy(&func->meta);

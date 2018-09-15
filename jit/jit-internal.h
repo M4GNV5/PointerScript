@@ -381,6 +381,11 @@ void _jit_function_compute_live_ranges(jit_function_t func);
 void _jit_function_add_instruction_live_ranges(jit_function_t func);
 
 /*
+ * Free the live ranges associated with a function
+ */
+void _jit_function_free_live_ranges(jit_function_t func);
+
+/*
  * Allocate registers for all live ranges
  */
 void _jit_regs_graph_compute_coloring(jit_function_t func);

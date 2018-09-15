@@ -261,6 +261,19 @@ _jit_insn_list_get_insn_from_block(_jit_insn_list_t list, jit_block_t block)
 	return 0;
 }
 
+void
+_jit_insn_list_free(_jit_insn_list_t list)
+{
+	_jit_insn_list_t next;
+
+	while(list)
+	{
+		next = list->next;
+		jit_free(list);
+		list = next;
+	}
+}
+
 _jit_live_range_t
 _jit_function_create_live_range(jit_function_t func,
 	jit_value_t value)
@@ -868,4 +881,30 @@ _jit_function_add_instruction_live_ranges(jit_function_t func)
 #ifdef _JIT_FLOW_DEBUG
 	jit_dump_live_ranges(stdout, func);
 #endif
+}
+
+void
+_jit_function_free_live_ranges(jit_function_t func)
+{
+	_jit_live_range_t curr;
+	_jit_live_range_t next;
+
+	curr = func->live_ranges;
+	while(curr)
+	{
+		_jit_insn_list_free(curr->starts);
+		_jit_insn_list_free(curr->ends);
+
+		_jit_bitset_free(&curr->touched_block_starts);
+		_jit_bitset_free(&curr->touched_block_ends);
+
+		if(curr->preferred_colors)
+			jit_free(curr->preferred_colors);
+
+		_jit_bitset_free(&curr->neighbors);
+
+		next = curr->func_next;
+		jit_free(curr);
+		curr = next;
+	}
 }
