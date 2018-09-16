@@ -317,6 +317,9 @@ struct _jit_live_range
 	   register kind */
 	int regflags;
 
+	/* Cost of spilling the live range */
+	unsigned spill_cost;
+
 	/* List of instructions where the live range starts/ends */
 	_jit_insn_list_t starts;
 	_jit_insn_list_t ends;
@@ -334,6 +337,7 @@ struct _jit_live_range
 	   is incremented. preferred_colors might be 0 when the live range is never
 	   required in a specific register */
 	jit_ushort *preferred_colors;
+	unsigned preferred_count;
 
 	/* Live ranges this live range interferes with */
 	_jit_bitset_t neighbors;

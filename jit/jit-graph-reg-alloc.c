@@ -379,6 +379,29 @@ _jit_regs_graph_coalesce(jit_function_t func)
 }
 
 static void
+_jit_regs_graph_calculate_spill_costs(jit_function_t func)
+{
+	_jit_live_range_t curr;
+
+	for(curr = func->live_ranges; curr; curr = curr->func_next)
+	{
+		/* TODO */
+		/* For now we simply give dummy live ranges a negative spill cost and
+	       all others their use count. In the future this should respect
+	       execution frequency */
+		if(!curr->value || curr->value->is_constant || curr->is_spill_range
+			|| is_dummy(curr))
+		{
+			curr->spill_cost = (unsigned)-1;
+		}
+		else
+		{
+			curr->spill_cost = curr->value->usage_count;
+		}
+	}
+}
+
+static void
 decrement_neighbor_count(jit_function_t func, _jit_live_range_t *ranges,
 	_jit_live_range_t curr)
 {
@@ -396,6 +419,7 @@ _jit_regs_graph_simplify(jit_function_t func, _jit_live_range_t *ranges,
 	_jit_live_range_t *stack)
 {
 	_jit_live_range_t curr;
+	_jit_live_range_t push_candidate;
 	_jit_live_range_t spill_candidate;
 	int type;
 	int pos;
@@ -413,72 +437,54 @@ _jit_regs_graph_simplify(jit_function_t func, _jit_live_range_t *ranges,
 
 	for(pos = 0; pos < func->live_range_count; pos++)
 	{
-		for(curr = func->live_ranges; curr; curr = curr->func_next)
-		{
-			type = get_type_index_from_range(curr);
-			if(!curr->on_stack && !curr->is_spilled && !curr->is_fixed
-				&& curr->curr_neighbor_count < num_regs[type])
-			{
-				curr->on_stack = 1;
-				stack[pos] = curr;
-				decrement_neighbor_count(func, ranges, curr);
-				break;
-			}
-		}
-
-		if(curr)
-		{
-			/* We sucessfully added a live range to the stack */
-			continue;
-		}
-
-		/* We did not find any live range with less then JIT_NUM_REGS
-		   neighbors. We optimistically push one to the stack
-		   TODO: base this decision on spill cost */
+		push_candidate = 0;
 		spill_candidate = 0;
 		for(curr = func->live_ranges; curr; curr = curr->func_next)
 		{
-			if(!curr->on_stack && !curr->is_spilled && !curr->is_fixed)
+			if(curr->on_stack || curr->is_spilled || curr->is_fixed)
+			{
+				continue;
+			}
+
+			type = get_type_index_from_range(curr);
+			if(curr->curr_neighbor_count < num_regs[type]
+				&& (!push_candidate
+					|| curr->preferred_count < push_candidate->preferred_count))
+			{
+				push_candidate = curr;
+			}
+
+			if(!spill_candidate
+				|| spill_candidate->spill_cost > curr->spill_cost)
 			{
 				spill_candidate = curr;
-				/* We prefer to optimistially push non-dummy live ranges as
-				   spilling dummy ranges usually doesn't help the coloring
-				   problem */
-				if(!is_dummy(curr) && curr->value && !curr->value->is_constant)
-				{
-					break;
-				}
 			}
 		}
 
-		if(!spill_candidate)
+		if(!push_candidate && spill_candidate)
+		{
+#ifdef _JIT_DEBUG_GRAPH_REGALLOC
+			printf("Optimistically pushing ");
+			dump_live_range(func, spill_candidate);
+			printf("\n");
+#endif
+			push_candidate = spill_candidate;
+		}
+
+		if(push_candidate)
+		{
+			/* We sucessfully found a live range to push to the stack */
+			push_candidate->on_stack = 1;
+			stack[pos] = push_candidate;
+			decrement_neighbor_count(func, ranges, push_candidate);
+		}
+		else
 		{
 			/* everything is fixed, on stack or spilled already */
 			break;
 		}
 
-#ifdef _JIT_DEBUG_GRAPH_REGALLOC
-		printf("Optimistically pushing ");
-		dump_live_range(func, spill_candidate);
-		printf("\n");
-#endif
-		spill_candidate->on_stack = 1;
-		stack[pos] = spill_candidate;
-		decrement_neighbor_count(func, ranges, spill_candidate);
 	}
-
-	/* Put dummy live ranges on the stack last, ensuring they are colored first
-	   and not spilled (again). */
-	/*for(curr = func->live_ranges; curr; curr = curr->func_next)
-	{
-		if(is_dummy(curr))
-		{
-			curr->on_stack = 1;
-			stack[pos] = curr;
-			decrement_neighbor_count(func, ranges, curr);
-			++pos;
-		}
-	}*/
 
 	return pos - 1;
 }
@@ -495,6 +501,7 @@ spill_live_range_in_insn(jit_function_t func, jit_block_t block,
 	i = func->live_range_count;
 	dummy = _jit_function_create_live_range(func, range->value);
 	dummy->is_spill_range = 1;
+	dummy->spill_cost = (unsigned)-1;
 	_jit_bitset_allocate(&dummy->neighbors, func->live_range_count * 3 / 2);
 
 	_jit_insn_list_add(&dummy->ends, block, insn);
@@ -749,6 +756,7 @@ _jit_regs_graph_compute_coloring(jit_function_t func)
 
 	_jit_regs_graph_build(func);
 	_jit_regs_graph_coalesce(func);
+	_jit_regs_graph_calculate_spill_costs(func);
 
 	do
 	{

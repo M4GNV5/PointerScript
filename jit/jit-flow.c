@@ -683,6 +683,7 @@ increment_preferred_color(jit_function_t func, jit_block_t block,
 		range->preferred_colors = jit_calloc(JIT_NUM_REGS, sizeof(jit_ushort));
 	}
 	++range->preferred_colors[reg];
+	++range->preferred_count;
 
 	colors = (jit_ulong)1 << reg;
 	if(reg_other != _JIT_REG_USAGE_UNNUSED)
