@@ -374,11 +374,3 @@ void ptrs_jit_buildFunction(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t 
 	if(ptrs_compileAot && jit_function_compile(func) == 0)
 		ptrs_error(node, "Failed compiling function %s", ast->name);
 }
-
-jit_function_t ptrs_jit_compileFunction(ptrs_ast_t *node, jit_function_t parent, ptrs_scope_t *scope,
-	ptrs_function_t *ast, ptrs_struct_t *thisType)
-{
-	jit_function_t func = ptrs_jit_createFunctionFromAst(node, parent, ast);
-	ptrs_jit_buildFunction(node, func, scope, ast, thisType);
-	return func;
-}

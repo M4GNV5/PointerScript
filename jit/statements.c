@@ -580,9 +580,11 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 {
 	struct ptrs_ast_function *ast = &node->arg.function;
 
-	jit_function_t self = ptrs_jit_compileFunction(node, func, scope, &ast->func, NULL);
+	jit_function_t self = ptrs_jit_createFunctionFromAst(node, func, &ast->func);
 	if(ast->symbol != NULL)
 		*ast->symbol = self;
+
+	ptrs_jit_buildFunction(node, self, scope, &ast->func, NULL);
 
 	ptrs_jit_var_t ret;
 	ret.val = jit_const_long(func, long, (uintptr_t)jit_function_to_closure(self));
@@ -595,7 +597,6 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 	return ret;
 }
 
-ptrs_jit_var_t ptrs_handle_new(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	ptrs_struct_t *struc = &node->arg.structval;
@@ -607,6 +608,17 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 
 	jit_insn_store_relative(func, jit_const_int(func, void_ptr, (uintptr_t)struc),
 		offsetof(ptrs_struct_t, parentFrame), jit_insn_get_frame_pointer(func));
+
+	ptrs_jit_var_t vresult;
+	ptrs_jit_var_t *result;
+	if(struc->location == NULL)
+		result = &vresult;
+	else
+		result = struc->location;
+
+	result->val = jit_const_long(func, long, 0);
+	result->meta = ptrs_jit_const_pointerMeta(func, PTRS_TYPE_STRUCT, struc);
+	result->constType = PTRS_TYPE_STRUCT;
 
 	bool hasCtorOverload = false;
 	jit_function_t ctor = NULL;
@@ -738,11 +750,7 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 			curr->value.function.ast, struc);
 	}
 
-	struc->location->val = jit_const_long(func, long, 0);
-	struc->location->meta = ptrs_jit_const_pointerMeta(func, PTRS_TYPE_STRUCT, struc);
-	struc->location->constType = PTRS_TYPE_STRUCT;
-
-	return *struc->location;
+	return *result;
 }
 
 ptrs_jit_var_t ptrs_handle_if(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
