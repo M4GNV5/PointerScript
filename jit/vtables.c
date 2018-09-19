@@ -2,20 +2,19 @@
 #include "../parser/ast.h"
 #include "jit.h"
 
-#define VTABLE(name, _get, _set, _addressof, _call) \
+#define _hasToName_1(name) name
+#define _hasToName_0(name) NULL
+#define hasToName(has, name) _hasToName_##has (name)
+
+#define VTABLE(name, hasGet, hasSet, hasAddressof, hasCall) \
 	ptrs_ast_vtable_t ptrs_ast_vtable_##name = { \
-		.get = _get, \
-		.set = _set,\
-		.addressof = _addressof, \
-		.call = _call, \
+		.get = hasToName(hasGet, ptrs_handle_##name), \
+		.set = hasToName(hasSet, ptrs_assign_##name),\
+		.addressof = hasToName(hasAddressof, ptrs_addressof_##name), \
+		.call = hasToName(hasCall, ptrs_call_##name) \
 	};
 
-#define GETONLY(name) \
-	VTABLE(name, ptrs_handle_##name, NULL, NULL, NULL)
-
-#define ALL(name) \
-	VTABLE(name, ptrs_handle_##name, ptrs_handle_assign_##name, \
-		ptrs_handle_addressof_##name, ptrs_handle_call_##name)
+#define GETONLY(name) VTABLE(name, true, false, false, false)
 
 GETONLY(body)
 GETONLY(define)
@@ -52,13 +51,11 @@ GETONLY(tostring)
 GETONLY(cast)
 GETONLY(constant)
 
-VTABLE(identifier, ptrs_handle_identifier, ptrs_handle_assign_identifier,
-	ptrs_handle_addressof_identifier, NULL)
-VTABLE(functionidentifier, ptrs_handle_functionidentifier, NULL, NULL,
-	ptrs_handle_call_functionidentifier)
-ALL(member)
-ALL(index)
-ALL(importedsymbol)
+VTABLE(identifier, true, true, true, false)
+VTABLE(functionidentifier, true, false, false, true)
+VTABLE(member, true, true, true, true)
+VTABLE(index, true, true, true, true)
+VTABLE(importedsymbol, true, true, true, true)
 
 GETONLY(op_ternary)
 GETONLY(op_instanceof)
@@ -93,8 +90,7 @@ GETONLY(prefix_logicnot)
 GETONLY(prefix_sizeof)
 GETONLY(prefix_not)
 GETONLY(prefix_address)
-VTABLE(prefix_dereference, ptrs_handle_prefix_dereference,
-	ptrs_handle_assign_dereference, NULL, NULL)
+VTABLE(prefix_dereference, true, true, false, false)
 GETONLY(prefix_plus)
 GETONLY(prefix_minus)
 

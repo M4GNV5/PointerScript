@@ -98,7 +98,7 @@ ptrs_jit_var_t ptrs_handle_member(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 
 	return ptrs_jit_struct_get(node, func, scope, base, key, keyLen);
 }
-void ptrs_handle_assign_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+void ptrs_assign_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_jit_var_t val)
 {
 	struct ptrs_ast_member *expr = &node->arg.member;
@@ -108,7 +108,7 @@ void ptrs_handle_assign_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 
 	ptrs_jit_struct_set(node, func, scope, base, key, keyLen, val);
 }
-ptrs_jit_var_t ptrs_handle_addressof_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_addressof_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_member *expr = &node->arg.member;
 	ptrs_jit_var_t base = expr->base->vtable->get(expr->base, func, scope);
@@ -117,7 +117,7 @@ ptrs_jit_var_t ptrs_handle_addressof_member(ptrs_ast_t *node, jit_function_t fun
 
 	return ptrs_jit_struct_addressof(node, func, scope, base, key, keyLen);
 }
-ptrs_jit_var_t ptrs_handle_call_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+ptrs_jit_var_t ptrs_call_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments)
 {
 	struct ptrs_ast_member *expr = &node->arg.member;
@@ -207,7 +207,7 @@ ptrs_jit_var_t ptrs_handle_prefix_dereference(ptrs_ast_t *node, jit_function_t f
 
 	return ret;
 }
-void ptrs_handle_assign_dereference(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
+void ptrs_assign_prefix_dereference(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
 {
 	node = node->arg.astval;
 	ptrs_jit_var_t base = node->vtable->get(node, func, scope);
@@ -346,7 +346,7 @@ ptrs_jit_var_t ptrs_handle_index(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 
 	return result;
 }
-void ptrs_handle_assign_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
+void ptrs_assign_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
 {
 	ptrs_handle_index_common(
 		{
@@ -368,7 +368,7 @@ void ptrs_handle_assign_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 		}
 	);
 }
-ptrs_jit_var_t ptrs_handle_addressof_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_addressof_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	ptrs_jit_var_t result = {
 		.val = jit_value_create(func, jit_type_long),
@@ -406,7 +406,7 @@ ptrs_jit_var_t ptrs_handle_addressof_index(ptrs_ast_t *node, jit_function_t func
 
 	return result;
 }
-ptrs_jit_var_t ptrs_handle_call_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+ptrs_jit_var_t ptrs_call_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments)
 {
 	ptrs_jit_var_t _base;
@@ -598,7 +598,7 @@ ptrs_jit_var_t ptrs_handle_importedsymbol(ptrs_ast_t *node, jit_function_t func,
 		return ret;
 	}
 }
-void ptrs_handle_assign_importedsymbol(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+void ptrs_assign_importedsymbol(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_jit_var_t val)
 {
 	struct ptrs_ast_importedsymbol *expr = &node->arg.importedsymbol;
@@ -625,7 +625,7 @@ void ptrs_handle_assign_importedsymbol(ptrs_ast_t *node, jit_function_t func, pt
 		ptrs_jit_assignTypedFromVar(func, addr, expr->type->jitType, val);
 	}
 }
-ptrs_jit_var_t ptrs_handle_call_importedsymbol(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+ptrs_jit_var_t ptrs_call_importedsymbol(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments)
 {
 	struct ptrs_ast_importedsymbol *expr = &node->arg.importedsymbol;
@@ -658,7 +658,7 @@ ptrs_jit_var_t ptrs_handle_call_importedsymbol(ptrs_ast_t *node, jit_function_t 
 	return ptrs_jit_call(node, func, scope,
 		retType, jit_const_int(func, void_ptr, 0), val, arguments);
 }
-ptrs_jit_var_t ptrs_handle_addressof_importedsymbol(ptrs_ast_t *node,
+ptrs_jit_var_t ptrs_addressof_importedsymbol(ptrs_ast_t *node,
 	jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_importedsymbol *expr = &node->arg.importedsymbol;
@@ -713,7 +713,7 @@ ptrs_jit_var_t ptrs_handle_identifier(ptrs_ast_t *node, jit_function_t func, ptr
 
 	return target;
 }
-void ptrs_handle_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
+void ptrs_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
 {
 	ptrs_jit_var_t target = *node->arg.identifier.location;
 	jit_function_t targetFunc = jit_value_get_function(target.val);
@@ -794,7 +794,7 @@ void ptrs_handle_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_s
 		jit_insn_store_relative(func, target.meta, 0, val.meta);
 	}
 }
-ptrs_jit_var_t ptrs_handle_addressof_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_addressof_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	ptrs_jit_var_t target = *node->arg.identifier.location;
 	if(!target.addressable)
@@ -821,7 +821,7 @@ ptrs_jit_var_t ptrs_handle_functionidentifier(ptrs_ast_t *node, jit_function_t f
 
 	return ret;
 }
-ptrs_jit_var_t ptrs_handle_call_functionidentifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+ptrs_jit_var_t ptrs_call_functionidentifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments)
 {
 	return ptrs_jit_callnested(func, scope, jit_const_int(func, void_ptr, 0), *node->arg.funcval, arguments);

@@ -69,21 +69,6 @@ struct ptrs_ast_trycatch
 	ptrs_jit_var_t retVal;
 };
 
-struct ptrs_ast_asm
-{
-	int importCount;
-	int exportCount;
-
-	const char **imports;
-	struct ptrs_ast **importAsts;
-
-	void **exports;
-	ptrs_jit_var_t **exportSymbols;
-
-	intptr_t (*asmFunc)();
-	struct jitas_context *context;
-};
-
 struct ptrs_ast_function
 {
 	jit_function_t *symbol;
@@ -212,7 +197,6 @@ union ptrs_ast_arg
 	struct ptrs_ast_import import;
 	struct ptrs_ast_importedsymbol importedsymbol;
 	struct ptrs_ast_trycatch trycatch;
-	struct ptrs_ast_asm asmstmt;
 	struct ptrs_ast_function function;
 	struct ptrs_ast_strformat strformat;
 	struct ptrs_ast_cast cast;
