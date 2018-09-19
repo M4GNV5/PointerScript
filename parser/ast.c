@@ -73,8 +73,8 @@ static ptrs_ast_t *parseStmtList(code_t *code, char end);
 static ptrs_ast_t *parseStatement(code_t *code);
 static ptrs_ast_t *parseExpression(code_t *code, bool required);
 static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec);
-static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlgo);
-static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignoreCalls, bool ignoreAlgo);
+static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls);
+static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignoreCalls);
 static struct ptrs_astlist *parseExpressionList(code_t *code, char end);
 static ptrs_ast_t *parseNew(code_t *code, bool onStack);
 static void parseMap(code_t *code, ptrs_ast_t *expr);
@@ -824,7 +824,9 @@ static int suffixedOpCount = sizeof(suffixedOps) / sizeof(struct opinfo);
 
 static ptrs_ast_t *parseExpression(code_t *code, bool required)
 {
-	ptrs_ast_t *ast = parseBinaryExpr(code, parseUnaryExpr(code, false, false), 0);
+	ptrs_ast_t *ast = parseUnaryExpr(code, false);
+	if(ast != NULL)
+		ast = parseBinaryExpr(code, ast, 0);
 
 	if(required && ast == NULL)
 		unexpected(code, "Expression");
@@ -855,7 +857,7 @@ static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 		struct opinfo *op = ahead;
 		int pos = code->pos;
 		consume(code, ahead->op);
-		ptrs_ast_t *right = parseUnaryExpr(code, false, false);
+		ptrs_ast_t *right = parseUnaryExpr(code, false);
 		ahead = peekBinaryOp(code);
 
 		while(ahead != NULL && ahead->precendence > op->precendence)
@@ -926,7 +928,7 @@ struct constinfo constants[] = {
 };
 int constantCount = sizeof(constants) / sizeof(struct constinfo);
 
-static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlgo)
+static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 {
 	char curr = code->curr;
 	int pos = code->pos;
@@ -934,10 +936,15 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 
 
 	ptrs_ast_vtable_t *vtable = readPrefixOperator(code, NULL);
-	if(vtable != NULL)
+	if(vtable == &ptrs_ast_vtable_prefix_minus && isdigit(code->curr))
+	{
+		code->pos = pos;
+		code->curr = curr;
+	}
+	else if(vtable != NULL)
 	{
 		ast = talloc(ptrs_ast_t);
-		ast->arg.astval = parseUnaryExpr(code, false, true);
+		ast->arg.astval = parseUnaryExpr(code, false);
 		ast->vtable = vtable;
 
 		if(vtable == &ptrs_ast_vtable_prefix_address)
@@ -1026,7 +1033,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			}
 
 			ast->vtable = &ptrs_ast_vtable_prefix_sizeof;
-			ast->arg.astval = parseUnaryExpr(code, ignoreCalls, ignoreAlgo);
+			ast->arg.astval = parseUnaryExpr(code, ignoreCalls);
 		}
 	}
 	else if(lookahead(code, "as"))
@@ -1042,7 +1049,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		ast = talloc(ptrs_ast_t);
 		ast->vtable = &ptrs_ast_vtable_as;
 		ast->arg.cast.builtinType = type;
-		ast->arg.cast.value = parseUnaryExpr(code, false, true);
+		ast->arg.cast.value = parseUnaryExpr(code, false);
 	}
 	else if(lookahead(code, "cast"))
 	{
@@ -1067,14 +1074,14 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		{
 			ast = talloc(ptrs_ast_t);
 			ast->vtable = &ptrs_ast_vtable_cast;
-			ast->arg.cast.type = parseUnaryExpr(code, false, false);
+			ast->arg.cast.type = parseUnaryExpr(code, false);
 
 			if(ast->arg.cast.type == NULL)
 				unexpectedm(code, NULL, "Syntax is cast<TYPE>");
 		}
 
 		consumec(code, '>');
-		ast->arg.cast.value = parseUnaryExpr(code, false, true);
+		ast->arg.cast.value = parseUnaryExpr(code, false);
 	}
 	else if(lookahead(code, "yield"))
 	{
@@ -1123,7 +1130,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		ast = getSymbol(code, name);
 		free(name);
 	}
-	else if(isdigit(curr) || curr == '.')
+	else if(isdigit(curr) || curr == '.' || curr == '-')
 	{
 		int startPos = code->pos;
 		ast = talloc(ptrs_ast_t);
@@ -1288,13 +1295,13 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 	do
 	{
 		old = ast;
-		ast = parseUnaryExtension(code, ast, ignoreCalls, ignoreAlgo);
+		ast = parseUnaryExtension(code, ast, ignoreCalls);
 	} while(ast != old);
 
 	return ast;
 }
 
-static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignoreCalls, bool ignoreAlgo)
+static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignoreCalls)
 {
 	char curr = code->curr;
 	if(curr == '.' && code->src[code->pos + 1] != '.')
@@ -1334,7 +1341,7 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 			{
 				code->pos = pos;
 				code->curr = code->src[pos];
-				return parseUnaryExtension(code, ast, true, ignoreAlgo);
+				return parseUnaryExtension(code, ast, true);
 			}
 		}
 		else
@@ -1743,7 +1750,7 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 		ast->vtable = &ptrs_ast_vtable_new;
 		ast->arg.define.location.constType = PTRS_TYPE_STRUCT;
 		ast->arg.newexpr.onStack = onStack;
-		ast->arg.newexpr.value = parseUnaryExpr(code, true, false);
+		ast->arg.newexpr.value = parseUnaryExpr(code, true);
 
 		consumec(code, '(');
 		ast->arg.newexpr.arguments = parseExpressionList(code, ')');
