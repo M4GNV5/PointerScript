@@ -227,26 +227,26 @@ static void analyzeFunction(ptrs_flow_t *flow, ptrs_function_t *ast)
 
 static void analyzeLValue(ptrs_flow_t *flow, ptrs_ast_t *node, int8_t type)
 {
-	if(node->setHandler == ptrs_handle_assign_identifier)
+	if(node->vtable == &ptrs_ast_vtable_identifier)
 	{
 		setPrediction(flow, node->arg.varval, type);
 	}
-	else if(node->setHandler == ptrs_handle_assign_dereference)
+	else if(node->vtable == &ptrs_ast_vtable_prefix_dereference)
 	{
 		analyzeExpression(flow, node->arg.astval);
 	}
-	else if(node->setHandler == ptrs_handle_assign_index)
+	else if(node->vtable == &ptrs_ast_vtable_index)
 	{
 		struct ptrs_ast_binary *expr = &node->arg.binary;
 		analyzeExpression(flow, expr->left);
 		analyzeExpression(flow, expr->right);
 	}
-	else if(node->setHandler == ptrs_handle_assign_member)
+	else if(node->vtable == &ptrs_ast_vtable_member)
 	{
 		struct ptrs_ast_member *expr = &node->arg.member;
 		analyzeExpression(flow, expr->base);
 	}
-	else if(node->setHandler == ptrs_handle_assign_importedsymbol)
+	else if(node->vtable == &ptrs_ast_vtable_importedsymbol)
 	{
 		//ignore
 		//TODO this can cause problems when setting values from other scripts
@@ -259,37 +259,37 @@ static void analyzeLValue(ptrs_flow_t *flow, ptrs_ast_t *node, int8_t type)
 }
 
 static const void *comparasionHandler[] = {
-	ptrs_handle_op_typeequal,
-	ptrs_handle_op_typeinequal,
-	ptrs_handle_op_equal,
-	ptrs_handle_op_inequal,
-	ptrs_handle_op_lessequal,
-	ptrs_handle_op_greaterequal,
-	ptrs_handle_op_less,
-	ptrs_handle_op_greater,
-	ptrs_handle_op_in,
-	ptrs_handle_op_logicxor
+	&ptrs_ast_vtable_op_typeequal,
+	&ptrs_ast_vtable_op_typeinequal,
+	&ptrs_ast_vtable_op_equal,
+	&ptrs_ast_vtable_op_inequal,
+	&ptrs_ast_vtable_op_lessequal,
+	&ptrs_ast_vtable_op_greaterequal,
+	&ptrs_ast_vtable_op_less,
+	&ptrs_ast_vtable_op_greater,
+	&ptrs_ast_vtable_op_in,
+	&ptrs_ast_vtable_op_logicxor
 };
 static const void *binaryIntOnlyHandler[] = {
-	ptrs_handle_op_or,
-	ptrs_handle_op_xor,
-	ptrs_handle_op_and,
-	ptrs_handle_op_shr,
-	ptrs_handle_op_shl,
-	ptrs_handle_op_mod
+	&ptrs_ast_vtable_op_or,
+	&ptrs_ast_vtable_op_xor,
+	&ptrs_ast_vtable_op_and,
+	&ptrs_ast_vtable_op_shr,
+	&ptrs_ast_vtable_op_shl,
+	&ptrs_ast_vtable_op_mod
 };
 static const void *binaryIntFloatHandler[] = {
-	ptrs_handle_op_mul,
-	ptrs_handle_op_div
+	&ptrs_ast_vtable_op_mul,
+	&ptrs_ast_vtable_op_div
 };
 static const void *unaryIntFloatHandler[] = {
-	ptrs_handle_prefix_inc,
-	ptrs_handle_prefix_dec,
-	ptrs_handle_prefix_not,
-	ptrs_handle_prefix_plus,
-	ptrs_handle_prefix_minus,
-	ptrs_handle_suffix_inc,
-	ptrs_handle_suffix_dec
+	&ptrs_ast_vtable_prefix_inc,
+	&ptrs_ast_vtable_prefix_dec,
+	&ptrs_ast_vtable_prefix_not,
+	&ptrs_ast_vtable_prefix_plus,
+	&ptrs_ast_vtable_prefix_minus,
+	&ptrs_ast_vtable_suffix_inc,
+	&ptrs_ast_vtable_suffix_dec
 };
 
 #define typecomp(a, b) ((PTRS_TYPE_##a << 3) | PTRS_TYPE_##b)
@@ -300,22 +300,22 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 	if(node == NULL)
 		return PTRS_TYPE_UNDEFINED;
 
-	if(node->handler == ptrs_handle_constant)
+	if(node->vtable == &ptrs_ast_vtable_constant)
 	{
 		return node->arg.constval.meta.type;
 	}
-	else if(node->handler == ptrs_handle_identifier)
+	else if(node->vtable == &ptrs_ast_vtable_identifier)
 	{
 		struct ptrs_ast_identifier *expr = &node->arg.identifier;
 
 		expr->predictedType = getPrediction(flow, expr->location);
 		return expr->predictedType;
 	}
-	else if(node->handler == ptrs_handle_functionidentifier)
+	else if(node->vtable == &ptrs_ast_vtable_functionidentifier)
 	{
 		return PTRS_TYPE_FUNCTION;
 	}
-	else if(node->handler == ptrs_handle_array)
+	else if(node->vtable == &ptrs_ast_vtable_array)
 	{
 		struct ptrs_ast_define *stmt = &node->arg.define;
 
@@ -330,7 +330,7 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 
 		return PTRS_TYPE_NATIVE;
 	}
-	else if(node->handler == ptrs_handle_vararray)
+	else if(node->vtable == &ptrs_ast_vtable_vararray)
 	{
 		struct ptrs_ast_define *stmt = &node->arg.define;
 
@@ -341,12 +341,12 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 
 		return PTRS_TYPE_POINTER;
 	}
-	else if(node->handler == ptrs_handle_function)
+	else if(node->vtable == &ptrs_ast_vtable_function)
 	{
 		analyzeFunction(flow, &node->arg.function.func);
 		return PTRS_TYPE_FUNCTION;
 	}
-	else if(node->handler == ptrs_handle_call)
+	else if(node->vtable == &ptrs_ast_vtable_call)
 	{
 		struct ptrs_ast_call *expr = &node->arg.call;
 		int8_t value = analyzeExpression(flow, expr->value);
@@ -360,7 +360,7 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 		else
 			return -1;
 	}
-	else if(node->handler == ptrs_handle_stringformat)
+	else if(node->vtable == &ptrs_ast_vtable_stringformat)
 	{
 		struct ptrs_ast_strformat *expr = &node->arg.strformat;
 
@@ -373,7 +373,7 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 
 		return PTRS_TYPE_NATIVE;
 	}
-	else if(node->handler == ptrs_handle_new)
+	else if(node->vtable == &ptrs_ast_vtable_new)
 	{
 		struct ptrs_ast_new *expr = &node->arg.newexpr;
 		analyzeExpression(flow, expr->value);
@@ -381,38 +381,38 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 
 		return PTRS_TYPE_STRUCT;
 	}
-	else if(node->handler == ptrs_handle_member)
+	else if(node->vtable == &ptrs_ast_vtable_member)
 	{
 		struct ptrs_ast_member *expr = &node->arg.member;
 		analyzeExpression(flow, expr->base);
 		return -1; //TODO
 	}
-	else if(node->handler == ptrs_handle_prefix_sizeof)
+	else if(node->vtable == &ptrs_ast_vtable_prefix_sizeof)
 	{
 		analyzeExpression(flow, node->arg.astval);
 		return PTRS_TYPE_INT;
 	}
-	else if(node->handler == ptrs_handle_prefix_address)
+	else if(node->vtable == &ptrs_ast_vtable_prefix_address)
 	{
 		ptrs_ast_t *target = node->arg.astval;
 
 		//TODO do we need analyzeAddrOfExpression?
 		analyzeExpression(flow, target);
 
-		//TODO ptrs_handle_addressof_member
-		if(target->addressHandler == ptrs_handle_addressof_identifier)
+		//TODO &ptrs_ast_vtable_member
+		if(target->vtable == &ptrs_ast_vtable_identifier)
 		{
 			struct ptrs_ast_identifier *expr = &target->arg.identifier;
 			lockPrediction(flow, expr->location);
 			return PTRS_TYPE_POINTER;
 		}
-		//TODO ptrs_handle_addressof_importedsymbol
+		//TODO &ptrs_ast_vtable_importedsymbol
 		else
 		{
 			return -1;
 		}
 	}
-	else if(node->handler == ptrs_handle_prefix_dereference)
+	else if(node->vtable == &ptrs_ast_vtable_prefix_dereference)
 	{
 		int8_t target = analyzeExpression(flow, node->arg.astval);
 
@@ -423,11 +423,11 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 		else
 			return -2;
 	}
-	else if(node->handler == ptrs_handle_indexlength)
+	else if(node->vtable == &ptrs_ast_vtable_indexlength)
 	{
 		return PTRS_TYPE_INT;
 	}
-	else if(node->handler == ptrs_handle_index)
+	else if(node->vtable == &ptrs_ast_vtable_index)
 	{
 		struct ptrs_ast_binary *expr = &node->arg.binary;
 
@@ -441,7 +441,7 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 		else
 			return -2;
 	}
-	else if(node->handler == ptrs_handle_slice)
+	else if(node->vtable == &ptrs_ast_vtable_slice)
 	{
 		struct ptrs_ast_slice *expr = &node->arg.slice;
 
@@ -458,29 +458,29 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 		else
 			return -2;
 	}
-	else if(node->handler == ptrs_handle_as
-		|| node->handler == ptrs_handle_cast_builtin)
+	else if(node->vtable == &ptrs_ast_vtable_as
+		|| node->vtable == &ptrs_ast_vtable_cast_builtin)
 	{
 		struct ptrs_ast_cast *expr = &node->arg.cast;
 
 		analyzeExpression(flow, expr->value);
 		return expr->builtinType;
 	}
-	else if(node->handler == ptrs_handle_tostring)
+	else if(node->vtable == &ptrs_ast_vtable_tostring)
 	{
 		struct ptrs_ast_cast *expr = &node->arg.cast;
 		analyzeExpression(flow, expr->value);
 
 		return PTRS_TYPE_NATIVE;
 	}
-	else if(node->handler == ptrs_handle_cast)
+	else if(node->vtable == &ptrs_ast_vtable_cast)
 	{
 		struct ptrs_ast_cast *expr = &node->arg.cast;
 		analyzeExpression(flow, expr->value);
 
 		return PTRS_TYPE_STRUCT;
 	}
-	else if(node->handler == ptrs_handle_importedsymbol)
+	else if(node->vtable == &ptrs_ast_vtable_importedsymbol)
 	{
 		struct ptrs_ast_importedsymbol *expr = &node->arg.importedsymbol;
 		struct ptrs_ast_import *stmt = &expr->import->arg.import;
@@ -492,25 +492,25 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 		else
 			return expr->type->varType;
 	}
-	else if(node->handler == ptrs_handle_prefix_typeof)
+	else if(node->vtable == &ptrs_ast_vtable_prefix_typeof)
 	{
 		analyzeExpression(flow, node->arg.astval);
 
 		return PTRS_TYPE_INT;
 	}
-	else if(node->handler == ptrs_handle_yield)
+	else if(node->vtable == &ptrs_ast_vtable_yield)
 	{
 		struct ptrs_ast_yield *expr = &node->arg.yield;
 		analyzeList(flow, expr->values);
 
 		return PTRS_TYPE_INT;
 	}
-	else if(node->handler == ptrs_handle_op_assign)
+	else if(node->vtable == &ptrs_ast_vtable_op_assign)
 	{
 		struct ptrs_ast_binary *expr = &node->arg.binary;
 		analyzeLValue(flow, expr->left, analyzeExpression(flow, expr->right));
 	}
-	else if(node->handler == ptrs_handle_op_ternary)
+	else if(node->vtable == &ptrs_ast_vtable_op_ternary)
 	{
 		struct ptrs_ast_ternary *expr = &node->arg.ternary;
 		analyzeExpression(flow, expr->condition);
@@ -522,12 +522,12 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 		else
 			return -1;
 	}
-	else if(node->handler == ptrs_handle_prefix_logicnot)
+	else if(node->vtable == &ptrs_ast_vtable_prefix_logicnot)
 	{
 		analyzeExpression(flow, node->arg.astval);
 		return PTRS_TYPE_INT;
 	}
-	else if(node->handler == ptrs_handle_op_add)
+	else if(node->vtable == &ptrs_ast_vtable_op_add)
 	{
 		struct ptrs_ast_binary *expr = &node->arg.binary;
 		int8_t left = analyzeExpression(flow, expr->left);
@@ -555,7 +555,7 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 				return -2;
 		}
 	}
-	else if(node->handler == ptrs_handle_op_sub)
+	else if(node->vtable == &ptrs_ast_vtable_op_sub)
 	{
 		struct ptrs_ast_binary *expr = &node->arg.binary;
 		int8_t left = analyzeExpression(flow, expr->left);
@@ -583,8 +583,8 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 				return -2;
 		}
 	}
-	else if(node->handler == ptrs_handle_op_mul
-		|| node->handler == ptrs_handle_op_div)
+	else if(node->vtable == &ptrs_ast_vtable_op_mul
+		|| node->vtable == &ptrs_ast_vtable_op_div)
 	{
 		struct ptrs_ast_binary *expr = &node->arg.binary;
 		int8_t left = analyzeExpression(flow, expr->left);
@@ -608,7 +608,7 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 	{
 		for(int i = 0; i < sizeof(comparasionHandler) / sizeof(void *); i++)
 		{
-			if(node->handler == comparasionHandler[i])
+			if(node->vtable == comparasionHandler[i])
 			{
 				struct ptrs_ast_binary *expr = &node->arg.binary;
 				analyzeExpression(flow, expr->left);
@@ -620,7 +620,7 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 
 		for(int i = 0; i < sizeof(binaryIntOnlyHandler) / sizeof(void *); i++)
 		{
-			if(node->handler == binaryIntOnlyHandler[i])
+			if(node->vtable == binaryIntOnlyHandler[i])
 			{
 				struct ptrs_ast_binary *expr = &node->arg.binary;
 				int8_t left = analyzeExpression(flow, expr->left);
@@ -635,7 +635,7 @@ static int8_t analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node)
 
 		for(int i = 0; i < sizeof(unaryIntFloatHandler) / sizeof(void *); i++)
 		{
-			if(node->handler == unaryIntFloatHandler[i])
+			if(node->vtable == unaryIntFloatHandler[i])
 			{
 				return analyzeExpression(flow, node->arg.astval);
 			}
@@ -669,14 +669,14 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node)
 	if(node == NULL)
 		return;
 
-	if(node->handler == ptrs_handle_define)
+	if(node->vtable == &ptrs_ast_vtable_define)
 	{
 		struct ptrs_ast_define *stmt = &node->arg.define;
 		int8_t type = analyzeExpression(flow, stmt->value);
 
 		createPrediction(flow, &stmt->location, type, false, stmt);
 	}
-	else if(node->handler == ptrs_handle_array)
+	else if(node->vtable == &ptrs_ast_vtable_array)
 	{
 		struct ptrs_ast_define *stmt = &node->arg.define;
 
@@ -691,7 +691,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node)
 
 		setPrediction(flow, &stmt->location, PTRS_TYPE_NATIVE);
 	}
-	else if(node->handler == ptrs_handle_vararray)
+	else if(node->vtable == &ptrs_ast_vtable_vararray)
 	{
 		struct ptrs_ast_define *stmt = &node->arg.define;
 
@@ -701,26 +701,26 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node)
 		analyzeList(flow, stmt->initVal);
 		setPrediction(flow, &stmt->location, PTRS_TYPE_NATIVE);
 	}
-	else if(node->handler == ptrs_handle_import)
+	else if(node->vtable == &ptrs_ast_vtable_import)
 	{
 		//TODO
 	}
-	else if(node->handler == ptrs_handle_return
-		|| node->handler == ptrs_handle_delete
-		|| node->handler == ptrs_handle_throw)
+	else if(node->vtable == &ptrs_ast_vtable_return
+		|| node->vtable == &ptrs_ast_vtable_delete
+		|| node->vtable == &ptrs_ast_vtable_throw)
 	{
 		analyzeExpression(flow, node->arg.astval);
 	}
-	else if(node->handler == ptrs_handle_continue
-		|| node->handler == ptrs_handle_break)
+	else if(node->vtable == &ptrs_ast_vtable_continue
+		|| node->vtable == &ptrs_ast_vtable_break)
 	{
 		//nothing
 	}
-	else if(node->handler == ptrs_handle_trycatch)
+	else if(node->vtable == &ptrs_ast_vtable_trycatch)
 	{
 		//TODO
 	}
-	else if(node->handler == ptrs_handle_struct)
+	else if(node->vtable == &ptrs_ast_vtable_struct)
 	{
 		ptrs_struct_t *struc = &node->arg.structval;
 
@@ -747,11 +747,11 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node)
 
 		createPrediction(flow, struc->location, PTRS_TYPE_STRUCT, false, NULL);
 	}
-	else if(node->handler == ptrs_handle_function)
+	else if(node->vtable == &ptrs_ast_vtable_function)
 	{
 		analyzeFunction(flow, &node->arg.function.func);
 	}
-	else if(node->handler == ptrs_handle_if)
+	else if(node->vtable == &ptrs_ast_vtable_if)
 	{
 		struct ptrs_ast_ifelse *stmt = &node->arg.ifelse;
 		analyzeExpression(flow, stmt->condition);
@@ -775,7 +775,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node)
 		if(flow->updatePredictions)
 			mergePredictions(flow, predictions);
 	}
-	else if(node->handler == ptrs_handle_switch)
+	else if(node->vtable == &ptrs_ast_vtable_switch)
 	{
 		struct ptrs_ast_switch *stmt = &node->arg.switchcase;
 		struct ptrs_ast_case *curr = stmt->cases;
@@ -801,7 +801,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node)
 			curr = curr->next;
 		}
 	}
-	else if(node->handler == ptrs_handle_while)
+	else if(node->vtable == &ptrs_ast_vtable_while)
 	{
 		struct ptrs_ast_control *stmt = &node->arg.control;
 
@@ -810,7 +810,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node)
 			analyzeStatement(flow, stmt->body);
 		);
 	}
-	else if(node->handler == ptrs_handle_dowhile)
+	else if(node->vtable == &ptrs_ast_vtable_dowhile)
 	{
 		struct ptrs_ast_control *stmt = &node->arg.control;
 
@@ -819,7 +819,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node)
 			analyzeExpression(flow, stmt->condition);
 		);
 	}
-	else if(node->handler == ptrs_handle_for)
+	else if(node->vtable == &ptrs_ast_vtable_for)
 	{
 		struct ptrs_ast_for *stmt = &node->arg.forstatement;
 
@@ -831,7 +831,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node)
 			analyzeExpression(flow, stmt->step);
 		);
 	}
-	else if(node->handler == ptrs_handle_forin)
+	else if(node->vtable == &ptrs_ast_vtable_forin)
 	{
 		struct ptrs_ast_forin *stmt = &node->arg.forin;
 
@@ -840,11 +840,11 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node)
 			analyzeStatement(flow, stmt->body);
 		);
 	}
-	else if(node->handler == ptrs_handle_scopestatement)
+	else if(node->vtable == &ptrs_ast_vtable_scopestatement)
 	{
 		analyzeStatement(flow, node->arg.astval);
 	}
-	else if(node->handler == ptrs_handle_body)
+	else if(node->vtable == &ptrs_ast_vtable_body)
 	{
 		struct ptrs_astlist *curr = node->arg.astlist;
 		while(curr != NULL)
@@ -853,7 +853,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node)
 			curr = curr->next;
 		}
 	}
-	else if(node->handler == ptrs_handle_exprstatement)
+	else if(node->vtable == &ptrs_ast_vtable_exprstatement)
 	{
 		analyzeExpression(flow, node->arg.astval);
 	}

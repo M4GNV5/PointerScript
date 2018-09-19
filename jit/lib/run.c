@@ -48,7 +48,7 @@ void ptrs_compile(ptrs_result_t *result, char *src, const char *filename)
 		jit_insn_get_frame_pointer(result->func)
 	);
 
-	result->ast->handler(result->ast, result->func, &scope);
+	result->ast->vtable->get(result->ast, result->func, &scope);
 
 	jit_insn_return_struct_from_values(result->func,
 		jit_const_int(result->func, long, 0),

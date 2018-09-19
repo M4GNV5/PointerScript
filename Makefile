@@ -10,6 +10,7 @@ PARSER_OBJECTS += $(BIN)/ast.o
 
 RUN_OBJECTS += $(BIN)/statements.o
 RUN_OBJECTS += $(BIN)/specialexpr.o
+RUN_OBJECTS += $(BIN)/vtables.o
 RUN_OBJECTS += $(BIN)/main.o
 
 RUN_OBJECTS += $(BIN)/lib/conversion.o
@@ -31,7 +32,7 @@ EXTERN_LIBS += -ldl
 EXTERN_LIBS += -lpthread
 EXTERN_LIBS += $(LIBJIT_BIN)
 
-CFLAGS = '-DJIT_INCLUDE=$(JIT_INCLUDE)' -I$(LIBJIT_DIR) -std=c99
+CFLAGS = -I$(LIBJIT_DIR) -std=c99
 
 ifdef PORTABLE
 ARCH = PORTABLE

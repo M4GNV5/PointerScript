@@ -7,11 +7,7 @@
 #include <math.h>
 
 #include "common.h"
-#ifdef JIT_INCLUDE
-#include JIT_INCLUDE
-#else
 #include "../jit/jit.h"
-#endif
 #include "ast.h"
 
 #define talloc(type) calloc(sizeof(type), 1)
@@ -88,9 +84,8 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt);
 
 static ptrs_vartype_t readTypeName(code_t *code);
 static ptrs_nativetype_info_t *readNativeType(code_t *code);
-static ptrs_asthandler_t readPrefixOperator(code_t *code, const char **label);
-static ptrs_asthandler_t readSuffixOperator(code_t *code, const char **label);
-//static ptrs_asthandler_t readBinaryOperator(code_t *code, const char **label);
+static ptrs_ast_vtable_t *readPrefixOperator(code_t *code, const char **label);
+static ptrs_ast_vtable_t *readSuffixOperator(code_t *code, const char **label);
 static char *readIdentifier(code_t *code);
 static char *readString(code_t *code, int *length, struct ptrs_stringformat **insertions, int *insertionsCount);
 static char readEscapeSequence(code_t *code);
@@ -181,10 +176,7 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 				{
 					case PTRS_SYMBOL_DEFAULT:
 						*node = ast = talloc(ptrs_ast_t);
-						ast->handler = ptrs_handle_identifier;
-						ast->setHandler = ptrs_handle_assign_identifier;
-						ast->addressHandler = ptrs_handle_addressof_identifier;
-						ast->callHandler = NULL;
+						ast->vtable = &ptrs_ast_vtable_identifier;
 
 						ast->arg.identifier.location = curr->arg.location;
 						ast->arg.identifier.predictedType = -1;
@@ -195,10 +187,7 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 
 					case PTRS_SYMBOL_FUNCTION:
 						*node = ast = talloc(ptrs_ast_t);
-						ast->handler = ptrs_handle_functionidentifier;
-						ast->setHandler = NULL;
-						ast->addressHandler = NULL;
-						ast->callHandler = ptrs_handle_call_functionidentifier;
+						ast->vtable = &ptrs_ast_vtable_functionidentifier;
 
 						ast->arg.funcval = curr->arg.function;
 						break;
@@ -210,10 +199,7 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 
 					case PTRS_SYMBOL_IMPORTED:
 						*node = ast = talloc(ptrs_ast_t);
-						ast->handler = ptrs_handle_importedsymbol;
-						ast->setHandler = ptrs_handle_assign_importedsymbol;
-						ast->addressHandler = ptrs_handle_addressof_importedsymbol;
-						ast->callHandler = ptrs_handle_call_importedsymbol;
+						ast->vtable = &ptrs_ast_vtable_importedsymbol;
 
 						ast->arg.importedsymbol.import = curr->arg.imported.import;
 						ast->arg.importedsymbol.index = curr->arg.imported.index;
@@ -234,10 +220,7 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 static ptrs_ast_t *parseStmtList(code_t *code, char end)
 {
 	ptrs_ast_t *elem = talloc(ptrs_ast_t);
-	elem->handler = ptrs_handle_body;
-	elem->setHandler = NULL;
-	elem->callHandler = NULL;
-	elem->addressHandler = NULL;
+	elem->vtable = &ptrs_ast_vtable_body;
 	elem->codepos = code->pos;
 	elem->code = code->src;
 	elem->file = code->filename;
@@ -466,7 +449,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		char *name = readIdentifier(code);
 		consumec(code, '=');
 		ptrs_ast_t *ast = parseExpression(code, true);
-		if(ast->handler != ptrs_handle_constant)
+		if(ast->vtable != &ptrs_ast_vtable_constant)
 			unexpectedm(code, NULL, "Initializer for 'const' variable is not a constant");
 
 		struct symbollist *entry = addSpecialSymbol(code, name, PTRS_SYMBOL_CONST);
@@ -476,16 +459,13 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 
 	ptrs_ast_t *stmt = talloc(ptrs_ast_t);
-	stmt->setHandler = NULL;
-	stmt->addressHandler = NULL;
-	stmt->callHandler = NULL;
 	stmt->codepos = code->pos;
 	stmt->code = code->src;
 	stmt->file = code->filename;
 
 	if(lookahead(code, "let"))
 	{
-		stmt->handler = ptrs_handle_typeddefine;
+		stmt->vtable = &ptrs_ast_vtable_typeddefine;
 		addSymbol(code, readIdentifier(code), &stmt->arg.define.location);
 
 		if(lookahead(code, ":"))
@@ -511,14 +491,14 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "var"))
 	{
-		stmt->handler = ptrs_handle_define;
+		stmt->vtable = &ptrs_ast_vtable_define;
 		addSymbol(code, readIdentifier(code), &stmt->arg.define.location);
 		stmt->arg.define.onStack = true;
 		stmt->arg.define.isArrayExpr = false;
 
 		if(lookahead(code, "["))
 		{
-			stmt->handler = ptrs_handle_vararray;
+			stmt->vtable = &ptrs_ast_vtable_vararray;
 			stmt->arg.define.value = parseExpression(code, false);
 			stmt->arg.define.isInitExpr = false;
 			consumec(code, ']');
@@ -540,7 +520,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		}
 		else if(lookahead(code, "{"))
 		{
-			stmt->handler = ptrs_handle_array;
+			stmt->vtable = &ptrs_ast_vtable_array;
 			stmt->arg.define.value = parseExpression(code, false);
 			consumec(code, '}');
 
@@ -587,41 +567,41 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "return"))
 	{
-		stmt->handler = ptrs_handle_return;
+		stmt->vtable = &ptrs_ast_vtable_return;
 		stmt->arg.astval = parseExpression(code, false);
 		consumec(code, ';');
 	}
 	else if(lookahead(code, "break"))
 	{
-		stmt->handler = ptrs_handle_break;
+		stmt->vtable = &ptrs_ast_vtable_break;
 		consumec(code, ';');
 	}
 	else if(lookahead(code, "continue"))
 	{
-		stmt->handler = ptrs_handle_continue;
+		stmt->vtable = &ptrs_ast_vtable_continue;
 		consumec(code, ';');
 	}
 	else if(lookahead(code, "delete"))
 	{
-		stmt->handler = ptrs_handle_delete;
+		stmt->vtable = &ptrs_ast_vtable_delete;
 		stmt->arg.astval = parseExpression(code, true);
 		consumec(code, ';');
 	}
 	else if(lookahead(code, "throw"))
 	{
-		stmt->handler = ptrs_handle_throw;
+		stmt->vtable = &ptrs_ast_vtable_throw;
 		stmt->arg.astval = parseExpression(code, true);
 		consumec(code, ';');
 	}
 	else if(lookahead(code, "scoped"))
 	{
-		stmt->handler = ptrs_handle_scopestatement;
+		stmt->vtable = &ptrs_ast_vtable_scopestatement;
 		symbolScope_increase(code, true);
 		stmt->arg.astval = parseBody(code, true, true);
 	}
 	else if(lookahead(code, "try"))
 	{
-		stmt->handler = ptrs_handle_trycatch;
+		stmt->vtable = &ptrs_ast_vtable_trycatch;
 		stmt->arg.trycatch.tryBody = parseBody(code, true, false);
 
 		if(lookahead(code, "catch"))
@@ -665,7 +645,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "function"))
 	{
-		stmt->handler = ptrs_handle_function;
+		stmt->vtable = &ptrs_ast_vtable_function;
 
 		ptrs_function_t *func = &stmt->arg.function.func;
 		func->name = readIdentifier(code);
@@ -684,12 +664,12 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "struct"))
 	{
-		stmt->handler = ptrs_handle_struct;
+		stmt->vtable = &ptrs_ast_vtable_struct;
 		parseStruct(code, &stmt->arg.structval);
 	}
 	else if(lookahead(code, "if"))
 	{
-		stmt->handler = ptrs_handle_if;
+		stmt->vtable = &ptrs_ast_vtable_if;
 
 		consumec(code, '(');
 		stmt->arg.ifelse.condition = parseExpression(code, true);
@@ -707,7 +687,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "while"))
 	{
-		stmt->handler = ptrs_handle_while;
+		stmt->vtable = &ptrs_ast_vtable_while;
 
 		consumec(code, '(');
 		stmt->arg.control.condition = parseExpression(code, true);
@@ -717,7 +697,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	else if(lookahead(code, "do"))
 	{
 		symbolScope_increase(code, false);
-		stmt->handler = ptrs_handle_dowhile;
+		stmt->vtable = &ptrs_ast_vtable_dowhile;
 		stmt->arg.control.body = parseScopelessBody(code, true);
 		consume(code, "while");
 
@@ -735,7 +715,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 
 		consume(code, "in");
 		stmt->arg.forin.value = parseExpression(code, true);
-		stmt->handler = ptrs_handle_forin;
+		stmt->vtable = &ptrs_ast_vtable_forin;
 		consumec(code, ')');
 
 		stmt->arg.forin.body = parseScopelessBody(code, true);
@@ -743,7 +723,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "for"))
 	{
-		stmt->handler = ptrs_handle_for;
+		stmt->vtable = &ptrs_ast_vtable_for;
 		symbolScope_increase(code, false);
 
 		consumec(code, '(');
@@ -758,7 +738,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else
 	{
-		stmt->handler = ptrs_handle_exprstatement;
+		stmt->vtable = &ptrs_ast_vtable_exprstatement;
 		stmt->arg.astval = parseExpression(code, false);
 		consumec(code, ';');
 	}
@@ -770,75 +750,75 @@ struct opinfo
 	const char *op;
 	int precendence;
 	bool isAssignOp;
-	ptrs_asthandler_t handler;
+	ptrs_ast_vtable_t *vtable;
 };
 
 struct opinfo binaryOps[] = {
 	// >> and << need to be before > and < or we will always lookahead greater / less
-	{">>", 12, false, ptrs_handle_op_shr}, //shift right
-	{"<<", 12, false, ptrs_handle_op_shl}, //shift left
+	{">>", 12, false, &ptrs_ast_vtable_op_shr}, //shift right
+	{"<<", 12, false, &ptrs_ast_vtable_op_shl}, //shift left
 
-	{"===", 9, false, ptrs_handle_op_typeequal},
-	{"!==", 9, false, ptrs_handle_op_typeinequal},
+	{"===", 9, false, &ptrs_ast_vtable_op_typeequal},
+	{"!==", 9, false, &ptrs_ast_vtable_op_typeinequal},
 
-	{"==", 9, false, ptrs_handle_op_equal},
-	{"!=", 9, false, ptrs_handle_op_inequal},
-	{"<=", 10, false, ptrs_handle_op_lessequal},
-	{">=", 10, false, ptrs_handle_op_greaterequal},
-	{"<", 10, false, ptrs_handle_op_less},
-	{">", 10, false, ptrs_handle_op_greater},
+	{"==", 9, false, &ptrs_ast_vtable_op_equal},
+	{"!=", 9, false, &ptrs_ast_vtable_op_inequal},
+	{"<=", 10, false, &ptrs_ast_vtable_op_lessequal},
+	{">=", 10, false, &ptrs_ast_vtable_op_greaterequal},
+	{"<", 10, false, &ptrs_ast_vtable_op_less},
+	{">", 10, false, &ptrs_ast_vtable_op_greater},
 
-	{"=", 1, true, ptrs_handle_op_assign},
-	{"+=", 1, true, ptrs_handle_op_add},
-	{"-=", 1, true, ptrs_handle_op_sub},
-	{"*=", 1, true, ptrs_handle_op_mul},
-	{"/=", 1, true, ptrs_handle_op_div},
-	{"%=", 1, true, ptrs_handle_op_mod},
-	{">>=", 1, true, ptrs_handle_op_shr},
-	{"<<=", 1, true, ptrs_handle_op_shl},
-	{"&=", 1, true, ptrs_handle_op_and},
-	{"^=", 1, true, ptrs_handle_op_xor},
-	{"|=", 1, true, ptrs_handle_op_or},
+	{"=", 1, true, &ptrs_ast_vtable_op_assign},
+	{"+=", 1, true, &ptrs_ast_vtable_op_add},
+	{"-=", 1, true, &ptrs_ast_vtable_op_sub},
+	{"*=", 1, true, &ptrs_ast_vtable_op_mul},
+	{"/=", 1, true, &ptrs_ast_vtable_op_div},
+	{"%=", 1, true, &ptrs_ast_vtable_op_mod},
+	{">>=", 1, true, &ptrs_ast_vtable_op_shr},
+	{"<<=", 1, true, &ptrs_ast_vtable_op_shl},
+	{"&=", 1, true, &ptrs_ast_vtable_op_and},
+	{"^=", 1, true, &ptrs_ast_vtable_op_xor},
+	{"|=", 1, true, &ptrs_ast_vtable_op_or},
 
-	{"?", 2, true, ptrs_handle_op_ternary},
-	{":", -1, true, ptrs_handle_op_ternary},
+	{"?", 2, true, &ptrs_ast_vtable_op_ternary},
+	{":", -1, true, &ptrs_ast_vtable_op_ternary},
 
-	{"instanceof", 11, false, ptrs_handle_op_instanceof},
-	{"in", 11, false, ptrs_handle_op_in},
+	{"instanceof", 11, false, &ptrs_ast_vtable_op_instanceof},
+	{"in", 11, false, &ptrs_ast_vtable_op_in},
 
-	{"||", 3, false, ptrs_handle_op_logicor},
-	{"^^", 4, false, ptrs_handle_op_logicxor},
-	{"&&", 5, false, ptrs_handle_op_logicand},
+	{"||", 3, false, &ptrs_ast_vtable_op_logicor},
+	{"^^", 4, false, &ptrs_ast_vtable_op_logicxor},
+	{"&&", 5, false, &ptrs_ast_vtable_op_logicand},
 
-	{"|", 6, false, ptrs_handle_op_or},
-	{"^", 7, false, ptrs_handle_op_xor},
-	{"&", 8, false, ptrs_handle_op_and},
+	{"|", 6, false, &ptrs_ast_vtable_op_or},
+	{"^", 7, false, &ptrs_ast_vtable_op_xor},
+	{"&", 8, false, &ptrs_ast_vtable_op_and},
 
-	{"+", 13, false, ptrs_handle_op_add},
-	{"-", 13, false, ptrs_handle_op_sub},
+	{"+", 13, false, &ptrs_ast_vtable_op_add},
+	{"-", 13, false, &ptrs_ast_vtable_op_sub},
 
-	{"*", 14, false, ptrs_handle_op_mul},
-	{"/", 14, false, ptrs_handle_op_div},
-	{"%", 14, false, ptrs_handle_op_mod}
+	{"*", 14, false, &ptrs_ast_vtable_op_mul},
+	{"/", 14, false, &ptrs_ast_vtable_op_div},
+	{"%", 14, false, &ptrs_ast_vtable_op_mod}
 };
 static int binaryOpCount = sizeof(binaryOps) / sizeof(struct opinfo);
 
 struct opinfo prefixOps[] = {
-	{"typeof", 0, true, ptrs_handle_prefix_typeof},
-	{"++", 0, true, ptrs_handle_prefix_inc}, //prefixed ++
-	{"--", 0, true, ptrs_handle_prefix_dec}, //prefixed --
-	{"!", 0, true, ptrs_handle_prefix_logicnot}, //logical NOT
-	{"~", 0, true, ptrs_handle_prefix_not}, //bitwise NOT
-	{"&", 0, true, ptrs_handle_prefix_address}, //adress of
-	{"*", 0, true, ptrs_handle_prefix_dereference}, //dereference
-	{"+", 0, true, ptrs_handle_prefix_plus}, //unary +
-	{"-", 0, true, ptrs_handle_prefix_minus} //unary -
+	{"typeof", 0, true, &ptrs_ast_vtable_prefix_typeof},
+	{"++", 0, true, &ptrs_ast_vtable_prefix_inc}, //prefixed ++
+	{"--", 0, true, &ptrs_ast_vtable_prefix_dec}, //prefixed --
+	{"!", 0, true, &ptrs_ast_vtable_prefix_logicnot}, //logical NOT
+	{"~", 0, true, &ptrs_ast_vtable_prefix_not}, //bitwise NOT
+	{"&", 0, true, &ptrs_ast_vtable_prefix_address}, //adress of
+	{"*", 0, true, &ptrs_ast_vtable_prefix_dereference}, //dereference
+	{"+", 0, true, &ptrs_ast_vtable_prefix_plus}, //unary +
+	{"-", 0, true, &ptrs_ast_vtable_prefix_minus} //unary -
 };
 static int prefixOpCount = sizeof(prefixOps) / sizeof(struct opinfo);
 
 struct opinfo suffixedOps[] = {
-	{"++", 0, false, ptrs_handle_suffix_inc}, //suffixed ++
-	{"--", 0, false, ptrs_handle_suffix_dec} //suffixed --
+	{"++", 0, false, &ptrs_ast_vtable_suffix_inc}, //suffixed ++
+	{"--", 0, false, &ptrs_ast_vtable_suffix_dec} //suffixed --
 };
 static int suffixedOpCount = sizeof(suffixedOps) / sizeof(struct opinfo);
 
@@ -886,10 +866,10 @@ static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 
 		ptrs_ast_t *_left = left;
 
-		if(op->handler == ptrs_handle_op_ternary)
+		if(op->vtable == &ptrs_ast_vtable_op_ternary)
 		{
 			ptrs_ast_t *left = talloc(ptrs_ast_t);
-			left->handler = ptrs_handle_op_ternary;
+			left->vtable = &ptrs_ast_vtable_op_ternary;
 			left->arg.ternary.condition = _left;
 			left->arg.ternary.trueVal = right;
 			consumec(code, ':');
@@ -901,27 +881,21 @@ static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 		}
 
 		left = talloc(ptrs_ast_t);
-		left->handler = op->handler;
-		left->setHandler = NULL;
-		left->addressHandler = NULL;
-		left->callHandler = NULL;
+		left->vtable = op->vtable;
 		left->arg.binary.left = _left;
 		left->arg.binary.right = right;
 		left->codepos = pos;
 		left->code = code->src;
 		left->file = code->filename;
 
-		if(op->isAssignOp && _left->setHandler == NULL)
+		if(op->isAssignOp && _left->vtable->set == NULL)
 			PTRS_HANDLE_ASTERROR(left, "Invalid assign expression, left side is not a valid lvalue");
 
-		if(op->isAssignOp && op->handler != ptrs_handle_op_assign)
+		if(op->isAssignOp && op->vtable != &ptrs_ast_vtable_op_assign)
 		{
 			right = left;
 			left = talloc(ptrs_ast_t);
-			left->handler = ptrs_handle_op_assign;
-			left->setHandler = NULL;
-			left->addressHandler = NULL;
-			left->callHandler = NULL;
+			left->vtable = &ptrs_ast_vtable_op_assign;
 			left->arg.binary.left = _left;
 			left->arg.binary.right = right;
 			left->codepos = pos;
@@ -956,30 +930,22 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 {
 	char curr = code->curr;
 	int pos = code->pos;
-	bool noSetHandler = true;
 	ptrs_ast_t *ast = NULL;
 
 
-	ptrs_asthandler_t handler = readPrefixOperator(code, NULL);
-	if(handler != NULL)
+	ptrs_ast_vtable_t *vtable = readPrefixOperator(code, NULL);
+	if(vtable != NULL)
 	{
 		ast = talloc(ptrs_ast_t);
 		ast->arg.astval = parseUnaryExpr(code, false, true);
-		ast->handler = handler;
-		ast->addressHandler = NULL;
-		ast->callHandler = NULL;
+		ast->vtable = vtable;
 
-		if(handler == ptrs_handle_prefix_dereference)
-			ast->setHandler = ptrs_handle_assign_dereference;
-		else
-			ast->setHandler = NULL;
-
-		if(handler == ptrs_handle_prefix_address)
+		if(vtable == &ptrs_ast_vtable_prefix_address)
 		{
 			ptrs_ast_t *child = ast->arg.astval;
-			if(child == NULL || child->handler == NULL)
+			if(child == NULL || child->vtable == NULL)
 				unexpectedm(code, NULL, "Cannot get the address of this expression");
-			else if(child->handler == ptrs_handle_identifier)
+			else if(child->vtable == &ptrs_ast_vtable_identifier)
 				child->arg.identifier.location->addressable = 1;
 		}
 
@@ -998,10 +964,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			memset(&ast->arg.constval.meta, 0, sizeof(ptrs_meta_t));
 			ast->arg.constval.meta.type = constants[i].type;
 			ast->arg.constval.value = constants[i].value;
-			ast->handler = ptrs_handle_constant;
-			ast->setHandler = NULL;
-			ast->addressHandler = NULL;
-			ast->callHandler = NULL;
+			ast->vtable = &ptrs_ast_vtable_constant;
 			return ast;
 		}
 	}
@@ -1023,7 +986,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			unexpectedm(code, NULL, "Syntax is type<TYPENAME>");
 
 		ast = talloc(ptrs_ast_t);
-		ast->handler = ptrs_handle_constant;
+		ast->vtable = &ptrs_ast_vtable_constant;
 		ast->arg.constval.meta.type = PTRS_TYPE_INT;
 		ast->arg.constval.value.intval = type;
 		consumec(code, '>');
@@ -1041,7 +1004,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			if(hasBrace)
 				consumec(code, ')');
 
-			ast->handler = ptrs_handle_constant;
+			ast->vtable = &ptrs_ast_vtable_constant;
 			ast->arg.constval.meta.type = PTRS_TYPE_INT;
 			ast->arg.constval.value.intval = nativeType->size;
 		}
@@ -1050,7 +1013,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 			if(hasBrace)
 				consumec(code, ')');
 
-			ast->handler = ptrs_handle_constant;
+			ast->vtable = &ptrs_ast_vtable_constant;
 			ast->arg.constval.meta.type = PTRS_TYPE_INT;
 			ast->arg.constval.value.intval = sizeof(ptrs_var_t);
 		}
@@ -1062,7 +1025,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 				code->curr = code->src[pos];
 			}
 
-			ast->handler = ptrs_handle_prefix_sizeof;
+			ast->vtable = &ptrs_ast_vtable_prefix_sizeof;
 			ast->arg.astval = parseUnaryExpr(code, ignoreCalls, ignoreAlgo);
 		}
 	}
@@ -1077,7 +1040,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		consumec(code, '>');
 
 		ast = talloc(ptrs_ast_t);
-		ast->handler = ptrs_handle_as;
+		ast->vtable = &ptrs_ast_vtable_as;
 		ast->arg.cast.builtinType = type;
 		ast->arg.cast.value = parseUnaryExpr(code, false, true);
 	}
@@ -1092,18 +1055,18 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 				unexpectedm(code, NULL, "Invalid cast, can only cast to int, float and string");
 
 			ast = talloc(ptrs_ast_t);
-			ast->handler = ptrs_handle_cast_builtin;
+			ast->vtable = &ptrs_ast_vtable_cast_builtin;
 			ast->arg.cast.builtinType = type;
 		}
 		else if(lookahead(code, "string"))
 		{
 			ast = talloc(ptrs_ast_t);
-			ast->handler = ptrs_handle_tostring;
+			ast->vtable = &ptrs_ast_vtable_tostring;
 		}
 		else
 		{
 			ast = talloc(ptrs_ast_t);
-			ast->handler = ptrs_handle_cast;
+			ast->vtable = &ptrs_ast_vtable_cast;
 			ast->arg.cast.type = parseUnaryExpr(code, false, false);
 
 			if(ast->arg.cast.type == NULL)
@@ -1118,7 +1081,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		if(code->yield != NULL)
 		{
 			ast = talloc(ptrs_ast_t);
-			ast->handler = ptrs_handle_yield;
+			ast->vtable = &ptrs_ast_vtable_yield;
 			ast->arg.yield.body = code->yield[0];
 			ast->arg.yield.returnInfo = code->yield[1];
 			ast->arg.yield.values = parseExpressionList(code, ';');
@@ -1131,7 +1094,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 	else if(lookahead(code, "function"))
 	{
 		ast = talloc(ptrs_ast_t);
-		ast->handler = ptrs_handle_function;
+		ast->vtable = &ptrs_ast_vtable_function;
 
 		ptrs_function_t *func = &ast->arg.function.func;
 		func->name = "(anonymous function)";
@@ -1158,14 +1121,13 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 	{
 		char *name = readIdentifier(code);
 		ast = getSymbol(code, name);
-		noSetHandler = false;
 		free(name);
 	}
 	else if(isdigit(curr) || curr == '.')
 	{
 		int startPos = code->pos;
 		ast = talloc(ptrs_ast_t);
-		ast->handler = ptrs_handle_constant;
+		ast->vtable = &ptrs_ast_vtable_constant;
 
 		ast->arg.constval.meta.type = PTRS_TYPE_INT;
 		ast->arg.constval.value.intval = readInt(code, 0);
@@ -1191,13 +1153,13 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 
 		next(code);
 		ast = talloc(ptrs_ast_t);
-		ast->handler = ptrs_handle_indexlength;
+		ast->vtable = &ptrs_ast_vtable_indexlength;
 	}
 	else if(curr == '\'')
 	{
 		rawnext(code);
 		ast = talloc(ptrs_ast_t);
-		ast->handler = ptrs_handle_constant;
+		ast->vtable = &ptrs_ast_vtable_constant;
 		ast->arg.constval.meta.type = PTRS_TYPE_INT;
 
 		if(code->curr == '\\')
@@ -1223,14 +1185,14 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		ast = talloc(ptrs_ast_t);
 		if(insertions != NULL)
 		{
-			ast->handler = ptrs_handle_stringformat;
+			ast->vtable = &ptrs_ast_vtable_stringformat;
 			ast->arg.strformat.str = str;
 			ast->arg.strformat.insertions = insertions;
 			ast->arg.strformat.insertionCount = insertionCount;
 		}
 		else
 		{
-			ast->handler = ptrs_handle_constant;
+			ast->vtable = &ptrs_ast_vtable_constant;
 			ast->arg.constval.meta.type = PTRS_TYPE_NATIVE;
 			ast->arg.constval.value.strval = str;
 			ast->arg.constval.meta.array.readOnly = true;
@@ -1252,7 +1214,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		code->pos += len + 1;
 
 		ast = talloc(ptrs_ast_t);
-		ast->handler = ptrs_handle_constant;
+		ast->vtable = &ptrs_ast_vtable_constant;
 		ast->arg.constval.meta.type = PTRS_TYPE_NATIVE;
 		ast->arg.constval.value.strval = str;
 		ast->arg.constval.meta.array.readOnly = true;
@@ -1277,7 +1239,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 				symbolScope_increase(code, true);
 
 				ast = talloc(ptrs_ast_t);
-				ast->handler = ptrs_handle_function;
+				ast->vtable = &ptrs_ast_vtable_function;
 
 				ptrs_function_t *func = &ast->arg.function.func;
 				func->name = "(lambda expression)";
@@ -1293,7 +1255,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 				else
 				{
 					ptrs_ast_t *retStmt = talloc(ptrs_ast_t);
-					retStmt->handler = ptrs_handle_return;
+					retStmt->vtable = &ptrs_ast_vtable_return;
 					retStmt->arg.astval = parseExpression(code, true);
 					func->body = retStmt;
 				}
@@ -1318,12 +1280,6 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls, bool ignoreAlg
 		return NULL;
 	}
 
-	if(noSetHandler)
-	{
-		ast->setHandler = NULL;
-		ast->addressHandler = NULL;
-		ast->callHandler = NULL;
-	}
 	ast->codepos = pos;
 	ast->code = code->src;
 	ast->file = code->filename;
@@ -1344,10 +1300,7 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 	if(curr == '.' && code->src[code->pos + 1] != '.')
 	{
 		ptrs_ast_t *member = talloc(ptrs_ast_t);
-		member->handler = ptrs_handle_member;
-		member->setHandler = ptrs_handle_assign_member;
-		member->addressHandler = ptrs_handle_addressof_member;
-		member->callHandler = ptrs_handle_call_member;
+		member->vtable = &ptrs_ast_vtable_member;
 		member->codepos = code->pos;
 		member->code = code->src;
 		member->file = code->filename;
@@ -1392,9 +1345,7 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 
 		consumec(code, '(');
 
-		call->handler = ptrs_handle_call;
-		call->setHandler = NULL;
-		call->addressHandler = NULL;
+		call->vtable = &ptrs_ast_vtable_call;
 		call->codepos = code->pos;
 		call->code = code->src;
 		call->file = code->filename;
@@ -1420,17 +1371,14 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 
 		if(lookahead(code, ".."))
 		{
-			indexExpr->handler = ptrs_handle_slice;
+			indexExpr->vtable = &ptrs_ast_vtable_slice;
 			indexExpr->arg.slice.base = ast;
 			indexExpr->arg.slice.start = expr;
 			indexExpr->arg.slice.end = parseExpression(code, true);
 		}
 		else
 		{
-			indexExpr->handler = ptrs_handle_index;
-			indexExpr->setHandler = ptrs_handle_assign_index;
-			indexExpr->addressHandler = ptrs_handle_addressof_index;
-			indexExpr->callHandler = ptrs_handle_call_index;
+			indexExpr->vtable = &ptrs_ast_vtable_index;
 			indexExpr->arg.binary.left = ast;
 			indexExpr->arg.binary.right = expr;
 		}
@@ -1442,19 +1390,14 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 	else if(lookahead(code, "->"))
 	{
 		ptrs_ast_t *dereference = talloc(ptrs_ast_t);
-		dereference->handler = ptrs_handle_prefix_dereference;
-		dereference->setHandler = ptrs_handle_assign_dereference;
-		dereference->callHandler = NULL;
+		dereference->vtable = &ptrs_ast_vtable_prefix_dereference;
 		dereference->codepos = code->pos - 2;
 		dereference->code = code->src;
 		dereference->file = code->filename;
 		dereference->arg.astval = ast;
 
 		ptrs_ast_t *member = talloc(ptrs_ast_t);
-		member->handler = ptrs_handle_member;
-		member->setHandler = ptrs_handle_assign_member;
-		member->addressHandler = ptrs_handle_addressof_member;
-		member->callHandler = ptrs_handle_call_member;
+		member->vtable = &ptrs_ast_vtable_member;
 		member->codepos = code->pos;
 		member->code = code->src;
 		member->file = code->filename;
@@ -1467,17 +1410,15 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 	else
 	{
 		int pos = code->pos;
-		ptrs_asthandler_t handler = readSuffixOperator(code, NULL);
-		if(handler != NULL)
+		ptrs_ast_vtable_t *vtable = readSuffixOperator(code, NULL);
+		if(vtable != NULL)
 		{
 			ptrs_ast_t *opAst = talloc(ptrs_ast_t);
 			opAst->codepos = pos;
 			opAst->code = code->src;
 			opAst->file = code->filename;
 			opAst->arg.astval = ast;
-			opAst->handler = handler;
-			opAst->setHandler = NULL;
-			opAst->callHandler = NULL;
+			opAst->vtable = vtable;
 			return opAst;
 		}
 	}
@@ -1505,8 +1446,8 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end)
 		{
 			curr->expand = true;
 			curr->entry = parseExpression(code, true);
-			if(curr->entry->handler != ptrs_handle_identifier
-				&& curr->entry->handler != ptrs_handle_constant)
+			if(curr->entry->vtable != &ptrs_ast_vtable_identifier
+				&& curr->entry->vtable != &ptrs_ast_vtable_constant)
 				unexpectedm(code, NULL, "Array spreading can only be used on identifiers and constants");
 
 			if(curr->entry == NULL)
@@ -1534,7 +1475,7 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end)
 
 static void parseImport(code_t *code, ptrs_ast_t *stmt)
 {
-	stmt->handler = ptrs_handle_import;
+	stmt->vtable = &ptrs_ast_vtable_import;
 	stmt->arg.import.imports = NULL;
 	stmt->arg.import.lastImport = NULL;
 	stmt->arg.import.count = 0;
@@ -1619,7 +1560,7 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 	bool isEnd = false;
 	char isDefault = 0; //0 = nothing, 1 = default's head, 2 = default's body, 3 = done
 
-	stmt->handler = ptrs_handle_switch;
+	stmt->vtable = &ptrs_ast_vtable_switch;
 	stmt->arg.switchcase.defaultCase = NULL;
 
 	struct ptrs_ast_case first;
@@ -1645,7 +1586,7 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 			if(bodyStart != NULL)
 			{
 				expr = talloc(ptrs_ast_t);
-				expr->handler = ptrs_handle_body;
+				expr->vtable = &ptrs_ast_vtable_body;
 				expr->arg.astlist = bodyStart;
 			}
 			else
@@ -1685,7 +1626,7 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 				for(;;)
 				{
 					ptrs_ast_t *expr = parseExpression(code, true);
-					if(expr->handler != ptrs_handle_constant || expr->arg.constval.meta.type != PTRS_TYPE_INT)
+					if(expr->vtable != &ptrs_ast_vtable_constant || expr->arg.constval.meta.type != PTRS_TYPE_INT)
 						PTRS_HANDLE_ASTERROR(expr, "Expected integer constant");
 
 					currCase->next = talloc(struct ptrs_ast_case);
@@ -1698,7 +1639,7 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 					if(lookahead(code, ".."))
 					{
 						expr = parseExpression(code, true);
-						if(expr->handler != ptrs_handle_constant || expr->arg.constval.meta.type != PTRS_TYPE_INT)
+						if(expr->vtable != &ptrs_ast_vtable_constant || expr->arg.constval.meta.type != PTRS_TYPE_INT)
 							PTRS_HANDLE_ASTERROR(expr, "Expected integer constant");
 
 						currCase->max = expr->arg.constval.value.intval;
@@ -1760,7 +1701,7 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 
 		if(lookahead(code, "["))
 		{
-			ast->handler = ptrs_handle_vararray;
+			ast->vtable = &ptrs_ast_vtable_vararray;
 			ast->arg.define.location.constType = PTRS_TYPE_POINTER;
 			ast->arg.define.value = parseExpression(code, false);
 			consumec(code, ']');
@@ -1777,7 +1718,7 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 		}
 		else if(lookahead(code, "{"))
 		{
-			ast->handler = ptrs_handle_array;
+			ast->vtable = &ptrs_ast_vtable_array;
 			ast->arg.define.location.constType = PTRS_TYPE_NATIVE;
 			ast->arg.define.value = parseExpression(code, false);
 			consumec(code, '}');
@@ -1799,7 +1740,7 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 	}
 	else
 	{
-		ast->handler = ptrs_handle_new;
+		ast->vtable = &ptrs_ast_vtable_new;
 		ast->arg.define.location.constType = PTRS_TYPE_STRUCT;
 		ast->arg.newexpr.onStack = onStack;
 		ast->arg.newexpr.value = parseUnaryExpr(code, true, false);
@@ -1865,11 +1806,11 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 	ptrs_ast_t *structExpr = talloc(ptrs_ast_t);
 	ptrs_struct_t *struc = &structExpr->arg.structval;
 
-	ast->handler = ptrs_handle_new;
+	ast->vtable = &ptrs_ast_vtable_new;
 	ast->arg.newexpr.value = structExpr;
 	ast->arg.newexpr.arguments = NULL;
 
-	structExpr->handler = ptrs_handle_struct;
+	structExpr->vtable = &ptrs_ast_vtable_struct;
 
 	struc->location = NULL;
 	struc->size = 0;
@@ -1925,7 +1866,7 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 			else
 			{
 				ptrs_ast_t *retStmt = talloc(ptrs_ast_t);
-				retStmt->handler = ptrs_handle_return;
+				retStmt->vtable = &ptrs_ast_vtable_return;
 				retStmt->arg.astval = parseExpression(code, true);
 				func->body = retStmt;
 			}
@@ -1994,7 +1935,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 	ptrs_ast_t *oldAst;
 	if(ptrs_ast_getSymbol(code->symbols, structName, &oldAst) == 0)
 	{
-		if(oldAst->handler != ptrs_handle_identifier)
+		if(oldAst->vtable != &ptrs_ast_vtable_identifier)
 			PTRS_HANDLE_ASTERROR(NULL, "Cannot redefine special symbol %s as a struct", structName);
 
 		struc->location = oldAst->arg.varval;
@@ -2062,7 +2003,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 						func->args = createParameterList(code, 1, otherName, PTRS_TYPE_NATIVE);
 
 						nameFormat = "%1$s.op &this[%3$s]";
-						overload->op = ptrs_handle_addressof_member;
+						overload->op = ptrs_ast_vtable_member.addressof;
 					}
 					else if(lookahead(code, "="))
 					{
@@ -2071,7 +2012,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 							otherName, PTRS_TYPE_NATIVE, opLabel, (ptrs_vartype_t)-1);
 
 						nameFormat = "%1$s.op this[%3$s] = %2$s";
-						overload->op = ptrs_handle_assign_member;
+						overload->op = ptrs_ast_vtable_member.set;
 					}
 					else if(code->curr == '(')
 					{
@@ -2089,20 +2030,20 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 						addSymbol(code, strdup(otherName), &nameArg->arg);
 
 						nameFormat = "%1$s.op this[%3$s]()";
-						overload->op = ptrs_handle_call_member;
+						overload->op = ptrs_ast_vtable_member.call;
 					}
 					else
 					{
 						func->args = createParameterList(code, 1, otherName, PTRS_TYPE_NATIVE);
 
 						nameFormat = "%1$s.op this[%3$s]";
-						overload->op = ptrs_handle_member;
+						overload->op = ptrs_ast_vtable_member.get;
 					}
 				}
 				else if(curr == '(')
 				{
 					func->args = parseArgumentDefinitionList(code, &func->vararg);
-					overload->op = ptrs_handle_call;
+					overload->op = ptrs_ast_vtable_call.get;
 
 					nameFormat = "%1$s.op this()";
 				}
@@ -2116,7 +2057,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				consume(code, "this");
 
 				nameFormat = "%1$s.op sizeof this";
-				overload->op = ptrs_handle_prefix_sizeof;
+				overload->op = ptrs_ast_vtable_prefix_sizeof.get;
 
 				func->args = NULL;
 			}
@@ -2126,7 +2067,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				consume(code, "this");
 
 				nameFormat = "%1$s.op foreach in this";
-				overload->op = ptrs_handle_forin;
+				overload->op = ptrs_ast_vtable_forin.get;
 
 				func->args = createParameterList(code, 2, NULL, NULL, NULL, NULL);
 
@@ -2142,7 +2083,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				{
 					otherName = NULL;
 					nameFormat = "%1$s.op cast<string>this";
-					overload->op = ptrs_handle_tostring;
+					overload->op = ptrs_ast_vtable_tostring.get;
 
 					func->args = NULL;
 				}
@@ -2150,7 +2091,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				{
 					otherName = readIdentifier(code);
 					nameFormat = "%1$s.op cast<%3$s>this";
-					overload->op = ptrs_handle_cast_builtin;
+					overload->op = ptrs_ast_vtable_cast_builtin.get;
 
 					func->args = createParameterList(code, 1, otherName, PTRS_TYPE_NATIVE);
 				}
@@ -2165,7 +2106,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				{
 					consume(code, "this");
 					nameFormat = "%1$s.op %3$s in this";
-					overload->op = ptrs_handle_op_in;
+					overload->op = ptrs_ast_vtable_op_in.get;
 
 					func->args = createParameterList(code, 1, otherName, PTRS_TYPE_NATIVE);
 				}
@@ -2191,7 +2132,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			sprintf(name, "%s.constructor", structName);
 
 			struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
-			overload->op = ptrs_handle_new;
+			overload->op = ptrs_ast_vtable_new.get;
 			overload->handler = parseFunction(code, name);
 			overload->isStatic = isStatic;
 
@@ -2205,7 +2146,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			sprintf(name, "%s.destructor", structName);
 
 			struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
-			overload->op = ptrs_handle_delete;
+			overload->op = ptrs_ast_vtable_delete.get;
 			overload->handler = parseFunction(code, name);
 			overload->isStatic = isStatic;
 
@@ -2315,7 +2256,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 			consumec(code, ';');
 
-			if(ast->handler != ptrs_handle_constant)
+			if(ast->vtable != &ptrs_ast_vtable_constant)
 				PTRS_HANDLE_ASTERROR(ast, "Struct array member size must be a constant");
 
 			curr->value.array.size = ast->arg.constval.value.intval * sizeof(ptrs_var_t);
@@ -2343,7 +2284,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 			consumec(code, ';');
 
-			if(ast->handler != ptrs_handle_constant)
+			if(ast->vtable != &ptrs_ast_vtable_constant)
 				PTRS_HANDLE_ASTERROR(ast, "Struct array member size must be a constant");
 
 			curr->value.array.size = ast->arg.constval.value.intval;
@@ -2535,7 +2476,7 @@ static ptrs_nativetype_info_t *readNativeType(code_t *code)
 	return NULL;
 }
 
-static ptrs_asthandler_t readOperatorFrom(code_t *code, const char **label, struct opinfo *ops, int opCount)
+static ptrs_ast_vtable_t *readOperatorFrom(code_t *code, const char **label, struct opinfo *ops, int opCount)
 {
 	for(int i = 0; i < opCount; i++)
 	{
@@ -2543,23 +2484,19 @@ static ptrs_asthandler_t readOperatorFrom(code_t *code, const char **label, stru
 		{
 			if(label != NULL)
 				*label = ops[i].op;
-			return ops[i].handler;
+			return ops[i].vtable;
 		}
 	}
 	return NULL;
 }
-static ptrs_asthandler_t readPrefixOperator(code_t *code, const char **label)
+static ptrs_ast_vtable_t *readPrefixOperator(code_t *code, const char **label)
 {
 	return readOperatorFrom(code, label, prefixOps, prefixOpCount);
 }
-static ptrs_asthandler_t readSuffixOperator(code_t *code, const char **label)
+static ptrs_ast_vtable_t *readSuffixOperator(code_t *code, const char **label)
 {
 	return readOperatorFrom(code, label, suffixedOps, suffixedOpCount);
 }
-/*static ptrs_asthandler_t readBinaryOperator(code_t *code, const char **label)
-{
-	return readOperatorFrom(code, label, binaryOps, binaryOpCount);
-}*/
 
 static char *readIdentifier(code_t *code)
 {

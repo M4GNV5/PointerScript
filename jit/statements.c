@@ -26,7 +26,7 @@ ptrs_jit_var_t ptrs_handle_body(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 		ptrs_lastAst = list->entry;
 		jit_insn_mark_offset(func, list->entry->codepos);
 
-		result = list->entry->handler(list->entry, func, scope);
+		result = list->entry->vtable->get(list->entry, func, scope);
 		list = list->next;
 	}
 
@@ -40,7 +40,7 @@ ptrs_jit_var_t ptrs_handle_define(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 
 	if(stmt->value != NULL)
 	{
-		val = stmt->value->handler(stmt->value, func, scope);
+		val = stmt->value->vtable->get(stmt->value, func, scope);
 	}
 	else
 	{
@@ -95,7 +95,7 @@ ptrs_jit_var_t ptrs_handle_typeddefine(ptrs_ast_t *node, jit_function_t func, pt
 	ptrs_jit_var_t val;
 	if(stmt->value != NULL)
 	{
-		val = stmt->value->handler(stmt->value, func, scope);
+		val = stmt->value->vtable->get(stmt->value, func, scope);
 
 		if(val.constType == -1 && stmt->type >= PTRS_NUM_TYPES)
 			ptrs_error(node, "Initializer of untyped let statement has a dynamic type");
@@ -161,11 +161,11 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 
 	ptrs_jit_var_t init;
 	if(stmt->isInitExpr)
-		init = stmt->initExpr->handler(stmt->initExpr, func, scope);
+		init = stmt->initExpr->vtable->get(stmt->initExpr, func, scope);
 
 	if(stmt->value != NULL)
 	{
-		val = stmt->value->handler(stmt->value, func, scope);
+		val = stmt->value->vtable->get(stmt->value, func, scope);
 		size = ptrs_jit_vartoi(func, val);
 	}
 	else
@@ -246,7 +246,7 @@ ptrs_jit_var_t ptrs_handle_vararray(ptrs_ast_t *node, jit_function_t func, ptrs_
 
 	if(stmt->value != NULL)
 	{
-		val = stmt->value->handler(stmt->value, func, scope);
+		val = stmt->value->vtable->get(stmt->value, func, scope);
 		size = ptrs_jit_vartoi(func, val);
 		byteSize = jit_insn_mul(func, size, jit_const_int(func, nuint, sizeof(ptrs_var_t)));
 	}
@@ -346,7 +346,7 @@ static void importScript(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *sc
 		cache->symbols = NULL;
 		cache->ast = ptrs_parse(src, from, &cache->symbols);
 
-		cache->ast->handler(cache->ast, func, scope);
+		cache->ast->vtable->get(cache->ast, func, scope);
 
 		cache->next = ptrs_cache;
 		ptrs_cache = cache;
@@ -421,7 +421,7 @@ ptrs_jit_var_t ptrs_handle_import(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	}
 	else
 	{
-		from = stmt->from->handler(stmt->from, func, scope);
+		from = stmt->from->vtable->get(stmt->from, func, scope);
 
 		if(!jit_value_is_constant(from.val) || !jit_value_is_constant(from.meta))
 			ptrs_error(node, "Dynamic imports are not supported");
@@ -483,7 +483,7 @@ ptrs_jit_var_t ptrs_handle_return(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	}
 	else
 	{
-		ret = node->handler(node, func, scope);
+		ret = node->vtable->get(node, func, scope);
 	}
 
 	if(scope->returnAddr == NULL)
@@ -548,7 +548,7 @@ void ptrs_delete(ptrs_ast_t *node, ptrs_val_t val, ptrs_meta_t meta)
 ptrs_jit_var_t ptrs_handle_delete(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	ptrs_ast_t *ast = node->arg.astval;
-	ptrs_jit_var_t val = ast->handler(ast, func, scope);
+	ptrs_jit_var_t val = ast->vtable->get(ast, func, scope);
 
 	jit_value_t astval = jit_const_int(func, void_ptr, (uintptr_t)node);
 	ptrs_jit_reusableCallVoid(func, ptrs_delete,
@@ -560,7 +560,7 @@ ptrs_jit_var_t ptrs_handle_delete(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 ptrs_jit_var_t ptrs_handle_throw(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	ptrs_ast_t *ast = node->arg.astval;
-	ptrs_jit_var_t val = ast->handler(ast, func, scope);
+	ptrs_jit_var_t val = ast->vtable->get(ast, func, scope);
 	val = ptrs_jit_vartoa(func, val);
 
 	jit_value_t nodeVal = jit_const_int(func, void_ptr, (uintptr_t)node);
@@ -595,6 +595,7 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 	return ret;
 }
 
+ptrs_jit_var_t ptrs_handle_new(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	ptrs_struct_t *struc = &node->arg.structval;
@@ -676,7 +677,7 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 		else if(curr->type == PTRS_STRUCTMEMBER_VAR)
 		{
 			ptrs_ast_t *ast = curr->value.startval;
-			ptrs_jit_var_t startVal = ast->handler(ast, currFunc, currScope);
+			ptrs_jit_var_t startVal = ast->vtable->get(ast, currFunc, currScope);
 			jit_value_t addr = jit_insn_add_relative(currFunc, currData, curr->offset);
 			jit_insn_store_relative(currFunc, addr, 0, startVal.val);
 			jit_insn_store_relative(currFunc, addr, sizeof(ptrs_val_t), startVal.meta);
@@ -748,12 +749,12 @@ ptrs_jit_var_t ptrs_handle_if(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 {
 	struct ptrs_ast_ifelse *stmt = &node->arg.ifelse;
 
-	ptrs_jit_var_t condition = stmt->condition->handler(stmt->condition, func, scope);
+	ptrs_jit_var_t condition = stmt->condition->vtable->get(stmt->condition, func, scope);
 
 	jit_label_t isFalse = jit_label_undefined;
 	ptrs_jit_branch_if_not(func, &isFalse, condition);
 
-	stmt->ifBody->handler(stmt->ifBody, func, scope);
+	stmt->ifBody->vtable->get(stmt->ifBody, func, scope);
 
 	if(stmt->elseBody != NULL)
 	{
@@ -761,7 +762,7 @@ ptrs_jit_var_t ptrs_handle_if(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 		jit_insn_branch(func, &end);
 
 		jit_insn_label(func, &isFalse);
-		stmt->elseBody->handler(stmt->elseBody, func, scope);
+		stmt->elseBody->vtable->get(stmt->elseBody, func, scope);
 
 		jit_insn_label(func, &end);
 	}
@@ -780,7 +781,7 @@ ptrs_jit_var_t ptrs_handle_switch(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	jit_label_t done = jit_label_undefined;
 	int64_t interval = stmt->max - stmt->min + 1;
 
-	ptrs_jit_var_t condition = stmt->condition->handler(stmt->condition, func, scope);
+	ptrs_jit_var_t condition = stmt->condition->vtable->get(stmt->condition, func, scope);
 	jit_value_t val = ptrs_jit_vartoi(func, condition);
 
 	if(jit_value_is_constant(condition.val))
@@ -792,14 +793,14 @@ ptrs_jit_var_t ptrs_handle_switch(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 		{
 			if(curr->min > _val && _val < curr->max)
 			{
-				curr->body->handler(curr->body, func, scope);
+				curr->body->vtable->get(curr->body, func, scope);
 				hadCase = true;
 			}
 			curr = curr->next;
 		}
 
 		if(!hadCase)
-			stmt->defaultCase->handler(stmt->defaultCase, func, scope);
+			stmt->defaultCase->vtable->get(stmt->defaultCase, func, scope);
 	}
 	else if(stmt->caseCount > 2 && interval < 0x1000 && interval / stmt->caseCount < 50)
 	{
@@ -827,7 +828,7 @@ ptrs_jit_var_t ptrs_handle_switch(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 				curr = curr->next;
 			}
 
-			body->handler(body, func, scope);
+			body->vtable->get(body, func, scope);
 
 			jit_insn_branch(func, &done);
 		}
@@ -842,7 +843,7 @@ ptrs_jit_var_t ptrs_handle_switch(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 				if(!hasCase[i])
 					jit_insn_label(func, table + i);
 			}
-			stmt->defaultCase->handler(stmt->defaultCase, func, scope);
+			stmt->defaultCase->vtable->get(stmt->defaultCase, func, scope);
 			jit_insn_branch(func, &done);
 
 			//let all values outside of the jump table jump to the default label
@@ -876,7 +877,7 @@ ptrs_jit_var_t ptrs_handle_switch(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 
 		if(stmt->defaultCase != NULL)
 		{
-			stmt->defaultCase->handler(stmt->defaultCase, func, scope);
+			stmt->defaultCase->vtable->get(stmt->defaultCase, func, scope);
 			jit_insn_branch(func, &done);
 		}
 
@@ -892,7 +893,7 @@ ptrs_jit_var_t ptrs_handle_switch(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 				i++;
 			}
 
-			body->handler(body, func, scope);
+			body->vtable->get(body, func, scope);
 
 			jit_insn_branch(func, &done);
 		}
@@ -914,13 +915,13 @@ ptrs_jit_var_t ptrs_handle_while(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	jit_insn_label(func, &scope->continueLabel);
 
 	//evaluate the condition
-	val = stmt->condition->handler(stmt->condition, func, scope);
+	val = stmt->condition->vtable->get(stmt->condition, func, scope);
 
 	jit_label_t end = jit_label_undefined;
 	ptrs_jit_branch_if_not(func, &end, val);
 
 	//run the while body, jumping back the condition check afterwords
-	val = stmt->body->handler(stmt->body, func, scope);
+	val = stmt->body->vtable->get(stmt->body, func, scope);
 	jit_insn_branch(func, &scope->continueLabel);
 
 	//after the loop - patch the end and breaks
@@ -946,13 +947,13 @@ ptrs_jit_var_t ptrs_handle_dowhile(ptrs_ast_t *node, jit_function_t func, ptrs_s
 	jit_insn_label(func, &start);
 
 	//run the while body
-	ptrs_jit_var_t val = stmt->body->handler(stmt->body, func, scope);
+	ptrs_jit_var_t val = stmt->body->vtable->get(stmt->body, func, scope);
 
 	//patch all continues to after the body & before the condition check
 	jit_insn_label(func, &scope->continueLabel);
 
 	//evaluate the condition
-	ptrs_jit_var_t condition = stmt->condition->handler(stmt->condition, func, scope);
+	ptrs_jit_var_t condition = stmt->condition->vtable->get(stmt->condition, func, scope);
 	ptrs_jit_branch_if(func, &start, condition);
 
 	//after the loop - patch the breaks
@@ -969,7 +970,7 @@ ptrs_jit_var_t ptrs_handle_for(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 	struct ptrs_ast_for *stmt = &node->arg.forstatement;
 	ptrs_jit_var_t val;
 
-	stmt->init->handler(stmt->init, func, scope);
+	stmt->init->vtable->get(stmt->init, func, scope);
 
 	jit_label_t oldContinue = scope->continueLabel;
 	jit_label_t oldBreak = scope->breakLabel;
@@ -979,16 +980,16 @@ ptrs_jit_var_t ptrs_handle_for(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 	jit_insn_label(func, &scope->continueLabel);
 
 	//evaluate the condition
-	val = stmt->condition->handler(stmt->condition, func, scope);
+	val = stmt->condition->vtable->get(stmt->condition, func, scope);
 
 	jit_label_t end = jit_label_undefined;
 	ptrs_jit_branch_if_not(func, &end, val);
 
 	//run the while body, jumping back the condition check afterwords
-	val = stmt->body->handler(stmt->body, func, scope);
+	val = stmt->body->vtable->get(stmt->body, func, scope);
 
 	//run the step expression
-	stmt->step->handler(stmt->step, func, scope);
+	stmt->step->vtable->get(stmt->step, func, scope);
 
 	jit_insn_branch(func, &scope->continueLabel);
 
@@ -1101,7 +1102,7 @@ static uint8_t foreachInStruct(ptrs_ast_t *node, void *data, ptrs_meta_t meta,
 ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_forin *stmt = &node->arg.forin;
-	ptrs_jit_var_t val = stmt->value->handler(stmt->value, func, scope);
+	ptrs_jit_var_t val = stmt->value->vtable->get(stmt->value, func, scope);
 
 	int totalArgCount = stmt->varcount * 2 + 1;
 	jit_type_t argDef[totalArgCount];
@@ -1150,7 +1151,7 @@ ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	ptrs_initScope(&bodyScope, scope);
 	bodyScope.returnAddr = jit_value_get_param(body, 0);
 
-	stmt->body->handler(stmt->body, body, &bodyScope);
+	stmt->body->vtable->get(stmt->body, body, &bodyScope);
 
 	jit_insn_return(body, jit_const_int(body, ubyte, 0));
 
@@ -1225,7 +1226,7 @@ ptrs_jit_var_t ptrs_handle_scopestatement(ptrs_ast_t *node, jit_function_t func,
 	ptrs_initScope(&bodyScope, scope);
 	bodyScope.returnAddr = jit_value_get_param(bodyFunc, 0);
 
-	body->handler(body, bodyFunc, &bodyScope);
+	body->vtable->get(body, bodyFunc, &bodyScope);
 	jit_insn_return(func, jit_const_int(func, ubyte, 0));
 	ptrs_jit_placeAssertions(bodyFunc, scope);
 
@@ -1271,5 +1272,5 @@ ptrs_jit_var_t ptrs_handle_exprstatement(ptrs_ast_t *node, jit_function_t func, 
 	ptrs_ast_t *expr = node->arg.astval;
 
 	if(expr != NULL)
-		return expr->handler(expr, func, scope);
+		return expr->vtable->get(expr, func, scope);
 }

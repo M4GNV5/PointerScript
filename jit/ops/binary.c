@@ -162,8 +162,8 @@ static jit_type_t getIntrinsicSignature()
 	{ \
 		struct ptrs_ast_binary *expr = &node->arg.binary; \
 		\
-		ptrs_jit_var_t left = expr->left->handler(expr->left, func, scope); \
-		ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope); \
+		ptrs_jit_var_t left = expr->left->vtable->get(expr->left, func, scope); \
+		ptrs_jit_var_t right = expr->right->vtable->get(expr->right, func, scope); \
 		\
 		if(left.constType != -1 && right.constType != -1) \
 		{ \
@@ -254,8 +254,8 @@ static jit_type_t getIntrinsicSignature()
 	{ \
 		struct ptrs_ast_binary *expr = &node->arg.binary; \
 		\
-		ptrs_jit_var_t left = expr->left->handler(expr->left, func, scope); \
-		ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope); \
+		ptrs_jit_var_t left = expr->left->vtable->get(expr->left, func, scope); \
+		ptrs_jit_var_t right = expr->right->vtable->get(expr->right, func, scope); \
 		\
 		if(left.constType != -1 && right.constType != -1) \
 		{ \
@@ -303,8 +303,8 @@ static jit_type_t getIntrinsicSignature()
 	{ \
 		struct ptrs_ast_binary *expr = &node->arg.binary; \
 		\
-		ptrs_jit_var_t left = expr->left->handler(expr->left, func, scope); \
-		ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope); \
+		ptrs_jit_var_t left = expr->left->vtable->get(expr->left, func, scope); \
+		ptrs_jit_var_t right = expr->right->vtable->get(expr->right, func, scope); \
 		\
 		if(left.constType == PTRS_TYPE_FLOAT && right.constType == PTRS_TYPE_FLOAT) \
 		{ \
@@ -345,12 +345,12 @@ static jit_type_t getIntrinsicSignature()
 		struct ptrs_ast_binary *expr = &node->arg.binary; \
 		\
 		/*evaluate the left-side expression*/ \
-		ptrs_jit_var_t left = expr->left->handler(expr->left, func, scope); \
+		ptrs_jit_var_t left = expr->left->vtable->get(expr->left, func, scope); \
 		if(jit_value_is_constant(left.val) && jit_value_is_constant(left.meta)) \
 		{ \
 			jit_long constVal = jit_value_get_long_constant(ptrs_jit_vartob(func, left)); \
 			if(constVal constComparer true) \
-				return expr->right->handler(expr->right, func, scope); \
+				return expr->right->vtable->get(expr->right, func, scope); \
 			\
 			ptrs_jit_var_t ret = { \
 				.val = jit_const_long(func, long, 0), \
@@ -373,7 +373,7 @@ static jit_type_t getIntrinsicSignature()
 		ptrs_jit_branch_##comparer(func, &skip, left); \
 		\
 		/*overwrite the return value with the right-side expression*/ \
-		ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope); \
+		ptrs_jit_var_t right = expr->right->vtable->get(expr->right, func, scope); \
 		jit_insn_store(func, tmp.val, right.val); \
 		jit_insn_store(func, tmp.meta, right.meta); \
 		\

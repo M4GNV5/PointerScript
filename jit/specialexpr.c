@@ -17,13 +17,13 @@ ptrs_jit_var_t ptrs_handle_call(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 {
 	struct ptrs_ast_call *expr = &node->arg.call;
 
-	if(expr->value->callHandler != NULL)
+	if(expr->value->vtable->call != NULL)
 	{
-		return expr->value->callHandler(expr->value, func, scope, node, expr->retType, expr->arguments);
+		return expr->value->vtable->call(expr->value, func, scope, node, expr->retType, expr->arguments);
 	}
 	else
 	{
-		ptrs_jit_var_t val = expr->value->handler(expr->value, func, scope);
+		ptrs_jit_var_t val = expr->value->vtable->get(expr->value, func, scope);
 		return ptrs_jit_call(node, func, scope,
 			expr->retType, jit_const_int(func, void_ptr, 0), val, expr->arguments);
 	}
@@ -46,7 +46,7 @@ ptrs_jit_var_t ptrs_handle_stringformat(ptrs_ast_t *node, jit_function_t func, p
 	struct ptrs_stringformat *curr = expr->insertions;
 	for(int i = 3; i < argCount; i++)
 	{
-		ptrs_jit_var_t val = curr->entry->handler(curr->entry, func, scope);
+		ptrs_jit_var_t val = curr->entry->vtable->get(curr->entry, func, scope);
 
 		if(curr->convert)
 			val = ptrs_jit_vartoa(func, val);
@@ -83,7 +83,7 @@ ptrs_jit_var_t ptrs_handle_stringformat(ptrs_ast_t *node, jit_function_t func, p
 ptrs_jit_var_t ptrs_handle_new(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_new *expr = &node->arg.newexpr;
-	ptrs_jit_var_t val = expr->value->handler(expr->value, func, scope);
+	ptrs_jit_var_t val = expr->value->vtable->get(expr->value, func, scope);
 
 	return ptrs_struct_construct(node, func, scope,
 		val, expr->arguments, expr->onStack);
@@ -92,7 +92,7 @@ ptrs_jit_var_t ptrs_handle_new(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 ptrs_jit_var_t ptrs_handle_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_member *expr = &node->arg.member;
-	ptrs_jit_var_t base = expr->base->handler(expr->base, func, scope);
+	ptrs_jit_var_t base = expr->base->vtable->get(expr->base, func, scope);
 	jit_value_t key = jit_const_int(func, void_ptr, (uintptr_t)expr->name);
 	jit_value_t keyLen = jit_const_int(func, int, expr->namelen);
 
@@ -102,7 +102,7 @@ void ptrs_handle_assign_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 	ptrs_jit_var_t val)
 {
 	struct ptrs_ast_member *expr = &node->arg.member;
-	ptrs_jit_var_t base = expr->base->handler(expr->base, func, scope);
+	ptrs_jit_var_t base = expr->base->vtable->get(expr->base, func, scope);
 	jit_value_t key = jit_const_int(func, void_ptr, (uintptr_t)expr->name);
 	jit_value_t keyLen = jit_const_int(func, int, expr->namelen);
 
@@ -111,7 +111,7 @@ void ptrs_handle_assign_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 ptrs_jit_var_t ptrs_handle_addressof_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_member *expr = &node->arg.member;
-	ptrs_jit_var_t base = expr->base->handler(expr->base, func, scope);
+	ptrs_jit_var_t base = expr->base->vtable->get(expr->base, func, scope);
 	jit_value_t key = jit_const_int(func, void_ptr, (uintptr_t)expr->name);
 	jit_value_t keyLen = jit_const_int(func, int, expr->namelen);
 
@@ -121,7 +121,7 @@ ptrs_jit_var_t ptrs_handle_call_member(ptrs_ast_t *node, jit_function_t func, pt
 	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments)
 {
 	struct ptrs_ast_member *expr = &node->arg.member;
-	ptrs_jit_var_t base = expr->base->handler(expr->base, func, scope);
+	ptrs_jit_var_t base = expr->base->vtable->get(expr->base, func, scope);
 	jit_value_t key = jit_const_int(func, void_ptr, (uintptr_t)expr->name);
 	jit_value_t keyLen = jit_const_int(func, int, expr->namelen);
 
@@ -132,7 +132,7 @@ ptrs_jit_var_t ptrs_handle_prefix_sizeof(ptrs_ast_t *node, jit_function_t func, 
 {
 	node = node->arg.astval;
 
-	ptrs_jit_var_t val = node->handler(node, func, scope);
+	ptrs_jit_var_t val = node->vtable->get(node, func, scope);
 
 	ptrs_jit_var_t ret = {
 		.val = jit_value_create(func, jit_type_long),
@@ -171,16 +171,16 @@ ptrs_jit_var_t ptrs_handle_prefix_address(ptrs_ast_t *node, jit_function_t func,
 {
 	node = node->arg.astval;
 
-	if(node->addressHandler == NULL)
+	if(node->vtable->addressof == NULL)
 		ptrs_error(node, "Cannot get address of temporary or constant value");
 
-	return node->addressHandler(node, func, scope);
+	return node->vtable->addressof(node, func, scope);
 }
 
 ptrs_jit_var_t ptrs_handle_prefix_dereference(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	node = node->arg.astval;
-	ptrs_jit_var_t val = node->handler(node, func, scope);
+	ptrs_jit_var_t val = node->vtable->get(node, func, scope);
 
 	ptrs_jit_var_t ret = {
 		jit_value_create(func, jit_type_long),
@@ -210,7 +210,7 @@ ptrs_jit_var_t ptrs_handle_prefix_dereference(ptrs_ast_t *node, jit_function_t f
 void ptrs_handle_assign_dereference(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
 {
 	node = node->arg.astval;
-	ptrs_jit_var_t base = node->handler(node, func, scope);
+	ptrs_jit_var_t base = node->vtable->get(node, func, scope);
 
 	ptrs_jit_typeSwitch(node, func, scope, base,
 		(1, "Cannot dereference variable of type %t", TYPESWITCH_TYPE),
@@ -242,12 +242,12 @@ ptrs_jit_var_t ptrs_handle_indexlength(ptrs_ast_t *node, jit_function_t func, pt
 #define ptrs_handle_index_common(structOp, arraySetup, nativeOp, pointerOp) \
 	do { \
 		struct ptrs_ast_binary *expr = &node->arg.binary; \
-		ptrs_jit_var_t base = expr->left->handler(expr->left, func, scope); \
+		ptrs_jit_var_t base = expr->left->vtable->get(expr->left, func, scope); \
 		\
 		jit_value_t oldSize = scope->indexSize; \
 		jit_value_t arraySize = ptrs_jit_getArraySize(func, base.meta); \
 		scope->indexSize = arraySize; \
-		ptrs_jit_var_t index = expr->right->handler(expr->right, func, scope); \
+		ptrs_jit_var_t index = expr->right->vtable->get(expr->right, func, scope); \
 		scope->indexSize = oldSize; \
 		\
 		jit_label_t isArray = jit_label_undefined; \
@@ -456,16 +456,16 @@ ptrs_jit_var_t ptrs_handle_slice(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 {
 	struct ptrs_ast_slice *expr = &node->arg.slice;
 
-	ptrs_jit_var_t val = expr->base->handler(expr->base, func, scope);
+	ptrs_jit_var_t val = expr->base->vtable->get(expr->base, func, scope);
 	jit_value_t type = ptrs_jit_getType(func, val.meta);
 
 	jit_value_t oldSize = scope->indexSize;
 	scope->indexSize = ptrs_jit_getArraySize(func, val.meta);
 
 	jit_value_t start = ptrs_jit_vartoi(func,
-		expr->start->handler(expr->start, func, scope));
+		expr->start->vtable->get(expr->start, func, scope));
 	jit_value_t end = ptrs_jit_vartoi(func,
-		expr->end->handler(expr->end, func, scope));
+		expr->end->vtable->get(expr->end, func, scope));
 
 	jit_value_t newSize = jit_insn_sub(func, end, start);
 	jit_value_t newPtr = jit_value_create(func, jit_type_void_ptr);
@@ -512,7 +512,7 @@ ptrs_jit_var_t ptrs_handle_as(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 {
 	struct ptrs_ast_cast *expr = &node->arg.cast;
 
-	ptrs_jit_var_t val = expr->value->handler(expr->value, func, scope);
+	ptrs_jit_var_t val = expr->value->vtable->get(expr->value, func, scope);
 
 	if(expr->builtinType != PTRS_TYPE_FLOAT)
 		val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
@@ -525,7 +525,7 @@ ptrs_jit_var_t ptrs_handle_as(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 ptrs_jit_var_t ptrs_handle_cast_builtin(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_cast *expr = &node->arg.cast;
-	ptrs_jit_var_t val = expr->value->handler(expr->value, func, scope);
+	ptrs_jit_var_t val = expr->value->vtable->get(expr->value, func, scope);
 
 	switch(expr->builtinType)
 	{
@@ -549,7 +549,7 @@ ptrs_jit_var_t ptrs_handle_cast_builtin(ptrs_ast_t *node, jit_function_t func, p
 ptrs_jit_var_t ptrs_handle_tostring(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_cast *expr = &node->arg.cast;
-	ptrs_jit_var_t val = expr->value->handler(expr->value, func, scope);
+	ptrs_jit_var_t val = expr->value->vtable->get(expr->value, func, scope);
 
 	return ptrs_jit_vartoa(func, val);
 }
@@ -558,11 +558,11 @@ ptrs_jit_var_t ptrs_handle_cast(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 {
 	struct ptrs_ast_cast *expr = &node->arg.cast;
 
-	ptrs_jit_var_t type = expr->type->handler(expr->type, func, scope);
+	ptrs_jit_var_t type = expr->type->vtable->get(expr->type, func, scope);
 	ptrs_jit_typeCheck(node, func, scope, type, PTRS_TYPE_STRUCT,
 		"Cast target is of type %t not struct");
 
-	ptrs_jit_var_t val = expr->value->handler(expr->value, func, scope);
+	ptrs_jit_var_t val = expr->value->vtable->get(expr->value, func, scope);
 
 	val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
 	val.meta = type.meta;
@@ -579,7 +579,7 @@ ptrs_jit_var_t ptrs_handle_importedsymbol(ptrs_ast_t *node, jit_function_t func,
 	if(stmt->isScriptImport)
 	{
 		ptrs_ast_t *ast = stmt->expressions[expr->index];
-		return ast->handler(ast, func, scope);
+		return ast->vtable->get(ast, func, scope);
 	}
 	else if(expr->type == NULL)
 	{
@@ -607,22 +607,23 @@ void ptrs_handle_assign_importedsymbol(ptrs_ast_t *node, jit_function_t func, pt
 	if(stmt->isScriptImport)
 	{
 		ptrs_ast_t *ast = stmt->expressions[expr->index];
-		if(ast->setHandler == NULL)
+		if(ast->vtable->set == NULL)
 			ptrs_error(node, "Invalid assign expression, left side is not a valid lvalue");
-		else
-			ast->setHandler(ast, func, scope, val);
 
+		ast->vtable->set(ast, func, scope, val);
 		return;
 	}
-
-	if(expr->type == NULL)
+	else
 	{
-		ptrs_error(node, "Cannot re-assign an imported function");
-	}
+		if(expr->type == NULL)
+		{
+			ptrs_error(node, "Cannot re-assign an imported function");
+		}
 
-	jit_value_t addr = jit_const_int(func, void_ptr,
-		(uintptr_t)stmt->symbols[expr->index].value.nativeval);
-	ptrs_jit_assignTypedFromVar(func, addr, expr->type->jitType, val);
+		jit_value_t addr = jit_const_int(func, void_ptr,
+			(uintptr_t)stmt->symbols[expr->index].value.nativeval);
+		ptrs_jit_assignTypedFromVar(func, addr, expr->type->jitType, val);
+	}
 }
 ptrs_jit_var_t ptrs_handle_call_importedsymbol(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments)
@@ -634,10 +635,10 @@ ptrs_jit_var_t ptrs_handle_call_importedsymbol(ptrs_ast_t *node, jit_function_t 
 	if(stmt->isScriptImport)
 	{
 		ptrs_ast_t *ast = stmt->expressions[expr->index];
-		if(ast->callHandler != NULL)
-			return ast->callHandler(ast, func, scope, caller, retType, arguments);
+		if(ast->vtable->call != NULL)
+			return ast->vtable->call(ast, func, scope, caller, retType, arguments);
 		else
-			val = ast->handler(ast, func, scope);
+			val = ast->vtable->get(ast, func, scope);
 	}
 	else if(expr->type == NULL)
 	{
@@ -666,10 +667,10 @@ ptrs_jit_var_t ptrs_handle_addressof_importedsymbol(ptrs_ast_t *node,
 	if(stmt->isScriptImport)
 	{
 		ptrs_ast_t *ast = stmt->expressions[expr->index];
-		if(ast->addressHandler != NULL)
-			return ast->addressHandler(ast, func, scope);
-		else
+		if(ast->vtable->addressof == NULL)
 			ptrs_error(node, "Cannot get address of temporary or constant value");
+		
+		return ast->vtable->addressof(ast, func, scope);
 	}
 	else if(expr->type == NULL)
 	{
@@ -834,7 +835,7 @@ ptrs_jit_var_t ptrs_handle_constant(ptrs_ast_t *node, jit_function_t func, ptrs_
 ptrs_jit_var_t ptrs_handle_prefix_typeof(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	node = node->arg.astval;
-	ptrs_jit_var_t val = node->handler(node, func, scope);
+	ptrs_jit_var_t val = node->vtable->get(node, func, scope);
 
 	if(val.constType == -1)
 	{
@@ -854,8 +855,8 @@ ptrs_jit_var_t ptrs_handle_prefix_typeof(ptrs_ast_t *node, jit_function_t func, 
 ptrs_jit_var_t ptrs_handle_op_instanceof(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_binary *expr = &node->arg.binary;
-	ptrs_jit_var_t left = expr->left->handler(expr->left, func, scope);
-	ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope);
+	ptrs_jit_var_t left = expr->left->vtable->get(expr->left, func, scope);
+	ptrs_jit_var_t right = expr->right->vtable->get(expr->right, func, scope);
 
 	left.val = jit_insn_eq(func, left.meta, right.meta);
 	left.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
@@ -866,8 +867,8 @@ ptrs_jit_var_t ptrs_handle_op_instanceof(ptrs_ast_t *node, jit_function_t func, 
 ptrs_jit_var_t ptrs_handle_op_in(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_binary *expr = &node->arg.binary;
-	ptrs_jit_var_t left = expr->left->handler(expr->left, func, scope);
-	ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope);
+	ptrs_jit_var_t left = expr->left->vtable->get(expr->left, func, scope);
+	ptrs_jit_var_t right = expr->right->vtable->get(expr->right, func, scope);
 
 	ptrs_jit_var_t ret = {
 		.val = NULL,
@@ -936,7 +937,7 @@ ptrs_jit_var_t ptrs_handle_yield(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 		argDef[i * 2 + 1] = jit_type_long;
 		argDef[i * 2 + 2] = jit_type_ulong;
 
-		ptrs_jit_var_t val = curr->entry->handler(curr->entry, func, scope);
+		ptrs_jit_var_t val = curr->entry->vtable->get(curr->entry, func, scope);
 		args[i * 2 + 1] = val.val;
 		args[i * 2 + 2] = val.meta;
 

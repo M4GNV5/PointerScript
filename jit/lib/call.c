@@ -17,7 +17,7 @@ void ptrs_arglist_handle(jit_function_t func, ptrs_scope_t *scope,
 	{
 		//if(list->expand) //TODO
 
-		buff[i] = curr->entry->handler(curr->entry, func, scope);
+		buff[i] = curr->entry->vtable->get(curr->entry, func, scope);
 
 		curr = curr->next;
 	}
@@ -46,7 +46,7 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 		}
 		else
 		{
-			evaledArgs[i] = curr->entry->handler(curr->entry, func, scope);
+			evaledArgs[i] = curr->entry->vtable->get(curr->entry, func, scope);
 		}
 
 		curr = curr->next;
@@ -193,7 +193,7 @@ ptrs_jit_var_t ptrs_jit_callnested(jit_function_t func, ptrs_scope_t *scope,
 		}
 		else
 		{
-			val = args->entry->handler(args->entry, func, scope);
+			val = args->entry->vtable->get(args->entry, func, scope);
 		}
 
 		_args[i * 2 + 1] = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
@@ -355,7 +355,7 @@ void ptrs_jit_buildFunction(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t 
 			jit_value_t isGiven = ptrs_jit_hasType(func, curr->arg.meta, PTRS_TYPE_UNDEFINED);
 			jit_insn_branch_if_not(func, isGiven, &given);
 
-			ptrs_jit_var_t val = curr->argv->handler(curr->argv, func, &funcScope);
+			ptrs_jit_var_t val = curr->argv->vtable->get(curr->argv, func, &funcScope);
 			val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
 			jit_insn_store(func, curr->arg.val, val.val);
 			jit_insn_store(func, curr->arg.meta, val.meta);
@@ -366,7 +366,7 @@ void ptrs_jit_buildFunction(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t 
 		curr = curr->next;
 	}
 
-	ast->body->handler(ast->body, func, &funcScope);
+	ast->body->vtable->get(ast->body, func, &funcScope);
 	jit_insn_default_return(func);
 
 	ptrs_jit_placeAssertions(func, &funcScope);

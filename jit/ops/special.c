@@ -7,8 +7,8 @@ ptrs_jit_var_t ptrs_handle_op_logicxor(ptrs_ast_t *node, jit_function_t func, pt
 {
 	struct ptrs_ast_binary *expr = &node->arg.binary;
 
-	ptrs_jit_var_t left = expr->left->handler(expr->left, func, scope);
-	ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope);
+	ptrs_jit_var_t left = expr->left->vtable->get(expr->left, func, scope);
+	ptrs_jit_var_t right = expr->right->vtable->get(expr->right, func, scope);
 
 	left.val = ptrs_jit_vartob(func, left);
 	right.val = ptrs_jit_vartob(func, right);
@@ -26,7 +26,7 @@ ptrs_jit_var_t ptrs_handle_op_ternary(ptrs_ast_t *node, jit_function_t func, ptr
 	jit_label_t isFalse = jit_label_undefined;
 	jit_label_t done = jit_label_undefined;
 
-	ptrs_jit_var_t condition = expr->condition->handler(expr->condition, func, scope);
+	ptrs_jit_var_t condition = expr->condition->vtable->get(expr->condition, func, scope);
 
 	ptrs_jit_var_t ret = {
 		.val = jit_value_create(func, jit_type_long),
@@ -37,7 +37,7 @@ ptrs_jit_var_t ptrs_handle_op_ternary(ptrs_ast_t *node, jit_function_t func, ptr
 	ptrs_jit_branch_if_not(func, &isFalse, condition);
 
 	//is true
-	ptrs_jit_var_t trueVal = expr->trueVal->handler(expr->trueVal, func, scope);
+	ptrs_jit_var_t trueVal = expr->trueVal->vtable->get(expr->trueVal, func, scope);
 	trueVal.val = ptrs_jit_reinterpretCast(func, trueVal.val, jit_type_long);
 
 	jit_insn_store(func, ret.val, trueVal.val);
@@ -47,7 +47,7 @@ ptrs_jit_var_t ptrs_handle_op_ternary(ptrs_ast_t *node, jit_function_t func, ptr
 	//is false
 	jit_insn_label(func, &isFalse);
 
-	ptrs_jit_var_t falseVal = expr->falseVal->handler(expr->falseVal, func, scope);
+	ptrs_jit_var_t falseVal = expr->falseVal->vtable->get(expr->falseVal, func, scope);
 	falseVal.val = ptrs_jit_reinterpretCast(func, falseVal.val, jit_type_long);
 
 	jit_insn_store(func, ret.val, falseVal.val);
@@ -62,8 +62,8 @@ ptrs_jit_var_t ptrs_handle_op_assign(ptrs_ast_t *node, jit_function_t func, ptrs
 {
 	struct ptrs_ast_binary *expr = &node->arg.binary;
 
-	ptrs_jit_var_t right = expr->right->handler(expr->right, func, scope);
-	expr->left->setHandler(expr->left, func, scope, right);
+	ptrs_jit_var_t right = expr->right->vtable->get(expr->right, func, scope);
+	expr->left->vtable->set(expr->left, func, scope, right);
 
 	return right;
 }
@@ -72,7 +72,7 @@ ptrs_jit_var_t ptrs_handle_prefix_logicnot(ptrs_ast_t *node, jit_function_t func
 {
 	ptrs_ast_t *expr = node->arg.astval;
 
-	ptrs_jit_var_t val = expr->handler(expr, func, scope);
+	ptrs_jit_var_t val = expr->vtable->get(expr, func, scope);
 	val.val = ptrs_jit_vartob(func, val);
 
 	val.val = jit_insn_xor(func, val.val, jit_const_long(func, long, 1));
@@ -85,5 +85,5 @@ ptrs_jit_var_t ptrs_handle_prefix_logicnot(ptrs_ast_t *node, jit_function_t func
 ptrs_jit_var_t ptrs_handle_prefix_plus(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	ptrs_ast_t *expr = node->arg.astval;
- 	return expr->handler(expr, func, scope);
+ 	return expr->vtable->get(expr, func, scope);
 }

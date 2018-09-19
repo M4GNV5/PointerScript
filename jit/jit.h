@@ -1,8 +1,9 @@
-#ifndef _PTRS_INTERPRETER
-#define _PTRS_INTERPRETER
+#ifndef _PTRS_JIT
+#define _PTRS_JIT
 
 #include "../parser/common.h"
 #include "../parser/ast.h"
+#include "vtables.h"
 #include "include/struct.h"
 #include "include/error.h"
 

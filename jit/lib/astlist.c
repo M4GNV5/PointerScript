@@ -44,7 +44,7 @@ void ptrs_astlist_handle(struct ptrs_astlist *list, jit_function_t func, ptrs_sc
 	}
 	else if(list->next == NULL)
 	{
-		result = list->entry->handler(list->entry, func, scope);
+		result = list->entry->vtable->get(list->entry, func, scope);
 	}
 	else
 	{
@@ -59,7 +59,7 @@ void ptrs_astlist_handle(struct ptrs_astlist *list, jit_function_t func, ptrs_sc
 			}
 			else
 			{
-				result = list->entry->handler(list->entry, func, scope);
+				result = list->entry->vtable->get(list->entry, func, scope);
 			}
 
 			jit_insn_store_relative(func, val, i * sizeof(ptrs_var_t), result.val);
@@ -116,7 +116,7 @@ void ptrs_astlist_handleByte(struct ptrs_astlist *list, jit_function_t func, ptr
 	}
 	else if(list->next == NULL)
 	{
-		ptrs_jit_var_t _result = list->entry->handler(list->entry, func, scope);
+		ptrs_jit_var_t _result = list->entry->vtable->get(list->entry, func, scope);
 		result = ptrs_jit_vartoi(func, _result);
 		result = jit_insn_convert(func, result, jit_type_ubyte, 0);
 	}
@@ -132,7 +132,7 @@ void ptrs_astlist_handleByte(struct ptrs_astlist *list, jit_function_t func, ptr
 			}
 			else
 			{
-				ptrs_jit_var_t _result = list->entry->handler(list->entry, func, scope);
+				ptrs_jit_var_t _result = list->entry->vtable->get(list->entry, func, scope);
 				result = ptrs_jit_vartoi(func, _result);
 			}
 

@@ -10,7 +10,7 @@
 	ptrs_jit_var_t ptrs_handle_prefix_##name(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope) \
 	{ \
 		ptrs_ast_t *expr = node->arg.astval; \
-		ptrs_jit_var_t val = expr->handler(expr, func, scope); \
+		ptrs_jit_var_t val = expr->vtable->get(expr, func, scope); \
 		\
 		if(val.constType != -1) \
 		{ \
@@ -39,7 +39,7 @@
 		} \
 		\
 		if(isAssign) \
-			expr->setHandler(expr, func, scope, val); \
+			expr->vtable->set(expr, func, scope, val); \
 		\
 		return val; \
 	}
@@ -53,7 +53,7 @@ handle_prefix(minus, neg, false)
 	ptrs_jit_var_t ptrs_handle_suffix_##name(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope) \
 	{ \
 		ptrs_ast_t *expr = node->arg.astval; \
-		ptrs_jit_var_t val = expr->handler(expr, func, scope); \
+		ptrs_jit_var_t val = expr->vtable->get(expr, func, scope); \
 		ptrs_jit_var_t writeback = val; \
 		\
 		if(val.constType != -1) \
@@ -82,7 +82,7 @@ handle_prefix(minus, neg, false)
 			writeback.val = ret; \
 		} \
 		\
-		expr->setHandler(expr, func, scope, writeback); \
+		expr->vtable->set(expr, func, scope, writeback); \
 		\
 		return val; \
 	}

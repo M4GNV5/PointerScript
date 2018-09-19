@@ -234,13 +234,18 @@ typedef void (*ptrs_sethandler_t)(struct ptrs_ast *, jit_function_t, ptrs_scope_
 typedef ptrs_jit_var_t (*ptrs_callhandler_t)(struct ptrs_ast *, jit_function_t, ptrs_scope_t *,
 	struct ptrs_ast *, ptrs_nativetype_info_t *retType, struct ptrs_astlist *);
 
+typedef struct
+{
+	ptrs_asthandler_t get;
+	ptrs_sethandler_t set;
+	ptrs_asthandler_t addressof;
+	ptrs_callhandler_t call;
+} ptrs_ast_vtable_t;
+
 struct ptrs_ast
 {
 	union ptrs_ast_arg arg;
-	ptrs_asthandler_t handler;
-	ptrs_sethandler_t setHandler;
-	ptrs_asthandler_t addressHandler;
-	ptrs_callhandler_t callHandler;
+	ptrs_ast_vtable_t *vtable;
 	size_t codepos;
 	char *code;
 	const char *file;
