@@ -343,24 +343,38 @@ void ptrs_jit_buildFunction(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t 
 	}
 
 	ptrs_funcparameter_t *curr = ast->args;
+	ptrs_jit_var_t param;
 	for(int i = 0; curr != NULL; i++)
 	{
-		curr->arg.val = jit_value_get_param(func, i * 2 + 1);
-		curr->arg.meta = jit_value_get_param(func, i * 2 + 2);
-		curr->arg.constType = -1;
+		param.val = jit_value_get_param(func, i * 2 + 1);
+		param.meta = jit_value_get_param(func, i * 2 + 2);
+		param.constType = -1;
+		param.addressable = 0;
 
 		if(curr->argv != NULL)
 		{
 			jit_label_t given = jit_label_undefined;
-			jit_value_t isGiven = ptrs_jit_hasType(func, curr->arg.meta, PTRS_TYPE_UNDEFINED);
+			jit_value_t isGiven = ptrs_jit_hasType(func, param.meta, PTRS_TYPE_UNDEFINED);
 			jit_insn_branch_if_not(func, isGiven, &given);
 
 			ptrs_jit_var_t val = curr->argv->vtable->get(curr->argv, func, &funcScope);
 			val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
-			jit_insn_store(func, curr->arg.val, val.val);
-			jit_insn_store(func, curr->arg.meta, val.meta);
+			jit_insn_store(func, param.val, val.val);
+			jit_insn_store(func, param.meta, val.meta);
 
 			jit_insn_label(func, &given);
+		}
+
+		if(curr->arg.addressable)
+		{
+			curr->arg.val = jit_value_create(func, ptrs_jit_getVarType());
+			jit_value_t ptr = jit_insn_address_of(func, curr->arg.val);
+			jit_insn_store_relative(func, ptr, 0, param.val);
+			jit_insn_store_relative(func, ptr, sizeof(ptrs_val_t), param.meta);
+		}
+		else
+		{
+			curr->arg = param;
 		}
 
 		curr = curr->next;
