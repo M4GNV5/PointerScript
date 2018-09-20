@@ -21,6 +21,7 @@ typedef enum
 	PTRS_SYMBOL_FUNCTION,
 	PTRS_SYMBOL_CONST,
 	PTRS_SYMBOL_IMPORTED,
+	PTRS_SYMBOL_THISMEMBER,
 } ptrs_symboltype_t;
 
 struct symbollist
@@ -160,6 +161,7 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **node)
 {
 	bool functionBoundary = false;
+	ptrs_symboltable_t *innermost = symbols;
 
 	if(node != NULL)
 		*node = NULL;
@@ -204,6 +206,16 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 						ast->arg.importedsymbol.import = curr->arg.imported.import;
 						ast->arg.importedsymbol.index = curr->arg.imported.index;
 						ast->arg.importedsymbol.type = curr->arg.imported.type;
+						break;
+
+					case PTRS_SYMBOL_THISMEMBER:
+						*node = ast = talloc(ptrs_ast_t);
+						ast->vtable = &ptrs_ast_vtable_member;
+
+						if(ptrs_ast_getSymbol(innermost, "this", &ast->arg.member.base) != 0)
+							ptrs_error(NULL, "pls");
+						ast->arg.member.name = strdup(curr->text);
+						ast->arg.member.namelen = strlen(curr->text);
 						break;
 				}
 				return 0;
@@ -287,15 +299,13 @@ int parseIdentifierList(code_t *code, char *end, ptrs_jit_var_t **symbols, char 
 	code->pos = pos;
 	code->curr = code->src[pos];
 	if(fields != NULL)
-		*fields = malloc(sizeof(char *) * count);
-	*symbols = malloc(sizeof(ptrs_jit_var_t) * count);
+		*fields = calloc(count, sizeof(char *));
+	*symbols = calloc(count, sizeof(ptrs_jit_var_t));
 
 	for(int i = 0; i < count; i++)
 	{
 		if(fields != NULL && lookahead(code, "_"))
 		{
-			(*symbols)[i].val = NULL;
-			(*symbols)[i].meta = NULL;
 			(*symbols)[i].constType = -1;
 		}
 		else
@@ -365,12 +375,8 @@ static ptrs_funcparameter_t *parseArgumentDefinitionList(code_t *code, ptrs_jit_
 		nextPtr = &curr->next;
 		
 		curr->name = name;
-		curr->arg.val = NULL;
-		curr->arg.meta = NULL;
 		curr->arg.constType = -1;
 		curr->type = -1;
-		curr->argv = NULL;
-		curr->next = NULL;
 
 		if(name != NULL)
 		{
@@ -2207,6 +2213,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 		name = curr->name = readIdentifier(code);
 		curr->namelen = strlen(name);
+
+		addSpecialSymbol(code, strdup(name), PTRS_SYMBOL_THISMEMBER);
 
 		if(isProperty > 0)
 		{

@@ -101,7 +101,7 @@ struct ptrs_structmember *ptrs_struct_find(ptrs_struct_t *struc,
 	if(struc->memberCount == 0)
 		return NULL;
 
-	bool isTerminated = memrchr(key, 0, keyLen) != NULL;
+	bool isTerminated = memchr(key, 0, keyLen) != NULL;
 
 	size_t i = ptrs_struct_nHashName(key, keyLen) % struc->memberCount;
 	struct ptrs_structmember *ignored = NULL;

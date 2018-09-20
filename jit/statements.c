@@ -457,13 +457,13 @@ ptrs_jit_var_t ptrs_handle_import(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	if(ending != NULL && strcmp(ending, ".ptrs") == 0)
 	{
 		stmt->isScriptImport = true;
-		stmt->expressions = malloc(len * sizeof(ptrs_ast_t *));
+		stmt->expressions = calloc(len, sizeof(ptrs_ast_t *));
 		importScript(node, func, scope, stmt->expressions, path);
 	}
 	else
 	{
 		stmt->isScriptImport = false;
-		stmt->symbols = malloc(len * sizeof(ptrs_var_t));
+		stmt->symbols = calloc(len, sizeof(ptrs_var_t));
 		importNative(node, stmt->symbols, path);
 	}
 
