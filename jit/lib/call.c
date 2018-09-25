@@ -7,6 +7,7 @@
 #include "../include/run.h"
 #include "../include/astlist.h"
 #include "../include/conversion.h"
+#include "../include/call.h"
 
 void *ptrs_jit_createCallback(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, void *closure);
 
@@ -39,10 +40,11 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 		//if(curr->expand) //TODO
 
 		ptrs_jit_var_t val;
-		if(args->entry == NULL)
+		if(curr->entry == NULL)
 		{
 			evaledArgs[i].val = zero;
 			evaledArgs[i].meta = undefined;
+			evaledArgs[i].constType = PTRS_TYPE_UNDEFINED;
 		}
 		else
 		{

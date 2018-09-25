@@ -156,7 +156,6 @@ size_t ptrs_arraymax = UINT32_MAX;
 ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_define *stmt = &node->arg.define;
-	ptrs_jit_var_t val;
 	jit_value_t size;
 
 	ptrs_jit_var_t init;
@@ -165,28 +164,16 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 
 	if(stmt->value != NULL)
 	{
-		val = stmt->value->vtable->get(stmt->value, func, scope);
-		size = ptrs_jit_vartoi(func, val);
+		ptrs_jit_var_t _size = stmt->value->vtable->get(stmt->value, func, scope);
+		size = ptrs_jit_vartoi(func, _size);
+	}
+	else if(stmt->isInitExpr)
+	{
+		size = ptrs_jit_getArraySize(func, init.meta);
 	}
 	else
 	{
-		int constSize;
-		if(stmt->isInitExpr)
-		{
-			if(!jit_value_is_constant(init.meta))
-				ptrs_error(node, "Initializer expression of an unsized array must have a constant size");
-
-			ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(init.meta);
-			constSize = meta.array.size;
-		}
-		else
-		{
-			constSize = ptrs_astlist_length(stmt->initVal);
-
-			if(constSize == -1)
-				ptrs_error(node, "Initializer of unsized array cannot contain array expansions");
-		}
-
+		int constSize = ptrs_astlist_length(stmt->initVal);
 		size = jit_const_int(func, long, constSize);
 	}
 
@@ -195,6 +182,7 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 		1, "Cannot create array of size %d", size);
 
 	//allocate memory
+	ptrs_jit_var_t val = {0};
 	val.val = ptrs_jit_allocate(func, size, stmt->onStack, true);
 	val.meta = ptrs_jit_arrayMeta(func,
 		jit_const_long(func, ulong, PTRS_TYPE_NATIVE),
@@ -206,11 +194,20 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	if(!stmt->isArrayExpr)
 	{
 		//store the array
-		stmt->location.val = jit_value_create(func, jit_type_long);
-		stmt->location.meta = jit_value_create(func, jit_type_ulong);
-		stmt->location.constType = PTRS_TYPE_NATIVE;
-		jit_insn_store(func, stmt->location.val, val.val);
-		jit_insn_store(func, stmt->location.meta, val.meta);
+		if(stmt->location.addressable)
+		{
+			stmt->location.val = ptrs_jit_varToVal(func, val);
+			stmt->location.meta = NULL;
+			stmt->location.constType = PTRS_TYPE_NATIVE;
+		}
+		else
+		{
+			stmt->location.val = jit_value_create(func, jit_type_long);
+			stmt->location.meta = jit_value_create(func, jit_type_ulong);
+			stmt->location.constType = PTRS_TYPE_NATIVE;
+			jit_insn_store(func, stmt->location.val, val.val);
+			jit_insn_store(func, stmt->location.meta, val.meta);
+		}
 	}
 
 	if(stmt->isInitExpr)
@@ -240,22 +237,18 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 ptrs_jit_var_t ptrs_handle_vararray(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_define *stmt = &node->arg.define;
-	ptrs_jit_var_t val;
 	jit_value_t size;
 	jit_value_t byteSize;
 
 	if(stmt->value != NULL)
 	{
-		val = stmt->value->vtable->get(stmt->value, func, scope);
-		size = ptrs_jit_vartoi(func, val);
+		ptrs_jit_var_t _size = stmt->value->vtable->get(stmt->value, func, scope);
+		size = ptrs_jit_vartoi(func, _size);
 		byteSize = jit_insn_mul(func, size, jit_const_int(func, nuint, sizeof(ptrs_var_t)));
 	}
 	else
 	{
 		int constSize = ptrs_astlist_length(stmt->initVal);
-		if(constSize == -1)
-			ptrs_error(node, "Initializer of unsized array cannot contain array expansions");
-
 		size = jit_const_int(func, long, constSize);
 		byteSize = jit_const_int(func, long, constSize * sizeof(ptrs_var_t));
 	}
@@ -266,6 +259,7 @@ ptrs_jit_var_t ptrs_handle_vararray(ptrs_ast_t *node, jit_function_t func, ptrs_
 		1, "Cannot create array of size %d", size);
 
 	//allocate memory
+	ptrs_jit_var_t val = {0};
 	val.val = ptrs_jit_allocate(func, byteSize, stmt->onStack, true);
 	val.meta = ptrs_jit_arrayMeta(func,
 		jit_const_long(func, ulong, PTRS_TYPE_POINTER),
@@ -277,11 +271,20 @@ ptrs_jit_var_t ptrs_handle_vararray(ptrs_ast_t *node, jit_function_t func, ptrs_
 	if(!stmt->isArrayExpr)
 	{
 		//store the array
-		stmt->location.val = jit_value_create(func, jit_type_long);
-		stmt->location.meta = jit_value_create(func, jit_type_ulong);
-		stmt->location.constType = PTRS_TYPE_POINTER;
-		jit_insn_store(func, stmt->location.val, val.val);
-		jit_insn_store(func, stmt->location.meta, val.meta);
+		if(stmt->location.addressable)
+		{
+			stmt->location.val = ptrs_jit_varToVal(func, val);
+			stmt->location.meta = NULL;
+			stmt->location.constType = PTRS_TYPE_POINTER;
+		}
+		else
+		{
+			stmt->location.val = jit_value_create(func, jit_type_long);
+			stmt->location.meta = jit_value_create(func, jit_type_ulong);
+			stmt->location.constType = PTRS_TYPE_POINTER;
+			jit_insn_store(func, stmt->location.val, val.val);
+			jit_insn_store(func, stmt->location.meta, val.meta);
+		}
 	}
 
 	ptrs_astlist_handle(stmt->initVal, func, scope, val.val, size);

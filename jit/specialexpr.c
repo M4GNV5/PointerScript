@@ -388,7 +388,8 @@ ptrs_jit_var_t ptrs_addressof_index(ptrs_ast_t *node, jit_function_t func, ptrs_
 				result.constType = _result.constType;
 		},
 		{
-			result.constType = base.constType;
+			if(base.constType != PTRS_TYPE_STRUCT)
+				result.constType = base.constType;
 
 			jit_value_t newSize = jit_insn_sub(func, ptrs_jit_getArraySize(func, base.meta), intIndex);
 			jit_insn_store(func, result.meta, ptrs_jit_setArraySize(func, base.meta, newSize));
@@ -413,6 +414,7 @@ ptrs_jit_var_t ptrs_call_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 	ptrs_jit_var_t callee = {
 		.val = jit_value_create(func, jit_type_long),
 		.meta = jit_value_create(func, jit_type_ulong),
+		.constType = -1,
 	};
 
 	ptrs_handle_index_common(

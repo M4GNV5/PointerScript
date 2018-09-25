@@ -6,7 +6,6 @@ assertEq(type<float>, typeof 3.14);
 assertEq(type<native>, typeof "constant");
 
 var varArray[16];
-var varArray2 = new array[16];
 assertEq(type<pointer>, typeof varArray);
 assertEq(type<pointer>, typeof new array[16]);
 

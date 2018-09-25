@@ -130,7 +130,7 @@ static jit_type_t getIntrinsicSignature()
 	ptrs_var_t ptrs_intrinsic_##name(ptrs_ast_t *node, ptrs_val_t left, ptrs_meta_t leftMeta, \
 		ptrs_val_t right, ptrs_meta_t rightMeta) \
 	{ \
-		ptrs_var_t ret; \
+		ptrs_var_t ret = {0}; \
 		switch(typecomp(leftMeta.type, rightMeta.type)) \
 		{ \
 			case const_typecomp(INT, INT): \

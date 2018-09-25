@@ -268,7 +268,10 @@ static const void *comparasionHandler[] = {
 	&ptrs_ast_vtable_op_less,
 	&ptrs_ast_vtable_op_greater,
 	&ptrs_ast_vtable_op_in,
-	&ptrs_ast_vtable_op_logicxor
+	&ptrs_ast_vtable_op_instanceof,
+	&ptrs_ast_vtable_op_logicor,
+	&ptrs_ast_vtable_op_logicand,
+	&ptrs_ast_vtable_op_logicxor,
 };
 static const void *binaryIntOnlyHandler[] = {
 	&ptrs_ast_vtable_op_or,

@@ -787,7 +787,7 @@ struct opinfo binaryOps[] = {
 	{"|=", 1, true, &ptrs_ast_vtable_op_or},
 
 	{"?", 2, true, &ptrs_ast_vtable_op_ternary},
-	{":", -1, true, &ptrs_ast_vtable_op_ternary},
+	//{":", -1, true, &ptrs_ast_vtable_op_ternary},
 
 	{"instanceof", 11, false, &ptrs_ast_vtable_op_instanceof},
 	{"in", 11, false, &ptrs_ast_vtable_op_in},
@@ -876,7 +876,7 @@ static ptrs_ast_t *parseBinaryExpr(code_t *code, ptrs_ast_t *left, int minPrec)
 
 		if(op->vtable == &ptrs_ast_vtable_op_ternary)
 		{
-			ptrs_ast_t *left = talloc(ptrs_ast_t);
+			left = talloc(ptrs_ast_t);
 			left->vtable = &ptrs_ast_vtable_op_ternary;
 			left->arg.ternary.condition = _left;
 			left->arg.ternary.trueVal = right;
@@ -1260,10 +1260,9 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 				func->args = parseArgumentDefinitionList(code, &func->vararg);
 
 				consume(code, "->");
-				if(lookahead(code, "{"))
+				if(code->curr == '{')
 				{
-					func->body = parseStmtList(code, '}');
-					consumec(code, '}');
+					func->body = parseBody(code, false, true);
 				}
 				else
 				{
@@ -1271,9 +1270,10 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 					retStmt->vtable = &ptrs_ast_vtable_return;
 					retStmt->arg.astval = parseExpression(code, true);
 					func->body = retStmt;
+
+					symbolScope_decrease(code);
 				}
 
-				symbolScope_decrease(code);
 			}
 			else
 			{
@@ -1715,7 +1715,6 @@ static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 		if(lookahead(code, "["))
 		{
 			ast->vtable = &ptrs_ast_vtable_vararray;
-			ast->arg.define.location.constType = PTRS_TYPE_POINTER;
 			ast->arg.define.value = parseExpression(code, false);
 			consumec(code, ']');
 
