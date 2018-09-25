@@ -923,7 +923,10 @@ static int suffixedOpCount = sizeof(suffixedOps) / sizeof(struct opinfo);
 
 static ptrs_ast_t *parseExpression(code_t *code, bool required)
 {
-	ptrs_ast_t *ast = parseBinaryExpr(code, parseUnaryExpr(code, false, false), 0);
+	ptrs_ast_t *ast = parseUnaryExpr(code, false, false);
+
+	if(ast != NULL)
+		ast = parseBinaryExpr(code, ast, 0);
 
 	if(required && ast == NULL)
 		unexpected(code, "Expression");
