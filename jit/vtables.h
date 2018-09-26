@@ -6,7 +6,6 @@
 
 extern ptrs_ast_vtable_t ptrs_ast_vtable_body;
 extern ptrs_ast_vtable_t ptrs_ast_vtable_define;
-extern ptrs_ast_vtable_t ptrs_ast_vtable_typeddefine;
 extern ptrs_ast_vtable_t ptrs_ast_vtable_array;
 extern ptrs_ast_vtable_t ptrs_ast_vtable_vararray;
 extern ptrs_ast_vtable_t ptrs_ast_vtable_import;

@@ -89,69 +89,6 @@ ptrs_jit_var_t ptrs_handle_define(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	return stmt->location;
 }
 
-ptrs_jit_var_t ptrs_handle_typeddefine(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
-{
-	struct ptrs_ast_define *stmt = &node->arg.define;
-	ptrs_jit_var_t val;
-	if(stmt->value != NULL)
-	{
-		val = stmt->value->vtable->get(stmt->value, func, scope);
-
-		if(val.constType == -1 && stmt->type >= PTRS_NUM_TYPES)
-			ptrs_error(node, "Initializer of untyped let statement has a dynamic type");
-		else if(stmt->type >= PTRS_NUM_TYPES)
-			stmt->location.constType = val.constType;
-		else if(val.constType == -1)
-			stmt->location.constType = stmt->type;
-		else if(val.constType != stmt->type)
-			ptrs_error(node, "Variable is defined as %t but initializer has type %t",
-				stmt->type, val.constType);
-		else
-			stmt->location.constType = val.constType;
-
-		if(stmt->type < PTRS_NUM_TYPES)
-		{
-			ptrs_jit_typeCheck(node, func, scope, val, stmt->type,
-				"Initializer type %t does not match the variables defined type");
-		}
-	}
-	else
-	{
-		val.val = jit_const_int(func, long, 0);
-		val.meta = ptrs_jit_const_meta(func, stmt->type);
-		stmt->location.constType = stmt->type;
-	}
-
-	if(stmt->location.constType == PTRS_TYPE_FLOAT)
-	{
-		stmt->location.val = jit_value_create(func, jit_type_float64);
-		val.val = jit_insn_convert(func, val.val, jit_type_float64, 0);
-	}
-	else
-	{
-		stmt->location.val = jit_value_create(func, jit_type_long);
-		val.val = jit_insn_convert(func, val.val, jit_type_long, 0);
-	}
-	jit_insn_store(func, stmt->location.val, val.val);
-
-	if(stmt->location.constType == PTRS_TYPE_STRUCT && jit_value_is_constant(val.meta))
-	{
-		stmt->location.meta = val.meta;
-	}
-	else if(stmt->location.constType == PTRS_TYPE_INT
-		|| stmt->location.constType == PTRS_TYPE_FLOAT)
-	{
-		stmt->location.meta = ptrs_jit_const_meta(func, stmt->location.constType);
-	}
-	else
-	{
-		stmt->location.meta = jit_value_create(func, jit_type_ulong);
-		jit_insn_store(func, stmt->location.meta, val.meta);
-	}
-
-	return stmt->location;
-}
-
 size_t ptrs_arraymax = UINT32_MAX;
 ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {

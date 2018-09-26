@@ -18,7 +18,6 @@
 
 GETONLY(body)
 GETONLY(define)
-GETONLY(typeddefine)
 GETONLY(array)
 GETONLY(vararray)
 GETONLY(import)
