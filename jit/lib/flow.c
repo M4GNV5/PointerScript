@@ -277,7 +277,8 @@ static const void *binaryIntOnlyHandler[] = {
 	&ptrs_ast_vtable_op_or,
 	&ptrs_ast_vtable_op_xor,
 	&ptrs_ast_vtable_op_and,
-	&ptrs_ast_vtable_op_shr,
+	&ptrs_ast_vtable_op_ushr,
+	&ptrs_ast_vtable_op_sshr,
 	&ptrs_ast_vtable_op_shl,
 	&ptrs_ast_vtable_op_mod
 };

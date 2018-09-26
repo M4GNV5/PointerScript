@@ -351,7 +351,8 @@ handle_binary_compare(greater, gt, ) //>
 handle_binary_intonly(or, or, |) //|
 handle_binary_intonly(xor, xor, ^) //^
 handle_binary_intonly(and, and, &) //&
-handle_binary_intonly(shr, sshr, >>) //>>
+handle_binary_intonly(ushr, ushr, >>) //>>
+handle_binary_intonly(sshr, sshr, >>>) //>>>
 handle_binary_intonly(shl, shl, <<) //<<
 handle_binary_intrinsic(add, +, add, binary_add_cases, binary_add_jit_cases) //+
 handle_binary_intrinsic(sub, -, sub, binary_sub_cases, binary_sub_jit_cases) //-

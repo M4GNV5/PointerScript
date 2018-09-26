@@ -136,8 +136,6 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 		code.symbols = *symbols;
 	}
 
-	while(skipSpaces(&code) || skipComments(&code));
-
 	if(src[0] == '#' && src[1] == '!')
 	{
 		while(code.curr != '\n')
@@ -148,6 +146,7 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 		next(&code);
 	}
 
+	while(skipSpaces(&code) || skipComments(&code));
 
 	ptrs_ast_t *ast = parseStmtList(&code, 0);
 
@@ -735,7 +734,8 @@ struct opinfo
 
 struct opinfo binaryOps[] = {
 	// >> and << need to be before > and < or we will always lookahead greater / less
-	{">>", 12, false, &ptrs_ast_vtable_op_shr}, //shift right
+	{">>", 12, false, &ptrs_ast_vtable_op_sshr}, //signed shift right
+	{">>", 12, false, &ptrs_ast_vtable_op_ushr}, //unsigned shift right
 	{"<<", 12, false, &ptrs_ast_vtable_op_shl}, //shift left
 
 	{"===", 9, false, &ptrs_ast_vtable_op_typeequal},
@@ -754,7 +754,7 @@ struct opinfo binaryOps[] = {
 	{"*=", 1, true, &ptrs_ast_vtable_op_mul},
 	{"/=", 1, true, &ptrs_ast_vtable_op_div},
 	{"%=", 1, true, &ptrs_ast_vtable_op_mod},
-	{">>=", 1, true, &ptrs_ast_vtable_op_shr},
+	{">>=", 1, true, &ptrs_ast_vtable_op_sshr},
 	{"<<=", 1, true, &ptrs_ast_vtable_op_shl},
 	{"&=", 1, true, &ptrs_ast_vtable_op_and},
 	{"^=", 1, true, &ptrs_ast_vtable_op_xor},
@@ -2887,6 +2887,7 @@ static bool skipSpaces(code_t *code)
 {
 	int pos = code->pos;
 	char curr = code->src[pos];
+
 	if(isspace(curr))
 	{
 		while(isspace(curr))
@@ -2916,6 +2917,7 @@ static bool skipComments(code_t *code)
 		}
 
 		code->pos = pos + 1;
+		code->curr = curr;
 		return true;
 	}
 	else if(curr == '/' && code->src[pos + 1] == '*')
@@ -2927,6 +2929,7 @@ static bool skipComments(code_t *code)
 		}
 
 		code->pos = pos + 2;
+		code->curr = curr;
 		return true;
 	}
 
@@ -2939,7 +2942,6 @@ static void next(code_t *code)
 
 	code->pos++;
 	while(skipSpaces(code) || skipComments(code));
-	code->curr = code->src[code->pos];
 }
 static void rawnext(code_t *code)
 {

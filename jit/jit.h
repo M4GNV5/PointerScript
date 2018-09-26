@@ -89,7 +89,8 @@ ptrs_jit_var_t ptrs_handle_op_logicand(ptrs_ast_t *node, jit_function_t func, pt
 ptrs_jit_var_t ptrs_handle_op_or(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_op_xor(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_op_and(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
-ptrs_jit_var_t ptrs_handle_op_shr(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
+ptrs_jit_var_t ptrs_handle_op_ushr(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
+ptrs_jit_var_t ptrs_handle_op_sshr(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_op_shl(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_op_add(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_op_sub(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);

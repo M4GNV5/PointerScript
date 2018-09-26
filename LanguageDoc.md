@@ -279,7 +279,7 @@ function printfln(fmt, args...)
 | 10 | `<= >= < >` | Comparasion operators | Left-to-Right |
 | 11 | `instanceof` | Instanceof operator | Left-to-Right |
 | 11 | `in` | Has-property operator | Left-to-Right |
-| 12 | `<< >>` | Shifting operators | Left-to-Right |
+| 12 | `<< >> >>>` | Shifting operators | Left-to-Right |
 | 13 | `+ -` | Addition, subtraction | Left-to-Right |
 | 14 | `* / %` | Multiplication, division, division remainder | Left-to-Right |
 
@@ -697,31 +697,27 @@ destructor()
 }
 
 /*
-	Note that for all of the following operator overloads you can use either the
-	this.key or this[key] notation where key can be any identifier which defines
-	the name of the local variable which will hold the name of the accessed field
+	Note that the following overloads both with with foo.bar and foo["bar"]
+	even though their syntax may suggest they only work with the latter.
 */
-//'operator' 'this' '.' Identifier '{' StatementList '}'
+
 //'operator' 'this' '[' Identifier ']' '{' StatementList '}'
-operator this.key
+operator this[key]
 {
 	printf("tried to get this.%s\n", key);
 }
-//'operator' 'this' '.' Identifier '=' Identifier '{' StatementList '}'
 //'operator' 'this' '[' Identifier ']' '=' Identifier '{' StatementList '}'
-operator this.key = val //here key and val can be named however you like.
+operator this[key] = val //here key and val can be named however you like.
 {
 	printf("tried to set this.%s to %d\n", key, cast<int>val);
 }
-//'operator' '&' 'this' '.' Identifier '{' StatementList '}'
 //'operator' '&' 'this' '[' Identifier ']' '{' StatementList '}'
-operator &this.key
+operator &this[key]
 {
 	printf("tried to get the address of this.%s\n", key);
 }
 //'operator' 'this' '.' Identifier '(' ArgumentDefinitionList ')' '{' StatementList '}'
-//'operator' 'this' '.' Identifier '(' ArgumentDefinitionList ')' '{' StatementList '}'
-operator this.key(foo, bar...)
+operator this[key](foo, bar...)
 {
 	printf("calling this.%s\n", key);
 }
