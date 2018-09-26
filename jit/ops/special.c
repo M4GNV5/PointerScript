@@ -3,6 +3,98 @@
 #include "../include/conversion.h"
 #include "../include/util.h"
 
+ptrs_jit_var_t ptrs_handle_op_logicor(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_binary *expr = &node->arg.binary;
+	jit_label_t skip = jit_label_undefined;
+	ptrs_jit_var_t ret = {
+		.val = NULL,
+		.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT),
+		.constType = PTRS_TYPE_INT,
+	};
+
+	ptrs_jit_var_t left = expr->left->vtable->get(expr->left, func, scope);
+	jit_value_t leftBool = ptrs_jit_vartob(func, left);
+	if(jit_value_is_true(leftBool))
+	{
+		ret.val = jit_const_long(func, long, 1);
+		return ret;
+	}
+	else if(!jit_value_is_constant(leftBool))
+	{
+		ret.val = jit_value_create(func, jit_type_long);
+		jit_insn_store(func, ret.val, leftBool);
+		jit_insn_branch_if(func, leftBool, &skip);
+	}
+	
+	ptrs_jit_var_t right = expr->right->vtable->get(expr->right, func, scope);
+	jit_value_t rightBool = ptrs_jit_vartob(func, right);
+	if(jit_value_is_constant(leftBool))
+	{
+		ret.val = rightBool;
+		return ret;
+	}
+	else if(jit_value_is_constant(rightBool) && !jit_value_is_true(rightBool))
+	{
+		jit_insn_label(func, &skip);
+		ret.val = leftBool;
+		return ret;
+	}
+	else
+	{
+		jit_insn_store(func, ret.val, rightBool);
+
+		jit_insn_label(func, &skip);
+		return ret;
+	}
+}
+
+ptrs_jit_var_t ptrs_handle_op_logicand(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_binary *expr = &node->arg.binary;
+	jit_label_t skip = jit_label_undefined;
+	ptrs_jit_var_t ret = {
+		.val = NULL,
+		.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT),
+		.constType = PTRS_TYPE_INT,
+	};
+
+	ptrs_jit_var_t left = expr->left->vtable->get(expr->left, func, scope);
+	jit_value_t leftBool = ptrs_jit_vartob(func, left);
+	if(jit_value_is_constant(leftBool) && !jit_value_is_true(leftBool))
+	{
+		ret.val = jit_const_long(func, long, 0);
+		return ret;
+	}
+	else if(!jit_value_is_constant(leftBool))
+	{
+		ret.val = jit_value_create(func, jit_type_long);
+		jit_insn_store(func, ret.val, leftBool);
+		jit_insn_branch_if_not(func, leftBool, &skip);
+	}
+	
+	ptrs_jit_var_t right = expr->right->vtable->get(expr->right, func, scope);
+	jit_value_t rightBool = ptrs_jit_vartob(func, right);
+	if(jit_value_is_constant(leftBool))
+	{
+		ret.val = rightBool;
+		return ret;
+	}
+	else if(jit_value_is_true(rightBool))
+	{
+		jit_insn_label(func, &skip);
+		ret.val = leftBool;
+		return ret;
+	}
+	else
+	{
+		jit_insn_store(func, ret.val, rightBool);
+
+		jit_insn_label(func, &skip);
+		return ret;
+	}
+}
+
 ptrs_jit_var_t ptrs_handle_op_logicxor(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_binary *expr = &node->arg.binary;

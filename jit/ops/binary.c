@@ -334,51 +334,10 @@ static jit_type_t getIntrinsicSignature()
 		\
 		extra \
 		\
+		left.val = jit_insn_convert(func, left.val, jit_type_long, 0); \
 		left.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT); \
 		left.constType = PTRS_TYPE_INT; \
 		return left; \
-	}
-
-#define handle_binary_logic(name, comparer, constComparer) \
-	ptrs_jit_var_t ptrs_handle_op_##name(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope) \
-	{ \
-		struct ptrs_ast_binary *expr = &node->arg.binary; \
-		\
-		/*evaluate the left-side expression*/ \
-		ptrs_jit_var_t left = expr->left->vtable->get(expr->left, func, scope); \
-		if(jit_value_is_constant(left.val) && jit_value_is_constant(left.meta)) \
-		{ \
-			jit_long constVal = jit_value_get_long_constant(ptrs_jit_vartob(func, left)); \
-			if(constVal constComparer true) \
-				return expr->right->vtable->get(expr->right, func, scope); \
-			\
-			ptrs_jit_var_t ret = { \
-				.val = jit_const_long(func, long, 0), \
-				.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT), \
-				.constType = PTRS_TYPE_INT, \
-			}; \
-			return ret; \
-		} \
-		\
-		ptrs_jit_var_t tmp = { \
-			.val = jit_value_create(func, jit_type_long), \
-			.meta = jit_value_create(func, jit_type_ulong), \
-			.constType = -1, \
-		}; \
-		jit_insn_store(func, tmp.val, left.val); \
-		jit_insn_store(func, tmp.meta, left.meta); \
-		\
-		/*conditionally jump over the evaluation of the right-side expression*/ \
-		jit_label_t skip = jit_label_undefined; \
-		ptrs_jit_branch_##comparer(func, &skip, left); \
-		\
-		/*overwrite the return value with the right-side expression*/ \
-		ptrs_jit_var_t right = expr->right->vtable->get(expr->right, func, scope); \
-		jit_insn_store(func, tmp.val, right.val); \
-		jit_insn_store(func, tmp.meta, right.meta); \
-		\
-		jit_insn_label(func, &skip); \
-		return tmp; \
 	}
 
 handle_binary_compare(typeequal, eq, handle_binary_typecompare(eq, ==)) //===
@@ -399,5 +358,3 @@ handle_binary_intrinsic(sub, -, sub, binary_sub_cases, binary_sub_jit_cases) //-
 handle_binary_intrinsic(mul, *, mul, , ) //*
 handle_binary_intrinsic(div, /, div, , ) ///
 handle_binary_intonly(mod, rem, %) //%
-handle_binary_logic(logicor, if, !=) //||
-handle_binary_logic(logicand, if_not, ==) //&&
