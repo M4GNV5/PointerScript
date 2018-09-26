@@ -30,6 +30,7 @@ runTest runtime/struct
 runTest runtime/overload
 runTest runtime/functions
 runTest runtime/alignment
+runTest runtime/operators
 
 if [ $hadError -ne 0 ]; then
 	exit 1

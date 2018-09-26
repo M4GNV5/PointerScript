@@ -1,0 +1,89 @@
+import assert, assertEq from "../common.ptrs";
+
+assertEq(type<int>, typeof !"");
+assertEq(type<int>, typeof ("" || ""));
+assertEq(type<int>, typeof ("" && ""));
+assertEq(type<int>, typeof ("" ^^ ""));
+
+assertEq(type<int>, typeof (3 + 3));
+assertEq(type<float>, typeof (3f + 3));
+assertEq(type<float>, typeof (3 + 3f));
+assertEq(type<float>, typeof (3f + 3f));
+assertEq(type<native>, typeof (NULL + 1));
+assertEq(type<native>, typeof (1 + NULL));
+assertEq(type<pointer>, typeof (null + 1));
+assertEq(type<pointer>, typeof (1 + null));
+
+assertEq(type<int>, typeof (3 - 3));
+assertEq(type<float>, typeof (3f - 3));
+assertEq(type<float>, typeof (3 - 3f));
+assertEq(type<float>, typeof (3f - 3f));
+assertEq(type<native>, typeof (NULL - 1));
+assertEq(type<pointer>, typeof (null - 1));
+assertEq(type<int>, typeof (NULL - NULL));
+assertEq(type<int>, typeof (null - null));
+
+assertEq(type<int>, typeof (3 * 3));
+assertEq(type<float>, typeof (3f * 3));
+assertEq(type<float>, typeof (3 * 3f));
+assertEq(type<float>, typeof (3f * 3f));
+
+assertEq(type<int>, typeof (3 / 3));
+assertEq(type<float>, typeof (3f / 3));
+assertEq(type<float>, typeof (3 / 3f));
+assertEq(type<float>, typeof (3f / 3f));
+
+assertEq(type<int>, typeof (3 == 3));
+assertEq(type<int>, typeof (3 != 3));
+assertEq(type<int>, typeof (3 < 3));
+assertEq(type<int>, typeof (3 <= 3));
+assertEq(type<int>, typeof (3 > 3));
+assertEq(type<int>, typeof (3 >= 3));
+
+assertEq(true, !false);
+assertEq(false, !true);
+
+assertEq(false, false || false);
+assertEq(true, true || false);
+assertEq(true, false || true);
+assertEq(true, true || true);
+
+assertEq(false, false && false);
+assertEq(false, true && false);
+assertEq(false, false && true);
+assertEq(true, true && true);
+
+assertEq(false, false ^^ false);
+assertEq(true, true ^^ false);
+assertEq(true, false ^^ true);
+assertEq(false, true ^^ true);
+
+assertEq(5, 3 + 2);
+assertEq(3, 5 - 2);
+assertEq(6, 3 * 2);
+assertEq(3, 6 / 2);
+assertEq(2, 5 % 3);
+
+//assertEq(true, 3 == 3);
+//assertEq(true, 3 == 3f);
+assertEq(true, 3 === 3);
+assertEq(false, 3 === 3f);
+
+assertEq(false, 3 != 3);
+assertEq(false, 3 != 3f);
+assertEq(false, 3 !== 3);
+assertEq(false, 3 !== 3f);
+
+assertEq(false, 3 < 2);
+assertEq(false, 3 < 3);
+assertEq(true, 3 < 4);
+assertEq(false, 3 <= 2);
+assertEq(true, 3 <= 3);
+assertEq(true, 3 <= 4);
+
+assertEq(true, 3 > 2);
+assertEq(false, 3 > 3);
+assertEq(false, 3 > 4);
+assertEq(true, 3 >= 2);
+assertEq(true, 3 >= 3);
+assertEq(false, 3 >= 4);
