@@ -24,6 +24,7 @@ function runTest
 runTest runtime/interop
 runTest runtime/pointer
 runTest runtime/types
+runTest runtime/loops
 #runTest runtime/trycatch TODO
 runTest runtime/strformat
 runTest runtime/struct

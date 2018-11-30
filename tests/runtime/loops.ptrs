@@ -1,0 +1,73 @@
+import assertEq from "../common.ptrs";
+
+var i = 0;
+var cycles = 0;
+
+do
+{
+	break;
+	cycles++;
+} while(true);
+assertEq(0, cycles);
+
+while(true)
+{
+	break;
+	cycles++;
+}
+assertEq(0, cycles);
+
+for(i = 0; i < 10; i++)
+{
+	break;
+	cycles++;
+}
+assertEq(0, cycles);
+
+i = 0;
+do
+{
+	i++;
+	if(i == 2)
+		continue;
+	cycles++;
+} while(i < 4);
+assertEq(3, cycles);
+
+cycles = 0;
+i = 0;
+while(cycles < 3)
+{
+	i++;
+	if(i == 1)
+		continue;
+	cycles++;
+}
+assertEq(3, cycles);
+
+
+cycles = 0;
+for(i = 0; i < 4; i++)
+{
+	if(i == 1)
+		continue;
+	cycles++;
+}
+assertEq(3, cycles);
+
+cycles = 0;
+while(true)
+{
+	scoped break;
+	cycles++;
+}
+assertEq(0, cycles);
+
+cycles = 0;
+for(i = 0; i < 4; i++)
+{
+	if(i == 1)
+		scoped continue;
+	cycles++;
+}
+assertEq(3, cycles);
