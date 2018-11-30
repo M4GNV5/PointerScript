@@ -45,6 +45,7 @@ typedef struct ptrs_patchlist
 } ptrs_patchlist_t;
 typedef struct
 {
+	bool loopControlAllowed; // whether or not continue and break are currenlt allowed
 	jit_label_t continueLabel;
 	jit_label_t breakLabel;
 	struct ptrs_assertion *firstAssertion;

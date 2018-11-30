@@ -63,11 +63,11 @@ struct Test
 		assertEq(false, yield val);
 
 		//TODO why is this broken?
-		/*scoped
+		scoped
 		{
 			val = 31.12;
 			assertEq(false, yield val);
-		}*/
+		}
 
 		val = 42;
 		assertEq(true, yield val);

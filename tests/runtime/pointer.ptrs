@@ -46,14 +46,6 @@ assertEq(3, sizeof ptr);
 assertEq("hi", ptr);
 delete ptr;
 
-/*scoped
-{
-	var buff{128} = {'k'};
-}
-var buff{128};
-assertEq('k', buff[120]); //should we test this? kinda undefined behaviour
-*/
-
 var buff{128};
 buff[7] = 257;
 buff[8] = -4;

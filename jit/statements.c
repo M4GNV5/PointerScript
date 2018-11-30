@@ -443,6 +443,9 @@ ptrs_jit_var_t ptrs_handle_return(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 
 ptrs_jit_var_t ptrs_handle_break(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
+	if(!scope->loopControlAllowed)
+		ptrs_error(node, "break; statement is not allowed here");
+
 	if(scope->returnAddr != NULL)
 		jit_insn_return(func, jit_const_int(func, ubyte, 2));
 	else
@@ -454,6 +457,9 @@ ptrs_jit_var_t ptrs_handle_break(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 
 ptrs_jit_var_t ptrs_handle_continue(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
+	if(!scope->loopControlAllowed)
+		ptrs_error(node, "continue; statement is not allowed here");
+
 	if(scope->returnAddr != NULL)
 		jit_insn_return(func, jit_const_int(func, ubyte, 1));
 	else
@@ -855,8 +861,11 @@ ptrs_jit_var_t ptrs_handle_while(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	struct ptrs_ast_control *stmt = &node->arg.control;
 	ptrs_jit_var_t val;
 
+	bool oldAllowed = scope->loopControlAllowed;
 	jit_label_t oldContinue = scope->continueLabel;
 	jit_label_t oldBreak = scope->breakLabel;
+
+	scope->loopControlAllowed = true;
 	scope->continueLabel = jit_label_undefined;
 	scope->breakLabel = jit_label_undefined;
 
@@ -876,6 +885,7 @@ ptrs_jit_var_t ptrs_handle_while(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	jit_insn_label(func, &end);
 	jit_insn_label(func, &scope->breakLabel);
 
+	scope->loopControlAllowed = oldAllowed;
 	scope->continueLabel = oldContinue;
 	scope->breakLabel = oldBreak;
 
@@ -886,8 +896,11 @@ ptrs_jit_var_t ptrs_handle_dowhile(ptrs_ast_t *node, jit_function_t func, ptrs_s
 {
 	struct ptrs_ast_control *stmt = &node->arg.control;
 
+	bool oldAllowed = scope->loopControlAllowed;
 	jit_label_t oldContinue = scope->continueLabel;
 	jit_label_t oldBreak = scope->breakLabel;
+
+	scope->loopControlAllowed = true;
 	scope->continueLabel = jit_label_undefined;
 	scope->breakLabel = jit_label_undefined;
 
@@ -907,6 +920,7 @@ ptrs_jit_var_t ptrs_handle_dowhile(ptrs_ast_t *node, jit_function_t func, ptrs_s
 	//after the loop - patch the breaks
 	jit_insn_label(func, &scope->breakLabel);
 
+	scope->loopControlAllowed = oldAllowed;
 	scope->continueLabel = oldContinue;
 	scope->breakLabel = oldBreak;
 
@@ -920,8 +934,11 @@ ptrs_jit_var_t ptrs_handle_for(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 
 	stmt->init->vtable->get(stmt->init, func, scope);
 
+	bool oldAllowed = scope->loopControlAllowed;
 	jit_label_t oldContinue = scope->continueLabel;
 	jit_label_t oldBreak = scope->breakLabel;
+
+	scope->loopControlAllowed = true;
 	scope->continueLabel = jit_label_undefined;
 	scope->breakLabel = jit_label_undefined;
 
@@ -945,6 +962,7 @@ ptrs_jit_var_t ptrs_handle_for(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 	jit_insn_label(func, &end);
 	jit_insn_label(func, &scope->breakLabel);
 
+	scope->loopControlAllowed = oldAllowed;
 	scope->continueLabel = oldContinue;
 	scope->breakLabel = oldBreak;
 
@@ -1172,11 +1190,12 @@ ptrs_jit_var_t ptrs_handle_scopestatement(ptrs_ast_t *node, jit_function_t func,
 
 	ptrs_scope_t bodyScope;
 	ptrs_initScope(&bodyScope, scope);
+	bodyScope.loopControlAllowed = scope->loopControlAllowed;
 	bodyScope.returnAddr = jit_value_get_param(bodyFunc, 0);
 
 	body->vtable->get(body, bodyFunc, &bodyScope);
-	jit_insn_return(func, jit_const_int(func, ubyte, 0));
-	ptrs_jit_placeAssertions(bodyFunc, scope);
+	jit_insn_return(bodyFunc, jit_const_int(func, ubyte, 0));
+	ptrs_jit_placeAssertions(bodyFunc, &bodyScope);
 
 	if(ptrs_compileAot && jit_function_compile(bodyFunc) == 0)
 		ptrs_error(node, "Failed compiling the scoped statement body");
@@ -1197,13 +1216,16 @@ ptrs_jit_var_t ptrs_handle_scopestatement(ptrs_ast_t *node, jit_function_t func,
 	}
 	else
 	{
-		//continue;
-		jit_insn_branch_if(func, jit_insn_eq(func, status, jit_const_int(func, ubyte, 1)),
-			&scope->continueLabel);
+		if(scope->loopControlAllowed)
+		{
+			//continue;
+			jit_insn_branch_if(func, jit_insn_eq(func, status, jit_const_int(func, ubyte, 1)),
+				&scope->continueLabel);
 
-		//break;
-		jit_insn_branch_if(func, jit_insn_eq(func, status, jit_const_int(func, ubyte, 2)),
-			&scope->breakLabel);
+			//break;
+			jit_insn_branch_if(func, jit_insn_eq(func, status, jit_const_int(func, ubyte, 2)),
+				&scope->breakLabel);
+		}
 
 		//return;
 		jit_insn_return_ptr(func, returnAddr, ptrs_jit_getVarType());

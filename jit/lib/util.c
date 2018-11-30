@@ -32,6 +32,7 @@ char *ptrs_readFile(const char *path)
 
 void ptrs_initScope(ptrs_scope_t *scope, ptrs_scope_t *parent)
 {
+	scope->loopControlAllowed = false;
 	scope->continueLabel = jit_label_undefined;
 	scope->breakLabel = jit_label_undefined;
 	scope->firstAssertion = NULL;
