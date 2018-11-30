@@ -56,6 +56,9 @@ handle_prefix(minus, neg, false)
 		ptrs_jit_var_t val = expr->vtable->get(expr, func, scope); \
 		ptrs_jit_var_t writeback = val; \
 		\
+		val.val = jit_insn_dup(func, val.val); \
+		val.meta = jit_insn_dup(func, val.meta); \
+		\
 		if(val.constType != -1) \
 		{ \
 			if(val.constType == PTRS_TYPE_FLOAT) \
