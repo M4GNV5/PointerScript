@@ -2942,6 +2942,7 @@ static void next(code_t *code)
 
 	code->pos++;
 	while(skipSpaces(code) || skipComments(code));
+	code->curr = code->src[code->pos];
 }
 static void rawnext(code_t *code)
 {
