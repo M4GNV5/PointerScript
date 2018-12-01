@@ -22,6 +22,7 @@
 		else \
 		{ \
 			jit_value_t ret = jit_value_create(func, jit_type_long); \
+			jit_value_t tmp; \
 			jit_label_t isFloat = jit_label_undefined; \
 			jit_label_t done = jit_label_undefined; \
 			\
@@ -30,9 +31,10 @@
 			jit_insn_branch(func, &done); \
 			\
 			jit_insn_label(func, &isFloat); \
-			val.val = jit_insn_##operator(func, ptrs_jit_reinterpretCast(func, val.val, jit_type_float64)); \
-			val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long); \
-			jit_insn_store(func, ret, val.val); \
+			tmp = ptrs_jit_reinterpretCast(func, val.val, jit_type_float64); \
+			tmp = jit_insn_##operator(func, tmp); \
+			tmp = ptrs_jit_reinterpretCast(func, tmp, jit_type_long); \
+			jit_insn_store(func, ret, tmp); \
 			\
 			jit_insn_label(func, &done); \
 			val.val = ret; \
@@ -69,6 +71,7 @@ handle_prefix(minus, neg, false)
 		else \
 		{ \
 			jit_value_t ret = jit_value_create(func, jit_type_long); \
+			jit_value_t tmp; \
 			jit_label_t isFloat = jit_label_undefined; \
 			jit_label_t done = jit_label_undefined; \
 			\
@@ -77,9 +80,10 @@ handle_prefix(minus, neg, false)
 			jit_insn_branch(func, &done); \
 			\
 			jit_insn_label(func, &isFloat); \
-			writeback.val = jit_insn_##operator(func, ptrs_jit_reinterpretCast(func, val.val, jit_type_float64)); \
-			writeback.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long); \
-			jit_insn_store(func, ret, val.val); \
+			tmp = ptrs_jit_reinterpretCast(func, val.val, jit_type_float64); \
+			tmp = jit_insn_##operator(func, tmp); \
+			tmp = ptrs_jit_reinterpretCast(func, tmp, jit_type_long); \
+			jit_insn_store(func, ret, tmp); \
 			\
 			jit_insn_label(func, &done); \
 			writeback.val = ret; \

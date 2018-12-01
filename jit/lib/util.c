@@ -113,8 +113,8 @@ ptrs_val_t ptrs_jit_value_getValConstant(jit_value_t val)
 
 ptrs_meta_t ptrs_jit_value_getMetaConstant(jit_value_t meta)
 {
-	jit_ulong _constMeta = jit_value_get_long_constant(meta);
-	return *(ptrs_meta_t *)&_constMeta;
+	jit_ulong constMeta = jit_value_get_long_constant(meta);
+	return *(ptrs_meta_t *)&constMeta;
 }
 
 ptrs_jit_var_t ptrs_jit_varFromConstant(jit_function_t func, ptrs_var_t val)
@@ -123,7 +123,7 @@ ptrs_jit_var_t ptrs_jit_varFromConstant(jit_function_t func, ptrs_var_t val)
 	if(val.meta.type == PTRS_TYPE_FLOAT)
 		ret.val = jit_const_float(func, val.value.floatval);
 	else
-		ret.val = jit_const_long(func, long, *(jit_long *)&val.value);
+		ret.val = jit_const_long(func, long, val.value.intval);
 
 	ret.meta = jit_const_long(func, ulong, *(jit_long *)&val.meta);
 	ret.constType = val.meta.type;

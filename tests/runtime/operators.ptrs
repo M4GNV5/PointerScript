@@ -1,4 +1,4 @@
-import assert, assertEq from "../common.ptrs";
+import assert, assertSimilar, assertEq from "../common.ptrs";
 
 assertEq(type<int>, typeof !"");
 assertEq(type<int>, typeof ("" || ""));
@@ -87,3 +87,34 @@ assertEq(false, 3 > 4);
 assertEq(true, 3 >= 2);
 assertEq(true, 3 >= 3);
 assertEq(false, 3 >= 4);
+
+function testUnaries(x)
+{
+	assertSimilar(0, x);
+	assertSimilar(1, ++x);
+	assertSimilar(1, x);
+	assertSimilar(1, x++);
+	assertSimilar(2, x);
+	assertSimilar(1, --x);
+	assertSimilar(1, x);
+	assertSimilar(1, x--);
+	assertSimilar(0, x);
+
+	x += 5;
+	if(typeof x == type<native>)
+		x = x[0 .. 0];
+
+	assertSimilar(5, x);
+	assertSimilar(-5, -x);
+
+	x -= 10; //set x to -5
+	if(typeof x == type<native>)
+		x = x[0 .. 0];
+
+	assertSimilar(-5, x);
+	assertSimilar(5, -x);
+}
+
+testUnaries(0);
+testUnaries(0f);
+testUnaries(as<native>0);

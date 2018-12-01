@@ -10,18 +10,29 @@
 
 static jit_type_t getIntrinsicSignature()
 {
-	static jit_type_t signature = NULL;
-	if(signature == NULL)
-	{
-		jit_type_t argDef[5] = {
+	ptrs_jit_reusableSignature(0, signature, ptrs_jit_getVarType(),
+		(
 			jit_type_void_ptr,
 			jit_type_long,
 			jit_type_ulong,
 			jit_type_long,
 			jit_type_ulong
-		};
-		signature = jit_type_create_signature(jit_abi_cdecl, ptrs_jit_getVarType(), argDef, 5, 0);
-	}
+		)
+	);
+
+	return signature;
+}
+static jit_type_t getComparasionInstrinsicSignature()
+{
+	ptrs_jit_reusableSignature(0, signature, jit_type_long,
+		(
+			jit_type_void_ptr,
+			jit_type_long,
+			jit_type_ulong,
+			jit_type_long,
+			jit_type_ulong
+		)
+	);
 
 	return signature;
 }
@@ -298,7 +309,20 @@ static jit_type_t getIntrinsicSignature()
 	}
 
 
-#define handle_binary_compare(name, comparer, extra) \
+#define handle_binary_compare(name, comparer, operator, extra) \
+	int64_t ptrs_intrinsic_##name(ptrs_ast_t *node, ptrs_val_t left, ptrs_meta_t leftMeta, \
+		ptrs_val_t right, ptrs_meta_t rightMeta) \
+	{ \
+		if(leftMeta.type == PTRS_TYPE_FLOAT && rightMeta.type == PTRS_TYPE_FLOAT) \
+			return left.floatval operator right.floatval; \
+		else if(leftMeta.type == PTRS_TYPE_FLOAT) \
+			return left.floatval operator right.intval; \
+		else if(rightMeta.type == PTRS_TYPE_FLOAT) \
+			return left.intval operator right.floatval; \
+		else \
+			return left.intval operator right.intval; \
+	} \
+	\
 	ptrs_jit_var_t ptrs_handle_op_##name(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope) \
 	{ \
 		struct ptrs_ast_binary *expr = &node->arg.binary; \
@@ -306,7 +330,20 @@ static jit_type_t getIntrinsicSignature()
 		ptrs_jit_var_t left = expr->left->vtable->get(expr->left, func, scope); \
 		ptrs_jit_var_t right = expr->right->vtable->get(expr->right, func, scope); \
 		\
-		if(left.constType == PTRS_TYPE_FLOAT && right.constType == PTRS_TYPE_FLOAT) \
+		if(left.constType == -1 || right.constType == -1) \
+		{ \
+			jit_value_t args[5] = { \
+				jit_const_int(func, void_ptr, (uintptr_t)node), \
+				ptrs_jit_reinterpretCast(func, left.val, jit_type_long), \
+				left.meta, \
+				ptrs_jit_reinterpretCast(func, right.val, jit_type_long), \
+				right.meta \
+			}; \
+			\
+			left.val = jit_insn_call_native(func, "(op " #operator ")", \
+				ptrs_intrinsic_##name, getComparasionInstrinsicSignature(), args, 5, 0); \
+		} \
+		else if(left.constType == PTRS_TYPE_FLOAT && right.constType == PTRS_TYPE_FLOAT) \
 		{ \
 			left.val = jit_insn_##comparer(func, \
 				ptrs_jit_reinterpretCast(func, left.val, jit_type_float64), \
@@ -340,14 +377,14 @@ static jit_type_t getIntrinsicSignature()
 		return left; \
 	}
 
-handle_binary_compare(typeequal, eq, handle_binary_typecompare(eq, ==)) //===
-handle_binary_compare(typeinequal, ne, handle_binary_typecompare(ne, !=)) //!==
-handle_binary_compare(equal, eq, ) //==
-handle_binary_compare(inequal, ne, ) //!=
-handle_binary_compare(lessequal, le, ) //<=
-handle_binary_compare(greaterequal, ge, ) //>=
-handle_binary_compare(less, lt, ) //<
-handle_binary_compare(greater, gt, ) //>
+handle_binary_compare(typeequal, eq, ==, handle_binary_typecompare(eq, ==)) //===
+handle_binary_compare(typeinequal, ne, !=, handle_binary_typecompare(ne, !=)) //!==
+handle_binary_compare(equal, eq, ==, ) //==
+handle_binary_compare(inequal, ne, !=, ) //!=
+handle_binary_compare(lessequal, le, <=, ) //<=
+handle_binary_compare(greaterequal, ge, >=, ) //>=
+handle_binary_compare(less, lt, <, ) //<
+handle_binary_compare(greater, gt, >, ) //>
 handle_binary_intonly(or, or, |) //|
 handle_binary_intonly(xor, xor, ^) //^
 handle_binary_intonly(and, and, &) //&

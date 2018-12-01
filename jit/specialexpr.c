@@ -709,7 +709,7 @@ ptrs_jit_var_t ptrs_handle_identifier(ptrs_ast_t *node, jit_function_t func, ptr
 		target.val = ptrs_jit_import(node, func, target.val, false);
 		target.meta = ptrs_jit_import(node, func, target.meta, false);
 
-		if(target.constType == -1 && expr->predictedType != -1)
+		if(target.constType == -1 && expr->predictedType >= 0)
 			target.constType = expr->predictedType;
 	}
 
