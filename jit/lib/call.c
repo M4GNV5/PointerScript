@@ -336,12 +336,14 @@ void ptrs_jit_buildFunction(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t 
 		ast->thisVal.val = jit_const_long(func, long, 0);
 		ast->thisVal.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
 		ast->thisVal.constType = PTRS_TYPE_UNDEFINED;
+		ast->thisVal.addressable = false;
 	}
 	else
 	{
 		ast->thisVal.val = jit_value_get_param(func, 0);
 		ast->thisVal.meta = ptrs_jit_const_pointerMeta(func, PTRS_TYPE_STRUCT, thisType);
 		ast->thisVal.constType = PTRS_TYPE_STRUCT;
+		ast->thisVal.addressable = false;
 	}
 
 	ptrs_funcparameter_t *curr = ast->args;

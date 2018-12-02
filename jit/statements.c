@@ -1118,6 +1118,7 @@ ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 
 	ptrs_scope_t bodyScope;
 	ptrs_initScope(&bodyScope, scope);
+	bodyScope.loopControlAllowed = true;
 	bodyScope.returnAddr = jit_value_get_param(body, 0);
 
 	stmt->body->vtable->get(stmt->body, body, &bodyScope);
