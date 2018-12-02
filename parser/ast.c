@@ -212,7 +212,7 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 						ast->vtable = &ptrs_ast_vtable_member;
 
 						if(ptrs_ast_getSymbol(innermost, "this", &ast->arg.member.base) != 0)
-							ptrs_error(NULL, "pls");
+							ptrs_error(NULL, "Internal error with thismember symbol %s", curr->text);
 						ast->arg.member.name = strdup(curr->text);
 						ast->arg.member.namelen = strlen(curr->text);
 						break;
@@ -1373,26 +1373,6 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 		ast = indexExpr;
 		code->insideIndex = insideIndex;
 		consumec(code, ']');
-	}
-	else if(lookahead(code, "->"))
-	{
-		ptrs_ast_t *dereference = talloc(ptrs_ast_t);
-		dereference->vtable = &ptrs_ast_vtable_prefix_dereference;
-		dereference->codepos = code->pos - 2;
-		dereference->code = code->src;
-		dereference->file = code->filename;
-		dereference->arg.astval = ast;
-
-		ptrs_ast_t *member = talloc(ptrs_ast_t);
-		member->vtable = &ptrs_ast_vtable_member;
-		member->codepos = code->pos;
-		member->code = code->src;
-		member->file = code->filename;
-
-		member->arg.member.base = dereference;
-		member->arg.member.name = readIdentifier(code);
-
-		ast = member;
 	}
 	else
 	{
