@@ -1120,6 +1120,7 @@ _jit_block_create(jit_function_t func)
 	/* Initialize the block */
 	block->func = func;
 	block->label = jit_label_undefined;
+	block->index = (unsigned)-1;
 	_jit_bitset_init(&block->upward_exposes);
 	_jit_bitset_init(&block->var_kills);
 	_jit_bitset_init(&block->live_out);

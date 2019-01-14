@@ -295,7 +295,7 @@ void jit_dump_value(FILE *stream, jit_function_t func, jit_value_t value, const 
  * Dump a temporary value, prefixed by its type.
  */
 static void dump_value(FILE *stream, jit_function_t func,
-					   jit_value_t value, int type)
+					   jit_value_t value, _jit_live_range_t range, int type)
 {
 	/* Normalize the type, so that it reflects JIT_OPCODE_DEST_xxx values */
 	if((type & JIT_OPCODE_SRC1_MASK) != 0)
@@ -346,6 +346,19 @@ static void dump_value(FILE *stream, jit_function_t func,
 			jit_dump_value(stream, func, value, 0);
 		}
 		break;
+	}
+
+	/* Output the selected register(s) if available */
+	if(range)
+	{
+		int i;
+		for(i = 0; i < JIT_NUM_REGS; i++)
+		{
+			if(range->colors & ((jit_ulong)1 << i))
+			{
+				fprintf(stream, "(%s)", jit_reg_name(i));
+			}
+		}
 	}
 }
 
@@ -438,7 +451,8 @@ void jit_dump_insn(FILE *stream, jit_function_t func, jit_insn_t insn)
 	}
 	else if((flags & JIT_OPCODE_IS_ADDROF_LABEL) != 0)
 	{
-		dump_value(stream, func, jit_insn_get_dest(insn), flags & JIT_OPCODE_DEST_MASK);
+		dump_value(stream, func, jit_insn_get_dest(insn), insn->dest_live,
+			flags & JIT_OPCODE_DEST_MASK);
 		fprintf(stream, " = ");
 		fprintf(stream, "address_of_label .L%ld",
 				(long)(jit_insn_get_label(insn)));
@@ -451,7 +465,8 @@ void jit_dump_insn(FILE *stream, jit_function_t func, jit_insn_t insn)
 		labels = (jit_label_t *)jit_value_get_nint_constant(jit_insn_get_value1(insn));
 		num_labels = jit_value_get_nint_constant(jit_insn_get_value2(insn));
 		fprintf(stream, "%s ", name);
-		dump_value(stream, func, jit_insn_get_dest(insn), flags & JIT_OPCODE_DEST_MASK);
+		dump_value(stream, func, jit_insn_get_dest(insn), insn->dest_live,
+			flags & JIT_OPCODE_DEST_MASK);
 		fprintf(stream, " : {");
 		for(label = 0; label < num_labels; label++)
 		{
@@ -465,8 +480,8 @@ void jit_dump_insn(FILE *stream, jit_function_t func, jit_insn_t insn)
 	if((flags & JIT_OPCODE_DEST_MASK) != JIT_OPCODE_DEST_EMPTY &&
 	   !jit_insn_dest_is_value(insn))
 	{
-		dump_value(stream, func, jit_insn_get_dest(insn),
-				   flags & JIT_OPCODE_DEST_MASK);
+		dump_value(stream, func, jit_insn_get_dest(insn), insn->dest_live,
+			flags & JIT_OPCODE_DEST_MASK);
 		fprintf(stream, " = ");
 	}
 
@@ -501,17 +516,17 @@ void jit_dump_insn(FILE *stream, jit_function_t func, jit_insn_t insn)
 		{
 			/* Binary operation with a special operator name */
 			dump_value(stream, func, jit_insn_get_value1(insn),
-				   	   flags & JIT_OPCODE_SRC1_MASK);
+				   	   insn->value1_live, flags & JIT_OPCODE_SRC1_MASK);
 			fputs(infix_name, stream);
 			dump_value(stream, func, jit_insn_get_value2(insn),
-				   	   flags & JIT_OPCODE_SRC2_MASK);
+				   	   insn->value2_live, flags & JIT_OPCODE_SRC2_MASK);
 		}
 		else
 		{
 			/* Unary operation with a special operator name */
 			fputs(infix_name, stream);
 			dump_value(stream, func, jit_insn_get_value1(insn),
-				   	   flags & JIT_OPCODE_SRC1_MASK);
+				   	   insn->value1_live, flags & JIT_OPCODE_SRC1_MASK);
 		}
 	}
 	else
@@ -528,16 +543,16 @@ void jit_dump_insn(FILE *stream, jit_function_t func, jit_insn_t insn)
 			if(jit_insn_dest_is_value(insn))
 			{
 				dump_value(stream, func, jit_insn_get_dest(insn),
-					   	   flags & JIT_OPCODE_DEST_MASK);
+					   	   insn->dest_live, flags & JIT_OPCODE_DEST_MASK);
 				fputs(", ", stream);
 			}
 			dump_value(stream, func, jit_insn_get_value1(insn),
-				   	   flags & JIT_OPCODE_SRC1_MASK);
+				   	   insn->value1_live, flags & JIT_OPCODE_SRC1_MASK);
 			if((flags & JIT_OPCODE_SRC2_MASK) != 0)
 			{
 				fputs(", ", stream);
 				dump_value(stream, func, jit_insn_get_value2(insn),
-					   	   flags & JIT_OPCODE_SRC2_MASK);
+					   	   insn->value2_live, flags & JIT_OPCODE_SRC2_MASK);
 			}
 			putc(')', stream);
 		}
@@ -805,14 +820,14 @@ void jit_dump_live_ranges(FILE *stream, jit_function_t func)
 		fprintf(stream, "\n    Starts:");
 		for(curr = range->starts; curr; curr = curr->next)
 		{
-			fprintf(stream, "\n        ");
+			fprintf(stream, "\n        [Block %d] ", curr->block->index);
 			jit_dump_insn(stdout, func, curr->insn);
 		}
 
 		fprintf(stream, "\n    Ends:");
 		for(curr = range->ends; curr; curr = curr->next)
 		{
-			fprintf(stream, "\n        ");
+			fprintf(stream, "\n        [Block %d] ", curr->block->index);
 			jit_dump_insn(stdout, func, curr->insn);
 		}
 
@@ -1012,6 +1027,12 @@ void jit_dump_function(FILE *stream, jit_function_t func, const char *name)
 		block = 0;
 		while((block = jit_block_next(func, block)) != 0)
 		{
+			/* Output block index, if it is available yet */
+			if(block->index != (unsigned)-1)
+			{
+				fprintf(stream, "Block #%u:\n", block->index);
+			}
+
 			/* Output the block's labels, if it has any */
 			label = jit_block_get_label(block);
 			if(block->label != jit_label_undefined)
