@@ -391,9 +391,13 @@ has_memory_type(jit_value_t value)
 
 static _jit_live_range_t
 handle_live_range_use(jit_block_t block,
-	jit_insn_t prev, jit_insn_t insn, jit_value_t value)
+	jit_insn_t prev, jit_insn_t insn, jit_value_t value, int next_use)
 {
+	_jit_live_range_t result;
 	_jit_live_range_t range;
+	jit_insn_t start;
+	int curr_distance;
+	int distance;
 
 	if(!value || value->is_constant || has_memory_type(value))
 	{
@@ -419,54 +423,46 @@ handle_live_range_use(jit_block_t block,
 		return range;
 	}
 
+	result = 0;
+	distance = block->num_insns + 1;
+
 	for(range = value->live_ranges; range; range = range->value_next)
 	{
-		/* If the range does not touch the start of the current block, this
-		   cannot be an end for it */
-		if(!_jit_bitset_test_bit(&range->touched_block_starts, block->index))
+		start = _jit_insn_list_get_insn_from_block(range->starts, block);
+		if(start != 0 && insn > start)
+		{
+			/* The live range started previousely in this block. This use is
+			   part of it if there is no other live range with a closer start */
+			curr_distance = insn - start;
+		}
+		else if(_jit_bitset_test_bit(&range->touched_block_starts,
+			block->index))
+		{
+			/* The live range does not have a had a start in this block yet, but
+			   it touches the start of the block, so it could be alive here */
+			curr_distance = insn - block->insns;
+		}
+		else
 		{
 			continue;
 		}
 
-		if(_jit_bitset_test_bit(&range->touched_block_ends, block->index))
+		if(curr_distance < distance)
 		{
-			/* The range is alive at the end of the block. This is only an end
-			   if it is restarted later in this block */
-			if(_jit_insn_list_get_insn_from_block(range->starts, block) == 0
-				&& _jit_insn_list_get_insn_from_block(range->ends, block) == 0)
-			{
-				_jit_insn_list_add(&range->ends, block, insn);
-			}
+			distance = curr_distance;
+			result = range;
 		}
-		else if(_jit_insn_list_get_insn_from_block(range->ends, block) == 0)
-		{
-			/* This is the last instruction in the block which uses the range
-			   thus it ends the range */
-			_jit_insn_list_add(&range->ends, block, insn);
-		}
-
-		return range;
 	}
 
-	/* There is no live range that matches, we have to create a new one and
-	   compute the touched blocks */
-	range = _jit_function_create_live_range(block->func, value);
+	assert(result != 0);
 
-	if(_jit_bitset_test_bit(&block->upward_exposes, value->index))
+	if(!next_use
+		&& !_jit_bitset_test_bit(&result->touched_block_ends, block->index))
 	{
-		flood_fill_touched_preds(block, range, value);
+		_jit_insn_list_add(&result->ends, block, insn);
 	}
 
-	if(_jit_bitset_test_bit(&block->live_out, value->index))
-	{
-		flood_fill_touched_succs(block, range, value);
-	}
-	else
-	{
-		_jit_insn_list_add(&range->ends, block, insn);
-	}
-
-	return range;
+	return result;
 }
 
 static _jit_live_range_t
@@ -474,7 +470,7 @@ handle_live_range_start(jit_block_t block,
 	jit_insn_t prev, jit_insn_t insn, jit_value_t value)
 {
 	_jit_live_range_t range;
-	jit_insn_t end;
+	int is_local;
 
 	if(!value || value->is_constant || has_memory_type(value))
 	{
@@ -500,51 +496,44 @@ handle_live_range_start(jit_block_t block,
 		return range;
 	}
 
-	for(range = value->live_ranges; range; range = range->value_next)
+	is_local = 0;
+	if(_jit_bitset_test_bit(&block->live_out, value->index))
 	{
-		end = _jit_insn_list_get_insn_from_block(range->ends, block);
-		if(end != 0
-			&& _jit_insn_list_get_insn_from_block(range->starts, block) == 0)
+		/* If the value lives out the block we need to check if there is already
+		   a live range for this value which is alive at the end of the block.
+		   If there is one this live range is local */
+		for(range = value->live_ranges; range; range = range->value_next)
 		{
-			if(range->starts == 0 && range->ends->next == 0)
+			if(!_jit_bitset_test_bit(&range->touched_block_ends, block->index))
 			{
-				/* range is a local life range with one start (here) and one
-				   end (@var{end}) */
-				_jit_insn_list_add(&range->starts, block, insn);
-				_jit_bitset_clear(&range->touched_block_starts);
-				_jit_bitset_clear(&range->touched_block_ends);
-				return range;
+				continue;
+			}
+
+			if(_jit_insn_list_get_insn_from_block(range->starts, block))
+			{
+				is_local = 1;
+				break;
 			}
 			else
 			{
-				/* @var{end} and insn are together a local live range however
-				   @var{range} is a different one */
-				_jit_insn_list_remove(&range->ends, end);
-
-				range = _jit_function_create_live_range(block->func, value);
+				/* There is already a live range which is alive at the end of
+				   the block, but it does not have a start yet, so this must
+				   be a start for it */
 				_jit_insn_list_add(&range->starts, block, insn);
-				_jit_insn_list_add(&range->ends, block, end);
 				return range;
 			}
 		}
-
-		/* If the range does not touch the end of the current block, this
-		   cannot be a start for it */
-		if(!_jit_bitset_test_bit(&range->touched_block_ends, block->index))
-		{
-			continue;
-		}
-
-		_jit_insn_list_add(&range->starts, block, insn);
-		return range;
+	}
+	else
+	{
+		/* The live range does not live out this block, thus it is local */
+		is_local = 1;
 	}
 
-	/* There is no live range that matches, we have to create a new one and
-	   compute the touched blocks */
 	range = _jit_function_create_live_range(block->func, value);
 	_jit_insn_list_add(&range->starts, block, insn);
 
-	if(_jit_bitset_test_bit(&block->live_out, value->index))
+	if(!is_local)
 	{
 		flood_fill_touched_succs(block, range, value);
 	}
@@ -578,32 +567,56 @@ _jit_function_compute_live_ranges(jit_function_t func)
 
 			flags = insn->flags;
 
+			if((flags & JIT_INSN_DEST_OTHER_FLAGS) == 0
+				&& (flags & JIT_INSN_DEST_IS_VALUE) == 0)
+			{
+				insn->dest_live = handle_live_range_start(block,
+					prev, insn, insn->dest);
+			}
+
+			prev = insn;
+		}
+	}
+
+	for(block = func->builder->entry_block; block; block = block->next)
+	{
+		prev = 0;
+		jit_insn_iter_init(&iter, block);
+		while((insn = jit_insn_iter_next(&iter)) != 0)
+		{
+			/* Skip NOP instructions, which may have arguments left
+			   over from when the instruction was replaced, but which
+			   are not relevant to our data flow analysis */
+			if(insn->opcode == JIT_OP_NOP)
+			{
+				prev = insn;
+				continue;
+			}
+
+			flags = insn->flags;
+
 			if((flags & JIT_INSN_VALUE1_OTHER_FLAGS) == 0)
 			{
 				insn->value1_live = handle_live_range_use(block,
-					prev, insn, insn->value1);
+					prev, insn, insn->value1,
+					(flags & JIT_INSN_VALUE1_NEXT_USE) != 0);
 			}
 
 			if((flags & JIT_INSN_VALUE2_OTHER_FLAGS) == 0)
 			{
 				insn->value2_live = handle_live_range_use(block,
-					prev, insn, insn->value2);
+					prev, insn, insn->value2,
+					(flags & JIT_INSN_VALUE2_NEXT_USE) != 0);
 			}
 
-			if((flags & JIT_INSN_DEST_OTHER_FLAGS) == 0)
+			if((flags & JIT_INSN_DEST_OTHER_FLAGS) == 0
+				&& (flags & JIT_INSN_DEST_IS_VALUE) != 0)
 			{
-				if((flags & JIT_INSN_DEST_IS_VALUE) == 0)
-				{
-					insn->dest_live = handle_live_range_start(block,
-						prev, insn, insn->dest);
-				}
-				else
-				{
-					/* The destination is actually a source value for this
-					   instruction (e.g. JIT_OP_STORE_RELATIVE_*) */
-					insn->dest_live = handle_live_range_use(block,
-						prev, insn, insn->dest);
-				}
+				/* The destination is actually a source value for this
+				   instruction (e.g. JIT_OP_STORE_RELATIVE_*) */
+				insn->dest_live = handle_live_range_use(block,
+					prev, insn, insn->dest,
+					(flags & JIT_INSN_DEST_NEXT_USE) != 0);
 			}
 
 			prev = insn;
