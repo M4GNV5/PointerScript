@@ -79,6 +79,8 @@ void jit_function_set_optimization_level
 	(jit_function_t func, unsigned int level) JIT_NOTHROW;
 unsigned int jit_function_get_optimization_level
 	(jit_function_t func) JIT_NOTHROW;
+int jit_function_optimize
+	(jit_function_t func) JIT_NOTHROW;
 unsigned int jit_function_get_max_optimization_level(void) JIT_NOTHROW;
 jit_label_t jit_function_reserve_label(jit_function_t func) JIT_NOTHROW;
 int jit_function_labels_equal(jit_function_t func, jit_label_t label, jit_label_t label2);

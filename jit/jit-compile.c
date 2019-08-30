@@ -121,7 +121,7 @@ optimize(jit_function_t func)
 }
 
 /*@
- * @deftypefun int jit_optimize (jit_function_t @var{func})
+ * @deftypefun int jit_function_optimize (jit_function_t @var{func})
  * Optimize a function by analyzing and transforming its intermediate
  * representation. If the function was already compiled or optimized,
  * then do nothing.
@@ -134,11 +134,11 @@ optimize(jit_function_t func)
  * performs all the optimization anyway.  However it might be useful for
  * debugging to verify the effect of the @code{libjit} code optimization.
  * This might be done, for instance, by calling @code{jit_dump_function}
- * before and after @code{jit_optimize}.
+ * before and after @code{jit_function_optimize}.
  * @end deftypefun
 @*/
 int
-jit_optimize(jit_function_t func)
+jit_function_optimize(jit_function_t func)
 {
 	jit_jmp_buf jbuf;
 	jit_exception_func handler;
