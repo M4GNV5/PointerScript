@@ -863,16 +863,6 @@ static void dump_object_code(FILE *stream, void *start, void *end)
 	int ch;
 
 #if JIT_WIN32_PLATFORM
-	/*
-	 * NOTE: If libjit is compiled on cygwin with -mno-cygwin flag then
-	 * fopen("/tmp/foo.s", ...) will use the root folder of the current
-	 * drive. That is the full file name will be like "c:/tmp/foo". But
-	 * the ``as'' and ``objdump'' utilities still use the cygwin's root.
-	 * So "as /tmp/foo.s" will look for "c:/cygwin/tmp/foo.s". To avoid
-	 * this ambiguity the file name has to contian the drive spec (e.g.
-	 * fopen("c:/tmp/foo.s", ...) and "as c;/tmp/foo.s"). Here we assume
-	 * that the TMP or TEMP environment variables always contain it.
-	 */
 	char s_path[BUFSIZ];
 	char o_path[BUFSIZ];
 	char *tmp_dir = getenv("TMP");
@@ -967,18 +957,19 @@ void jit_dump_function(FILE *stream, jit_function_t func, const char *name)
 		{
 			/* We have extra hidden parameters */
 			putc('[', stream);
-			if(func->nested_parent)
-			{
-				fputs("parent_frame", stream);
-				if(value)
-				{
-					fputs(", ", stream);
-				}
-			}
 			if(value)
 			{
 				jit_dump_value(stream, func, value, 0);
 				fputs(" : struct_ptr", stream);
+				if(func->nested_parent)
+				{
+					fputs(", ", stream);
+				}
+			}
+			if(func->nested_parent)
+			{
+				jit_dump_value(stream, func, func->parent_frame, 0);
+				fputs(" : parent_frame", stream);
 			}
 			putc(']', stream);
 			if(num_params > 0)

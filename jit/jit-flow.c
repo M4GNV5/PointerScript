@@ -193,7 +193,7 @@ _jit_function_compute_live_out(jit_function_t func)
 		for(i = 0; i < func->builder->num_block_order; i++)
 		{
 			block = func->builder->block_order[i];
-			
+
 			if(compute_live_out(block, &tmp))
 				changed = 1;
 		}
@@ -383,7 +383,7 @@ has_memory_type(jit_value_t value)
 	case JIT_TYPE_UNION:
 	case JIT_TYPE_SIGNATURE:
 		return 1;
-	
+
 	default:
 		return 0;
 	}
@@ -805,7 +805,6 @@ _jit_function_add_instruction_live_ranges(jit_function_t func)
 				skip = 1;
 				break;
 
-			case JIT_OP_OUTGOING_FRAME_POSN:
 			case JIT_OP_INCOMING_FRAME_POSN:
 				skip = 1;
 				break;

@@ -275,6 +275,22 @@ compile_block(jit_gencode_t gen, jit_function_t func, jit_block_t block)
 #endif
 
 #ifndef JIT_BACKEND_INTERP
+		case JIT_OP_IMPORT:
+			/* Make sure the import target has a frame_offset */
+			_jit_gen_fix_value(insn->value2);
+
+			/* change the current instruction to an instruction calculating the
+			   address of the import target */
+			insn->opcode = JIT_OP_ADD_RELATIVE;
+			insn->value2 = jit_value_create_nint_constant(func, jit_type_nint,
+				insn->value2->frame_offset);
+
+			/* generate the instruction */
+			_jit_gen_insn(gen, func, block, insn);
+			break;
+#endif
+
+#ifndef JIT_BACKEND_INTERP
 		case JIT_OP_INCOMING_REG:
 			if(gen->graph_allocated)
 			{
@@ -338,23 +354,6 @@ compile_block(jit_gencode_t gen, jit_function_t func, jit_block_t block)
 			}
 			break;
 #endif
-
-		case JIT_OP_OUTGOING_FRAME_POSN:
-			/* Set the frame position for an outgoing value */
-			insn->value1->has_frame_offset = 1;
-			insn->value1->frame_offset = jit_value_get_nint_constant(insn->value2);
-			if(gen->graph_allocated && insn->value1->in_register)
-			{
-				_jit_gen_spill_reg(gen, insn->value1->reg, -1, insn->value1);
-			}
-			else
-			{
-				insn->value1->in_register = 0;
-				insn->value1->in_global_register = 0;
-				insn->value1->in_frame = 0;
-				insn->value1->has_global_register = 0;
-			}
-			break;
 
 #ifndef JIT_BACKEND_INTERP
 		case JIT_OP_RETURN_REG:
@@ -562,7 +561,7 @@ memory_start(_jit_compile_t *state)
 
 	/* Store the bounds of the available space */
 	state->gen.mem_start = _jit_memory_get_break(state->gen.context);
-	state->gen.mem_limit = _jit_memory_get_limit(state->gen.context); 
+	state->gen.mem_limit = _jit_memory_get_limit(state->gen.context);
 
 	/* Align the function code start as required */
 	state->gen.ptr = state->gen.mem_start;

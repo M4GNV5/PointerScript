@@ -223,7 +223,7 @@ does_local_range_interfere_with(_jit_live_range_t local,
 			return 1;
 		}
 	}
-	
+
 	return 0;
 }
 
@@ -738,7 +738,7 @@ _jit_regs_graph_compute_coloring(jit_function_t func)
 	_jit_live_range_t *stack;
 	_jit_live_range_t *ranges;
 	int pos;
-	int i;	
+	int i;
 #ifdef _JIT_DEBUG_GRAPH_REGALLOC
 	int spill_count;
 	spill_count = -1;
@@ -782,7 +782,7 @@ _jit_regs_graph_compute_coloring(jit_function_t func)
 				}
 			}
 		}
-		
+
 #ifdef _JIT_DEBUG_GRAPH_REGALLOC
 		++spill_count;
 #endif
@@ -1000,7 +1000,6 @@ _jit_regs_graph_begin(jit_gencode_t gen, _jit_regs_t *regs, jit_insn_t insn)
 		break;
 
 	case JIT_OP_OUTGOING_REG:
-	case JIT_OP_OUTGOING_FRAME_POSN:
 		ignore = 2;
 		break;
 	}

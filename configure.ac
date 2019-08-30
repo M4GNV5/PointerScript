@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_PREREQ([2.69])
 
-AC_INIT([libjit], [0.1.3], [libjit@gnu.org])
+AC_INIT([libjit], [0.1.4], [libjit@gnu.org])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_SRCDIR([include/jit/jit.h])
 AC_CONFIG_HEADERS([config.h])
@@ -35,27 +35,11 @@ case "$host" in
 esac
 AC_MSG_RESULT($JIT_ARCH)
 
-dnl Turn off the cygwin library if building for Win32.
 dnl Note: We have to include <stdlib.h> if we will be using "__int64"
 dnl because otherwise the mingw32 compiler won't define it correctly.
-AC_MSG_CHECKING([if building for some Win32 platform])
+AC_MSG_CHECKING([if building for Win32])
 AC_SUBST(JIT_INT64_INCLUDE)
 case "$host" in
-	*-*-cygwin*)
-		platform_win32=yes
-		if test "x$CC" = "x" ; then
-			CC="gcc -mno-cygwin"
-		fi
-		if test "x$CXX" = "x" ; then
-			if test "x$CC" = "xcl" ; then
-				CXX="cl"
-			else
-				CXX="g++ -mno-cygwin"
-			fi
-		fi
-		suppress_libm=yes
-		JIT_INT64_INCLUDE='#include <stdlib.h>'
-		;;
 	*-*-mingw*)
 		platform_win32=yes
 		if test "x$CC" = "xcl" ; then
@@ -249,28 +233,17 @@ else
 fi
 AC_MSG_RESULT([$JITINT32, unsigned $JITINT32])
 AC_MSG_CHECKING(for the 64-bit integer types)
-JITINT64CXX=
-if test "$ac_cv_sizeof___int64" = 8 ; then
-	if test "x$JIT_INT64_INCLUDE" = "x" ; then
-		JITINT64='long long'
-	else
-		dnl __int64 doesn't work with g++, although it does with gcc.
-		JITINT64='__int64'
-		JITINT64CXX='long long'
-	fi
-elif test "$ac_cv_sizeof_int" = 8 ; then
-	JITINT64=int
-elif test "$ac_cv_sizeof_long" = 8 ; then
+if test "$ac_cv_sizeof_long" = 8 ; then
 	JITINT64=long
 elif test "$ac_cv_sizeof_long_long" = 8 ; then
 	JITINT64='long long'
+elif test "$ac_cv_sizeof_int" = 8 ; then
+	JITINT64=int
+elif test "$ac_cv_sizeof___int64" = 8 ; then
+	JITINT64='__int64'
 else
 	AC_MSG_ERROR(unknown)
 fi
-if test "x$JITINT64CXX" = "x" ; then
-	JITINT64CXX="$JITINT64"
-fi
-AC_MSG_RESULT([$JITINT64, unsigned $JITINT64])
 AC_MSG_CHECKING(for the native integer types)
 if test "$ac_cv_sizeof_void_p" = 4 ; then
 	JITNATIVEINT="$JITINT32"
