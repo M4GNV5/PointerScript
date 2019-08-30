@@ -970,6 +970,10 @@ begin_value(jit_gencode_t gen, _jit_regs_t *regs, jit_insn_t insn,
 	}
 	else
 	{
+		/* make sure we use the correct register, as the value might be both source
+		   and dest of this insn, but with different registers */
+		value->reg = find_reg_in_colors(range->colors);
+
 		/* The value is already in a register */
 		if(regs->descs[i].reg == -1)
 		{
