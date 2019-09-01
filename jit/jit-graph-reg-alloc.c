@@ -372,12 +372,6 @@ _jit_regs_graph_build(jit_function_t func)
 	}
 }
 
-void
-_jit_regs_graph_coalesce(jit_function_t func)
-{
-	/* TODO */
-}
-
 static void
 _jit_regs_graph_calculate_spill_costs(jit_function_t func)
 {
@@ -636,10 +630,40 @@ spill_live_range(jit_function_t func, _jit_live_range_t *ranges,
 	range->is_spilled = 1;
 }
 
+static void
+prefer_neighbor_colors_for(jit_ushort *preferred_colors, _jit_live_range_t other)
+{
+	int reg;
+
+	if(!other || other->colors == 0)
+	{
+		return;
+	}
+
+	for(reg = 0; reg < JIT_NUM_REGS; reg++)
+	{
+		if(other->colors & ((jit_ulong)1 << reg))
+		{
+			preferred_colors[reg]++;
+		}
+	}
+}
+static void
+prefer_neighbor_colors(jit_ushort *preferred_colors, _jit_insn_list_t insn_curr)
+{
+	for(; insn_curr; insn_curr = insn_curr->next)
+	{
+		prefer_neighbor_colors_for(preferred_colors, insn_curr->insn->dest_live);
+		prefer_neighbor_colors_for(preferred_colors, insn_curr->insn->value1_live);
+		prefer_neighbor_colors_for(preferred_colors, insn_curr->insn->value2_live);
+	}
+}
+
 int
 _jit_regs_graph_select(jit_function_t func, _jit_live_range_t *ranges,
 	_jit_live_range_t *stack, int pos)
 {
+	jit_ushort preferred_colors[JIT_NUM_REGS];
 	_jit_live_range_t curr;
 	jit_nuint used;
 	int preferred;
@@ -664,6 +688,17 @@ _jit_regs_graph_select(jit_function_t func, _jit_live_range_t *ranges,
 			}
 		}
 
+		if(curr->preferred_colors)
+		{
+			memcpy(preferred_colors, curr->preferred_colors, JIT_NUM_REGS * sizeof(jit_ushort));
+		}
+		else
+		{
+			memset(preferred_colors, 0, JIT_NUM_REGS * sizeof(jit_ushort));
+		}
+		prefer_neighbor_colors(preferred_colors, curr->starts);
+		prefer_neighbor_colors(preferred_colors, curr->ends);
+
 		type = get_type_flag_from_range(curr);
 		preferred = -1;
 		preferred_score = -1;
@@ -675,19 +710,14 @@ _jit_regs_graph_select(jit_function_t func, _jit_live_range_t *ranges,
 			if((((jit_ulong)1 << i) & used) == 0
 				&& (flags & type) != 0
 				&& (flags & JIT_REG_FIXED) == 0
-				&& (curr->preferred_colors == 0
-					|| curr->preferred_colors[i] >= preferred_score)
+				&& preferred_colors[i] >= preferred_score
 				&& (preferred == -1
-					|| (curr->preferred_colors != 0
-						&& curr->preferred_colors[i] > preferred_score)
+					|| preferred_colors[i] > preferred_score
 					|| (preferred_is_global && !is_global)))
 			{
 				preferred = i;
 				preferred_is_global = is_global;
-				if(curr->preferred_colors)
-				{
-					preferred_score = curr->preferred_colors[i];
-				}
+				preferred_score = preferred_colors[i];
 			}
 		}
 
@@ -755,7 +785,6 @@ _jit_regs_graph_compute_coloring(jit_function_t func)
 	curr = func->live_ranges;
 
 	_jit_regs_graph_build(func);
-	_jit_regs_graph_coalesce(func);
 	_jit_regs_graph_calculate_spill_costs(func);
 
 	do
