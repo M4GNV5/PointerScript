@@ -1,10 +1,10 @@
 import puts;
 
-let x = 42; //initialize x as an int with value 42
-let y = 3.14; //initialize y as a float with value 3.14
+var x = 42; //initialize x as an int with value 42
+var y = 3.14; //initialize y as a float with value 3.14
 var z = x; //initialize z as a value with a variable type
 
-let add = x + y; //add will be a float with value 45.14
+var add = x + y; //add will be a float with value 45.14
 
 //this outputs 35.14 two times, but the second computation is slower, as we
 //don't know what type z has so we have to call an intrinsic which adds two

@@ -29,9 +29,9 @@ qsort(parts, len, VARSIZE, compar);
 */
 
 //simple bubble sort
-for(let i = 0; i < len; i++)
+for(var i = 0; i < len; i++)
 {
-	for(let j = 0; j < len - 1; j++)
+	for(var j = 0; j < len - 1; j++)
 	{
 		if(parts[j] > parts[j + 1])
 		{

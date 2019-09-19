@@ -386,20 +386,6 @@ var bar = "Hello";
 var tar = 42 * 3112;
 ```
 
-## TypedDefinitionStatement
-Defines a variable with a constant type. Using this instead of
-[DefinitionStatement](#definitionstatement) is generally a good idea, as the
-compiler can optimize especially arithmetic expressions better when the types
-of both arguments are known. The type has to be specified explicitly when either
-no initializer is given or the initializers type is not known.
-```js
-//'let' Identifier [ ':' TypeName ] [ '=' Expression ] ';'
-let x = 3;
-let y = 3f;
-let z: native;
-let a: float = someFunction();
-```
-
 ## ArrayDefinitionStatement
 Creates an array of bytes on the Stack, optionally initialized with values from a string or an array literal.
 ```js

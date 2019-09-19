@@ -1,8 +1,8 @@
 import printf;
 
-for(let i = 0; i < 10; i++)
+for(var i = 0; i < 10; i++)
 {
-	let area = i * i * PI;
-	let circumference = 2 * i * PI;
+	var area = i * i * PI;
+	var circumference = 2 * i * PI;
 	printf("r = %-20ldC = %-20gA = %g\n", i, circumference, area);
 }
