@@ -1002,6 +1002,21 @@ _jit_block_compute_postorder(jit_function_t func)
 }
 
 static void
+reset_common_properties(jit_value_t value, int index)
+{
+	value->usage_count = 0;
+	value->index = index;
+
+	if(!value->is_constant)
+	{
+		/* Reset value temproary/local flags */
+		value->is_temporary = 1;
+		value->is_local = 0;
+		value->first_used_in = 0;
+	}
+}
+
+static void
 update_common_properties(jit_block_t block, jit_value_t value)
 {
 	if(!value)
@@ -1049,22 +1064,34 @@ _jit_block_recompute_common_properties(jit_function_t func)
 		for(i = 0; i < num; ++i)
 		{
 			value = (jit_value_t)(memblock->data + i * sizeof(struct _jit_value));
-
-			value->usage_count = 0;
-			value->index = count;
+			reset_common_properties(value, count);
 			++count;
-
-			if(!value->is_constant)
-			{
-				/* Reset value temproary/local flags */
-				value->is_temporary = 1;
-				value->is_local = 0;
-				value->first_used_in = 0;
-			}
 		}
 		memblock = memblock->next;
 
 		num = (int)(func->builder->value_pool.elems_per_block);
+	}
+
+	num = jit_type_num_params(func->signature);
+	for(i = 0; i < num; i++)
+	{
+		value = func->builder->param_values[i];
+		reset_common_properties(value, count);
+		++count;
+	}
+
+	value = func->builder->struct_return;
+	if(value)
+	{
+		reset_common_properties(value, count);
+		++count;
+	}
+
+	value = func->builder->parent_frame;
+	if(value)
+	{
+		reset_common_properties(value, count);
+		++count;
 	}
 
 	func->builder->value_count = count;
