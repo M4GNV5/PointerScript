@@ -716,6 +716,7 @@ handle_constant_in_reg(jit_function_t func, jit_block_t block,
 	int reg, int reg_other, _jit_live_range_t *out)
 {
 	int colors;
+	_jit_live_range_t range;
 
 	if(reg == _JIT_REG_USAGE_UNNUSED || value == 0 || !value->is_constant)
 	{
@@ -724,7 +725,7 @@ handle_constant_in_reg(jit_function_t func, jit_block_t block,
 
 	if(reg == _JIT_REG_USAGE_UNNAMED)
 	{
-		*out = create_dummy_live_range(func, block, prev, insn, value);
+		range = create_dummy_live_range(func, block, prev, insn, value);
 	}
 	else
 	{
@@ -734,7 +735,12 @@ handle_constant_in_reg(jit_function_t func, jit_block_t block,
 			assert(reg_other != _JIT_REG_USAGE_UNNAMED);
 			colors |= (jit_ulong)1 << reg_other;
 		}
-		*out = create_fixed_live_range(func, block, prev, insn, value, colors);
+		range = create_fixed_live_range(func, block, prev, insn, value, colors);
+	}
+
+	if(out)
+	{
+		*out = range;
 	}
 }
 
@@ -790,18 +796,18 @@ _jit_function_add_instruction_live_ranges(jit_function_t func)
 
 			case JIT_OP_INCOMING_REG:
 			case JIT_OP_RETURN_REG:
+				i = (int)jit_value_get_nint_constant(insn->value1);
 				increment_preferred_color(func, block, prev, insn,
-					insn->dest_live,
-					(int)jit_value_get_nint_constant(insn->value1),
-					_JIT_REG_USAGE_UNNUSED);
+					insn->dest_live, i, _JIT_REG_USAGE_UNNUSED);
 				skip = 1;
 				break;
 
 			case JIT_OP_OUTGOING_REG:
+				i = (int)jit_value_get_nint_constant(insn->value2);
 				increment_preferred_color(func, block, prev, insn,
-					insn->value1_live,
-					(int)jit_value_get_nint_constant(insn->value2),
-					_JIT_REG_USAGE_UNNUSED);
+					insn->value1_live, i, _JIT_REG_USAGE_UNNUSED);
+				handle_constant_in_reg(func, block, prev, insn, insn->value1,
+					i, _JIT_REG_USAGE_UNNUSED, NULL);
 				skip = 1;
 				break;
 
