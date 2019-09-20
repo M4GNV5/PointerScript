@@ -6336,6 +6336,36 @@ jit_insn_get_frame_pointer(jit_function_t func)
 }
 
 static jit_value_t
+create_import_insn(jit_function_t func, jit_type_t dest_type, jit_value_t frame, jit_value_t value)
+{
+	jit_insn_t insn;
+	jit_value_t result;
+
+	result = jit_value_create(func, dest_type);
+	if(!result)
+	{
+		return 0;
+	}
+
+	insn = _jit_block_add_insn(func->builder->current_block);
+	if(!insn)
+	{
+		return 0;
+	}
+
+	insn->opcode = (short) JIT_OP_IMPORT;
+	insn->flags = JIT_INSN_VALUE2_IS_IMPORT;
+
+	insn->dest = result;
+	insn->value1 = frame;
+	jit_value_ref(func, frame);
+	insn->value2 = value;
+	jit_value_ref(func, value);
+
+	return result;
+}
+
+static jit_value_t
 find_frame_of(jit_function_t func, jit_function_t target,
 	jit_function_t func_start, jit_value_t frame_start)
 {
@@ -6386,8 +6416,8 @@ find_frame_of(jit_function_t func, jit_function_t target,
 	current_func = func_start;
 	while(frame_start != 0 && nesting_level-- > 0)
 	{
-		frame_start = apply_binary(func, JIT_OP_IMPORT, frame_start,
-			current_func->parent_frame, jit_type_void_ptr);
+		frame_start = create_import_insn(func, jit_type_void_ptr, frame_start,
+			current_func->parent_frame);
 		frame_start = jit_insn_load_relative(func, frame_start, 0,
 			jit_type_void_ptr);
 
@@ -6500,7 +6530,7 @@ jit_insn_import(jit_function_t func, jit_value_t value)
 		return 0;
 	}
 
-	result = apply_binary(func, JIT_OP_IMPORT, value_frame, value, result_type);
+	result = create_import_insn(func, result_type, value_frame, value);
 	jit_type_free(result_type);
 
 	return result;
