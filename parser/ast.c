@@ -2759,7 +2759,11 @@ static ptrs_ast_t *getSymbol(code_t *code, char *text)
 {
 	ptrs_ast_t *ast = NULL;
 	if(ptrs_ast_getSymbol(code->symbols, text, &ast) == 0)
+	{
+		ast->file = code->filename;
+		ast->codepos = code->pos;
 		return ast;
+	}
 
 	ast = getSymbolFromWildcard(code, text);
 	if(ast != NULL)
