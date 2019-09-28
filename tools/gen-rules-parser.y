@@ -1927,12 +1927,12 @@ gensel_output_register_usage_for_rule(gensel_clause_t clause, gensel_option_t op
 					{
 						if(values->type == GENSEL_VALUE_EARLY_CLOBBER)
 						{
-							printf("\t\tregmap->early_clobber |= (1 << _jit_regs_lookup(\"%s\"))",
+							printf("\t\tregmap->early_clobber |= ((jit_ulong)1 << _jit_regs_lookup(\"%s\"))",
 								(char *)values->value);
 
 							if(values->next && values->next->value)
 							{
-								printf("| (1 << _jit_regs_lookup(\"%s\"));\n",
+								printf("| ((jit_ulong)1 << _jit_regs_lookup(\"%s\"));\n",
 									(char *)values->next->value);
 							}
 							else
@@ -1942,12 +1942,12 @@ gensel_output_register_usage_for_rule(gensel_clause_t clause, gensel_option_t op
 						}
 						else if(values->type == GENSEL_VALUE_CLOBBER)
 						{
-							printf("\t\tregmap->clobber |= (1 << _jit_regs_lookup(\"%s\"))",
+							printf("\t\tregmap->clobber |= ((jit_ulong)1 << _jit_regs_lookup(\"%s\"))",
 								(char *)values->value);
 
 							if(values->next && values->next->value)
 							{
-								printf("| (1 << _jit_regs_lookup(\"%s\"));\n",
+								printf("| ((jit_ulong)1 << _jit_regs_lookup(\"%s\"));\n",
 									(char *)values->next->value);
 							}
 							else
@@ -1983,18 +1983,18 @@ gensel_output_register_usage_for_rule(gensel_clause_t clause, gensel_option_t op
 					{
 						if(values->type == GENSEL_VALUE_EARLY_CLOBBER)
 						{
-							printf("\t\tregmap->early_clobber |= (1 << _jit_regs_lookup(\"%s\"))",
+							printf("\t\tregmap->early_clobber |= ((jit_ulong)1 << _jit_regs_lookup(\"%s\"))",
 								(char *)values->value);
 						}
 						else
 						{
-							printf("\t\tregmap->clobber |= (1 << _jit_regs_lookup(\"%s\"))",
+							printf("\t\tregmap->clobber |= ((jit_ulong)1 << _jit_regs_lookup(\"%s\"))",
 								(char *)values->value);
 						}
 
 						if(values->next && values->next->value)
 						{
-							printf("| (1 << _jit_regs_lookup(\"%s\"))",
+							printf("| ((jit_ulong)1 << _jit_regs_lookup(\"%s\"))",
 								(char *)values->next->value);
 						}
 
@@ -2023,7 +2023,7 @@ gensel_output_register_usage_for_rule(gensel_clause_t clause, gensel_option_t op
 						switch(values->type)
 						{
 						case GENSEL_VALUE_STRING:
-							printf("\t\tregmap->clobber |= 1 << _jit_regs_lookup(\"%s\");\n",
+							printf("\t\tregmap->clobber |= (jit_ulong)1 << _jit_regs_lookup(\"%s\");\n",
 								(char *)values->value);
 							break;
 

@@ -170,12 +170,21 @@ int get_type_flag_from_range(_jit_live_range_t range)
 }
 
 static int
-do_dest_and_value2_interfere(jit_insn_t insn,
+do_starting_and_ending_interfere(jit_insn_t insn,
 	_jit_live_range_t starting, _jit_live_range_t ending)
 {
-	return (insn->flags & JIT_INSN_DEST_INTERFERES_VALUE2)
+	/* The ending live range is fixed and clobbers/scratches its color, we
+	   cannot use the same register for the result */
+	if(ending->is_fixed || !ending->value)
+		return 1;
+
+	/* In this instruction dest and value2 cannot be in the same register */
+	if((insn->flags & JIT_INSN_DEST_INTERFERES_VALUE2)
 		&& insn->dest_live == starting
-		&& insn->value2_live == ending;
+		&& insn->value2_live == ending)
+		return 1;
+
+	return 0;
 }
 
 static int
@@ -205,7 +214,7 @@ does_local_range_interfere_with(_jit_live_range_t local,
 			return 1;
 		}
 		if(insn == local->starts->insn
-			&& do_dest_and_value2_interfere(insn, local, other))
+			&& do_starting_and_ending_interfere(insn, local, other))
 		{
 			return 1;
 		}
@@ -218,7 +227,7 @@ does_local_range_interfere_with(_jit_live_range_t local,
 			return 1;
 		}
 		if(insn == local->ends->insn
-			&& do_dest_and_value2_interfere(insn, other, local))
+			&& do_starting_and_ending_interfere(insn, other, local))
 		{
 			return 1;
 		}
@@ -283,12 +292,12 @@ check_interfering(jit_function_t func,
 			return 1;
 		}
 		if(start_a == end_b
-			&& do_dest_and_value2_interfere(start_a, a, b))
+			&& do_starting_and_ending_interfere(start_a, a, b))
 		{
 			return 1;
 		}
 		if(start_b == end_a
-			&& do_dest_and_value2_interfere(start_b, b, a))
+			&& do_starting_and_ending_interfere(start_b, b, a))
 		{
 			return 1;
 		}
@@ -1081,8 +1090,12 @@ _jit_regs_graph_begin(jit_gencode_t gen, _jit_regs_t *regs, jit_insn_t insn)
 	curr = insn->scratch_live;
 	for(i = regs->num_scratch - 1; i >= 0; i--)
 	{
+		/* the register has a fixed color, we made sure the register is unused
+		   with a fixed live range but did not create a scratch live range */
+		if(regs->scratch[i].reg != -1)
+			continue;
+
 		reg = find_reg_in_colors(curr->colors);
-		assert(regs->scratch[i].reg == -1 || regs->scratch[i].reg == reg);
 		regs->scratch[i].reg = reg;
 
 		curr = curr->value_next;
