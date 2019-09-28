@@ -2,10 +2,10 @@ import assertEq from "../common.ptrs";
 import atoi;
 
 var i = 42;
-var f = 31.12;
+var f = 12.34;
 var s = "hi";
 assertEq("42", "$i");
-assertEq("31.12", "$f");
+assertEq("12.34", "$f");
 assertEq("hi", "$s");
 
 assertEq("3", "${3}");
