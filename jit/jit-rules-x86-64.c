@@ -2442,7 +2442,7 @@ calculate_frame_size(jit_gencode_t gen, jit_function_t func, int *regs_to_save_p
 
 	aligned_frame_size = (frame_size + 0xf) & ~0xf;
 
-	if(gen->stack_changed || func->builder->frame_size != 0)
+	if(gen->stack_changed || func->builder->frame_size != 0 || func->builder->has_stack_parameter)
 	{
 		/* Make sure that the framesize is a multiple of 16 bytes */
 		/* so that the final RSP will be alligned on a 16byte boundary. */
@@ -2479,7 +2479,7 @@ _jit_gen_prolog(jit_gencode_t gen, jit_function_t func, void *buf)
 
 	frame_size = calculate_frame_size(gen, func, &regs_to_save);
 
-	if(gen->stack_changed || func->builder->frame_size != 0)
+	if(gen->stack_changed || func->builder->frame_size != 0 || func->builder->has_stack_parameter)
 	{
 		/* Push ebp onto the stack */
 		x86_64_push_reg_size(inst, X86_64_RBP, 8);
@@ -2545,7 +2545,7 @@ x86_64_prepare_for_return(unsigned char *inst, jit_gencode_t gen, jit_function_t
 	if(regs_to_restore > 0)
 	{
 		/* Determine how to access the frame */
-		if(gen->stack_changed || func->builder->frame_size != 0)
+		if(gen->stack_changed || func->builder->frame_size != 0 || func->builder->has_stack_parameter)
 		{
 			/* We use RBP */
 			base_reg = X86_64_RBP;
@@ -2576,7 +2576,7 @@ x86_64_prepare_for_return(unsigned char *inst, jit_gencode_t gen, jit_function_t
 		}
 	}
 
-	if(gen->stack_changed || func->builder->frame_size != 0)
+	if(gen->stack_changed || func->builder->frame_size != 0 || func->builder->has_stack_parameter)
 	{
 		/* Restore stack pointer and frame pointer */
 		x86_64_leave(inst);
@@ -3479,6 +3479,8 @@ _jit_setup_incoming_param(jit_function_t func, _jit_param_t *param,
 	if(param->arg_class == JIT_ARG_CLASS_STACK)
 	{
 		/* The parameter is passed on the stack */
+		func->builder->has_stack_parameter = 1;
+
 		if(!jit_insn_incoming_frame_posn
 				(func, param->value, param->un.offset))
 		{

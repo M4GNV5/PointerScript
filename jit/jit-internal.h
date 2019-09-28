@@ -563,6 +563,9 @@ struct _jit_builder
 	/* Generate position-independent code */
 	unsigned		position_independent : 1;
 
+	/* Flag that indicates if the function receives parameter on the stack */
+	unsigned		has_stack_parameter : 1;
+
 	/* Memory pools that contain values, instructions, and metadata blocks */
 	jit_memory_pool		value_pool;
 	jit_memory_pool		edge_pool;
