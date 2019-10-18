@@ -925,7 +925,7 @@ JIT_OP_STORE_RELATIVE_STRUCT: ternary
 	}
 
 JIT_OP_ADD_RELATIVE:
-	[any, immzero] -> {
+	[reg, immzero] -> {
 	}
 	[=reg, reg, imms32] -> {
 		x86_64_lea_membase_size(inst, $1, $2, $3, 8);
