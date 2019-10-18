@@ -124,9 +124,23 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 									_args[i] = jit_const_int(func, void_ptr, (uintptr_t)callback);
 									break;
 								}
-								//TODO create callbacks on the fly
 							}
-							/* fallthrough */
+
+							if(!ptrs_compileAot)
+							{
+								paramDef[i] = jit_type_void_ptr;
+								_args[i] = evaledArgs[i].val;
+								break;
+							}
+
+							//TODO create callbacks at runtime
+							curr = args;
+							while(i-- > 0)
+								curr = curr->next;
+							ptrs_error(curr->entry, "Cannot pass nested PointerScript function"
+								" as an argument to a native function");
+							
+							break;
 						default: //pointer type
 							paramDef[i] = jit_type_void_ptr;
 							_args[i] = evaledArgs[i].val;
@@ -299,7 +313,7 @@ void *ptrs_jit_createCallback(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 	);
 
 	jit_value_t args[argc];
-	args[0] = jit_const_int(func, void_ptr, 0);
+	args[0] = jit_const_int(callback, void_ptr, 0);
 
 	jit_value_t meta = ptrs_jit_const_meta(callback, PTRS_TYPE_INT);
 	for(unsigned i = 0; i < callbackArgc; i++)
