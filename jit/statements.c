@@ -519,7 +519,16 @@ ptrs_jit_var_t ptrs_handle_throw(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 
 ptrs_jit_var_t ptrs_handle_trycatch(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	//TODO
+	struct ptrs_ast_trycatch *ast = &node->arg.trycatch;
+
+	ptrs_jit_var_t val = ast->tryBody->vtable->get(ast->tryBody, func, scope);
+
+	// TODO catch errors and compile catch body
+
+	if(ast->finallyBody != NULL)
+		ast->finallyBody->vtable->get(ast->finallyBody, func, scope);
+
+	return val;
 }
 
 ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
