@@ -811,7 +811,7 @@ ptrs_jit_var_t ptrs_addressof_identifier(ptrs_ast_t *node, jit_function_t func, 
 
 ptrs_jit_var_t ptrs_handle_functionidentifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	jit_function_t target = *node->arg.funcval;
+	jit_function_t target = node->arg.funcval->symbol;
 
 	ptrs_jit_var_t ret;
 	ret.val = jit_const_long(func, long, (uintptr_t)jit_function_to_closure(target));
@@ -826,7 +826,7 @@ ptrs_jit_var_t ptrs_handle_functionidentifier(ptrs_ast_t *node, jit_function_t f
 ptrs_jit_var_t ptrs_call_functionidentifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments)
 {
-	return ptrs_jit_callnested(func, scope, jit_const_int(func, void_ptr, 0), *node->arg.funcval, arguments);
+	return ptrs_jit_callnested(func, scope, jit_const_int(func, void_ptr, 0), node->arg.funcval->symbol, arguments);
 }
 
 ptrs_jit_var_t ptrs_handle_constant(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)

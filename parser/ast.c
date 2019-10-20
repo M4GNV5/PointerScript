@@ -30,7 +30,7 @@ struct symbollist
 	{
 		void *data;
 		ptrs_jit_var_t *location;
-		jit_function_t *function;
+		struct ptrs_ast_function *function;
 		struct
 		{
 			ptrs_nativetype_info_t *type; //optional
@@ -629,11 +629,10 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		ptrs_function_t *func = &stmt->arg.function.func;
 		func->name = readIdentifier(code);
 
-		stmt->arg.function.symbol = talloc(jit_function_t);
-		*stmt->arg.function.symbol = NULL;
+		stmt->arg.function.symbol = NULL;
 
 		struct symbollist *symbol = addSpecialSymbol(code, strdup(func->name), PTRS_SYMBOL_FUNCTION);
-		symbol->arg.function = stmt->arg.function.symbol;
+		symbol->arg.function = &stmt->arg.function;
 
 		symbolScope_increase(code, true);
 		addSymbol(code, strdup("this"), &func->thisVal);

@@ -71,7 +71,7 @@ struct ptrs_ast_trycatch
 
 struct ptrs_ast_function
 {
-	jit_function_t *symbol;
+	jit_function_t symbol;
 	ptrs_function_t func;
 };
 
@@ -185,7 +185,7 @@ union ptrs_ast_arg
 	ptrs_jit_var_t *varval;
 	ptrs_var_t constval;
 	ptrs_struct_t structval;
-	jit_function_t *funcval;
+	struct ptrs_ast_function *funcval;
 
 	struct ptrs_ast *astval;
 	struct ptrs_astlist *astlist;

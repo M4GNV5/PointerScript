@@ -126,7 +126,7 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 								}
 							}
 
-							if(!ptrs_compileAot)
+							if(!ptrs_compileAot) // XXX hacky to not throw an error with --asmdump --no-aot
 							{
 								paramDef[i] = jit_type_void_ptr;
 								_args[i] = evaledArgs[i].val;
