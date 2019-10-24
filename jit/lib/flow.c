@@ -23,13 +23,7 @@ typedef struct ptrs_flowprediction
 	ptrs_jit_var_t *variable;
 	ptrs_prediction_t prediction;
 	uint8_t addressable : 1;
-	uint8_t isFunctionParameter : 1;
 	unsigned depth;
-	union
-	{
-		struct ptrs_ast_define *variable;
-		ptrs_funcparameter_t *parameter;
-	} definition;
 	struct ptrs_flowprediction *next;
 } ptrs_predictions_t;
 
@@ -112,6 +106,10 @@ static void mergePredictions(ptrs_flow_t *dest, ptrs_predictions_t *src)
 				{
 					curr->prediction.knownType = false;
 				}
+				else
+				{
+					curr->prediction.meta.type = currType;
+				}
 
 				if(!curr->prediction.knownMeta || !src->prediction.knownMeta
 					|| memcmp(&curr->prediction.value, &src->prediction.value, sizeof(ptrs_val_t)))
@@ -152,39 +150,16 @@ static void clearAddressablePredictions(ptrs_flow_t *flow)
 	{
 		if(curr->addressable)
 			clearPrediction(&curr->prediction);
+
+		curr = curr->next;
 	}
 }
 
-static void createVariablePrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var,
-	ptrs_prediction_t *prediction, bool isParameter, void *definition)
-{
-	if(flow->dryRun)
-		return;
-
-	ptrs_predictions_t *curr = malloc(sizeof(ptrs_predictions_t));
-
-	memcpy(&curr->prediction, prediction, sizeof(ptrs_prediction_t));
-	curr->variable = var;
-	curr->addressable = flow->depth == 0;
-	curr->depth = flow->depth;
-
-	curr->isFunctionParameter = isParameter;
-	if(isParameter)
-		curr->definition.parameter = definition;
-	else
-		curr->definition.variable = definition;
-
-	curr->next = flow->predictions;
-	flow->predictions = curr;
-}
 static void setVariablePrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var, ptrs_prediction_t *prediction)
 {
 	ptrs_predictions_t *curr = flow->predictions;
 	if(curr == NULL)
 	{
-		if(flow->dryRun)
-			return;
-
 		curr = malloc(sizeof(ptrs_predictions_t));
 		flow->predictions = curr;
 	}
@@ -198,13 +173,15 @@ static void setVariablePrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var, ptrs_p
 				if(curr->depth != flow->depth)
 					curr->addressable = true;
 
-				if(!flow->dryRun)
+				if(flow->dryRun)
+					clearPrediction(&curr->prediction);
+				else
 					memcpy(&curr->prediction, prediction, sizeof(ptrs_prediction_t));
 				return;
 			}
 
-			curr = curr->next;
 			last = curr;
+			curr = curr->next;
 		}
 
 		if(flow->dryRun)
@@ -214,12 +191,13 @@ static void setVariablePrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var, ptrs_p
 		curr = last->next;
 	}
 
-	memcpy(&curr->prediction, prediction, sizeof(ptrs_prediction_t));
+	if(flow->dryRun)
+		clearPrediction(&curr->prediction);
+	else
+		memcpy(&curr->prediction, prediction, sizeof(ptrs_prediction_t));
 	curr->variable = var;
 	curr->addressable = false;
-	curr->isFunctionParameter = false;
 	curr->depth = flow->depth;
-	curr->definition.variable = NULL;
 	curr->next = NULL;
 }
 static void getVariablePrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var, ptrs_prediction_t *ret)
@@ -361,6 +339,15 @@ static void analyzeList(ptrs_flow_t *flow, struct ptrs_astlist *list, ptrs_predi
 	}
 }
 
+static void analyzeStatementList(ptrs_flow_t *flow, struct ptrs_astlist *list, ptrs_prediction_t *ret)
+{
+	while(list != NULL)
+	{
+		analyzeStatement(flow, list->entry, ret);
+		list = list->next;
+	}
+}
+
 static void analyzeFunction(ptrs_flow_t *flow, ptrs_function_t *ast)
 {
 	flow->depth++;
@@ -371,11 +358,11 @@ static void analyzeFunction(ptrs_flow_t *flow, ptrs_function_t *ast)
 	ptrs_funcparameter_t *curr = ast->args;
 	for(; curr != NULL; curr = curr->next)
 	{
-		createVariablePrediction(flow, &curr->arg, &prediction, true, curr);
+		setVariablePrediction(flow, &curr->arg, &prediction);
 	}
 
-	createVariablePrediction(flow, &ast->thisVal, &prediction, true, NULL);
-	createVariablePrediction(flow, ast->vararg, &prediction, true, NULL);
+	setVariablePrediction(flow, &ast->thisVal, &prediction);
+	setVariablePrediction(flow, ast->vararg, &prediction);
 
 	analyzeStatement(flow, ast->body, &prediction);
 
@@ -445,13 +432,22 @@ static const struct vtableIntrinsicMapping binaryIntrinsicHandler[] = {
 };
 
 static const void *unaryIntFloatHandler[] = {
-	&ptrs_ast_vtable_prefix_inc,
-	&ptrs_ast_vtable_prefix_dec,
 	&ptrs_ast_vtable_prefix_not,
 	&ptrs_ast_vtable_prefix_plus,
 	&ptrs_ast_vtable_prefix_minus,
-	&ptrs_ast_vtable_suffix_inc,
-	&ptrs_ast_vtable_suffix_dec
+};
+
+struct unaryChangingHandler
+{
+	void *vtable;
+	bool isSuffix;
+	int change;
+};
+static const struct unaryChangingHandler unaryIntFloatChangingHandler[] = {
+	{&ptrs_ast_vtable_prefix_inc, false, 1},
+	{&ptrs_ast_vtable_prefix_dec, false, -1},
+	{&ptrs_ast_vtable_suffix_inc, true, 1},
+	{&ptrs_ast_vtable_suffix_dec, true, -1},
 };
 
 #define typecomp(a, b) ((PTRS_TYPE_##a << 3) | PTRS_TYPE_##b)
@@ -486,11 +482,19 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 				expr->valuePredicted = true;
 				memcpy(&expr->valuePrediction, &ret->value, sizeof(ptrs_val_t));
 			}
+			else
+			{
+				expr->valuePredicted = false;
+			}
 
 			if(ret->knownMeta)
 			{
 				expr->metaPredicted = true;
 				memcpy(&expr->metaPrediction, &ret->meta, sizeof(ptrs_meta_t));
+			}
+			else
+			{
+				expr->metaPredicted = false;
 			}
 
 			if(ret->knownType)
@@ -498,6 +502,16 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 				expr->typePredicted = true;
 				expr->metaPrediction.type = ret->meta.type;
 			}
+			else
+			{
+				expr->typePredicted = false;
+			}
+		}
+		else
+		{
+			expr->valuePredicted = false;
+			expr->metaPredicted = false;
+			expr->typePredicted = false;
 		}
 	}
 	else if(node->vtable == &ptrs_ast_vtable_functionidentifier)
@@ -804,7 +818,7 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		struct ptrs_ast_cast *expr = &node->arg.cast;
 
 		analyzeExpression(flow, expr->value, ret);
-		
+
 		ret->knownType = true;
 		ret->knownMeta = true;
 		memset(&ret->meta, 0, sizeof(ptrs_meta_t));
@@ -973,7 +987,7 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		if(prediction2bool(ret, &result))
 		{
 			ret->knownValue = true;
-			ret->value.intval = !result;	
+			ret->value.intval = !result;
 		}
 		else
 		{
@@ -1020,12 +1034,59 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 			}
 		}
 
+		for(int i = 0; i < sizeof(unaryIntFloatChangingHandler) / sizeof(struct unaryChangingHandler); i++)
+		{
+			if(node->vtable == unaryIntFloatChangingHandler[i].vtable)
+			{
+				analyzeExpression(flow, node->arg.astval, ret);
+
+				if(ret->knownType && ret->knownMeta && ret->knownValue)
+				{
+					if(ret->meta.type == PTRS_TYPE_INT)
+					{
+						ret->value.intval += unaryIntFloatChangingHandler[i].change;
+						analyzeLValue(flow, node->arg.astval, ret);
+
+						if(!unaryIntFloatChangingHandler[i].isSuffix)
+							ret->value.intval -= unaryIntFloatChangingHandler[i].change;
+
+						return;
+					}
+					else if(ret->meta.type == PTRS_TYPE_FLOAT)
+					{
+						ret->value.floatval += unaryIntFloatChangingHandler[i].change;
+						analyzeLValue(flow, node->arg.astval, ret);
+
+						if(!unaryIntFloatChangingHandler[i].isSuffix)
+							ret->value.floatval -= unaryIntFloatChangingHandler[i].change;
+
+						return;
+					}
+				}
+
+				if(ret->knownType
+					&& (ret->meta.type == PTRS_TYPE_INT || ret->meta.type == PTRS_TYPE_FLOAT))
+				{
+					ret->knownValue = false;
+					return;
+				}
+				else
+				{
+					clearPrediction(ret);
+				}
+
+				analyzeLValue(flow, node->arg.astval, ret);
+				return;
+			}
+		}
+
 		for(int i = 0; i < sizeof(unaryIntFloatHandler) / sizeof(void *); i++)
 		{
 			if(node->vtable == unaryIntFloatHandler[i])
 			{
 				analyzeExpression(flow, node->arg.astval, ret);
-				ret->knownValue = false; // TODO
+				//ret->knownValue = false; // TODO
+				clearPrediction(ret);
 
 				return;
 			}
@@ -1053,6 +1114,8 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		predictions = dupPredictions(flow->predictions); \
 		body \
 		mergePredictions(flow, predictions); \
+		\
+		/* TODO replace this by a fix point algorithm? */ \
 	}
 
 static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_prediction_t *ret)
@@ -1069,7 +1132,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 		struct ptrs_ast_define *stmt = &node->arg.define;
 		analyzeExpression(flow, stmt->value, ret);
 
-		createVariablePrediction(flow, &stmt->location, ret, false, stmt);
+		setVariablePrediction(flow, &stmt->location, ret);
 	}
 	else if(node->vtable == &ptrs_ast_vtable_array)
 	{
@@ -1180,6 +1243,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 		ret->knownValue = true;
 		ret->knownMeta = true;
 		ret->value.structval = NULL;
+		ret->meta.type = PTRS_TYPE_STRUCT;
 		ptrs_meta_setPointer(ret->meta, struc);
 		setVariablePrediction(flow, struc->location, ret);
 	}
@@ -1207,7 +1271,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 			flow->predictions = ifPredictions;
 			analyzeStatement(flow, stmt->ifBody, ret);
 		}
-		
+
 		if((!conditionPredicted || !condition) && stmt->elseBody != NULL)
 		{
 			flow->predictions = elsePredictions;
@@ -1275,7 +1339,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 
 		loopPredictionsRemerge(
 			analyzeExpression(flow, stmt->condition, &dummy);
-			if(prediction2bool(&dummy, &condition) && condition)
+			if(prediction2bool(&dummy, &condition) && !condition)
 				return;
 
 			analyzeStatement(flow, stmt->body, &dummy);
@@ -1290,7 +1354,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 			analyzeStatement(flow, stmt->body, &dummy);
 
 			analyzeExpression(flow, stmt->condition, &dummy);
-			if(prediction2bool(&dummy, &condition) && condition)
+			if(prediction2bool(&dummy, &condition) && !condition)
 				return;
 		);
 	}
@@ -1303,7 +1367,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 
 		loopPredictionsRemerge(
 			analyzeExpression(flow, stmt->condition, &dummy);
-			if(prediction2bool(&dummy, &condition) && condition)
+			if(prediction2bool(&dummy, &condition) && !condition)
 				return;
 
 			analyzeStatement(flow, stmt->body, &dummy);
@@ -1349,14 +1413,13 @@ void ptrs_flow_analyze(ptrs_ast_t *ast)
 	ptrs_flow_t flow;
 	flow.predictions = NULL;
 	flow.depth = 0;
-	flow.dryRun = false;
 
-	struct ptrs_astlist *curr = ast->arg.astlist;
-	while(curr != NULL)
-	{
-		analyzeStatement(&flow, curr->entry, &ret);
-		curr = curr->next;
-	}
+	// make a dry run first to set addressable for variables used accross functions
+	flow.dryRun = true;
+	analyzeStatementList(&flow, ast->arg.astlist, &ret);
+
+	flow.dryRun = false;
+	analyzeStatementList(&flow, ast->arg.astlist, &ret);
 
 	freePredictions(flow.predictions);
 }
