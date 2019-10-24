@@ -22,14 +22,17 @@ struct ptrs_ast_define
 	};
 	uint8_t isInitExpr : 1;
 	uint8_t onStack : 1;
-	uint8_t isTyped : 1;
 	uint8_t isArrayExpr : 1;
 };
 
 struct ptrs_ast_identifier
 {
 	ptrs_jit_var_t *location;
-	int8_t predictedType;
+	ptrs_val_t valuePrediction;
+	ptrs_meta_t metaPrediction;
+	uint8_t typePredicted : 1;
+	uint8_t valuePredicted : 1;
+	uint8_t metaPredicted : 1;
 };
 
 struct ptrs_ast_member

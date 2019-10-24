@@ -706,11 +706,18 @@ ptrs_jit_var_t ptrs_handle_identifier(ptrs_ast_t *node, jit_function_t func, ptr
 	}
 	else
 	{
-		target.val = ptrs_jit_import(node, func, target.val, false);
-		target.meta = ptrs_jit_import(node, func, target.meta, false);
+		if(expr->valuePredicted)
+			target.val = jit_const_long(func, long, expr->valuePrediction.intval);
+		else
+			target.val = ptrs_jit_import(node, func, target.val, false);
+		
+		if(expr->metaPredicted)
+			target.meta = jit_const_long(func, ulong, *(jit_long *)&expr->metaPrediction);
+		else
+			target.meta = ptrs_jit_import(node, func, target.meta, false);
 
-		if(target.constType == -1 && expr->predictedType >= 0)
-			target.constType = expr->predictedType;
+		if(expr->typePredicted)
+			target.constType = expr->metaPrediction.type;
 	}
 
 	return target;

@@ -752,7 +752,7 @@ ptrs_jit_var_t ptrs_handle_switch(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 
 		while(curr != NULL)
 		{
-			if(curr->min > _val && _val < curr->max)
+			if(curr->min >= _val && _val <= curr->max)
 			{
 				curr->body->vtable->get(curr->body, func, scope);
 				hadCase = true;

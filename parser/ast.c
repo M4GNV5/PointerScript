@@ -180,7 +180,9 @@ int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **nod
 						ast->vtable = &ptrs_ast_vtable_identifier;
 
 						ast->arg.identifier.location = curr->arg.location;
-						ast->arg.identifier.predictedType = -1;
+						ast->arg.identifier.typePredicted = false;
+						ast->arg.identifier.valuePredicted = false;
+						ast->arg.identifier.metaPredicted = false;
 
 						if(functionBoundary)
 							ast->arg.identifier.location->addressable = 1;

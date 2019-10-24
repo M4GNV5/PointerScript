@@ -261,6 +261,19 @@ static jit_type_t getComparasionInstrinsicSignature()
 	}
 
 #define handle_binary_intonly(name, opName, operator) \
+	ptrs_var_t ptrs_intrinsic_##name(ptrs_ast_t *node, ptrs_val_t left, ptrs_meta_t leftMeta, \
+		ptrs_val_t right, ptrs_meta_t rightMeta) \
+	{ \
+		if(leftMeta.type != PTRS_TYPE_INT || rightMeta.type != PTRS_TYPE_INT) \
+			ptrs_error(node, "Cannot use operator " #operator " on variables of type %t and %t", \
+				leftMeta.type, rightMeta.type); \
+		\
+		ptrs_var_t ret; \
+		ret.value.intval = left.intval operator right.intval; \
+		ret.meta.type = PTRS_TYPE_INT; \
+		return ret; \
+	} \
+	\
 	ptrs_jit_var_t ptrs_handle_op_##name(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope) \
 	{ \
 		struct ptrs_ast_binary *expr = &node->arg.binary; \
@@ -389,7 +402,7 @@ handle_binary_intonly(or, or, |) //|
 handle_binary_intonly(xor, xor, ^) //^
 handle_binary_intonly(and, and, &) //&
 handle_binary_intonly(ushr, ushr, >>) //>>
-handle_binary_intonly(sshr, sshr, >>>) //>>>
+handle_binary_intonly(sshr, sshr, >>) //>>>
 handle_binary_intonly(shl, shl, <<) //<<
 handle_binary_intrinsic(add, +, add, binary_add_cases, binary_add_jit_cases) //+
 handle_binary_intrinsic(sub, -, sub, binary_sub_cases, binary_sub_jit_cases) //-
