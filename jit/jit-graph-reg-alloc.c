@@ -1088,7 +1088,7 @@ _jit_regs_graph_begin(jit_gencode_t gen, _jit_regs_t *regs, jit_insn_t insn)
 	}
 
 	curr = insn->scratch_live;
-	for(i = regs->num_scratch - 1; i >= 0; i--)
+	for(i = 0; i < regs->num_scratch; i++)
 	{
 		/* the register has a fixed color, we made sure the register is unused
 		   with a fixed live range but did not create a scratch live range */
