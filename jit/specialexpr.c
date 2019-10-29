@@ -671,7 +671,7 @@ ptrs_jit_var_t ptrs_addressof_importedsymbol(ptrs_ast_t *node,
 		ptrs_ast_t *ast = stmt->expressions[expr->index];
 		if(ast->vtable->addressof == NULL)
 			ptrs_error(node, "Cannot get address of temporary or constant value");
-		
+
 		return ast->vtable->addressof(ast, func, scope);
 	}
 	else if(expr->type == NULL)
@@ -695,29 +695,41 @@ ptrs_jit_var_t ptrs_handle_identifier(ptrs_ast_t *node, jit_function_t func, ptr
 	struct ptrs_ast_identifier *expr = &node->arg.identifier;
 
 	ptrs_jit_var_t target = *expr->location;
+
+	if(expr->valuePredicted)
+		target.val = jit_const_long(func, long, expr->valuePrediction.intval);
+	if(expr->metaPredicted)
+		target.meta = jit_const_long(func, ulong, *(jit_long *)&expr->metaPrediction);
+
+	if(expr->typePredicted)
+		target.constType = expr->metaPrediction.type;
+	else
+		target.constType = -1;
+
+	if(expr->valuePredicted && expr->metaPredicted && expr->typePredicted)
+	{
+		target.addressable = 0;
+		return target;
+	}
+
 	if(target.addressable
 		&& (!jit_value_is_constant(target.val) || !jit_value_is_constant(target.meta)))
 	{
 		jit_value_t ptr = ptrs_jit_import(node, func, target.val, true);
-		target.val = jit_insn_load_relative(func, ptr, 0, jit_type_long);
-		target.meta = jit_insn_load_relative(func, ptr, sizeof(ptrs_val_t), jit_type_ulong);
-		target.constType = -1;
+		if(!expr->valuePredicted)
+			target.val = jit_insn_load_relative(func, ptr, 0, jit_type_long);
+		if(!expr->metaPredicted)
+			target.meta = jit_insn_load_relative(func, ptr, sizeof(ptrs_val_t), jit_type_ulong);
+
 		target.addressable = 0;
 	}
 	else
 	{
-		if(expr->valuePredicted)
-			target.val = jit_const_long(func, long, expr->valuePrediction.intval);
-		else
+		if(!expr->valuePredicted)
 			target.val = ptrs_jit_import(node, func, target.val, false);
-		
-		if(expr->metaPredicted)
-			target.meta = jit_const_long(func, ulong, *(jit_long *)&expr->metaPrediction);
-		else
-			target.meta = ptrs_jit_import(node, func, target.meta, false);
 
-		if(expr->typePredicted)
-			target.constType = expr->metaPrediction.type;
+		if(!expr->metaPredicted)
+			target.meta = ptrs_jit_import(node, func, target.meta, false);
 	}
 
 	return target;

@@ -214,9 +214,15 @@ static void getVariablePrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var, ptrs_p
 		if(curr->variable == var)
 		{
 			if(flow->depth != curr->depth)
+			{
 				curr->addressable = true;
+				clearPrediction(ret);
+			}
+			else
+			{
+				memcpy(ret, &curr->prediction, sizeof(ptrs_prediction_t));
+			}
 
-			memcpy(ret, &curr->prediction, sizeof(ptrs_prediction_t));
 			return;
 		}
 
@@ -355,6 +361,12 @@ static void analyzeFunction(ptrs_flow_t *flow, ptrs_function_t *ast)
 	ptrs_prediction_t prediction;
 	clearPrediction(&prediction);
 
+	flow->dryRun = true;
+	analyzeStatement(flow, ast->body, &prediction);
+	flow->dryRun = false;
+
+	ptrs_predictions_t *outer = dupPredictions(flow->predictions);
+
 	ptrs_funcparameter_t *curr = ast->args;
 	for(; curr != NULL; curr = curr->next)
 	{
@@ -367,6 +379,9 @@ static void analyzeFunction(ptrs_flow_t *flow, ptrs_function_t *ast)
 	analyzeStatement(flow, ast->body, &prediction);
 
 	flow->depth--;
+
+	freePredictions(flow->predictions);
+	flow->predictions = outer;
 }
 
 static void analyzeLValue(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_prediction_t *value)
