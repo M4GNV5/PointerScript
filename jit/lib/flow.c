@@ -405,30 +405,35 @@ static void analyzeLValue(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_prediction_t
 struct vtableIntrinsicMapping
 {
 	void *vtable;
-	ptrs_var_t (*intrinsic)(ptrs_ast_t *node, ptrs_val_t left, ptrs_meta_t leftMeta,
-		ptrs_val_t right, ptrs_meta_t rightMeta);
+	union {
+		ptrs_var_t (*intrinsic)(ptrs_ast_t *node, ptrs_val_t left, ptrs_meta_t leftMeta,
+			ptrs_val_t right, ptrs_meta_t rightMeta);
+		int64_t (*compare_intrinsic)(ptrs_ast_t *node, ptrs_val_t left, ptrs_meta_t leftMeta,
+			ptrs_val_t right, ptrs_meta_t rightMeta);
+	};
+	bool isComparasion;
 };
 
 static const struct vtableIntrinsicMapping binaryIntrinsicHandler[] = {
-	{&ptrs_ast_vtable_op_typeequal, ptrs_intrinsic_typeequal},
-	{&ptrs_ast_vtable_op_typeinequal, ptrs_intrinsic_typeinequal},
-	{&ptrs_ast_vtable_op_equal, ptrs_intrinsic_equal},
-	{&ptrs_ast_vtable_op_inequal, ptrs_intrinsic_inequal},
-	{&ptrs_ast_vtable_op_lessequal, ptrs_intrinsic_lessequal},
-	{&ptrs_ast_vtable_op_greaterequal, ptrs_intrinsic_greaterequal},
-	{&ptrs_ast_vtable_op_less, ptrs_intrinsic_less},
-	{&ptrs_ast_vtable_op_greater, ptrs_intrinsic_greater},
-	{&ptrs_ast_vtable_op_or, ptrs_intrinsic_or},
-	{&ptrs_ast_vtable_op_xor, ptrs_intrinsic_xor},
-	{&ptrs_ast_vtable_op_and, ptrs_intrinsic_and},
-	{&ptrs_ast_vtable_op_ushr, ptrs_intrinsic_ushr},
-	{&ptrs_ast_vtable_op_sshr, ptrs_intrinsic_sshr},
-	{&ptrs_ast_vtable_op_shl, ptrs_intrinsic_shl},
-	{&ptrs_ast_vtable_op_add, ptrs_intrinsic_add},
-	{&ptrs_ast_vtable_op_sub, ptrs_intrinsic_sub},
-	{&ptrs_ast_vtable_op_mul, ptrs_intrinsic_mul},
-	{&ptrs_ast_vtable_op_div, ptrs_intrinsic_div},
-	{&ptrs_ast_vtable_op_mod, ptrs_intrinsic_mod},
+	{&ptrs_ast_vtable_op_typeequal, ptrs_intrinsic_typeequal, true},
+	{&ptrs_ast_vtable_op_typeinequal, ptrs_intrinsic_typeinequal, true},
+	{&ptrs_ast_vtable_op_equal, ptrs_intrinsic_equal, true},
+	{&ptrs_ast_vtable_op_inequal, ptrs_intrinsic_inequal, true},
+	{&ptrs_ast_vtable_op_lessequal, ptrs_intrinsic_lessequal, true},
+	{&ptrs_ast_vtable_op_greaterequal, ptrs_intrinsic_greaterequal, true},
+	{&ptrs_ast_vtable_op_less, ptrs_intrinsic_less, true},
+	{&ptrs_ast_vtable_op_greater, ptrs_intrinsic_greater, true},
+	{&ptrs_ast_vtable_op_or, ptrs_intrinsic_or, false},
+	{&ptrs_ast_vtable_op_xor, ptrs_intrinsic_xor, false},
+	{&ptrs_ast_vtable_op_and, ptrs_intrinsic_and, false},
+	{&ptrs_ast_vtable_op_ushr, ptrs_intrinsic_ushr, false},
+	{&ptrs_ast_vtable_op_sshr, ptrs_intrinsic_sshr, false},
+	{&ptrs_ast_vtable_op_shl, ptrs_intrinsic_shl, false},
+	{&ptrs_ast_vtable_op_add, ptrs_intrinsic_add, false},
+	{&ptrs_ast_vtable_op_sub, ptrs_intrinsic_sub, false},
+	{&ptrs_ast_vtable_op_mul, ptrs_intrinsic_mul, false},
+	{&ptrs_ast_vtable_op_div, ptrs_intrinsic_div, false},
+	{&ptrs_ast_vtable_op_mod, ptrs_intrinsic_mod, false},
 };
 
 static const void *unaryIntFloatHandler[] = {
@@ -1020,9 +1025,26 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 				if(ret->knownType && ret->knownMeta && ret->knownValue
 					&& dummy.knownType && dummy.knownMeta && dummy.knownValue)
 				{
-					ptrs_var_t result = binaryIntrinsicHandler[i].intrinsic(
-						node, ret->value, ret->meta, dummy.value, dummy.meta
-					);
+					ptrs_var_t result;
+
+					if(binaryIntrinsicHandler[i].isComparasion)
+					{
+						result.value.intval = binaryIntrinsicHandler[i].compare_intrinsic(
+							node, ret->value, ret->meta, dummy.value, dummy.meta
+						);
+
+						memset(&result.meta, 0, sizeof(ptrs_meta_t));
+						result.meta.type = PTRS_TYPE_INT;
+					}
+					else
+					{
+						result = binaryIntrinsicHandler[i].intrinsic(
+							node, ret->value, ret->meta, dummy.value, dummy.meta
+						);
+					}
+
+					memcpy(&ret->value, &result.value, sizeof(ptrs_val_t));
+					memcpy(&ret->meta, &result.meta, sizeof(ptrs_meta_t));
 				}
 				// TODO else if(ret->knownType && dummy.knownType)
 				else
@@ -1339,7 +1361,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 
 		loopPredictionsRemerge(
 			analyzeExpression(flow, stmt->condition, &dummy);
-			if(prediction2bool(&dummy, &condition) && !condition)
+			if(!flow->dryRun && prediction2bool(&dummy, &condition) && !condition)
 				return;
 
 			analyzeStatement(flow, stmt->body, &dummy);
@@ -1354,7 +1376,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 			analyzeStatement(flow, stmt->body, &dummy);
 
 			analyzeExpression(flow, stmt->condition, &dummy);
-			if(prediction2bool(&dummy, &condition) && !condition)
+			if(!flow->dryRun && prediction2bool(&dummy, &condition) && !condition)
 				return;
 		);
 	}
@@ -1367,7 +1389,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 
 		loopPredictionsRemerge(
 			analyzeExpression(flow, stmt->condition, &dummy);
-			if(prediction2bool(&dummy, &condition) && !condition)
+			if(!flow->dryRun && prediction2bool(&dummy, &condition) && !condition)
 				return;
 
 			analyzeStatement(flow, stmt->body, &dummy);
@@ -1377,9 +1399,9 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 	else if(node->vtable == &ptrs_ast_vtable_forin)
 	{
 		struct ptrs_ast_forin *stmt = &node->arg.forin;
+		analyzeExpression(flow, stmt->value, &dummy);
 
 		loopPredictionsRemerge(
-			analyzeExpression(flow, stmt->value, &dummy);
 			analyzeStatement(flow, stmt->body, &dummy);
 		);
 	}
