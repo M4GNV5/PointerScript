@@ -553,7 +553,6 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	ptrs_struct_t *struc = &node->arg.structval;
-	struc->ast = node;
 
 	jit_value_t staticData = NULL;
 	if(struc->staticData != NULL)

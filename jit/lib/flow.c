@@ -197,9 +197,6 @@ static void setVariablePrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var, ptrs_p
 			curr = curr->next;
 		}
 
-		if(flow->dryRun)
-			return;
-
 		last->next = malloc(sizeof(ptrs_predictions_t));
 		curr = last->next;
 	}
@@ -227,15 +224,9 @@ static void getVariablePrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var, ptrs_p
 		if(curr->variable == var)
 		{
 			if(flow->depth != curr->depth)
-			{
 				curr->addressable = true;
-				clearPrediction(ret);
-			}
-			else
-			{
-				memcpy(ret, &curr->prediction, sizeof(ptrs_prediction_t));
-			}
 
+			memcpy(ret, &curr->prediction, sizeof(ptrs_prediction_t));
 			return;
 		}
 
@@ -374,9 +365,13 @@ static void analyzeFunction(ptrs_flow_t *flow, ptrs_function_t *ast, ptrs_struct
 	ptrs_prediction_t prediction;
 	clearPrediction(&prediction);
 
+	bool isDryRun = flow->dryRun;
 	flow->dryRun = true;
 	analyzeStatement(flow, ast->body, &prediction);
-	flow->dryRun = false;
+	flow->dryRun = isDryRun;
+
+	if(isDryRun)
+		return;
 
 	ptrs_predictions_t *outer = dupPredictions(flow->predictions);
 
@@ -583,8 +578,8 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 
 		if(stmt->value != NULL) //size
 		{
-			analyzeExpression(flow, stmt->value, ret);
-			knownSize = prediction2int(ret, &size);
+			analyzeExpression(flow, stmt->value, &dummy);
+			knownSize = prediction2int(&dummy, &size);
 		}
 
 		if(!stmt->isInitExpr) // TODO derive array size
@@ -607,10 +602,10 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 
 		if(stmt->value != NULL) //size
 		{
-			analyzeExpression(flow, stmt->value, ret);
+			analyzeExpression(flow, stmt->value, &dummy);
 
 			int64_t size;
-			if(prediction2int(ret, &size))
+			if(prediction2int(&dummy, &size))
 			{
 				ret->knownMeta = true;
 				ret->meta.array.size = size;

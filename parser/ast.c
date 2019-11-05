@@ -374,7 +374,7 @@ static ptrs_funcparameter_t *parseArgumentDefinitionList(code_t *code, ptrs_jit_
 		ptrs_funcparameter_t *curr = talloc(ptrs_funcparameter_t);
 		*nextPtr = curr;
 		nextPtr = &curr->next;
-		
+
 		curr->name = name;
 		curr->arg.constType = -1;
 		curr->type = -1;
@@ -645,7 +645,9 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	else if(lookahead(code, "struct"))
 	{
 		stmt->vtable = &ptrs_ast_vtable_struct;
-		parseStruct(code, &stmt->arg.structval);
+		ptrs_struct_t *struc = &stmt->arg.structval;
+		parseStruct(code, struc);
+		struc->ast = stmt;
 	}
 	else if(lookahead(code, "if"))
 	{
@@ -1886,7 +1888,7 @@ static ptrs_funcparameter_t *createParameterList(code_t *code, size_t count, ...
 		curr->argv = NULL;
 		curr->next = NULL;
 
-		if(curr->name != NULL)	
+		if(curr->name != NULL)
 			addSymbol(code, strdup(curr->name), &curr->arg);
 	}
 
