@@ -434,6 +434,21 @@ static void analyzeLValue(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_prediction_t
 	}
 }
 
+static ptrs_var_t specialLogicXorIntrinsic(ptrs_ast_t *node, ptrs_val_t left, ptrs_meta_t leftMeta,
+	ptrs_val_t right, ptrs_meta_t rightMeta)
+{
+	ptrs_var_t ret;
+
+	bool leftB = ptrs_vartob(left, leftMeta);
+	bool rightB = ptrs_vartob(right, rightMeta);
+
+	memset(&ret.meta, 0, sizeof(ptrs_meta_t));
+	ret.meta.type = PTRS_TYPE_INT;
+	ret.value.intval = (leftB || rightB) && !(leftB && rightB);
+
+	return ret;
+}
+
 struct vtableIntrinsicMapping
 {
 	void *vtable;
@@ -466,6 +481,8 @@ static const struct vtableIntrinsicMapping binaryIntrinsicHandler[] = {
 	{&ptrs_ast_vtable_op_mul, ptrs_intrinsic_mul, false},
 	{&ptrs_ast_vtable_op_div, ptrs_intrinsic_div, false},
 	{&ptrs_ast_vtable_op_mod, ptrs_intrinsic_mod, false},
+
+	{&ptrs_ast_vtable_op_logicxor, specialLogicXorIntrinsic, false},
 };
 
 static const void *unaryIntFloatHandler[] = {
@@ -908,7 +925,6 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		struct ptrs_ast_cast *expr = &node->arg.cast;
 		analyzeExpression(flow, expr->value, ret);
 
-		// TODO prediction2str for ret
 		char buff[32];
 		char *retStr = prediction2str(ret, buff, 32);
 
@@ -1036,14 +1052,123 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		memset(&ret->meta, 0, sizeof(ptrs_meta_t));
 		ret->meta.type = PTRS_TYPE_INT;
 	}
-	/*
-	TODO
-	&ptrs_ast_vtable_op_in,
-	&ptrs_ast_vtable_op_instanceof,
-	&ptrs_ast_vtable_op_logicor,
-	&ptrs_ast_vtable_op_logicand,
-	&ptrs_ast_vtable_op_logicxor,
-	*/
+	else if(node->vtable == &ptrs_ast_vtable_op_in)
+	{
+		struct ptrs_ast_binary *expr = &node->arg.binary;
+
+		analyzeExpression(flow, expr->left, &dummy);
+		analyzeExpression(flow, expr->right, ret);
+
+		char buff[32];
+		char *key = prediction2str(&dummy, buff, 32);
+
+		if(ret->knownType && ret->knownMeta && key != NULL
+			&& ret->meta.type == PTRS_TYPE_STRUCT)
+		{
+			ptrs_struct_t *struc = ptrs_meta_getPointer(ret->meta);
+
+			ret->knownValue = true;
+			ret->value.intval = ptrs_struct_find(struc, key, strlen(key) + 1, -1, node) != NULL;
+		}
+		else
+		{
+			ret->knownValue = false;
+		}
+
+		memset(&ret->meta, 0, sizeof(ptrs_meta_t));
+		ret->knownType = true;
+		ret->knownMeta = true;
+		ret->meta.type = PTRS_TYPE_INT;
+	}
+	else if(node->vtable == &ptrs_ast_vtable_op_instanceof)
+	{
+		struct ptrs_ast_binary *expr = &node->arg.binary;
+
+		analyzeExpression(flow, expr->left, &dummy);
+		analyzeExpression(flow, expr->right, ret);
+
+		if(ret->knownType && ret->meta.type != PTRS_TYPE_STRUCT)
+		{
+			// cause an error?
+			ret->knownValue = false;
+		}
+		else if(dummy.knownMeta && ret->knownMeta)
+		{
+			ret->knownValue = true;
+			ret->value.intval = memcmp(&ret->meta, &dummy.meta, sizeof(ptrs_meta_t)) == 0;
+		}
+
+		memset(&ret->meta, 0, sizeof(ptrs_meta_t));
+		ret->knownType = true;
+		ret->knownMeta = true;
+		ret->meta.type = PTRS_TYPE_INT;
+	}
+	else if(node->vtable == &ptrs_ast_vtable_op_logicor)
+	{
+		struct ptrs_ast_binary *expr = &node->arg.binary;
+
+		analyzeExpression(flow, expr->left, &dummy);
+
+		bool value;
+		if(prediction2bool(&dummy, &value) && value)
+		{
+			ret->knownValue = true;
+			ret->value.intval = true;
+		}
+		else
+		{
+			analyzeExpression(flow, expr->right, &dummy);
+
+			bool value;
+			if(prediction2bool(&dummy, &value))
+			{
+				ret->knownValue = true;
+				ret->value.intval = value;
+			}
+			else
+			{
+				ret->knownValue = false;
+			}
+		}
+
+		memset(&ret->meta, 0, sizeof(ptrs_meta_t));
+		ret->knownType = true;
+		ret->knownMeta = true;
+		ret->meta.type = PTRS_TYPE_INT;
+	}
+	else if(node->vtable == &ptrs_ast_vtable_op_logicand)
+	{
+		struct ptrs_ast_binary *expr = &node->arg.binary;
+
+		analyzeExpression(flow, expr->left, &dummy);
+
+		bool value;
+		if(prediction2bool(&dummy, &value) && !value)
+		{
+			ret->knownValue = true;
+			ret->value.intval = false;
+		}
+		else
+		{
+			analyzeExpression(flow, expr->right, &dummy);
+
+			bool value;
+			if(prediction2bool(&dummy, &value))
+			{
+				ret->knownValue = true;
+				ret->value.intval = value;
+			}
+			else
+			{
+				ret->knownValue = false;
+			}
+		}
+
+		memset(&ret->meta, 0, sizeof(ptrs_meta_t));
+		ret->knownType = true;
+		ret->knownMeta = true;
+		ret->meta.type = PTRS_TYPE_INT;
+	}
 	else
 	{
 		for(int i = 0; i < sizeof(binaryIntrinsicHandler) / sizeof(struct vtableIntrinsicMapping); i++)

@@ -877,6 +877,12 @@ ptrs_jit_var_t ptrs_handle_op_instanceof(ptrs_ast_t *node, jit_function_t func, 
 	ptrs_jit_var_t left = expr->left->vtable->get(expr->left, func, scope);
 	ptrs_jit_var_t right = expr->right->vtable->get(expr->right, func, scope);
 
+	if(right.constType != PTRS_TYPE_STRUCT)
+	{
+		ptrs_jit_typeCheck(node, func, scope, right, PTRS_TYPE_STRUCT,
+			"A variable of type %t cannot be a constructor, it is not a struct");
+	}
+
 	left.val = jit_insn_eq(func, left.meta, right.meta);
 	left.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
 	left.constType = PTRS_TYPE_INT;
@@ -888,6 +894,12 @@ ptrs_jit_var_t ptrs_handle_op_in(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	struct ptrs_ast_binary *expr = &node->arg.binary;
 	ptrs_jit_var_t left = expr->left->vtable->get(expr->left, func, scope);
 	ptrs_jit_var_t right = expr->right->vtable->get(expr->right, func, scope);
+
+	if(right.constType != PTRS_TYPE_STRUCT)
+	{
+		ptrs_jit_typeCheck(node, func, scope, right, PTRS_TYPE_STRUCT,
+			"Cannot check if a value of type %t has a field, it is not a struct");
+	}
 
 	ptrs_jit_var_t ret = {
 		.val = NULL,
