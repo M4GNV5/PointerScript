@@ -367,7 +367,7 @@ static void analyzeStatementList(ptrs_flow_t *flow, struct ptrs_astlist *list, p
 	}
 }
 
-static void analyzeFunction(ptrs_flow_t *flow, ptrs_function_t *ast)
+static void analyzeFunction(ptrs_flow_t *flow, ptrs_function_t *ast, ptrs_struct_t *thisType)
 {
 	flow->depth++;
 
@@ -386,8 +386,16 @@ static void analyzeFunction(ptrs_flow_t *flow, ptrs_function_t *ast)
 		setVariablePrediction(flow, &curr->arg, &prediction);
 	}
 
-	setVariablePrediction(flow, &ast->thisVal, &prediction);
 	setVariablePrediction(flow, ast->vararg, &prediction);
+
+	if(thisType != NULL)
+	{
+		prediction.knownMeta = true;
+		ptrs_meta_setPointer(prediction.meta, thisType);
+	}
+	prediction.knownType = true;
+	prediction.meta.type = PTRS_TYPE_STRUCT;
+	setVariablePrediction(flow, &ast->thisVal, &prediction);
 
 	analyzeStatement(flow, ast->body, &prediction);
 
@@ -618,7 +626,7 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 	}
 	else if(node->vtable == &ptrs_ast_vtable_function)
 	{
-		analyzeFunction(flow, &node->arg.function.func);
+		analyzeFunction(flow, &node->arg.function.func, NULL);
 
 		ret->knownValue = true;
 		ret->knownType = true;
@@ -1279,14 +1287,14 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 				|| curr->type == PTRS_STRUCTMEMBER_GETTER
 				|| curr->type == PTRS_STRUCTMEMBER_SETTER)
 			{
-				analyzeFunction(flow, curr->value.function.ast);
+				analyzeFunction(flow, curr->value.function.ast, struc);
 			}
 		}
 
 		struct ptrs_opoverload *curr = struc->overloads;
 		while(curr != NULL)
 		{
-			analyzeFunction(flow, curr->handler);
+			analyzeFunction(flow, curr->handler, struc);
 			curr = curr->next;
 		}
 
@@ -1300,7 +1308,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 	}
 	else if(node->vtable == &ptrs_ast_vtable_function)
 	{
-		analyzeFunction(flow, &node->arg.function.func);
+		analyzeFunction(flow, &node->arg.function.func, NULL);
 	}
 	else if(node->vtable == &ptrs_ast_vtable_if)
 	{
