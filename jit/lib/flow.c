@@ -154,6 +154,19 @@ static void clearAddressablePredictions(ptrs_flow_t *flow)
 		curr = curr->next;
 	}
 }
+static void setAddressable(ptrs_flow_t *flow, ptrs_jit_var_t *var)
+{
+	ptrs_predictions_t *curr = flow->predictions;
+
+	while(curr != NULL)
+	{
+		if(curr->variable == var)
+		{
+			curr->addressable = true;
+			break;
+		}
+	}
+}
 
 static void setVariablePrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var, ptrs_prediction_t *prediction)
 {
@@ -395,6 +408,7 @@ static void analyzeLValue(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_prediction_t
 	else if(node->vtable == &ptrs_ast_vtable_prefix_dereference)
 	{
 		analyzeExpression(flow, node->arg.astval, &dummy);
+		clearAddressablePredictions(flow);
 	}
 	else if(node->vtable == &ptrs_ast_vtable_index)
 	{
@@ -731,7 +745,7 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		if(target->vtable == &ptrs_ast_vtable_identifier)
 		{
 			struct ptrs_ast_identifier *expr = &target->arg.identifier;
-			//setAddressable(flow, expr->location);
+			setAddressable(flow, expr->location);
 
 			ret->knownType = true;
 			ret->knownValue = false;
