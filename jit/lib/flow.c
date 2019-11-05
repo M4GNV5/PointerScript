@@ -285,9 +285,20 @@ static char *prediction2str(ptrs_prediction_t *prediction, char *buff, size_t le
 	return ret.value.nativeval;
 }
 
-static bool structMemberPrediction(ptrs_flow_t *flow,
-	struct ptrs_structmember *member, ptrs_prediction_t *ret)
+static void structMemberPrediction(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_struct_t *struc,
+	const char *name, size_t namelen, ptrs_prediction_t *ret)
 {
+	struct ptrs_structmember *member = ptrs_struct_find(struc,
+		name, namelen, PTRS_STRUCTMEMBER_SETTER, node);
+
+	if(member == NULL)
+	{
+		//TODO missing member overload
+		clearAddressablePredictions(flow);
+		clearPrediction(ret);
+		return;
+	}
+
 	switch(member->type)
 	{
 		case PTRS_STRUCTMEMBER_GETTER:
@@ -720,10 +731,8 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 			&& ret->meta.type == PTRS_TYPE_STRUCT)
 		{
 			ptrs_struct_t *struc = ptrs_meta_getPointer(ret->meta);
-			struct ptrs_structmember *member = ptrs_struct_find(struc,
-				expr->name, expr->namelen, PTRS_STRUCTMEMBER_SETTER, node);
 
-			structMemberPrediction(flow, member, ret);
+			structMemberPrediction(flow, node, struc, expr->name, expr->namelen, ret);
 		}
 		else
 		{
@@ -830,10 +839,7 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 			char *name = prediction2str(&dummy, buff, 32);
 
 			ptrs_struct_t *struc = ptrs_meta_getPointer(ret->meta);
-			struct ptrs_structmember *member = ptrs_struct_find(struc,
-				name, 32, PTRS_STRUCTMEMBER_SETTER, node);
-
-			structMemberPrediction(flow, member, ret);
+			structMemberPrediction(flow, node, struc, name, strlen(name) + 1, ret);
 		}
 		else
 		{
@@ -883,6 +889,9 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		struct ptrs_ast_cast *expr = &node->arg.cast;
 
 		analyzeExpression(flow, expr->value, ret);
+
+		if(!ret->knownType || ret->meta.type == PTRS_TYPE_STRUCT)
+			clearAddressablePredictions(flow); // TODO cast<int> overload
 
 		if(expr->builtinType == PTRS_TYPE_INT)
 		{
