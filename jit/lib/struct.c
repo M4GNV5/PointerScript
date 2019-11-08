@@ -444,7 +444,8 @@ void ptrs_jit_struct_set(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *sc
 			args[0].constType = PTRS_TYPE_NATIVE;
 			args[0].val = keyVal;
 			args[0].meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_NATIVE, true, 0);
-			args[1] = value;
+			args[1].val = ptrs_jit_reinterpretCast(func, value.val, jit_type_long);
+			args[1].meta = value.meta;
 
 			ptrs_jit_ncallnested(func, base.val, overload, 2, args);
 			return;

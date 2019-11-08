@@ -385,6 +385,7 @@ static void analyzeFunction(ptrs_flow_t *flow, ptrs_function_t *ast, ptrs_struct
 		return;
 
 	ptrs_predictions_t *outer = dupPredictions(flow->predictions);
+	clearPrediction(&prediction);
 
 	ptrs_funcparameter_t *curr = ast->args;
 	for(; curr != NULL; curr = curr->next)

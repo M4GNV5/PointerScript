@@ -139,7 +139,7 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 								curr = curr->next;
 							ptrs_error(curr->entry, "Cannot pass nested PointerScript function"
 								" as an argument to a native function");
-							
+
 							break;
 						default: //pointer type
 							paramDef[i] = jit_type_void_ptr;
