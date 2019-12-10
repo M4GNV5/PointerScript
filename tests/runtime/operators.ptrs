@@ -64,8 +64,8 @@ assertEq(6, 3 * 2);
 assertEq(3, 6 / 2);
 assertEq(2, 5 % 3);
 
-//assertEq(true, 3 == 3);
-//assertEq(true, 3 == 3f);
+assertEq(true, 3 == 3);
+assertEq(true, 3 == 3f);
 assertEq(true, 3 === 3);
 assertEq(false, 3 === 3f);
 

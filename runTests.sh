@@ -9,29 +9,44 @@ hadError=0
 
 function runTest
 {
-	printf "${yellow}TRYING${nocolor} test $1\n"
-	bin/ptrs tests/$1.ptrs
+	if [ "$2" != "" ]; then
+		withArguments=" with argument $2"
+	else
+		withArguments=""
+	fi
+
+	printf "${yellow}TRYING${nocolor} test$withArguments\n"
+	bin/ptrs $2 tests/$1.ptrs
+
+	#printf "${yellow}TRYING${nocolor} test $1 without flow analysis\n"
+	#bin/ptrs --no-flow tests/$1.ptrs
 
 	local status=$?
 	if [ $status -ne 0 ]; then
-		printf "\n${red}ERROR${nocolor} running test $1\n"
+		printf "\n${red}ERROR${nocolor} running test $1$withArguments\n"
 		hadError=1
 	else
-		printf "\e[1A${green}SUCCESS${nocolor} running test $1\n"
+		printf "\e[1A${green}SUCCESS${nocolor} running test $1$withArguments\n"
 	fi
 }
 
-runTest runtime/interop
-runTest runtime/pointer
-runTest runtime/types
-runTest runtime/loops
-#runTest runtime/trycatch TODO
-runTest runtime/strformat
-runTest runtime/struct
-runTest runtime/overload
-runTest runtime/functions
-runTest runtime/alignment
-runTest runtime/operators
+function runAllTests
+{
+	runTest runtime/interop $1
+	runTest runtime/pointer $1
+	runTest runtime/types $1
+	runTest runtime/loops $1
+	#runTest runtime/trycatch TODO
+	runTest runtime/strformat $1
+	runTest runtime/struct $1
+	runTest runtime/overload $1
+	runTest runtime/functions $1
+	runTest runtime/alignment $1
+	runTest runtime/operators $1
+}
+
+runAllTests
+runAllTests --no-flow
 
 if [ $hadError -ne 0 ]; then
 	exit 1
