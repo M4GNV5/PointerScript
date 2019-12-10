@@ -652,9 +652,7 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 	{
 		analyzeFunction(flow, &node->arg.function.func, NULL);
 
-		ret->knownValue = true;
 		ret->knownType = true;
-		ret->value.nativeval = &node->arg.function.func;
 		ret->meta.type = PTRS_TYPE_FUNCTION;
 	}
 	else if(node->vtable == &ptrs_ast_vtable_call)
