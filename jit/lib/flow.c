@@ -519,6 +519,56 @@ static const struct unaryChangingHandler unaryIntFloatChangingHandler[] = {
 #define typecomp(a, b) ((PTRS_TYPE_##a << 3) | PTRS_TYPE_##b)
 #define calc_typecomp(a, b) ((a << 3) | b)
 
+static void analyzeTypeCheckCondition(ptrs_flow_t *flow, ptrs_ast_t *typeofExpr, ptrs_ast_t *typeExpr)
+{
+	ptrs_prediction_t prediction;
+
+	ptrs_ast_t *identifierAst = typeofExpr->arg.astval;
+	if(identifierAst->vtable != &ptrs_ast_vtable_identifier)
+		return;
+
+	struct ptrs_ast_identifier *identifierExpr = &identifierAst->arg.identifier;
+
+	bool oldDryRun = flow->dryRun;
+	flow->dryRun = true;
+	analyzeExpression(flow, typeExpr, &prediction);
+	flow->dryRun = oldDryRun;
+
+	int64_t type;
+	if(prediction2int(&prediction, &type))
+	{
+		getVariablePrediction(flow, identifierExpr->location, &prediction);
+
+		prediction.knownType = true;
+		prediction.meta.type = type;
+		setVariablePrediction(flow, identifierExpr->location, &prediction);
+	}
+}
+
+static void analyzeCondition(ptrs_flow_t *flow, ptrs_ast_t *node, bool isElse)
+{
+	if(node->vtable == &ptrs_ast_vtable_prefix_logicnot)
+	{
+		analyzeCondition(flow, node->arg.astval, !isElse);
+	}
+	else if((node->vtable == &ptrs_ast_vtable_op_equal && !isElse)
+		|| (node->vtable == &ptrs_ast_vtable_op_typeequal && !isElse)
+		|| (node->vtable == &ptrs_ast_vtable_op_inequal && isElse)
+		|| (node->vtable == &ptrs_ast_vtable_op_typeinequal && isElse))
+	{
+		struct ptrs_ast_binary *expr = &node->arg.binary;
+		if(expr->left->vtable == &ptrs_ast_vtable_prefix_typeof)
+		{
+			analyzeTypeCheckCondition(flow, expr->left, expr->right);
+		}
+		else if(expr->right->vtable == &ptrs_ast_vtable_prefix_typeof)
+		{
+			analyzeTypeCheckCondition(flow, expr->right, expr->left);
+		}
+		// TODO predict value when comparing to constant
+	}
+}
+
 static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_prediction_t *ret)
 {
 	ptrs_prediction_t dummy;
@@ -678,8 +728,9 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		else if(ret->knownType && ret->knownValue
 			&& ret->meta.type == PTRS_TYPE_FUNCTION)
 		{
-			clearAddressablePredictions(flow);
 			// TODO only reset predictions of varibles used in the function
+			clearAddressablePredictions(flow);
+			clearPrediction(ret);
 		}
 		else
 		{
@@ -1456,13 +1507,18 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 		if(!conditionPredicted || condition)
 		{
 			flow->predictions = ifPredictions;
+			analyzeCondition(flow, stmt->condition, false);
+
 			analyzeStatement(flow, stmt->ifBody, ret);
 		}
 
-		if((!conditionPredicted || !condition) && stmt->elseBody != NULL)
+		if(!conditionPredicted || !condition)
 		{
 			flow->predictions = elsePredictions;
-			analyzeStatement(flow, stmt->elseBody, ret);
+			analyzeCondition(flow, stmt->condition, true);
+
+			if(stmt->elseBody != NULL)
+				analyzeStatement(flow, stmt->elseBody, ret);
 		}
 
 		if(!conditionPredicted && !flow->dryRun)
@@ -1500,7 +1556,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 				curr = curr->next;
 			}
 
-			flow->dryRun = foundCase;
+			flow->dryRun = foundCase || orginalDryRun;
 			analyzeStatement(flow, stmt->defaultCase, &dummy);
 
 			flow->dryRun = orginalDryRun;
