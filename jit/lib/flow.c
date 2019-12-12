@@ -461,6 +461,53 @@ static ptrs_var_t specialLogicXorIntrinsic(ptrs_ast_t *node, ptrs_val_t left, pt
 	return ret;
 }
 
+#define NUM_TYPECOMPS (PTRS_NUM_TYPES << 3)
+#define typecomp(a, b) ((PTRS_TYPE_##a << 3) | PTRS_TYPE_##b)
+#define calc_typecomp(a, b) ((a << 3) | b)
+#define typetablecomp(a, b, c) [typecomp(a, b)] = PTRS_TYPE_##c, PTRS_TYPE_UNDEFINED
+
+static const uint8_t comparasionTypeTable[NUM_TYPECOMPS] = {
+	PTRS_TYPE_INT,
+};
+static const uint8_t intOnlyTypeTable[NUM_TYPECOMPS] = {
+	PTRS_TYPE_UNDEFINED,
+	typetablecomp(INT, INT, INT),
+};
+static const uint8_t intFloatTypeTable[NUM_TYPECOMPS] = {
+	PTRS_TYPE_UNDEFINED,
+	typetablecomp(INT, INT, INT),
+	typetablecomp(INT, FLOAT, FLOAT),
+	typetablecomp(FLOAT, INT, FLOAT),
+	typetablecomp(FLOAT, FLOAT, FLOAT),
+};
+static const uint8_t addTypeTable[NUM_TYPECOMPS] = {
+	PTRS_TYPE_UNDEFINED,
+	typetablecomp(INT, INT, INT),
+	typetablecomp(INT, FLOAT, FLOAT),
+	typetablecomp(FLOAT, INT, FLOAT),
+	typetablecomp(FLOAT, FLOAT, FLOAT),
+
+	typetablecomp(NATIVE, INT, NATIVE),
+	typetablecomp(INT, NATIVE, NATIVE),
+	typetablecomp(POINTER, INT, POINTER),
+	typetablecomp(INT, POINTER, POINTER),
+};
+static const uint8_t subTypeTable[NUM_TYPECOMPS] = {
+	PTRS_TYPE_UNDEFINED,
+	typetablecomp(INT, INT, INT),
+	typetablecomp(INT, FLOAT, FLOAT),
+	typetablecomp(FLOAT, INT, FLOAT),
+	typetablecomp(FLOAT, FLOAT, FLOAT),
+
+	typetablecomp(NATIVE, INT, NATIVE),
+	typetablecomp(INT, NATIVE, NATIVE),
+	typetablecomp(POINTER, INT, POINTER),
+	typetablecomp(INT, POINTER, POINTER),
+
+	typetablecomp(NATIVE, NATIVE, INT),
+	typetablecomp(POINTER, POINTER, INT),
+};
+
 struct vtableIntrinsicMapping
 {
 	void *vtable;
@@ -471,30 +518,31 @@ struct vtableIntrinsicMapping
 			ptrs_val_t right, ptrs_meta_t rightMeta);
 	};
 	bool isComparasion;
+	const uint8_t *typeTable;
 };
 
 static const struct vtableIntrinsicMapping binaryIntrinsicHandler[] = {
-	{&ptrs_ast_vtable_op_typeequal, ptrs_intrinsic_typeequal, true},
-	{&ptrs_ast_vtable_op_typeinequal, ptrs_intrinsic_typeinequal, true},
-	{&ptrs_ast_vtable_op_equal, ptrs_intrinsic_equal, true},
-	{&ptrs_ast_vtable_op_inequal, ptrs_intrinsic_inequal, true},
-	{&ptrs_ast_vtable_op_lessequal, ptrs_intrinsic_lessequal, true},
-	{&ptrs_ast_vtable_op_greaterequal, ptrs_intrinsic_greaterequal, true},
-	{&ptrs_ast_vtable_op_less, ptrs_intrinsic_less, true},
-	{&ptrs_ast_vtable_op_greater, ptrs_intrinsic_greater, true},
-	{&ptrs_ast_vtable_op_or, ptrs_intrinsic_or, false},
-	{&ptrs_ast_vtable_op_xor, ptrs_intrinsic_xor, false},
-	{&ptrs_ast_vtable_op_and, ptrs_intrinsic_and, false},
-	{&ptrs_ast_vtable_op_ushr, ptrs_intrinsic_ushr, false},
-	{&ptrs_ast_vtable_op_sshr, ptrs_intrinsic_sshr, false},
-	{&ptrs_ast_vtable_op_shl, ptrs_intrinsic_shl, false},
-	{&ptrs_ast_vtable_op_add, ptrs_intrinsic_add, false},
-	{&ptrs_ast_vtable_op_sub, ptrs_intrinsic_sub, false},
-	{&ptrs_ast_vtable_op_mul, ptrs_intrinsic_mul, false},
-	{&ptrs_ast_vtable_op_div, ptrs_intrinsic_div, false},
-	{&ptrs_ast_vtable_op_mod, ptrs_intrinsic_mod, false},
+	{&ptrs_ast_vtable_op_typeequal, ptrs_intrinsic_typeequal, true, comparasionTypeTable},
+	{&ptrs_ast_vtable_op_typeinequal, ptrs_intrinsic_typeinequal, true, comparasionTypeTable},
+	{&ptrs_ast_vtable_op_equal, ptrs_intrinsic_equal, true, comparasionTypeTable},
+	{&ptrs_ast_vtable_op_inequal, ptrs_intrinsic_inequal, true, comparasionTypeTable},
+	{&ptrs_ast_vtable_op_lessequal, ptrs_intrinsic_lessequal, true, comparasionTypeTable},
+	{&ptrs_ast_vtable_op_greaterequal, ptrs_intrinsic_greaterequal, true, comparasionTypeTable},
+	{&ptrs_ast_vtable_op_less, ptrs_intrinsic_less, true, comparasionTypeTable},
+	{&ptrs_ast_vtable_op_greater, ptrs_intrinsic_greater, true, comparasionTypeTable},
+	{&ptrs_ast_vtable_op_or, ptrs_intrinsic_or, false, intOnlyTypeTable},
+	{&ptrs_ast_vtable_op_xor, ptrs_intrinsic_xor, false, intOnlyTypeTable},
+	{&ptrs_ast_vtable_op_and, ptrs_intrinsic_and, false, intOnlyTypeTable},
+	{&ptrs_ast_vtable_op_ushr, ptrs_intrinsic_ushr, false, intOnlyTypeTable},
+	{&ptrs_ast_vtable_op_sshr, ptrs_intrinsic_sshr, false, intOnlyTypeTable},
+	{&ptrs_ast_vtable_op_shl, ptrs_intrinsic_shl, false, intOnlyTypeTable},
+	{&ptrs_ast_vtable_op_add, ptrs_intrinsic_add, false, addTypeTable},
+	{&ptrs_ast_vtable_op_sub, ptrs_intrinsic_sub, false, subTypeTable},
+	{&ptrs_ast_vtable_op_mul, ptrs_intrinsic_mul, false, intFloatTypeTable},
+	{&ptrs_ast_vtable_op_div, ptrs_intrinsic_div, false, intFloatTypeTable},
+	{&ptrs_ast_vtable_op_mod, ptrs_intrinsic_mod, false, intOnlyTypeTable},
 
-	{&ptrs_ast_vtable_op_logicxor, specialLogicXorIntrinsic, false},
+	{&ptrs_ast_vtable_op_logicxor, specialLogicXorIntrinsic, false, intOnlyTypeTable},
 };
 
 static const void *unaryIntFloatHandler[] = {
@@ -515,9 +563,6 @@ static const struct unaryChangingHandler unaryIntFloatChangingHandler[] = {
 	{&ptrs_ast_vtable_suffix_inc, true, 1},
 	{&ptrs_ast_vtable_suffix_dec, true, -1},
 };
-
-#define typecomp(a, b) ((PTRS_TYPE_##a << 3) | PTRS_TYPE_##b)
-#define calc_typecomp(a, b) ((a << 3) | b)
 
 static void analyzeTypeCheckCondition(ptrs_flow_t *flow, ptrs_ast_t *typeofExpr, ptrs_ast_t *typeExpr)
 {
@@ -1262,7 +1307,24 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 					memcpy(&ret->value, &result.value, sizeof(ptrs_val_t));
 					memcpy(&ret->meta, &result.meta, sizeof(ptrs_meta_t));
 				}
-				// TODO else if(ret->knownType && dummy.knownType)
+				else if(binaryIntrinsicHandler[i].isComparasion)
+				{
+					clearPrediction(ret);
+					ret->knownType = true;
+					ret->meta.type = PTRS_TYPE_INT;
+				}
+				else if(ret->knownType && dummy.knownType)
+				{
+					const uint8_t *typeTable = binaryIntrinsicHandler[i].typeTable;
+					size_t comp = calc_typecomp(ret->meta.type, dummy.meta.type);
+					clearPrediction(ret);
+
+					if(typeTable[comp] != PTRS_TYPE_UNDEFINED)
+					{
+						ret->knownType = true;
+						ret->meta.type = typeTable[comp];
+					}
+				}
 				else
 				{
 					clearPrediction(ret);
