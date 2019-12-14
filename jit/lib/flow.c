@@ -165,6 +165,8 @@ static void setAddressable(ptrs_flow_t *flow, ptrs_jit_var_t *var)
 			curr->addressable = true;
 			break;
 		}
+
+		curr = curr->next;
 	}
 }
 
@@ -565,12 +567,6 @@ static const struct vtableIntrinsicMapping binaryIntrinsicHandler[] = {
 	{&ptrs_ast_vtable_op_mod, ptrs_intrinsic_mod, false, intOnlyTypeTable},
 
 	{&ptrs_ast_vtable_op_logicxor, specialLogicXorIntrinsic, false, intOnlyTypeTable},
-};
-
-static const void *unaryIntFloatHandler[] = {
-	&ptrs_ast_vtable_prefix_not,
-	&ptrs_ast_vtable_prefix_plus,
-	&ptrs_ast_vtable_prefix_minus,
 };
 
 struct unaryChangingHandler
@@ -1365,6 +1361,43 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		ret->knownMeta = true;
 		ret->meta.type = PTRS_TYPE_INT;
 	}
+	else if(node->vtable == &ptrs_ast_vtable_prefix_not)
+	{
+		analyzeExpression(flow, node->arg.astval, ret);
+
+		if(ret->knownType && ret->meta.type == PTRS_TYPE_INT)
+		{
+			if(ret->knownValue)
+				ret->value.intval = ~ret->value.intval;
+		}
+		else
+		{
+			clearPrediction(ret);
+		}
+	}
+	else if(node->vtable == &ptrs_ast_vtable_prefix_minus)
+	{
+		analyzeExpression(flow, node->arg.astval, ret);
+
+		if(ret->knownType && ret->meta.type == PTRS_TYPE_INT)
+		{
+			if(ret->knownValue)
+				ret->value.intval = -ret->value.intval;
+		}
+		else if(ret->knownType && ret->meta.type == PTRS_TYPE_FLOAT)
+		{
+			if(ret->knownValue)
+				ret->value.floatval = -ret->value.floatval;
+		}
+		else
+		{
+			clearPrediction(ret);
+		}
+	}
+	else if(node->vtable == &ptrs_ast_vtable_prefix_plus)
+	{
+		analyzeExpression(flow, node->arg.astval, ret);
+	}
 	else
 	{
 		for(int i = 0; i < sizeof(binaryIntrinsicHandler) / sizeof(struct vtableIntrinsicMapping); i++)
@@ -1468,18 +1501,6 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 				}
 
 				analyzeLValue(flow, node->arg.astval, ret);
-				return;
-			}
-		}
-
-		for(int i = 0; i < sizeof(unaryIntFloatHandler) / sizeof(void *); i++)
-		{
-			if(node->vtable == unaryIntFloatHandler[i])
-			{
-				analyzeExpression(flow, node->arg.astval, ret);
-				//ret->knownValue = false; // TODO
-				clearPrediction(ret);
-
 				return;
 			}
 		}
