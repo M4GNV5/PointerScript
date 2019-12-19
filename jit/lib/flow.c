@@ -236,6 +236,28 @@ static void getVariablePrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var, ptrs_p
 	clearPrediction(ret);
 }
 
+static void clearAddressablePredictionsIfOverloadExists(ptrs_flow_t *flow, ptrs_struct_t *struc, void *overload)
+{
+	jit_function_t handler = ptrs_struct_getOverload(struc, overload, false);
+	if(handler != NULL)
+	{
+		clearAddressablePredictions(flow);
+	}
+}
+static void clearAddressablePredictionsIfOverloadExistsOrUnavailable(ptrs_flow_t *flow, ptrs_prediction_t *prediction, void *overload)
+{
+	if(prediction->knownType && prediction->knownMeta
+		&& prediction->meta.type == PTRS_TYPE_STRUCT)
+	{
+		ptrs_struct_t *struc = ptrs_meta_getPointer(prediction->meta);
+		clearAddressablePredictionsIfOverloadExists(flow, struc, overload);
+	}
+	else
+	{
+		clearAddressablePredictions(flow);
+	}
+}
+
 static bool prediction2bool(ptrs_prediction_t *prediction, bool *ret)
 {
 	if(!prediction->knownType || !prediction->knownValue)
@@ -293,8 +315,7 @@ static void structMemberPrediction(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_str
 
 	if(member == NULL)
 	{
-		//TODO missing member overload
-		clearAddressablePredictions(flow);
+		clearAddressablePredictionsIfOverloadExists(flow, struc, ptrs_handle_member);
 		clearPrediction(ret);
 		return;
 	}
@@ -435,6 +456,7 @@ static void analyzeLValue(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_prediction_t
 	{
 		struct ptrs_ast_member *expr = &node->arg.member;
 		analyzeExpression(flow, expr->base, &dummy);
+		clearAddressablePredictionsIfOverloadExistsOrUnavailable(flow, &dummy, ptrs_assign_member);
 	}
 	else if(node->vtable == &ptrs_ast_vtable_importedsymbol)
 	{
@@ -865,7 +887,6 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		//TODO do we need analyzeAddrOfExpression?
 		analyzeExpression(flow, target, ret);
 
-		//TODO &ptrs_ast_vtable_member
 		if(target->vtable == &ptrs_ast_vtable_identifier)
 		{
 			struct ptrs_ast_identifier *expr = &target->arg.identifier;
@@ -879,8 +900,79 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 			ret->meta.array.readOnly = false;
 			ret->meta.array.size = 1;
 		}
+		else if(target->vtable == &ptrs_ast_vtable_member)
+		{
+			struct ptrs_ast_member *expr = &target->arg.member;
+			analyzeExpression(flow, expr->base, ret);
+
+			if(ret->knownType && ret->knownMeta && ret->meta.type == PTRS_TYPE_STRUCT)
+			{
+				ptrs_struct_t *struc = ptrs_meta_getPointer(ret->meta);
+
+				struct ptrs_structmember *member = ptrs_struct_find(struc,
+					expr->name, expr->namelen, PTRS_STRUCTMEMBER_SETTER, node);
+
+				if(member != NULL && member->type == PTRS_STRUCTMEMBER_VAR)
+				{
+					ret->knownType = true;
+					ret->knownMeta = true;
+					ret->knownValue = false;
+					ret->meta.type = PTRS_TYPE_POINTER;
+					ret->meta.array.readOnly = false;
+					ret->meta.array.size = 1;
+				}
+				else if(member != NULL && member->type == PTRS_STRUCTMEMBER_TYPED)
+				{
+					ret->knownType = true;
+					ret->knownMeta = true;
+					ret->knownValue = false;
+					ret->meta.type = PTRS_TYPE_NATIVE;
+					ret->meta.array.readOnly = false;
+					ret->meta.array.size = member->value.type->size;
+				}
+				else
+				{
+					clearAddressablePredictionsIfOverloadExists(flow, struc, ptrs_handle_member);
+					clearPrediction(ret);
+				}
+			}
+			else
+			{
+				// we need to also clear addressable predictions as an overload might be called
+				clearAddressablePredictions(flow);
+				clearPrediction(ret);
+			}
+		}
+		else if(target->vtable == &ptrs_ast_vtable_index)
+		{
+			struct ptrs_ast_binary *expr = &node->arg.binary;
+
+			analyzeExpression(flow, expr->left, ret);
+			analyzeExpression(flow, expr->right, &dummy);
+
+			if(ret->knownType && ret->meta.type == PTRS_TYPE_NATIVE)
+			{
+				ret->knownType = true;
+				ret->knownMeta = false;
+				ret->knownValue = false;
+				ret->meta.type = PTRS_TYPE_NATIVE;
+				// TODO predict array size when index and size are known
+			}
+			else if(ret->knownType && ret->meta.type == PTRS_TYPE_POINTER)
+			{
+				ret->knownType = true;
+				ret->knownMeta = false;
+				ret->knownValue = false;
+				ret->meta.type = PTRS_TYPE_NATIVE;
+				// TODO predict array size when index and size are known
+			}
+			else
+			{
+				clearAddressablePredictionsIfOverloadExistsOrUnavailable(flow, ret, ptrs_handle_prefix_address);
+				clearPrediction(ret);
+			}
+		}
 		//TODO &ptrs_ast_vtable_importedsymbol
-		//TODO &ptrs_ast_vtable_index
 		else
 		{
 			clearPrediction(ret);
