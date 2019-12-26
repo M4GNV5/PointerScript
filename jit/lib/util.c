@@ -170,12 +170,52 @@ jit_value_t ptrs_jit_reinterpretCast(jit_function_t func, jit_value_t val, jit_t
 		jit_constant_t constVal = jit_value_get_constant(val);
 		jit_type_t type = jit_type_normalize(jit_type_promote_int(newType));
 
+		jit_long intVal;
+		jit_float64 floatVal;
+		switch(oldKind)
+		{
+			case JIT_TYPE_SBYTE:
+			case JIT_TYPE_UBYTE:
+			case JIT_TYPE_SHORT:
+			case JIT_TYPE_USHORT:
+			case JIT_TYPE_INT:
+			case JIT_TYPE_UINT:
+				intVal = constVal.un.int_value;
+				floatVal = *(jit_float64 *)&intVal;
+				break;
+			case JIT_TYPE_NINT:
+			case JIT_TYPE_NUINT:
+				intVal = constVal.un.nint_value;
+				floatVal = *(jit_float64 *)&intVal;
+				break;
+			case JIT_TYPE_LONG:
+			case JIT_TYPE_ULONG:
+				intVal = constVal.un.long_value;
+				floatVal = *(jit_float64 *)&intVal;
+				break;
+			case JIT_TYPE_FLOAT32:
+				floatVal = constVal.un.float32_value;
+				intVal = *(jit_long *)&floatVal;
+				break;
+			case JIT_TYPE_FLOAT64:
+				floatVal = constVal.un.float64_value;
+				intVal = *(jit_long *)&floatVal;
+				break;
+			case JIT_TYPE_NFLOAT:
+				floatVal = constVal.un.nfloat_value;
+				intVal = *(jit_long *)&floatVal;
+				break;
+			default:
+				assert(("Tried to reinterpret cast from an unsupported type.", 0));
+				break;
+		}
+
 		if(type == jit_type_int || type == jit_type_uint)
-			return jit_value_create_nint_constant(func, newType, constVal.un.int_value);
+			return jit_value_create_nint_constant(func, newType, intVal);
 		else if(type == jit_type_long || type == jit_type_ulong)
-			return jit_value_create_long_constant(func, newType, constVal.un.long_value);
+			return jit_value_create_long_constant(func, newType, intVal);
 		else if(type == jit_type_float64)
-			return jit_value_create_float64_constant(func, newType, constVal.un.float64_value);
+			return jit_value_create_float64_constant(func, newType, floatVal);
 	}
 
 	bool oldIsFloat = isFloatKind(oldKind);

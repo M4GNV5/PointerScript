@@ -384,7 +384,7 @@ static jit_type_t getComparasionInstrinsicSignature()
 		\
 		extra \
 		\
-		left.val = jit_insn_convert(func, left.val, jit_type_long, 0); \
+		/*left.val = jit_insn_convert(func, left.val, jit_type_long, 0);*/ \
 		left.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT); \
 		left.constType = PTRS_TYPE_INT; \
 		return left; \
