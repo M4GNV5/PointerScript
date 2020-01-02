@@ -791,20 +791,20 @@ _jit_function_add_instruction_live_ranges(jit_function_t func)
 						colors |= (jit_ulong)1 << i;
 					}
 				}
-				create_fixed_live_range(func, block, 0, insn, 0, colors);
+				create_fixed_live_range(func, block, insn, insn, 0, colors);
 				break;
 
 			case JIT_OP_INCOMING_REG:
 			case JIT_OP_RETURN_REG:
 				i = (int)jit_value_get_nint_constant(insn->value1);
-				increment_preferred_color(func, block, prev, insn,
+				increment_preferred_color(func, block, insn, insn,
 					insn->dest_live, i, _JIT_REG_USAGE_UNNUSED);
 				skip = 1;
 				break;
 
 			case JIT_OP_OUTGOING_REG:
 				i = (int)jit_value_get_nint_constant(insn->value2);
-				increment_preferred_color(func, block, prev, insn,
+				increment_preferred_color(func, block, insn, insn,
 					insn->value1_live, i, _JIT_REG_USAGE_UNNUSED);
 				handle_constant_in_reg(func, block, prev, insn, insn->value1,
 					i, _JIT_REG_USAGE_UNNUSED, NULL);
@@ -836,19 +836,19 @@ _jit_function_add_instruction_live_ranges(jit_function_t func)
 			{
 				for(j = regmap.unnamed[i]; j > 0; j--)
 				{
-					create_scratch_live_range(func, block, prev, insn, i);
+					create_scratch_live_range(func, block, insn, insn, i);
 				}
 			}
 
 			/* create tiny live ranges for clobbered values */
 			if(regmap.clobber != 0)
 			{
-				create_fixed_live_range(func, block, prev, insn,
+				create_fixed_live_range(func, block, insn, insn,
 					0, regmap.clobber);
 			}
 			if(regmap.early_clobber != 0)
 			{
-				create_fixed_live_range(func, block, prev, insn,
+				create_fixed_live_range(func, block, insn, insn,
 					0, regmap.early_clobber);
 			}
 			if(regmap.clobbered_classes != 0)
@@ -873,22 +873,22 @@ _jit_function_add_instruction_live_ranges(jit_function_t func)
 					}
 				}
 
-				create_fixed_live_range(func, block, prev, insn,
+				create_fixed_live_range(func, block, insn, insn,
 					0, colors);
 			}
 
-			increment_preferred_color(func, block, prev, insn,
+			increment_preferred_color(func, block, insn, insn,
 				insn->dest_live, regmap.dest, regmap.dest_other);
-			increment_preferred_color(func, block, prev, insn,
+			increment_preferred_color(func, block, insn, insn,
 				insn->value1_live, regmap.value1, regmap.value1_other);
-			increment_preferred_color(func, block, prev, insn,
+			increment_preferred_color(func, block, insn, insn,
 				insn->value2_live, regmap.value2, regmap.value2_other);
 
-			handle_constant_in_reg(func, block, prev, insn, insn->dest,
+			handle_constant_in_reg(func, block, insn, insn, insn->dest,
 				regmap.dest, regmap.dest_other, &insn->dest_live);
-			handle_constant_in_reg(func, block, prev, insn, insn->value1,
+			handle_constant_in_reg(func, block, insn, insn, insn->value1,
 				regmap.value1, regmap.value1_other, &insn->value1_live);
-			handle_constant_in_reg(func, block, prev, insn, insn->value2,
+			handle_constant_in_reg(func, block, insn, insn, insn->value2,
 				regmap.value2, regmap.value2_other, &insn->value2_live);
 
 			insn->flags |= regmap.flags;
