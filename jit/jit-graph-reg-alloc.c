@@ -240,7 +240,6 @@ static int
 check_interfering(jit_function_t func,
 	_jit_live_range_t a, _jit_live_range_t b)
 {
-	int i;
 	int a_is_local;
 	int b_is_local;
 	int a_index;
@@ -314,31 +313,28 @@ check_interfering(jit_function_t func,
 	}
 	else
 	{
-		i = 0;
 		for(block = func->builder->entry_block; block; block = block->next)
 		{
-			if(_jit_bitset_test_bit(&a->touched_block_starts, i)
-				&& _jit_bitset_test_bit(&b->touched_block_ends, i))
+			if(_jit_bitset_test_bit(&a->touched_block_starts, block->index)
+				&& _jit_bitset_test_bit(&b->touched_block_ends, block->index))
 			{
 				end_a = _jit_insn_list_get_insn_from_block(a->ends, block);
 				start_b = _jit_insn_list_get_insn_from_block(b->starts, block);
-				if(start_b < end_a)
+				if(start_b <= end_a)
 				{
 					return 1;
 				}
 			}
-			else if(_jit_bitset_test_bit(&a->touched_block_ends, i)
-				&& _jit_bitset_test_bit(&b->touched_block_starts, i))
+			else if(_jit_bitset_test_bit(&a->touched_block_ends, block->index)
+				&& _jit_bitset_test_bit(&b->touched_block_starts, block->index))
 			{
 				start_a = _jit_insn_list_get_insn_from_block(a->starts, block);
 				end_b = _jit_insn_list_get_insn_from_block(b->ends, block);
-				if(start_a < end_b)
+				if(start_a <= end_b)
 				{
 					return 1;
 				}
 			}
-
-			++i;
 		}
 
 		return 0;
@@ -609,6 +605,8 @@ spill_live_range(jit_function_t func, _jit_live_range_t *ranges,
 	dump_live_range(func, range);
 	printf(" and creating:\n");
 #endif
+
+	assert(range->spill_cost != (unsigned)-1);
 
 	for(i = 0; i < func->live_range_count; i++)
 	{
