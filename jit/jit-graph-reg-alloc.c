@@ -178,8 +178,13 @@ do_starting_and_ending_interfere(jit_insn_t insn,
 	if(ending->is_fixed || !ending->value)
 		return 1;
 
-	/* In this instruction dest and value2 cannot be in the same register */
-	if((insn->flags & JIT_INSN_DEST_INTERFERES_VALUE2)
+	/* In ternary instructions dest and values cannot be in the same register */
+	if((insn->flags & JIT_INSN_DEST_INTERFERES_VALUES) != 0)
+		return 1;
+
+	/* Dest and value2 can only be in the same register when the instruction is
+	   commutative */
+	if((insn->flags & JIT_INSN_COMMUTATIVE) == 0
 		&& insn->dest_live == starting
 		&& insn->value2_live == ending)
 		return 1;
@@ -288,6 +293,11 @@ check_interfering(jit_function_t func,
 		}
 		if(start_b >= start_a && start_b < end_a)
 		{
+			return 1;
+		}
+		if(start_a == start_b && end_a == end_b && start_a == end_a)
+		{
+			/* two fixed/dummy live ranges */
 			return 1;
 		}
 		if(start_a == end_b
@@ -1015,7 +1025,8 @@ begin_value(jit_gencode_t gen, _jit_regs_t *regs, jit_insn_t insn,
 		{
 			regs->descs[i].reg = value->reg;
 		}
-		else if(regs->descs[i].reg != value->reg)
+		else if(regs->descs[i].reg != value->reg
+			&& (i != 0 || regs->ternary))
 		{
 			_jit_gen_load_value(gen, regs->descs[i].reg,
 				regs->descs[i].other_reg, value);
@@ -1029,6 +1040,7 @@ _jit_regs_graph_begin(jit_gencode_t gen, _jit_regs_t *regs, jit_insn_t insn)
 	int reg;
 	int i;
 	int ignore;
+	int dest_or_value1_fixed = 0;
 
 	ignore = -1;
 	switch(insn->opcode)
@@ -1044,6 +1056,10 @@ _jit_regs_graph_begin(jit_gencode_t gen, _jit_regs_t *regs, jit_insn_t insn)
 		break;
 	}
 
+	if(regs->descs[0].reg != -1
+		|| regs->descs[1].reg != -1)
+		dest_or_value1_fixed = 1;
+
 	begin_value(gen, regs, insn, 0, insn->dest, insn->dest_live);
 
 	if(ignore != 1)
@@ -1055,7 +1071,9 @@ _jit_regs_graph_begin(jit_gencode_t gen, _jit_regs_t *regs, jit_insn_t insn)
 		begin_value(gen, regs, insn, 2, insn->value2, insn->value2_live);
 	}
 
-	if(!regs->ternary && !regs->free_dest)
+	if(!regs->ternary && !regs->free_dest
+		&& (insn->flags & JIT_INSN_DEST_OTHER_FLAGS) == 0
+		&& (insn->flags & JIT_INSN_VALUE1_OTHER_FLAGS) == 0)
 	{
 		/* The instruction outputs to regs->descs[1] */
 
@@ -1075,7 +1093,9 @@ _jit_regs_graph_begin(jit_gencode_t gen, _jit_regs_t *regs, jit_insn_t insn)
 			regs->descs[1].other_reg = regs->descs[2].other_reg;
 			regs->descs[2].other_reg = reg;
 		}
-		else if(regs->descs[0].value && regs->descs[1].value)
+		else if(!dest_or_value1_fixed
+			&& regs->descs[0].reg != -1
+			&& regs->descs[0].reg != regs->descs[1].reg)
 		{
 			_jit_gen_load_value(gen, regs->descs[0].reg,
 				regs->descs[0].other_reg, insn->value1);
@@ -1103,16 +1123,57 @@ _jit_regs_graph_begin(jit_gencode_t gen, _jit_regs_t *regs, jit_insn_t insn)
 void
 _jit_regs_graph_commit(jit_gencode_t gen, _jit_regs_t *regs, jit_insn_t insn)
 {
-	if((insn->flags & JIT_INSN_DEST_OTHER_FLAGS) == 0
-		&& (insn->flags & JIT_INSN_DEST_IS_VALUE) == 0
-		&& insn->dest != 0
-		&& insn->dest_live != 0
-		&& insn->dest_live->is_spill_range)
+	short reg;
+
+	/* skip special opcodes */
+	switch(insn->opcode)
+	{
+	case JIT_OP_INCOMING_REG:
+	case JIT_OP_INCOMING_FRAME_POSN:
+	case JIT_OP_RETURN_REG:
+	case JIT_OP_OUTGOING_REG:
+		return;
+	}
+
+	/* in the graph allocator this function solely needs to make sure that when
+	   a destination is in some register but is spilled or colored with a
+	   different register to move it there */
+
+	/* bail out if insn->dest is not a regular value */
+	if((insn->flags & JIT_INSN_DEST_OTHER_FLAGS) != 0
+		|| !insn->dest
+		|| !insn->dest_live)
+	{
+		return;
+	}
+
+	if(insn->dest_live->is_spill_range)
 	{
 		/* The instruction wrote to dest, which is a spilled value. We need to
 		   save it from it's temporary register back to memory */
 		_jit_gen_spill_reg(gen, regs->descs[0].reg, regs->descs[0].other_reg,
 			insn->dest);
+	}
+	else if(!regs->ternary)
+	{
+		/* The instruction wrote to dest, if the instruction did not already
+		   write the result to the correct register we need to move it there */
+		reg = find_reg_in_colors(insn->dest_live->colors);
+
+		if(regs->descs[0].reg != -1 && regs->descs[0].reg != reg)
+		{
+			insn->dest->reg = regs->descs[0].reg;
+			_jit_gen_load_value(gen, reg, -1, insn->dest);
+			insn->dest->reg = reg;
+		}
+		else if((insn->flags & JIT_INSN_VALUE1_OTHER_FLAGS) == 0
+			&& insn->value1 && reg != regs->descs[1].reg
+			&& !regs->free_dest)
+		{
+			insn->dest->reg = regs->descs[1].reg;
+			_jit_gen_load_value(gen, reg, -1, insn->dest);
+			insn->dest->reg = reg;
+		}
 	}
 }
 

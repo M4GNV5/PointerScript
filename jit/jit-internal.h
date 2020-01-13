@@ -483,7 +483,7 @@ struct _jit_insn
 #define JIT_INSN_VALUE1_CAN_BE_MEM	0x08000
 #define JIT_INSN_VALUE2_CAN_BE_MEM	0x10000
 #define JIT_INSN_COMMUTATIVE		0x20000
-#define JIT_INSN_DEST_INTERFERES_VALUE2	0x40000
+#define JIT_INSN_DEST_INTERFERES_VALUES	0x40000
 
 /*
  * Information about each label associated with a function.

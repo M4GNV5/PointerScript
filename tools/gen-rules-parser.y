@@ -2094,7 +2094,8 @@ gensel_output_register_usage_for_rule(gensel_clause_t clause, gensel_option_t op
 				}
 				printf("JIT_INSN_COMMUTATIVE");
 			}
-			else if(!ternary && !free_dest)
+
+			if(ternary || free_dest)
 			{
 				if(is_first)
 				{
@@ -2104,7 +2105,7 @@ gensel_output_register_usage_for_rule(gensel_clause_t clause, gensel_option_t op
 				{
 					printf(" | ");
 				}
-				printf("JIT_INSN_DEST_INTERFERES_VALUE2");
+				printf("JIT_INSN_DEST_INTERFERES_VALUES");
 			}
 
 
