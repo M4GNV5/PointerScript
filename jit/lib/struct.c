@@ -14,25 +14,34 @@
 #include "../include/util.h"
 #include "../include/call.h"
 
-jit_function_t ptrs_struct_getOverload(ptrs_struct_t *struc, void *handler, bool isInstance)
+struct ptrs_opoverload *ptrs_struct_getOverloadInfo(ptrs_struct_t *struc, void *handler, bool isInstance)
 {
 	struct ptrs_opoverload *curr = struc->overloads;
 	while(curr != NULL)
 	{
 		if(curr->op == handler && (isInstance || curr->isStatic))
-			return curr->handlerFunc;
+			return curr;
 		curr = curr->next;
 	}
 	return NULL;
 }
 
+jit_function_t ptrs_struct_getOverload(ptrs_struct_t *struc, void *handler, bool isInstance)
+{
+	struct ptrs_opoverload *overload = ptrs_struct_getOverloadInfo(struc, handler, isInstance);
+	if(overload != NULL)
+		return overload->handlerFunc;
+	else
+		return NULL;
+}
+
 void *ptrs_struct_getOverloadClosure(ptrs_struct_t *struc, void *handler, bool isInstance)
 {
-	jit_function_t func = ptrs_struct_getOverload(struc, handler, isInstance);
-	if(func == NULL)
-		return NULL;
+	struct ptrs_opoverload *overload = ptrs_struct_getOverloadInfo(struc, handler, isInstance);
+	if(overload != NULL)
+		return jit_function_to_closure(overload->handlerFunc);
 	else
-		return jit_function_to_closure(func);
+		return NULL;
 }
 
 const char const *accessorNames[] = {

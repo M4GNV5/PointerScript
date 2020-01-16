@@ -30,6 +30,7 @@ typedef struct ptrs_flowprediction
 typedef struct
 {
 	bool dryRun;
+	bool endsInDead;
 	unsigned depth;
 	ptrs_predictions_t *predictions;
 	//...
@@ -45,10 +46,13 @@ static inline void clearPrediction(ptrs_prediction_t *prediction)
 	prediction->knownMeta = false;
 }
 
-static ptrs_predictions_t *dupPredictions(ptrs_predictions_t *curr)
+static void dupFlow(ptrs_flow_t *dest, ptrs_flow_t *src)
 {
-	ptrs_predictions_t *start;
-	ptrs_predictions_t **ptr = &start;
+	memcpy(dest, src, sizeof(ptrs_flow_t)); // copy flags
+	dest->predictions = NULL;
+
+	ptrs_predictions_t **ptr = &dest->predictions;
+	ptrs_predictions_t *curr = src->predictions;
 
 	while(curr != NULL)
 	{
@@ -58,9 +62,6 @@ static ptrs_predictions_t *dupPredictions(ptrs_predictions_t *curr)
 		curr = curr->next;
 		ptr = &((*ptr)->next);
 	}
-
-	*ptr = NULL;
-	return start;
 }
 
 static void freePredictions(ptrs_predictions_t *curr)
@@ -73,12 +74,26 @@ static void freePredictions(ptrs_predictions_t *curr)
 	}
 }
 
-static void mergePredictions(ptrs_flow_t *dest, ptrs_predictions_t *src)
+static void mergePredictions(ptrs_flow_t *dest, ptrs_flow_t *srcFlow)
 {
-	if(dest->predictions == src)
+	ptrs_predictions_t *src = srcFlow->predictions;
+
+	if(dest == srcFlow || dest->predictions == src)
 		return;
 
-	if(dest->dryRun)
+	if(dest->dryRun || srcFlow->dryRun)
+	{
+		freePredictions(src);
+		return;
+	}
+
+	if(dest->endsInDead)
+	{
+		freePredictions(dest->predictions);
+		dest->predictions = src;
+		return;
+	}
+	if(srcFlow->endsInDead)
 	{
 		freePredictions(src);
 		return;
@@ -240,8 +255,8 @@ static void getVariablePrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var, ptrs_p
 
 static void clearAddressablePredictionsIfOverloadExists(ptrs_flow_t *flow, ptrs_struct_t *struc, void *overload)
 {
-	jit_function_t handler = ptrs_struct_getOverload(struc, overload, false);
-	if(handler != NULL)
+	struct ptrs_opoverload *overloadInfo = ptrs_struct_getOverloadInfo(struc, overload, true);
+	if(overloadInfo != NULL)
 	{
 		clearAddressablePredictions(flow);
 	}
@@ -392,31 +407,34 @@ static void analyzeStatementList(ptrs_flow_t *flow, struct ptrs_astlist *list, p
 	}
 }
 
-static void analyzeFunction(ptrs_flow_t *flow, ptrs_function_t *ast, ptrs_struct_t *thisType)
+static void analyzeFunction(ptrs_flow_t *outerFlow, ptrs_function_t *ast, ptrs_struct_t *thisType)
 {
-	flow->depth++;
-
 	ptrs_prediction_t prediction;
 	clearPrediction(&prediction);
 
-	bool isDryRun = flow->dryRun;
-	flow->dryRun = true;
-	analyzeStatement(flow, ast->body, &prediction);
-	flow->dryRun = isDryRun;
-
-	if(isDryRun)
+	if(outerFlow->dryRun)
+	{
+		//in a dry run we analyze the function in the outer flow to make sure addressable bits
+		// for values used by the inner function are set globally
+		outerFlow->depth++;
+		analyzeStatement(outerFlow, ast->body, &prediction);
+		outerFlow->depth--;
 		return;
+	}
 
-	ptrs_predictions_t *outer = dupPredictions(flow->predictions);
+	ptrs_flow_t functionFlow;
+	dupFlow(&functionFlow, outerFlow);
+	functionFlow.depth++;
+
 	clearPrediction(&prediction);
 
 	ptrs_funcparameter_t *curr = ast->args;
 	for(; curr != NULL; curr = curr->next)
 	{
-		setVariablePrediction(flow, &curr->arg, &prediction);
+		setVariablePrediction(&functionFlow, &curr->arg, &prediction);
 	}
 
-	setVariablePrediction(flow, ast->vararg, &prediction);
+	setVariablePrediction(&functionFlow, ast->vararg, &prediction);
 
 	if(thisType != NULL)
 	{
@@ -425,14 +443,12 @@ static void analyzeFunction(ptrs_flow_t *flow, ptrs_function_t *ast, ptrs_struct
 	}
 	prediction.knownType = true;
 	prediction.meta.type = PTRS_TYPE_STRUCT;
-	setVariablePrediction(flow, &ast->thisVal, &prediction);
+	setVariablePrediction(&functionFlow, &ast->thisVal, &prediction);
 
-	analyzeStatement(flow, ast->body, &prediction);
+	analyzeStatement(&functionFlow, ast->body, &prediction);
 
-	flow->depth--;
-
-	freePredictions(flow->predictions);
-	flow->predictions = outer;
+	// instead of merging predictions we just drop the inner prediction
+	freePredictions(functionFlow.predictions);
 }
 
 static void analyzeLValue(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_prediction_t *value)
@@ -829,10 +845,21 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		{
 			ret->knownValue = false;
 			// keep meta and type from the constructor
+
+			if(ret->knownMeta)
+			{
+				ptrs_struct_t *struc = ptrs_meta_getPointer(ret->meta);
+				clearAddressablePredictionsIfOverloadExists(flow, struc, ptrs_handle_new);
+			}
+			else
+			{
+				clearAddressablePredictions(flow);
+			}
 		}
 		else
 		{
 			clearPrediction(ret);
+			clearAddressablePredictions(flow);
 		}
 	}
 	else if(node->vtable == &ptrs_ast_vtable_member)
@@ -1516,17 +1543,19 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 	} \
 	else \
 	{ \
-		ptrs_predictions_t *predictions = dupPredictions(flow->predictions); \
-		body \
-		mergePredictions(flow, predictions); \
+		ptrs_flow_t other; \
 		\
-		predictions = dupPredictions(flow->predictions); \
+		dupFlow(&other, flow); \
 		body \
-		mergePredictions(flow, predictions); \
+		mergePredictions(flow, &other); \
 		\
-		predictions = dupPredictions(flow->predictions); \
+		dupFlow(&other, flow); \
 		body \
-		mergePredictions(flow, predictions); \
+		mergePredictions(flow, &other); \
+		\
+		dupFlow(&other, flow); \
+		body \
+		mergePredictions(flow, &other); \
 		\
 		/* TODO replace this by a fix point algorithm? */ \
 	}
@@ -1672,16 +1701,17 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 		bool condition;
 		bool conditionPredicted = prediction2bool(&dummy, &condition);
 
-		ptrs_predictions_t *ifPredictions = flow->predictions;
-		ptrs_predictions_t *elsePredictions;
-		if(conditionPredicted || flow->dryRun)
-			elsePredictions = flow->predictions;
-		else
-			elsePredictions = dupPredictions(flow->predictions);
+		ptrs_flow_t elseFlowVal;
+		ptrs_flow_t *elseFlow = flow;
+
+		if(!conditionPredicted && !flow->dryRun)
+		{
+			dupFlow(&elseFlowVal, flow);
+			elseFlow = &elseFlowVal;
+		}
 
 		if(!conditionPredicted || condition)
 		{
-			flow->predictions = ifPredictions;
 			analyzeCondition(flow, stmt->condition, false);
 
 			analyzeStatement(flow, stmt->ifBody, ret);
@@ -1689,18 +1719,14 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 
 		if(!conditionPredicted || !condition)
 		{
-			flow->predictions = elsePredictions;
-			analyzeCondition(flow, stmt->condition, true);
+			analyzeCondition(elseFlow, stmt->condition, true);
 
 			if(stmt->elseBody != NULL)
-				analyzeStatement(flow, stmt->elseBody, ret);
+				analyzeStatement(elseFlow, stmt->elseBody, ret);
 		}
 
 		if(!conditionPredicted && !flow->dryRun)
-		{
-			flow->predictions = ifPredictions;
-			mergePredictions(flow, elsePredictions);
-		}
+			mergePredictions(flow, &elseFlowVal);
 	}
 	else if(node->vtable == &ptrs_ast_vtable_switch)
 	{
@@ -1742,9 +1768,16 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 
 			while(curr)
 			{
-				ptrs_predictions_t *prevPredictions = dupPredictions(flow->predictions);
+				ptrs_flow_t otherFlowVal;
+				ptrs_flow_t *otherFlow = flow;
+				if(!flow->dryRun)
+				{
+					dupFlow(&otherFlowVal, flow);
+					otherFlow = &otherFlowVal;
+				}
+
 				analyzeStatement(flow, curr->body, ret);
-				mergePredictions(flow, prevPredictions);
+				mergePredictions(flow, otherFlow);
 
 				curr = curr->next;
 			}
@@ -1831,6 +1864,7 @@ void ptrs_flow_analyze(ptrs_ast_t *ast)
 	ptrs_flow_t flow;
 	flow.predictions = NULL;
 	flow.depth = 0;
+	flow.endsInDead = false;
 
 	// make a dry run first to set addressable for variables used accross functions
 	flow.dryRun = true;

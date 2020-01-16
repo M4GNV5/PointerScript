@@ -5,6 +5,7 @@
 
 #include "../../parser/common.h"
 
+struct ptrs_opoverload *ptrs_struct_getOverloadInfo(ptrs_struct_t *struc, void *handler, bool isInstance);
 jit_function_t ptrs_struct_getOverload(ptrs_struct_t *struc, void *handler, bool isInstance);
 void *ptrs_struct_getOverloadClosure(ptrs_struct_t *struc, void *handler, bool isInstance);
 

@@ -1,6 +1,6 @@
 import assert, assertEq from "../common.ptrs";
 
-var op = "";
+var op = "none";
 var val = 0;
 struct Test
 {
