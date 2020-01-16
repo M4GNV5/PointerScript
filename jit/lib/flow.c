@@ -1636,8 +1636,15 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 		//ignore
 	}
 	else if(node->vtable == &ptrs_ast_vtable_return
-		|| node->vtable == &ptrs_ast_vtable_delete
 		|| node->vtable == &ptrs_ast_vtable_throw)
+	{
+		analyzeExpression(flow, node->arg.astval, ret);
+
+		//TODO additionally flag for throwing which is unset by try/catch?
+		// try/catch isn't implemented at the moment anyways though
+		flow->endsInDead = true;
+	}
+	else if(node->vtable == &ptrs_ast_vtable_delete)
 	{
 		analyzeExpression(flow, node->arg.astval, ret);
 	}
