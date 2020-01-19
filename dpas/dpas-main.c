@@ -76,13 +76,34 @@ int main(int argc, char **argv)
 		{
 			version();
 		}
-		else if(!jit_strcmp(argv[1], "-d"))
+		else if(!jit_strcmp(argv[1], "--dump-ir"))
 		{
-			dpas_dump_functions = 1;
+			dpas_dump_functions |= DPAS_DUMP_IR;
 		}
-		else if(!jit_strcmp(argv[1], "-D"))
+		else if(!jit_strcmp(argv[1], "--dump-optimized"))
 		{
-			dpas_dump_functions = 2;
+			dpas_dump_functions |= DPAS_DUMP_OPTIMIZED;
+		}
+		else if(!jit_strcmp(argv[1], "--dump-asm"))
+		{
+			dpas_dump_functions |= DPAS_DUMP_COMPILED;
+		}
+		else if(!jit_strcmp(argv[1], "-d") ||
+			!jit_strcmp(argv[1], "-D"))
+		{
+			dpas_dump_functions = DPAS_DUMP_IR | DPAS_DUMP_OPTIMIZED |
+				DPAS_DUMP_COMPILED;
+		}
+		else if(!jit_strncmp(argv[1], "-O", 2))
+		{
+			if(argv[1][2] < '0' || argv[1][2] > '9')
+			{
+				dpas_optimization_level = 1;
+			}
+			else
+			{
+				dpas_optimization_level = argv[1][2] - '0';
+			}
 		}
 		else if(!jit_strcmp(argv[1], "--dont-fold"))
 		{

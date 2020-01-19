@@ -54,6 +54,11 @@ int dpas_error_reported = 0;
 int dpas_dump_functions = 0;
 
 /*
+ * Function optimization level or -1 for default.
+ */
+int dpas_optimization_level = -1;
+
+/*
  * Report error messages from the parser.
  */
 static void yyerror(char *msg)
@@ -594,6 +599,41 @@ static dpas_semvalue invoke_procedure
 	return rvalue;
 }
 
+static void dpas_compile_and_dump_function(jit_function_t func, const char *name)
+{
+	/* Dump the before-compile state of the function */
+	if(dpas_dump_functions & DPAS_DUMP_IR)
+	{
+		jit_dump_function(stdout, func, name);
+	}
+
+	/* Optimize at the desired or default level */
+	if(dpas_optimization_level < 0)
+	{
+		dpas_optimization_level = jit_function_get_default_optimization_level();
+	}
+	jit_function_set_optimization_level(func, dpas_optimization_level);
+	jit_function_optimize(func);
+
+	/* Dump the after-optimize state of the function */
+	if(dpas_dump_functions & DPAS_DUMP_OPTIMIZED)
+	{
+		jit_dump_function(stdout, func, name);
+	}
+
+	/* Compile the procedure/function */
+	if(!jit_function_compile(func))
+	{
+		dpas_out_of_memory();
+	}
+
+	/* Dump the after-compile state of the function */
+	if(dpas_dump_functions & DPAS_DUMP_COMPILED)
+	{
+		jit_dump_function(stdout, func, name);
+	}
+}
+
 static int throw_builtin_exception(jit_function_t func, int exception_type)
 {
 	jit_type_t signature;
@@ -1007,23 +1047,7 @@ ProgramBlock
 					dpas_out_of_memory();
 				}
 
-				/* Dump the before-compile state of the function */
-				if(dpas_dump_functions)
-				{
-					jit_dump_function(stdout, func, "main");
-				}
-
-				/* Compile the procedure/function */
-				if(!jit_function_compile(func))
-				{
-					dpas_out_of_memory();
-				}
-
-				/* Dump the after-compile state of the function */
-				if(dpas_dump_functions > 1)
-				{
-					jit_dump_function(stdout, func, "main");
-				}
+				dpas_compile_and_dump_function(func, "main");
 
 				/* Add the function to the "main" list, for later execution */
 				dpas_add_main_function(func);
@@ -1336,23 +1360,7 @@ ProcedureOrFunctionDeclaration
 				dpas_pop_function();
 				dpas_scope_pop();
 
-				/* Dump the before-compile state of the function */
-				if(dpas_dump_functions)
-				{
-					jit_dump_function(stdout, func, $1.name);
-				}
-
-				/* Compile the procedure/function */
-				if(!jit_function_compile(func))
-				{
-					dpas_out_of_memory();
-				}
-
-				/* Dump the after-compile state of the function */
-				if(dpas_dump_functions > 1)
-				{
-					jit_dump_function(stdout, func, $1.name);
-				}
+				dpas_compile_and_dump_function(func, $1.name);
 
 				/* Free values that we no longer require */
 				jit_free($1.name);

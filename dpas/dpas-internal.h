@@ -46,6 +46,14 @@ extern long dpas_linenum;
 extern int dpas_dump_functions;
 
 /*
+ * Function optimization level or -1 for default.
+ */
+#define DPAS_DUMP_IR 1
+#define DPAS_DUMP_OPTIMIZED 2
+#define DPAS_DUMP_COMPILED 4
+extern int dpas_optimization_level;
+
+/*
  * Information about a parameter list (also used for record fields).
  */
 typedef struct
