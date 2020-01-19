@@ -29,7 +29,8 @@ extern	"C" {
 
 /* Optimization levels */
 #define JIT_OPTLEVEL_NONE	0
-#define JIT_OPTLEVEL_MAX	2
+#define JIT_OPTLEVEL_DEFAULT	2
+#define JIT_OPTLEVEL_MAX	3
 
 jit_function_t jit_function_create
 	(jit_context_t context, jit_type_t signature) JIT_NOTHROW;
@@ -81,6 +82,7 @@ unsigned int jit_function_get_optimization_level
 	(jit_function_t func) JIT_NOTHROW;
 int jit_function_optimize
 	(jit_function_t func) JIT_NOTHROW;
+unsigned int jit_function_get_default_optimization_level(void) JIT_NOTHROW;
 unsigned int jit_function_get_max_optimization_level(void) JIT_NOTHROW;
 jit_label_t jit_function_reserve_label(jit_function_t func) JIT_NOTHROW;
 int jit_function_labels_equal(jit_function_t func, jit_label_t label, jit_label_t label2);

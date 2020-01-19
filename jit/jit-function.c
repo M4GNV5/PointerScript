@@ -90,7 +90,7 @@ jit_function_create(jit_context_t context, jit_type_t signature)
 	/* Initialize the function block */
 	func->context = context;
 	func->signature = jit_type_copy(signature);
-	func->optimization_level = JIT_OPTLEVEL_MAX;
+	func->optimization_level = JIT_OPTLEVEL_DEFAULT;
 
 #if !defined(JIT_BACKEND_INTERP) && defined(jit_redirector_size)
 	/* If we aren't using interpretation, then point the function's
@@ -982,10 +982,8 @@ int jit_function_apply_vararg
  * little point in continuing to recompile the function because
  * @code{libjit} may not be able to do any better.
  *
- * The front end is usually responsible for choosing candidates for
- * function inlining.  If it has identified more such candidates, then
- * it may still want to recompile @var{func} again even once it has
- * reached the maximum optimization level.
+ * By default the optimization level is set to the value returned by
+ * @code{jit_function_get_default_optimization_level()}.
  * @end deftypefun
 @*/
 void
@@ -1018,6 +1016,17 @@ jit_function_get_optimization_level(jit_function_t func)
 	{
 		return JIT_OPTLEVEL_NONE;
 	}
+}
+
+/*@
+ * @deftypefun {unsigned int} jit_function_get_max_optimization_level (void)
+ * Get the default optimization level of @code{libjit}.
+ * @end deftypefun
+@*/
+unsigned int
+jit_function_get_default_optimization_level(void)
+{
+	return JIT_OPTLEVEL_DEFAULT;
 }
 
 /*@

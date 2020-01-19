@@ -80,7 +80,7 @@ optimize(jit_function_t func)
 		   turn instructions into NOPs */
 		_jit_block_recompute_common_properties(func);
 
-		/* Optimization level 1 */
+		/* Optimization level 1 (dead code elimination) */
 
 		/* Build control flow graph */
 		_jit_block_build_cfg(func);
@@ -91,7 +91,7 @@ optimize(jit_function_t func)
 			continue;
 		}
 
-		/* Optimization level 2 */
+		/* Optimization level 2 (dead variable elimination) */
 		if(func->optimization_level < 2)
 		{
 			break;
@@ -106,6 +106,12 @@ optimize(jit_function_t func)
 		if(optimized)
 		{
 			continue;
+		}
+
+		/* Optimization level 3 (graph coloring register allocator) */
+		if(func->optimization_level < 3)
+		{
+			break;
 		}
 
 		_jit_function_compute_live_ranges(func);
