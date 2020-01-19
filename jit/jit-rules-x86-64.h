@@ -31,7 +31,7 @@ extern	"C" {
  * Information about all of the registers, in allocation order.
  */
 #define	JIT_REG_X86_64_FLOAT	\
-	(JIT_REG_FLOAT32 | JIT_REG_FLOAT64 | JIT_REG_NFLOAT)
+	(JIT_REG_NFLOAT)
 #define	JIT_REG_X86_64_XMM	\
 	(JIT_REG_FLOAT32 | JIT_REG_FLOAT64)
 #define JIT_REG_X86_64_GENERAL	\
