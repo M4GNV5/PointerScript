@@ -1,0 +1,46 @@
+import assertEq from "../common.ptrs";
+
+assertEq(42, cast<int>42);
+assertEq(42, cast<int>42.666);
+assertEq(42, cast<int>"42");
+assertEq(42, cast<int>"42.666");
+
+assertEq(3.14, cast<float>3.14);
+assertEq(3f, cast<float>3);
+
+assertEq("undefined", cast<string>undefined);
+assertEq("3", cast<string>3);
+assertEq("3", cast<string>3f);
+assertEq("3.14", cast<string>3.14);
+assertEq("foo bar", cast<string>"foo bar");
+assertEq("0123456789abcdefghijklmnopqrstuvwxyz", cast<string>"0123456789abcdefghijklmnopqrstuvwxyz");
+
+struct Test1
+{
+    a: i32;
+    b: u8;
+    c: u8;
+    d{10};
+};
+var buff1{sizeof Test1} = {1, 2, 3, 4, 5, 6, 'h', 'i', 0};
+var buffAsTest1 = cast<Test1>buff1;
+
+assertEq("hi", buffAsTest1.d);
+assertEq(6, buffAsTest1.c, 6);
+assertEq(5, buffAsTest1.b, 5);
+assertEq(0x04030201, buffAsTest1.a); // XXX: assumes little endian order
+
+struct Test2
+{
+    a;
+    b;
+    c;
+    d;
+};
+var buff2[sizeof Test2] = [42, 3.14, "hi", assertEq];
+var buffAsTest2 = cast<Test2>buff2;
+
+assertEq(42, buffAsTest2.a);
+assertEq(3.14, buffAsTest2.b);
+assertEq("hi", buffAsTest2.c);
+assertEq(assertEq, buffAsTest2.d);

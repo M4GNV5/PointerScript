@@ -1072,17 +1072,22 @@ as<float>0x7fc00000
 ```
 
 ## CastBuiltinExpression
-Converts an expression to a specific type. Casting to int/float converts the value.
+Converts a value to either `int` or `float`.
 ```js
 //'cast' '<' TypeName '>' Expression
 cast<int>3.14 //returns 3
+cast<int>"3.14" //returns 3
+cast<float>"3.14" //returns 3.14
 ```
 
 ## CastToStringExpression
-Converts an expression to a string (0-terminated byte sequence). If the argument is already of type `native` with a non zero `size` the value is returned (even if the string is not terminated within `size` bytes!).
+Converts an expression to a string (0-terminated byte sequence). Useful for printing a value.
+The result is a read-only string with a lifetime bound to the lifetime of the expression.
 ```js
 //'cast' '<' 'string' '>' Expression
 cast<string>3.14 //returns "3.14"
+cast<string>"foo" //returns "foo" (a copy on the stack)
+cast<string>(new SomeStruct()) //returns "struct:0xc00000de" where 0xc00000de is the address of the struct
 ```
 
 ## CastExpression

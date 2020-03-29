@@ -1037,16 +1037,18 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 	else if(lookahead(code, "cast"))
 	{
 		consumec(code, '<');
-		ptrs_vartype_t type = readTypeName(code);
 
-		if(type < PTRS_NUM_TYPES)
+		if(lookahead(code, "int"))
 		{
-			if(type != PTRS_TYPE_INT && type != PTRS_TYPE_FLOAT)
-				unexpectedm(code, NULL, "Invalid cast, can only cast to int, float and string");
-
 			ast = talloc(ptrs_ast_t);
 			ast->vtable = &ptrs_ast_vtable_cast_builtin;
-			ast->arg.cast.builtinType = type;
+			ast->arg.cast.builtinType = PTRS_TYPE_INT;
+		}
+		else if(lookahead(code, "float"))
+		{
+			ast = talloc(ptrs_ast_t);
+			ast->vtable = &ptrs_ast_vtable_cast_builtin;
+			ast->arg.cast.builtinType = PTRS_TYPE_FLOAT;
 		}
 		else if(lookahead(code, "string"))
 		{
@@ -1055,12 +1057,14 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 		}
 		else
 		{
+			ptrs_ast_t *structType = parseUnaryExpr(code, false);
+
+			if(structType == NULL)
+				unexpectedm(code, NULL, "Syntax is cast<int>, cast<float>, cast<string> or cast<StructName>");
+
 			ast = talloc(ptrs_ast_t);
 			ast->vtable = &ptrs_ast_vtable_cast;
-			ast->arg.cast.type = parseUnaryExpr(code, false);
-
-			if(ast->arg.cast.type == NULL)
-				unexpectedm(code, NULL, "Syntax is cast<TYPE>");
+			ast->arg.cast.type = structType;
 		}
 
 		consumec(code, '>');

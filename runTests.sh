@@ -15,7 +15,7 @@ function runTest
 		withArguments=""
 	fi
 
-	printf "${yellow}TRYING${nocolor} test$withArguments\n"
+	printf "${yellow}TRYING${nocolor} test $1$withArguments\n"
 	bin/ptrs $2 tests/$1.ptrs
 
 	#printf "${yellow}TRYING${nocolor} test $1 without flow analysis\n"
@@ -35,6 +35,7 @@ function runAllTests
 	runTest runtime/interop $1
 	runTest runtime/pointer $1
 	runTest runtime/types $1
+	runTest runtime/conversion $1
 	runTest runtime/loops $1
 	#runTest runtime/trycatch TODO
 	runTest runtime/strformat $1

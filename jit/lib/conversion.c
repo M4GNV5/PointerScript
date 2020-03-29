@@ -300,7 +300,7 @@ ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, ptrs_jit_var_t val)
 		if(val.constType == PTRS_TYPE_UNDEFINED)
 		{
 			jit_insn_memcpy(func, buff, jit_const_int(func, void_ptr, (uintptr_t)"undefined"),
-				jit_const_int(func, nuint, strlen("undefined")));
+				jit_const_int(func, nuint, strlen("undefined") + 1));
 			return ret;
 		}
 		else if(val.constType == PTRS_TYPE_STRUCT)
