@@ -624,6 +624,35 @@ static void analyzeTypeCheckCondition(ptrs_flow_t *flow, ptrs_ast_t *typeofExpr,
 	}
 }
 
+static void analyzeValueCheckCondition(ptrs_flow_t *flow, ptrs_ast_t *identifier, ptrs_ast_t *value)
+{
+	ptrs_prediction_t prediction;
+	ptrs_prediction_t oldPrediction;
+
+	analyzeExpression(flow, value, &prediction);
+
+	struct ptrs_ast_identifier *identifierExpr = &identifier->arg.identifier;
+	getVariablePrediction(flow, identifierExpr->location, &oldPrediction);
+
+	if(!prediction.knownValue && oldPrediction.knownValue)
+	{
+		prediction.knownValue = true;
+		memcpy(&prediction.value, &oldPrediction.value, sizeof(ptrs_val_t));
+	}
+	if(!prediction.knownMeta && oldPrediction.knownMeta)
+	{
+		prediction.knownMeta = true;
+		memcpy(&prediction.meta, &oldPrediction.meta, sizeof(ptrs_meta_t));
+	}
+	if(!prediction.knownType && oldPrediction.knownType)
+	{
+		prediction.knownType = true;
+		prediction.meta.type = oldPrediction.meta.type;
+	}
+
+	setVariablePrediction(flow, identifierExpr->location, &prediction);
+}
+
 static void analyzeCondition(ptrs_flow_t *flow, ptrs_ast_t *node, bool isElse)
 {
 	if(node->vtable == &ptrs_ast_vtable_prefix_logicnot)
@@ -635,6 +664,9 @@ static void analyzeCondition(ptrs_flow_t *flow, ptrs_ast_t *node, bool isElse)
 		|| (node->vtable == &ptrs_ast_vtable_op_inequal && isElse)
 		|| (node->vtable == &ptrs_ast_vtable_op_typeinequal && isElse))
 	{
+		bool isTypeSafeComparasion = node->vtable == &ptrs_ast_vtable_op_typeequal
+			|| node->vtable == &ptrs_ast_vtable_op_typeinequal;
+
 		struct ptrs_ast_binary *expr = &node->arg.binary;
 		if(expr->left->vtable == &ptrs_ast_vtable_prefix_typeof)
 		{
@@ -644,7 +676,20 @@ static void analyzeCondition(ptrs_flow_t *flow, ptrs_ast_t *node, bool isElse)
 		{
 			analyzeTypeCheckCondition(flow, expr->right, expr->left);
 		}
-		// TODO predict value when comparing to constant
+		else if(isTypeSafeComparasion && expr->left->vtable == &ptrs_ast_vtable_identifier)
+		{
+			analyzeValueCheckCondition(flow, expr->left, expr->right);
+		}
+		else if(isTypeSafeComparasion && expr->right->vtable == &ptrs_ast_vtable_identifier)
+		{
+			analyzeValueCheckCondition(flow, expr->right, expr->left);
+		}
+	}
+	else if(node->vtable == &ptrs_ast_vtable_op_logicand)
+	{
+		struct ptrs_ast_binary *expr = &node->arg.binary;
+		analyzeCondition(flow, expr->left, isElse);
+		analyzeCondition(flow, expr->right, isElse);
 	}
 }
 
