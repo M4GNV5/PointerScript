@@ -187,6 +187,8 @@ static void setAddressable(ptrs_flow_t *flow, ptrs_jit_var_t *var)
 
 static void setVariablePrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var, ptrs_prediction_t *prediction)
 {
+	bool newIsAddressable = false;
+
 	ptrs_predictions_t *curr = flow->predictions;
 	if(curr == NULL)
 	{
@@ -201,13 +203,22 @@ static void setVariablePrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var, ptrs_p
 			if(curr->variable == var)
 			{
 				if(curr->depth != flow->depth)
+				{
 					curr->addressable = true;
-
-				if(flow->dryRun)
+					newIsAddressable = true;
+					// we need a second prediction for this variable in the current depth
+					// we continue to search for it or create a new one, thus no return here.
+				}
+				else if(flow->dryRun)
+				{
 					clearPrediction(&curr->prediction);
+					return;
+				}
 				else
+				{
 					memcpy(&curr->prediction, prediction, sizeof(ptrs_prediction_t));
-				return;
+					return;
+				}
 			}
 
 			last = curr;
@@ -223,7 +234,7 @@ static void setVariablePrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var, ptrs_p
 	else
 		memcpy(&curr->prediction, prediction, sizeof(ptrs_prediction_t));
 	curr->variable = var;
-	curr->addressable = false;
+	curr->addressable = newIsAddressable;
 	curr->depth = flow->depth;
 	curr->next = NULL;
 }
@@ -241,10 +252,15 @@ static void getVariablePrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var, ptrs_p
 		if(curr->variable == var)
 		{
 			if(flow->depth != curr->depth)
+			{
 				curr->addressable = true;
+			}
+			else
+			{
+				memcpy(ret, &curr->prediction, sizeof(ptrs_prediction_t));
+				return;
+			}
 
-			memcpy(ret, &curr->prediction, sizeof(ptrs_prediction_t));
-			return;
 		}
 
 		curr = curr->next;
