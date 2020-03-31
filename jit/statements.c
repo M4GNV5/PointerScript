@@ -72,8 +72,6 @@ ptrs_jit_var_t ptrs_handle_define(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	}
 	jit_insn_store(func, stmt->location.val, val.val);
 
-	//TODO when stmt->type == PTRS_TYPE_STRUCT make the variables meta
-	// a constant when we can be sure the struct type never changes
 	if(stmt->type == PTRS_TYPE_UNDEFINED
 		|| stmt->type == PTRS_TYPE_INT
 		|| stmt->type == PTRS_TYPE_FLOAT)

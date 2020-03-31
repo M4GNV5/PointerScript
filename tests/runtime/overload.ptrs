@@ -62,7 +62,6 @@ struct Test
 		val = "hi";
 		assertEq(false, yield val);
 
-		//TODO why is this broken?
 		scoped
 		{
 			val = 31.12;

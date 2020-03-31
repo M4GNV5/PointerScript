@@ -501,7 +501,8 @@ static void analyzeLValue(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_prediction_t
 	}
 	else if(node->vtable == &ptrs_ast_vtable_importedsymbol)
 	{
-		//ignore
+		// TODO allow predictions of imported symbols probably requires to load
+		// all ptrs files and run flow analysis on all of them together.
 	}
 	else
 	{

@@ -8,7 +8,7 @@ assertEq(3, *ptr);
 
 *ptr = 42;
 assertEq(42, val);
-assertEq(42, as<int>*ptr); //TODO fix the meta for variables which are addressed
+assertEq(42, *ptr);
 
 ptr = new array[16];
 assertEq(16, sizeof ptr);
