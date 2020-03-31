@@ -37,6 +37,7 @@ function runAllTests
 	runTest runtime/types $1
 	runTest runtime/conversion $1
 	runTest runtime/loops $1
+	runTest runtime/switch $1
 	#runTest runtime/trycatch TODO
 	runTest runtime/strformat $1
 	runTest runtime/struct $1

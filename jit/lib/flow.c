@@ -1811,6 +1811,8 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 		struct ptrs_ast_switch *stmt = &node->arg.switchcase;
 		struct ptrs_ast_case *curr = stmt->cases;
 
+		analyzeExpression(flow, stmt->condition, &dummy);
+
 		int64_t value;
 		if(prediction2int(&dummy, &value))
 		{
@@ -1820,7 +1822,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 
 			while(curr)
 			{
-				if(curr->min >= value && value <= curr->max)
+				if(value >= curr->min && value <= curr->max)
 				{
 					flow->dryRun = orginalDryRun;
 					foundCase = true;

@@ -743,7 +743,7 @@ delete baz;
 ## SwitchStatement
 Note: A break between one cases body and the next case is **not** necessary.
 Also one case statement can have multiple cases seperated by a comma (all cases must be constants of type integer).
-A case may also be a range between two values.
+A case may also be a range between two values. When multiple cases would match the value the first one is executed.
 ```js
 //SwitchStatement   := 'switch' '(' Expression ')' '{' SwitchCaseList '}'
 //SwitchCase        := 'case' CaseList ':' StatementList

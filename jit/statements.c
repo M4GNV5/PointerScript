@@ -749,10 +749,11 @@ ptrs_jit_var_t ptrs_handle_switch(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 
 		while(curr != NULL)
 		{
-			if(curr->min >= _val && _val <= curr->max)
+			if(_val >= curr->min && _val <= curr->max)
 			{
 				curr->body->vtable->get(curr->body, func, scope);
 				hadCase = true;
+				break;
 			}
 			curr = curr->next;
 		}
@@ -771,14 +772,17 @@ ptrs_jit_var_t ptrs_handle_switch(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 
 		if(stmt->min != 0)
 			val = jit_insn_sub(func, val, jit_const_int(func, long, stmt->min));
+
+		jit_label_t defaultCase = jit_label_undefined;
 		jit_insn_jump_table(func, val, table, interval);
+		jit_insn_branch(func, &defaultCase);
 
 		while(curr != NULL)
 		{
 			ptrs_ast_t *body = curr->body;
 			while(curr != NULL && curr->body == body)
 			{
-				for(int i = 0; i < curr->max - stmt->min; i++)
+				for(int i = curr->min - stmt->min; i <= curr->max - stmt->min; i++)
 				{
 					jit_insn_label(func, table + i);
 					hasCase[i] = true;
@@ -791,22 +795,15 @@ ptrs_jit_var_t ptrs_handle_switch(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 			jit_insn_branch(func, &done);
 		}
 
-		if(stmt->defaultCase != NULL)
+		for(int i = 0; i < interval; i++)
 		{
-			jit_label_t defaultCase = jit_label_undefined;
-			jit_insn_label(func, &defaultCase);
-
-			for(int i = 0; i < interval; i++)
-			{
-				if(!hasCase[i])
-					jit_insn_label(func, table + i);
-			}
-			stmt->defaultCase->vtable->get(stmt->defaultCase, func, scope);
-			jit_insn_branch(func, &done);
-
-			//let all values outside of the jump table jump to the default label
-			jit_insn_branch(func, &defaultCase);
+			if(!hasCase[i])
+				jit_insn_label(func, table + i);
 		}
+		jit_insn_label(func, &defaultCase);
+
+		if(stmt->defaultCase != NULL)
+			stmt->defaultCase->vtable->get(stmt->defaultCase, func, scope);
 	}
 	else
 	{
@@ -820,16 +817,20 @@ ptrs_jit_var_t ptrs_handle_switch(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 			if(curr->min == curr->max)
 			{
 				caseCondition = jit_insn_eq(func, val, jit_const_int(func, long, curr->min));
+				jit_insn_branch_if(func, caseCondition, cases + i);
 			}
 			else
 			{
-				caseCondition = jit_insn_and(func,
-					jit_insn_ge(func, val, jit_const_int(func, long, curr->min)),
-					jit_insn_le(func, val, jit_const_int(func, long, curr->max))
-				);
+				jit_label_t noMatch = jit_label_undefined;
+
+				caseCondition = jit_insn_ge(func, val, jit_const_int(func, long, curr->min));
+				jit_insn_branch_if_not(func, caseCondition, &noMatch);
+				caseCondition = jit_insn_le(func, val, jit_const_int(func, long, curr->max));
+				jit_insn_branch_if(func, caseCondition, cases + i);
+
+				jit_insn_label(func, &noMatch);
 			}
 
-			jit_insn_branch_if(func, caseCondition, cases + i);
 			curr = curr->next;
 		}
 
