@@ -148,34 +148,12 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 					}
 				}
 
-				jit_type_t _retType;
-				ptrs_vartype_t retVarType;
+				jit_type_t _retType = ptrs_jit_jitTypeFromTyping(retType);
 				ptrs_meta_t retMeta = {0};
-				if(retType == NULL)
-				{
-					_retType = jit_type_long;
+				if(retType == NULL || retType->meta.type == (uint8_t)-1)
 					retMeta.type = PTRS_TYPE_INT;
-				}
-				else if(retType->nativetype != NULL)
-				{
-					_retType = retType->nativetype->jitType;
-					retMeta.type = retType->nativetype->varType;
-				}
-				else if(retType->meta.type == PTRS_TYPE_FLOAT)
-				{
-					_retType = jit_type_float64;
-					retMeta.type = PTRS_TYPE_FLOAT;
-				}
-				else if(retType->meta.type != (uint8_t)-1)
-				{
-					_retType = jit_type_long;
-					memcpy(&retMeta, &retType->meta, sizeof(ptrs_meta_t));
-				}
 				else
-				{
-					_retType = jit_type_long;
-					retMeta.type = PTRS_TYPE_INT;
-				}
+					memcpy(&retMeta, &retType->meta, sizeof(ptrs_meta_t));
 
 				jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, _retType, paramDef, narg, 0);
 				jit_value_t retVal = jit_insn_call_indirect(func, callee.val, signature, _args, narg, 0);
@@ -384,10 +362,14 @@ void ptrs_jit_buildFunction(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t 
 		param.constType = -1;
 		param.addressable = 0;
 
+		jit_value_t paramType = NULL;
+
 		if(curr->argv != NULL)
 		{
+			paramType = ptrs_jit_getType(func, param.meta);
+
 			jit_label_t given = jit_label_undefined;
-			jit_value_t isGiven = ptrs_jit_hasType(func, param.meta, PTRS_TYPE_UNDEFINED);
+			jit_value_t isGiven = jit_insn_eq(func, paramType, jit_const_int(func, ubyte, PTRS_TYPE_UNDEFINED));
 			jit_insn_branch_if_not(func, isGiven, &given);
 
 			ptrs_jit_var_t val = curr->argv->vtable->get(curr->argv, func, &funcScope);
@@ -396,6 +378,35 @@ void ptrs_jit_buildFunction(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t 
 			jit_insn_store(func, param.meta, val.meta);
 
 			jit_insn_label(func, &given);
+		}
+
+		if(ptrs_enableSafety && curr->typing.meta.type != (uint8_t)-1)
+		{
+			if(paramType == NULL)
+				paramType = ptrs_jit_getType(func, param.meta);
+
+			ptrs_meta_t meta = curr->typing.meta;
+			jit_value_t metaJit = jit_const_long(func, ulong, *(uint64_t *)&meta);
+
+			jit_value_t condition;
+			if(meta.type == PTRS_TYPE_STRUCT && ptrs_meta_getPointer(meta) != NULL)
+				condition = jit_insn_eq(func, param.meta, metaJit);
+			else
+				condition = jit_insn_eq(func, paramType, jit_const_int(func, ubyte, meta.type));
+
+			jit_value_t funcName = jit_const_int(func, void_ptr, (uintptr_t)ast->name);
+			jit_value_t iPlus1 = jit_const_int(func, int, i + 1);
+			struct ptrs_assertion *assertion = ptrs_jit_assert(node, func, &funcScope, condition,
+				4, "Function %s requires the %d. parameter to be a of type %m but a variable of type %m was given",
+				funcName, iPlus1, metaJit, param.meta);
+
+			if((meta.type == PTRS_TYPE_NATIVE || meta.type == PTRS_TYPE_POINTER)
+				&& meta.array.size != 0)
+			{
+				jit_value_t size = ptrs_jit_getArraySize(func, param.meta);
+				condition = jit_insn_ge(func, size, jit_const_int(func, uint, meta.array.size));
+				ptrs_jit_appendAssert(func, assertion, condition);
+			}
 		}
 
 		if(curr->arg.addressable)

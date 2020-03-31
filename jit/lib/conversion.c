@@ -509,6 +509,39 @@ ptrs_var_t ptrs_vartoa(ptrs_val_t val, ptrs_meta_t meta, char *buff, size_t maxl
 	return result;
 }
 
+void ptrs_metatoa(ptrs_meta_t meta, char *buff, size_t maxlen)
+{
+	switch(meta.type)
+	{
+		case PTRS_TYPE_NATIVE:
+			if(meta.array.size == 0)
+				snprintf(buff, maxlen, "native");
+			else
+				snprintf(buff, maxlen, "native[%d]", meta.array.size);
+			break;
+		case PTRS_TYPE_POINTER:
+			if(meta.array.size == 0)
+				snprintf(buff, maxlen, "pointer");
+			else
+				snprintf(buff, maxlen, "pointer[%d]", meta.array.size);
+			break;
+		case PTRS_TYPE_STRUCT:
+			;
+			ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
+			snprintf(buff, maxlen, "struct:%s", struc->name);
+			break;
+		case PTRS_TYPE_FUNCTION:
+			;
+			ptrs_function_t *func = ptrs_meta_getPointer(meta);
+			snprintf(buff, maxlen, "function:%s", func->name);
+			break;
+		default:
+			snprintf(buff, maxlen, "%s", ptrs_typetoa(meta.type));
+			break;
+	}
+
+}
+
 const char * const ptrs_typeStrings[] = {
 	[PTRS_TYPE_UNDEFINED] = "undefined",
 	[PTRS_TYPE_INT] = "int",

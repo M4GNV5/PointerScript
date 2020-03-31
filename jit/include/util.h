@@ -21,6 +21,8 @@ jit_value_t ptrs_jit_normalizeForVar(jit_function_t func, jit_value_t val);
 void ptrs_jit_assignTypedFromVar(jit_function_t func,
 	jit_value_t target, jit_type_t type, ptrs_jit_var_t val);
 
+jit_type_t ptrs_jit_jitTypeFromTyping(ptrs_typing_t *typing);
+
 ptrs_val_t ptrs_jit_value_getValConstant(jit_value_t val);
 ptrs_meta_t ptrs_jit_value_getMetaConstant(jit_value_t meta);
 ptrs_jit_var_t ptrs_jit_varFromConstant(jit_function_t func, ptrs_var_t val);

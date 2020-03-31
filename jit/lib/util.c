@@ -268,6 +268,18 @@ jit_value_t ptrs_jit_normalizeForVar(jit_function_t func, jit_value_t val)
 	return val;
 }
 
+jit_type_t ptrs_jit_jitTypeFromTyping(ptrs_typing_t *typing)
+{
+	if(typing == NULL)
+		return jit_type_long;
+	else if(typing->nativetype != NULL)
+		return typing->nativetype->jitType;
+	else if(typing->meta.type == PTRS_TYPE_FLOAT)
+		return jit_type_float64;
+	else
+		return jit_type_long;
+}
+
 jit_value_t ptrs_jit_allocate(jit_function_t func, jit_value_t size, bool onStack, bool allowReuse)
 {
 	jit_value_t ret;

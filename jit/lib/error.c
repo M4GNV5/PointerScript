@@ -158,8 +158,10 @@ void *ptrs_formatErrorMsg(const char *msg, va_list ap)
 {
 	//special printf formats:
 	//		%t for printing a type
-	//		%mt for printing the type stored in a ptrs_meta_t
-	//		%ms for printing the array size stored in a ptrs_meta_t
+	//		%m for printing a ptrs_meta_t
+	//			native and pointer are printed as "<native|pointer>:<array size>"
+	//			structs are printed as "struct:<struct name>"
+	//			functions are printed as "function:<function name>"
 	//		%v for printing a variable
 
 	int bufflen = 1024;
@@ -182,16 +184,8 @@ void *ptrs_formatErrorMsg(const char *msg, va_list ap)
 					break;
 				case 'm':
 					val = va_arg(ap, uintptr_t);
-					switch(*++msg)
-					{
-						case 't':
-							str = ptrs_typetoa((*(ptrs_meta_t *)&val).type);
-							break;
-						case 's':
-							sprintf(valbuff, "%d", (*(ptrs_meta_t *)&val).array.size);
-							str = valbuff;
-							break;
-					}
+					ptrs_metatoa(*(ptrs_meta_t *)&val, valbuff, 32);
+					str = valbuff;
 					break;
 				case 'v':
 					val = va_arg(ap, uintptr_t);
