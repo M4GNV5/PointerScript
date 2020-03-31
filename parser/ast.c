@@ -78,6 +78,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls);
 static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignoreCalls);
 static struct ptrs_astlist *parseExpressionList(code_t *code, char end);
 static ptrs_ast_t *parseNew(code_t *code, bool onStack);
+static void parseTyping(code_t *code, ptrs_typing_t *typing);
 static void parseMap(code_t *code, ptrs_ast_t *expr);
 static void parseStruct(code_t *code, ptrs_struct_t *struc);
 static void parseImport(code_t *code, ptrs_ast_t *stmt);
@@ -377,12 +378,13 @@ static ptrs_funcparameter_t *parseArgumentDefinitionList(code_t *code, ptrs_jit_
 
 		curr->name = name;
 		curr->arg.constType = -1;
-		curr->type = -1;
+		curr->typing.meta.type = -1;
+		curr->typing.nativetype = NULL;
 
 		if(name != NULL)
 		{
 			if(lookahead(code, ":"))
-				curr->type = readTypeName(code);
+				parseTyping(code, &curr->typing);
 
 			if(lookahead(code, "="))
 				curr->argv = parseExpression(code, true);
@@ -1319,10 +1321,7 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 			if(isalpha(code->curr))
 			{
 				call = talloc(ptrs_ast_t);
-				call->arg.call.retType = readNativeType(code);
-
-				if(call->arg.call.retType == NULL)
-					unexpected(code, "return type");
+				parseTyping(code, &call->arg.call.typing);
 			}
 			else
 			{
@@ -1334,7 +1333,8 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 		else
 		{
 			call = talloc(ptrs_ast_t);
-			call->arg.call.retType = NULL;
+			call->arg.call.typing.meta.type = -1;
+			call->arg.call.typing.nativetype = NULL;
 		}
 
 		consumec(code, '(');
@@ -1445,6 +1445,36 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end)
 
 	curr->next = NULL;
 	return first;
+}
+
+static void parseTyping(code_t *code, ptrs_typing_t *typing)
+{
+	memset(&typing->meta, 0, sizeof(ptrs_meta_t));
+	typing->nativetype = NULL;
+	
+	typing->meta.type = readTypeName(code);
+	if(typing->meta.type != PTRS_NUM_TYPES)
+	{
+		if(typing->meta.type == PTRS_TYPE_NATIVE
+			|| typing->meta.type == PTRS_TYPE_POINTER)
+		{
+			if(lookahead(code, "["))
+			{
+				typing->meta.array.size = readInt(code, 0);
+				consumec(code, ']');
+			}
+		}
+		return;
+	}
+
+	typing->nativetype = readNativeType(code);
+	if(typing->nativetype != NULL)
+	{
+		typing->meta.type = typing->nativetype->varType;
+		return;
+	}
+
+	// TODO struct types
 }
 
 static void parseImport(code_t *code, ptrs_ast_t *stmt)
@@ -1888,7 +1918,8 @@ static ptrs_funcparameter_t *createParameterList(code_t *code, size_t count, ...
 		curr->arg.val = NULL;
 		curr->arg.meta = NULL;
 		curr->arg.constType = -1;
-		curr->type = va_arg(ap, ptrs_vartype_t);
+		curr->typing.meta.type = va_arg(ap, ptrs_vartype_t);
+		curr->typing.nativetype = NULL;
 		curr->argv = NULL;
 		curr->next = NULL;
 

@@ -635,7 +635,7 @@ ptrs_jit_var_t ptrs_jit_struct_addressof(ptrs_ast_t *node, jit_function_t func, 
 
 ptrs_jit_var_t ptrs_jit_struct_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_jit_var_t base, jit_value_t keyVal, jit_value_t keyLen,
-	ptrs_nativetype_info_t *retType, struct ptrs_astlist *args)
+	ptrs_typing_t *retType, struct ptrs_astlist *args)
 {
 	if(jit_value_is_constant(base.meta)
 		&& jit_value_is_constant(keyVal)

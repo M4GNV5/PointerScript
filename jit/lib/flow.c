@@ -860,8 +860,10 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 
 			memset(&ret->meta, 0, sizeof(ptrs_meta_t));
 
-			if(expr->retType != NULL)
-				ret->meta.type = expr->retType->varType;
+			if(expr->typing.nativetype != NULL)
+				ret->meta.type = expr->typing.nativetype->varType;
+			else if(expr->typing.meta.type != -1)
+				memcpy(&ret->meta, &expr->typing.meta, sizeof(ptrs_meta_t));
 			else
 				ret->meta.type = PTRS_TYPE_INT;
 		}

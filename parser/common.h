@@ -12,8 +12,56 @@
 #define strdup(str) (strcpy(malloc(strlen(str) + 1), str))
 #endif
 
-struct ptrs_var;
 struct ptrs_ast;
+struct ptrs_struct;
+
+typedef union
+{
+	int64_t intval;
+	double floatval;
+	const char *strval;
+	struct ptrs_var *ptrval;
+	void *nativeval;
+	struct ptrs_struct *structval;
+} ptrs_val_t;
+
+#if (__BYTE_ORDER__==__ORDER_LITTLE_ENDIAN__)
+typedef struct
+{
+	uint8_t type;
+	union
+	{
+		struct
+		{
+			bool readOnly;
+			uint16_t padding;
+			uint32_t size;
+		} __attribute__((packed)) array;
+		uint8_t pointer[7]; //actually 8, use the ptrs_meta_getPointer macro below
+	};
+} ptrs_meta_t;
+#else
+typedef struct
+{
+	union
+	{
+		struct
+		{
+			uint32_t size;
+			uint16_t padding;
+			bool readOnly;
+		} __attribute__((packed)) array;
+		uint8_t pointer[7]; //actually 8, use the ptrs_meta_getPointer macro below
+	};
+	uint8_t type;
+} ptrs_meta_t;
+#endif
+
+typedef struct ptrs_var
+{
+	ptrs_val_t value;
+	ptrs_meta_t meta;
+} ptrs_var_t;
 
 typedef struct
 {
@@ -67,6 +115,12 @@ typedef struct
 	ptrs_nativetype_handler_t setHandler;
 } ptrs_nativetype_info_t;
 
+typedef struct
+{
+	ptrs_meta_t meta;
+	ptrs_nativetype_info_t *nativetype; // optional
+} ptrs_typing_t;
+
 typedef enum
 {
 	PTRS_JIT_FUNCTIONMETA_NAME,
@@ -77,7 +131,7 @@ typedef struct ptrs_funcparameter
 {
 	char *name;
 	ptrs_jit_var_t arg;
-	int8_t type;
+	ptrs_typing_t typing;
 	struct ptrs_ast *argv;
 	struct ptrs_funcparameter *next;
 } ptrs_funcparameter_t;
@@ -132,7 +186,7 @@ struct ptrs_opoverload
 	jit_function_t handlerFunc;
 	struct ptrs_opoverload *next;
 };
-typedef struct
+typedef struct ptrs_struct
 {
 	char *name;
 	struct ptrs_ast *ast;
@@ -145,54 +199,6 @@ typedef struct
 	void *staticData;
 	void *parentFrame;
 } ptrs_struct_t;
-
-typedef union
-{
-	int64_t intval;
-	double floatval;
-	const char *strval;
-	struct ptrs_var *ptrval;
-	void *nativeval;
-	ptrs_struct_t *structval;
-} ptrs_val_t;
-
-#if (__BYTE_ORDER__==__ORDER_LITTLE_ENDIAN__)
-typedef struct
-{
-	uint8_t type;
-	union
-	{
-		struct
-		{
-			bool readOnly;
-			uint16_t padding;
-			uint32_t size;
-		} __attribute__((packed)) array;
-		uint8_t pointer[7]; //actually 8, use the ptrs_meta_getPointer macro below
-	};
-} ptrs_meta_t;
-#else
-typedef struct
-{
-	union
-	{
-		struct
-		{
-			uint32_t size;
-			uint16_t padding;
-			bool readOnly;
-		} __attribute__((packed)) array;
-		uint8_t pointer[7]; //actually 8, use the ptrs_meta_getPointer macro below
-	};
-	uint8_t type;
-} ptrs_meta_t;
-#endif
-
-typedef struct ptrs_var
-{
-	ptrs_val_t value;
-	ptrs_meta_t meta;
-} ptrs_var_t;
 
 #define jit_const_int(func, type, val) (jit_value_create_nint_constant(func, jit_type_##type, val))
 #define jit_const_long(func, type, val) (jit_value_create_long_constant(func, jit_type_##type, val))

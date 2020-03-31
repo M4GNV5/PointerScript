@@ -25,7 +25,7 @@ void ptrs_arglist_handle(jit_function_t func, ptrs_scope_t *scope,
 }
 
 ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
-	ptrs_nativetype_info_t *retType, jit_value_t thisPtr, ptrs_jit_var_t callee, struct ptrs_astlist *args)
+	ptrs_typing_t *retType, jit_value_t thisPtr, ptrs_jit_var_t callee, struct ptrs_astlist *args)
 {
 	int narg = ptrs_astlist_length(args);
 	jit_type_t paramDef[narg * 2 + 1];
@@ -149,36 +149,51 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 				}
 
 				jit_type_t _retType;
+				ptrs_vartype_t retVarType;
+				ptrs_meta_t retMeta = {0};
 				if(retType == NULL)
+				{
 					_retType = jit_type_long;
+					retMeta.type = PTRS_TYPE_INT;
+				}
+				else if(retType->nativetype != NULL)
+				{
+					_retType = retType->nativetype->jitType;
+					retMeta.type = retType->nativetype->varType;
+				}
+				else if(retType->meta.type == PTRS_TYPE_FLOAT)
+				{
+					_retType = jit_type_float64;
+					retMeta.type = PTRS_TYPE_FLOAT;
+				}
+				else if(retType->meta.type != (uint8_t)-1)
+				{
+					_retType = jit_type_long;
+					memcpy(&retMeta, &retType->meta, sizeof(ptrs_meta_t));
+				}
 				else
-					_retType = retType->jitType;
+				{
+					_retType = jit_type_long;
+					retMeta.type = PTRS_TYPE_INT;
+				}
 
 				jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, _retType, paramDef, narg, 0);
 				jit_value_t retVal = jit_insn_call_indirect(func, callee.val, signature, _args, narg, 0);
 				jit_type_free(signature);
 
-				ptrs_vartype_t retVarType;
-				if(retType == NULL)
-				{
-					retVarType = PTRS_TYPE_INT;
-				}
-				else
-				{
-					retVarType = retType->varType;
-					retVal = ptrs_jit_normalizeForVar(func, retVal);
-				}
+				retVal = ptrs_jit_normalizeForVar(func, retVal);
+				jit_value_t retMetaVal = jit_const_long(func, ulong, *(uint64_t *)&retMeta);
 
 				if(callee.constType == PTRS_TYPE_NATIVE)
 				{
-					ret.constType = retVarType;
+					ret.constType = retMeta.type;
 					ret.val = retVal;
-					ret.meta = ptrs_jit_const_meta(func, retVarType);
+					ret.meta = retMetaVal;
 				}
 				else
 				{
 					jit_insn_store(func, ret.val, retVal);
-					jit_insn_store(func, ret.meta, ptrs_jit_const_meta(func, retVarType));
+					jit_insn_store(func, ret.meta, retMetaVal);
 				}
 			}
 			break;

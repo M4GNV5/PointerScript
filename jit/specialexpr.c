@@ -19,13 +19,13 @@ ptrs_jit_var_t ptrs_handle_call(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 
 	if(expr->value->vtable->call != NULL)
 	{
-		return expr->value->vtable->call(expr->value, func, scope, node, expr->retType, expr->arguments);
+		return expr->value->vtable->call(expr->value, func, scope, node, &expr->typing, expr->arguments);
 	}
 	else
 	{
 		ptrs_jit_var_t val = expr->value->vtable->get(expr->value, func, scope);
 		return ptrs_jit_call(node, func, scope,
-			expr->retType, jit_const_int(func, void_ptr, 0), val, expr->arguments);
+			&expr->typing, jit_const_int(func, void_ptr, 0), val, expr->arguments);
 	}
 
 }
@@ -118,14 +118,14 @@ ptrs_jit_var_t ptrs_addressof_member(ptrs_ast_t *node, jit_function_t func, ptrs
 	return ptrs_jit_struct_addressof(node, func, scope, base, key, keyLen);
 }
 ptrs_jit_var_t ptrs_call_member(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
-	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments)
+	ptrs_ast_t *caller, ptrs_typing_t *typing, struct ptrs_astlist *arguments)
 {
 	struct ptrs_ast_member *expr = &node->arg.member;
 	ptrs_jit_var_t base = expr->base->vtable->get(expr->base, func, scope);
 	jit_value_t key = jit_const_int(func, void_ptr, (uintptr_t)expr->name);
 	jit_value_t keyLen = jit_const_int(func, int, expr->namelen);
 
-	return ptrs_jit_struct_call(node, func, scope, base, key, keyLen, retType, arguments);
+	return ptrs_jit_struct_call(node, func, scope, base, key, keyLen, typing, arguments);
 }
 
 ptrs_jit_var_t ptrs_handle_prefix_sizeof(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
@@ -408,7 +408,7 @@ ptrs_jit_var_t ptrs_addressof_index(ptrs_ast_t *node, jit_function_t func, ptrs_
 	return result;
 }
 ptrs_jit_var_t ptrs_call_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
-	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments)
+	ptrs_ast_t *caller, ptrs_typing_t *typing, struct ptrs_astlist *arguments)
 {
 	ptrs_jit_var_t _base;
 	ptrs_jit_var_t callee = {
@@ -451,7 +451,7 @@ ptrs_jit_var_t ptrs_call_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 		}
 	);
 
-	return ptrs_jit_call(node, func, scope, retType, _base.val, callee, arguments);
+	return ptrs_jit_call(node, func, scope, typing, _base.val, callee, arguments);
 }
 
 ptrs_jit_var_t ptrs_handle_slice(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
@@ -628,7 +628,7 @@ void ptrs_assign_importedsymbol(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 	}
 }
 ptrs_jit_var_t ptrs_call_importedsymbol(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
-	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments)
+	ptrs_ast_t *caller, ptrs_typing_t *typing, struct ptrs_astlist *arguments)
 {
 	struct ptrs_ast_importedsymbol *expr = &node->arg.importedsymbol;
 	struct ptrs_ast_import *stmt = &expr->import->arg.import;
@@ -638,7 +638,7 @@ ptrs_jit_var_t ptrs_call_importedsymbol(ptrs_ast_t *node, jit_function_t func, p
 	{
 		ptrs_ast_t *ast = stmt->expressions[expr->index];
 		if(ast->vtable->call != NULL)
-			return ast->vtable->call(ast, func, scope, caller, retType, arguments);
+			return ast->vtable->call(ast, func, scope, caller, typing, arguments);
 		else
 			val = ast->vtable->get(ast, func, scope);
 	}
@@ -658,7 +658,7 @@ ptrs_jit_var_t ptrs_call_importedsymbol(ptrs_ast_t *node, jit_function_t func, p
 	}
 
 	return ptrs_jit_call(node, func, scope,
-		retType, jit_const_int(func, void_ptr, 0), val, arguments);
+		typing, jit_const_int(func, void_ptr, 0), val, arguments);
 }
 ptrs_jit_var_t ptrs_addressof_importedsymbol(ptrs_ast_t *node,
 	jit_function_t func, ptrs_scope_t *scope)
@@ -841,7 +841,7 @@ ptrs_jit_var_t ptrs_handle_functionidentifier(ptrs_ast_t *node, jit_function_t f
 	return ret;
 }
 ptrs_jit_var_t ptrs_call_functionidentifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
-	ptrs_ast_t *caller, ptrs_nativetype_info_t *retType, struct ptrs_astlist *arguments)
+	ptrs_ast_t *caller, ptrs_typing_t *typing, struct ptrs_astlist *arguments)
 {
 	return ptrs_jit_callnested(func, scope, jit_const_int(func, void_ptr, 0), node->arg.funcval->symbol, arguments);
 }
