@@ -273,7 +273,11 @@ jit_function_t ptrs_jit_createFunctionFromAst(ptrs_ast_t *node, jit_function_t p
 
 	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl,
 		ptrs_jit_getVarType(), paramDef, argc * 2 + 1, 0);
-	return ptrs_jit_createFunction(node, parent, signature, ast->name);
+
+	jit_function_t func = ptrs_jit_createFunction(node, parent, signature, ast->name);
+	jit_function_set_meta(func, PTRS_JIT_FUNCTIONMETA_FUNCAST, ast, NULL, 0);
+
+	return func;
 }
 
 void *ptrs_jit_createCallback(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, void *closure)
@@ -289,35 +293,69 @@ void *ptrs_jit_createCallback(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 	char callbackName[strlen("(callback )") + strlen(funcName) + 1];
 	sprintf(callbackName, "(callback %s)", funcName);
 
-	jit_type_t signature = jit_function_get_signature(func);
-	unsigned argc = jit_type_num_params(signature);
-	unsigned callbackArgc = (argc - 1) / 2;
+	ptrs_function_t *ast = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_FUNCAST);
+	ptrs_funcparameter_t *curr;
+	if(ast == NULL)
+		ptrs_error(node, "Cannot create callback for function %s, failed to get function AST", funcName);
 
-	jit_type_t argDef[callbackArgc];
-	for(unsigned i = 0; i < callbackArgc; i++)
-		argDef[i] = jit_type_long;
+	unsigned argc = 0;
+	for(curr = ast->args; curr != NULL; curr = curr->next)
+		argc++;
 
-	jit_type_t callbackSignature = jit_type_create_signature(jit_abi_cdecl, jit_type_long, argDef, callbackArgc, 0);
+	jit_type_t argDef[argc];
+
+	curr = ast->args;
+	for(int i = 0; i < argc; i++)
+	{
+		if(curr->typing.nativetype != NULL)
+			argDef[i] = curr->typing.nativetype->jitType;
+		else if(curr->typing.meta.type == PTRS_TYPE_FLOAT)
+			argDef[i] = jit_type_float64;
+		else
+			argDef[i] = jit_type_long;
+
+		curr = curr->next;
+	}
+
+	jit_type_t callbackSignature = jit_type_create_signature(jit_abi_cdecl, jit_type_long, argDef, argc, 0);
 	jit_function_t callback = ptrs_jit_createFunction(node, NULL, callbackSignature, strdup(callbackName));
 
+	// TODO currently this is hardcoded to the root frame
 	jit_value_t parentFrame = jit_insn_load_relative(callback,
 		jit_const_int(callback, void_ptr, (uintptr_t)scope->rootFrame),
 		0, jit_type_void_ptr
 	);
 
-	jit_value_t args[argc];
+	unsigned targetArgc = argc * 2 + 1;
+	jit_value_t args[targetArgc];
 	args[0] = jit_const_int(callback, void_ptr, 0);
 
+	curr = ast->args;
 	jit_value_t meta = ptrs_jit_const_meta(callback, PTRS_TYPE_INT);
-	for(unsigned i = 0; i < callbackArgc; i++)
+	for(int i = 0; i < argc; i++)
 	{
-		args[i * 2 + 1] = jit_value_get_param(callback, i);
+		jit_value_t param = jit_value_get_param(callback, i);
+		if(curr->typing.nativetype != NULL)
+			param = ptrs_jit_normalizeForVar(callback, param);
+
+		jit_value_t meta;
+		if(curr->typing.nativetype != NULL)
+			meta = ptrs_jit_const_meta(callback, curr->typing.nativetype->varType);
+		else if(curr->typing.meta.type != (uint8_t)-1)
+			meta = jit_const_long(callback, ulong, *(uint64_t *)&curr->typing.meta);
+		else
+			meta = ptrs_jit_const_meta(callback, PTRS_TYPE_INT);
+
+		args[i * 2 + 1] = param;
 		args[i * 2 + 2] = meta;
+
+		curr = curr->next;
 	}
 
+	jit_type_t signature = jit_function_get_signature(func);
 	jit_value_t ret = jit_insn_call_nested_indirect(callback,
 		jit_const_int(callback, void_ptr, (uintptr_t)closure), parentFrame,
-		signature, args, argc, 0
+		signature, args, targetArgc, 0
 	);
 	ptrs_jit_var_t retVar = ptrs_jit_valToVar(callback, ret);
 	jit_insn_return(callback, retVar.val);

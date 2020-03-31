@@ -2073,7 +2073,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				nameFormat = "%1$s.op foreach in this";
 				overload->op = ptrs_ast_vtable_forin.get;
 
-				func->args = createParameterList(code, 2, NULL, NULL, NULL, NULL);
+				func->args = createParameterList(code, 2, NULL, (ptrs_vartype_t)-1, NULL, (ptrs_vartype_t)-1);
 
 				code->yield = alloca(2 * sizeof(ptrs_jit_var_t *));
 				code->yield[0] = &func->args->arg;
@@ -2097,7 +2097,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					nameFormat = "%1$s.op cast<%3$s>this";
 					overload->op = ptrs_ast_vtable_cast_builtin.get;
 
-					func->args = createParameterList(code, 1, otherName, PTRS_TYPE_NATIVE);
+					func->args = createParameterList(code, 1, otherName, PTRS_TYPE_INT);
 				}
 
 				consumec(code, '>');
