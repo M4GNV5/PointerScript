@@ -447,6 +447,13 @@ static void analyzeFunction(ptrs_flow_t *outerFlow, ptrs_function_t *ast, ptrs_s
 	ptrs_funcparameter_t *curr = ast->args;
 	for(; curr != NULL; curr = curr->next)
 	{
+		memcpy(&prediction.meta, &curr->typing.meta, sizeof(ptrs_meta_t));
+		prediction.knownType = prediction.meta.type != (uint8_t)-1;
+
+		if(prediction.meta.type == PTRS_TYPE_STRUCT
+			&& ptrs_meta_getPointer(prediction.meta) != NULL)
+			prediction.knownMeta = true;
+
 		setVariablePrediction(&functionFlow, &curr->arg, &prediction);
 	}
 
