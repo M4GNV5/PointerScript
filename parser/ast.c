@@ -79,6 +79,7 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 static struct ptrs_astlist *parseExpressionList(code_t *code, char end);
 static ptrs_ast_t *parseNew(code_t *code, bool onStack);
 static void parseTyping(code_t *code, ptrs_typing_t *typing);
+static void parseOptionalTyping(code_t *code, ptrs_typing_t *typing);
 static void parseMap(code_t *code, ptrs_ast_t *expr);
 static void parseStruct(code_t *code, ptrs_struct_t *struc);
 static void parseImport(code_t *code, ptrs_ast_t *stmt);
@@ -336,7 +337,8 @@ int parseIdentifierList(code_t *code, char *end, ptrs_jit_var_t **symbols, char 
 	return count;
 }
 
-static ptrs_funcparameter_t *parseArgumentDefinitionList(code_t *code, ptrs_jit_var_t **vararg)
+static ptrs_funcparameter_t *parseArgumentDefinitionList(code_t *code,
+	ptrs_jit_var_t **vararg, ptrs_typing_t *retType)
 {
 	consumec(code, '(');
 
@@ -346,6 +348,9 @@ static ptrs_funcparameter_t *parseArgumentDefinitionList(code_t *code, ptrs_jit_
 	if(code->curr == ')')
 	{
 		next(code);
+		if(retType != NULL)
+			parseOptionalTyping(code, retType);
+
 		return NULL;
 	}
 
@@ -383,8 +388,8 @@ static ptrs_funcparameter_t *parseArgumentDefinitionList(code_t *code, ptrs_jit_
 
 		if(name != NULL)
 		{
-			if(lookahead(code, ":"))
-				parseTyping(code, &curr->typing);
+			if(retType != NULL)
+				parseOptionalTyping(code, &curr->typing);
 
 			if(lookahead(code, "="))
 				curr->argv = parseExpression(code, true);
@@ -400,6 +405,9 @@ static ptrs_funcparameter_t *parseArgumentDefinitionList(code_t *code, ptrs_jit_
 
 		consumec(code, ',');
 	}
+
+	if(retType != NULL)
+		parseOptionalTyping(code, retType);
 
 	return first;
 }
@@ -441,7 +449,7 @@ static ptrs_function_t *parseFunction(code_t *code, char *name)
 
 	addSymbol(code, strdup("this"), &func->thisVal);
 
-	func->args = parseArgumentDefinitionList(code, &func->vararg);
+	func->args = parseArgumentDefinitionList(code, &func->vararg, &func->retType);
 	func->body = parseBody(code, false, true);
 
 	return func;
@@ -590,7 +598,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		if(lookahead(code, "catch"))
 		{
 			symbolScope_increase(code, true);
-			stmt->arg.trycatch.args = parseArgumentDefinitionList(code, NULL);
+			stmt->arg.trycatch.args = parseArgumentDefinitionList(code, NULL, NULL);
 			stmt->arg.trycatch.catchBody = parseScopelessBody(code, true);
 			symbolScope_decrease(code);
 		}
@@ -641,7 +649,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		symbolScope_increase(code, true);
 		addSymbol(code, strdup("this"), &func->thisVal);
 
-		func->args = parseArgumentDefinitionList(code, &func->vararg);
+		func->args = parseArgumentDefinitionList(code, &func->vararg, &func->retType);
 		func->body = parseBody(code, false, true);
 	}
 	else if(lookahead(code, "struct"))
@@ -1098,7 +1106,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 		symbolScope_increase(code, true);
 		addSymbol(code, strdup("this"), &func->thisVal);
 
-		func->args = parseArgumentDefinitionList(code, &func->vararg);
+		func->args = parseArgumentDefinitionList(code, &func->vararg, &func->retType);
 		func->body = parseBody(code, false, true);
 	}
 	else if(lookahead(code, "map_stack"))
@@ -1227,7 +1235,8 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 			if(code->curr != ')')
 				free(readIdentifier(code));
 
-			if(code->curr == ',' || code->curr == ':' || (lookahead(code, ")") && lookahead(code, "->")))
+			if(code->curr == ',' || code->curr == ':'
+				|| (lookahead(code, ")") && (lookahead(code, "->") || lookahead(code, ":"))))
 			{
 				code->pos = start;
 				code->curr = code->src[start];
@@ -1240,7 +1249,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 				ptrs_function_t *func = &ast->arg.function.func;
 				func->name = "(lambda expression)";
 				addSymbol(code, strdup("this"), &func->thisVal);
-				func->args = parseArgumentDefinitionList(code, &func->vararg);
+				func->args = parseArgumentDefinitionList(code, &func->vararg, &func->retType);
 
 				consume(code, "->");
 				if(code->curr == '{')
@@ -1474,7 +1483,17 @@ static void parseTyping(code_t *code, ptrs_typing_t *typing)
 		return;
 	}
 
+	unexpected(code, "native or variable type name");
+
 	// TODO struct types
+}
+
+static void parseOptionalTyping(code_t *code, ptrs_typing_t *typing)
+{
+	if(lookahead(code, ":"))
+		parseTyping(code, typing);
+	else
+		typing->meta.type = (uint8_t)-1;
 }
 
 static void parseImport(code_t *code, ptrs_ast_t *stmt)
@@ -1858,7 +1877,7 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 			ptrs_function_t *func = curr->member.value.function.ast = talloc(ptrs_function_t);
 			addSymbol(code, strdup("this"), &func->thisVal);
 			func->name = "(map function member)";
-			func->args = parseArgumentDefinitionList(code, &func->vararg);
+			func->args = parseArgumentDefinitionList(code, &func->vararg, &func->retType);
 
 			consume(code, "->");
 			if(lookahead(code, "{"))
@@ -2005,6 +2024,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					if(isAddressOf)
 					{
 						func->args = createParameterList(code, 1, otherName, PTRS_TYPE_NATIVE);
+						parseOptionalTyping(code, &func->retType);
 
 						nameFormat = "%1$s.op &this[%3$s]";
 						overload->op = ptrs_ast_vtable_member.addressof;
@@ -2014,13 +2034,15 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 						opLabel = readIdentifier(code);
 						func->args = createParameterList(code, 2,
 							otherName, PTRS_TYPE_NATIVE, opLabel, (ptrs_vartype_t)-1);
+						func->retType.meta.type = -1;
 
 						nameFormat = "%1$s.op this[%3$s] = %2$s";
 						overload->op = ptrs_ast_vtable_member.set;
 					}
 					else if(code->curr == '(')
 					{
-						func->args = parseArgumentDefinitionList(code, &func->vararg);
+						func->args = parseArgumentDefinitionList(code, &func->vararg, &func->retType);
+						parseOptionalTyping(code, &func->retType);
 
 						ptrs_funcparameter_t *nameArg = talloc(ptrs_funcparameter_t);
 						nameArg->name = otherName;
@@ -2039,6 +2061,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					else
 					{
 						func->args = createParameterList(code, 1, otherName, PTRS_TYPE_NATIVE);
+						parseOptionalTyping(code, &func->retType);
 
 						nameFormat = "%1$s.op this[%3$s]";
 						overload->op = ptrs_ast_vtable_member.get;
@@ -2046,7 +2069,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				}
 				else if(curr == '(')
 				{
-					func->args = parseArgumentDefinitionList(code, &func->vararg);
+					func->args = parseArgumentDefinitionList(code, &func->vararg, &func->retType);
+					parseOptionalTyping(code, &func->retType);
 					overload->op = ptrs_ast_vtable_call.get;
 
 					nameFormat = "%1$s.op this()";
@@ -2064,6 +2088,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				overload->op = ptrs_ast_vtable_prefix_sizeof.get;
 
 				func->args = NULL;
+				func->retType.meta.type = PTRS_TYPE_INT;
 			}
 			else if(lookahead(code, "foreach"))
 			{
@@ -2074,6 +2099,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				overload->op = ptrs_ast_vtable_forin.get;
 
 				func->args = createParameterList(code, 2, NULL, (ptrs_vartype_t)-1, NULL, (ptrs_vartype_t)-1);
+				func->retType.meta.type = -1;
 
 				code->yield = alloca(2 * sizeof(ptrs_jit_var_t *));
 				code->yield[0] = &func->args->arg;
@@ -2090,6 +2116,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					overload->op = ptrs_ast_vtable_tostring.get;
 
 					func->args = NULL;
+					func->retType.meta.type = PTRS_TYPE_NATIVE;
 				}
 				else
 				{
@@ -2098,6 +2125,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					overload->op = ptrs_ast_vtable_cast_builtin.get;
 
 					func->args = createParameterList(code, 1, otherName, PTRS_TYPE_INT);
+					// TODO add seprate overloads for cast<int> and cast<float>?
+					func->retType.meta.type = -1;
 				}
 
 				consumec(code, '>');
@@ -2113,6 +2142,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					overload->op = ptrs_ast_vtable_op_in.get;
 
 					func->args = createParameterList(code, 1, otherName, PTRS_TYPE_NATIVE);
+					func->retType.meta.type = PTRS_TYPE_INT;
 				}
 			}
 
@@ -2221,6 +2251,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				curr->type = PTRS_STRUCTMEMBER_GETTER;
 
 				func->args = NULL;
+				parseOptionalTyping(code, &func->retType);
 				sprintf(func->name, "%s.get %s", structName, name);
 			}
 			else
@@ -2228,6 +2259,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				curr->type = PTRS_STRUCTMEMBER_SETTER;
 
 				func->args = createParameterList(code, 1, "value", (ptrs_vartype_t)-1);
+				func->retType.meta.type = -1;
 				sprintf(func->name, "%s.set %s", structName, name);
 			}
 

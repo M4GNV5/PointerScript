@@ -373,6 +373,9 @@ void ptrs_jit_buildFunction(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t 
 {
 	ptrs_scope_t funcScope;
 	ptrs_initScope(&funcScope, scope);
+	funcScope.returnType = ast->retType.meta;
+
+	jit_value_t funcName = jit_const_int(func, void_ptr, (uintptr_t)ast->name);
 
 	jit_insn_mark_offset(func, node->codepos);
 
@@ -420,31 +423,14 @@ void ptrs_jit_buildFunction(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t 
 
 		if(ptrs_enableSafety && curr->typing.meta.type != (uint8_t)-1)
 		{
-			if(paramType == NULL)
-				paramType = ptrs_jit_getType(func, param.meta);
-
-			ptrs_meta_t meta = curr->typing.meta;
-			jit_value_t metaJit = jit_const_long(func, ulong, *(uint64_t *)&meta);
-
-			jit_value_t condition;
-			if(meta.type == PTRS_TYPE_STRUCT && ptrs_meta_getPointer(meta) != NULL)
-				condition = jit_insn_eq(func, param.meta, metaJit);
-			else
-				condition = jit_insn_eq(func, paramType, jit_const_int(func, ubyte, meta.type));
-
-			jit_value_t funcName = jit_const_int(func, void_ptr, (uintptr_t)ast->name);
+			jit_value_t metaJit = jit_const_long(func, ulong, *(uint64_t *)&curr->typing.meta);
 			jit_value_t iPlus1 = jit_const_int(func, int, i + 1);
-			struct ptrs_assertion *assertion = ptrs_jit_assert(node, func, &funcScope, condition,
+			jit_value_t fakeCondition = jit_const_int(func, ubyte, 1);
+			struct ptrs_assertion *assertion = ptrs_jit_assert(node, func, &funcScope, fakeCondition,
 				4, "Function %s requires the %d. parameter to be a of type %m but a variable of type %m was given",
 				funcName, iPlus1, metaJit, param.meta);
 
-			if((meta.type == PTRS_TYPE_NATIVE || meta.type == PTRS_TYPE_POINTER)
-				&& meta.array.size != 0)
-			{
-				jit_value_t size = ptrs_jit_getArraySize(func, param.meta);
-				condition = jit_insn_ge(func, size, jit_const_int(func, uint, meta.array.size));
-				ptrs_jit_appendAssert(func, assertion, condition);
-			}
+			ptrs_jit_assertMetaCompatibility(func, assertion, curr->typing.meta, param.meta, paramType);
 		}
 
 		if(curr->arg.addressable)
@@ -463,6 +449,15 @@ void ptrs_jit_buildFunction(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t 
 	}
 
 	ast->body->vtable->get(ast->body, func, &funcScope);
+
+	if(ast->retType.meta.type != (uint8_t)-1
+		&& ast->retType.meta.type != PTRS_TYPE_UNDEFINED)
+	{
+		ptrs_jit_assert(node, func, &funcScope, jit_const_int(func, ubyte, 0),
+			2, "Function %s defines a return type %m, but no value was returned",
+			funcName, jit_const_long(func, ulong, *(uint64_t *)&ast->retType.meta));
+	}
+
 	jit_insn_default_return(func);
 
 	ptrs_jit_placeAssertions(func, &funcScope);

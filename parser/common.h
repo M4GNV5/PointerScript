@@ -98,6 +98,7 @@ typedef struct
 	jit_label_t breakLabel;
 	struct ptrs_assertion *firstAssertion;
 	struct ptrs_assertion *lastAssertion;
+	ptrs_meta_t returnType;
 	jit_value_t returnAddr;
 	jit_value_t indexSize;
 	jit_function_t rootFunc;
@@ -142,6 +143,7 @@ typedef struct
 	ptrs_jit_var_t thisVal;
 	ptrs_jit_var_t *vararg;
 	ptrs_funcparameter_t *args;
+	ptrs_typing_t retType;
 	struct ptrs_ast *body;
 } ptrs_function_t;
 

@@ -20,6 +20,7 @@ void ptrs_compile(ptrs_result_t *result, char *src, const char *filename)
 {
 	ptrs_scope_t scope;
 	ptrs_initScope(&scope, NULL);
+	scope.returnType.type = PTRS_TYPE_INT;
 
 	if(ptrs_jit_context == NULL)
 		ptrs_jit_context = jit_context_create();

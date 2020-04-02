@@ -34,6 +34,8 @@ struct ptrs_assertion *ptrs_jit_vassert(ptrs_ast_t *ast, jit_function_t func, pt
 	jit_value_t condition, size_t argCount, const char *text, va_list ap);
 struct ptrs_assertion *ptrs_jit_assert(ptrs_ast_t *ast, jit_function_t func, ptrs_scope_t *scope,
 	jit_value_t condition, size_t argCount, const char *text, ...);
+void ptrs_jit_assertMetaCompatibility(jit_function_t func, struct ptrs_assertion *assertion,
+	ptrs_meta_t expected, jit_value_t actual, jit_value_t actualType);
 void ptrs_jit_appendAssert(jit_function_t func, struct ptrs_assertion *assert, jit_value_t condition);
 void ptrs_jit_placeAssertions(jit_function_t func, ptrs_scope_t *scope);
 

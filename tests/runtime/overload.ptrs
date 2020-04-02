@@ -19,7 +19,7 @@ struct Test
 	operator cast<string>this
 	{
 		op = "tostr";
-		return 4;
+		return "4";
 	}
 
 	operator this(a, b)
@@ -115,6 +115,6 @@ foreach(val2 in test)
 {
 	assertEq(val, val2);
 	if(val == 42)
-		return;
+		return 0;
 }
 assertEq("each", op);

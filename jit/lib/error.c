@@ -386,6 +386,33 @@ void ptrs_jit_appendAssert(jit_function_t func, struct ptrs_assertion *assertion
 		jit_insn_branch_if_not(func, condition, &assertion->label);
 }
 
+// this is used when a typing is defined by a user and a provided value has to be checked
+// if it fits (i.e. if the type, the array size and/or the struct type match the expected)
+void ptrs_jit_assertMetaCompatibility(jit_function_t func, struct ptrs_assertion *assertion,
+	ptrs_meta_t expected, jit_value_t actual, jit_value_t actualType)
+{
+	if(actualType == NULL)
+		actualType = ptrs_jit_getType(func, actual);
+
+	jit_value_t expectedJit = jit_const_long(func, ulong, *(uint64_t *)&expected);
+
+	jit_value_t condition;
+	if(expected.type == PTRS_TYPE_STRUCT && ptrs_meta_getPointer(expected) != NULL)
+		condition = jit_insn_eq(func, actual, expectedJit);
+	else
+		condition = jit_insn_eq(func, actualType, jit_const_int(func, ubyte, expected.type));
+
+	ptrs_jit_appendAssert(func, assertion, condition);
+
+	if((expected.type == PTRS_TYPE_NATIVE || expected.type == PTRS_TYPE_POINTER)
+		&& expected.array.size != 0)
+	{
+		jit_value_t size = ptrs_jit_getArraySize(func, actual);
+		condition = jit_insn_ge(func, size, jit_const_int(func, uint, expected.array.size));
+		ptrs_jit_appendAssert(func, assertion, condition);
+	}
+}
+
 void ptrs_jit_placeAssertions(jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_assertion *curr = scope->firstAssertion;

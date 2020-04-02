@@ -410,10 +410,10 @@ ptrs_jit_var_t ptrs_handle_import(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 
 ptrs_jit_var_t ptrs_handle_return(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	node = node->arg.astval;
+	ptrs_ast_t *value = node->arg.astval;
 
 	ptrs_jit_var_t ret;
-	if(node == NULL)
+	if(value == NULL)
 	{
 		ret.val = jit_const_int(func, long, 0);
 		ret.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
@@ -421,7 +421,37 @@ ptrs_jit_var_t ptrs_handle_return(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	}
 	else
 	{
-		ret = node->vtable->get(node, func, scope);
+		ret = value->vtable->get(value, func, scope);
+	}
+
+	const char *funcName;
+	ptrs_function_t *funcAst = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_FUNCAST);
+	if(funcAst != NULL)
+		funcName = funcAst->name;
+	else if(scope->rootFunc == func)
+		funcName = "(root)";
+	else
+		funcName = "(unknown)";
+
+	if(scope->returnType.type != (uint8_t)-1)
+	{
+		if(value == NULL)
+		{
+			ptrs_error(node, "Function %s defines a return type %m, but no value was returned",
+				funcName, scope->returnType);
+		}
+
+		jit_value_t retType = NULL;
+		if(ret.constType != -1)
+			retType = jit_const_int(func, ubyte, ret.constType);
+
+		jit_value_t retMetaJit = jit_const_long(func, ulong, *(uint64_t *)&scope->returnType);
+		jit_value_t fakeCondition = jit_const_int(func, ubyte, 1);
+		struct ptrs_assertion *assertion = ptrs_jit_assert(value, func, scope, fakeCondition,
+			3, "Function %s defines a return type %m, but a value of type %m was returned",
+			jit_const_int(func, void_ptr, (uintptr_t)funcName), retMetaJit, ret.meta);
+
+		ptrs_jit_assertMetaCompatibility(func, assertion, scope->returnType, ret.meta, retType);
 	}
 
 	if(scope->returnAddr == NULL)
@@ -584,6 +614,7 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 			ctor = curr->handlerFunc;
 			ctorData = jit_value_get_param(ctor, 0);
 			ptrs_initScope(&ctorScope, scope);
+			ctorScope.returnType.type = -1;
 
 			hasCtorOverload = true;
 		}
@@ -622,6 +653,7 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 				ctor = ptrs_jit_createFunction(node, func, ctorSignature, ctorName);
 				ctorData = jit_value_get_param(ctor, 0);
 				ptrs_initScope(&ctorScope, scope);
+				ctorScope.returnType.type = -1;
 			}
 
 			currFunc = ctor;
@@ -1196,6 +1228,9 @@ ptrs_jit_var_t ptrs_handle_scopestatement(ptrs_ast_t *node, jit_function_t func,
 	ptrs_ast_t *body = node->arg.astval;
 	ptrs_jit_reusableSignature(func, bodySignature, jit_type_ubyte, (jit_type_void_ptr));
 	jit_function_t bodyFunc = ptrs_jit_createFunction(node, func, bodySignature, "(scoped body)");
+
+	ptrs_function_t *funcAst = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_FUNCAST);
+	jit_function_set_meta(bodyFunc, PTRS_JIT_FUNCTIONMETA_FUNCAST, funcAst, NULL, 0);
 
 	ptrs_scope_t bodyScope;
 	ptrs_initScope(&bodyScope, scope);

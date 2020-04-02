@@ -44,6 +44,13 @@ void ptrs_initScope(ptrs_scope_t *scope, ptrs_scope_t *parent)
 	{
 		scope->rootFunc = parent->rootFunc;
 		scope->rootFrame = parent->rootFrame;
+		scope->returnType = parent->returnType;
+	}
+	else
+	{
+		scope->rootFunc = NULL;
+		scope->rootFrame = NULL;
+		scope->returnType.type = -1;
 	}
 }
 
