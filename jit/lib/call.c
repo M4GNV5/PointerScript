@@ -317,7 +317,13 @@ void *ptrs_jit_createCallback(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 		curr = curr->next;
 	}
 
-	jit_type_t callbackSignature = jit_type_create_signature(jit_abi_cdecl, jit_type_long, argDef, argc, 0);
+	jit_type_t callbackReturnType;
+	if(ast->retType.nativetype != NULL)
+		callbackReturnType = ast->retType.nativetype->jitType;
+	else
+		callbackReturnType = jit_type_long;
+
+	jit_type_t callbackSignature = jit_type_create_signature(jit_abi_cdecl, callbackReturnType, argDef, argc, 0);
 	jit_function_t callback = ptrs_jit_createFunction(node, NULL, callbackSignature, strdup(callbackName));
 
 	// TODO currently this is hardcoded to the root frame
@@ -336,7 +342,11 @@ void *ptrs_jit_createCallback(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 	{
 		jit_value_t param = jit_value_get_param(callback, i);
 		if(curr->typing.nativetype != NULL)
+		{
 			param = ptrs_jit_normalizeForVar(callback, param);
+			if(curr->typing.nativetype->varType == PTRS_TYPE_FLOAT)
+				param = ptrs_jit_reinterpretCast(callback, param, jit_type_long);
+		}
 
 		jit_value_t meta;
 		if(curr->typing.nativetype != NULL)
@@ -357,8 +367,18 @@ void *ptrs_jit_createCallback(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 		jit_const_int(callback, void_ptr, (uintptr_t)closure), parentFrame,
 		signature, args, targetArgc, 0
 	);
-	ptrs_jit_var_t retVar = ptrs_jit_valToVar(callback, ret);
-	jit_insn_return(callback, retVar.val);
+	ret = ptrs_jit_valToVar(callback, ret).val;
+
+	if(ast->retType.nativetype != NULL)
+	{
+		ptrs_nativetype_info_t *retType = ast->retType.nativetype;
+		if(retType->varType == PTRS_TYPE_FLOAT)
+			ret = ptrs_jit_reinterpretCast(callback, ret, jit_type_float64);
+
+		ret = jit_insn_convert(callback, ret, retType->jitType, 0);
+	}
+
+	jit_insn_return(callback, ret);
 
 	if(ptrs_compileAot && jit_function_compile(callback) == 0)
 		ptrs_error(node, "Failed compiling function %s", callbackName);

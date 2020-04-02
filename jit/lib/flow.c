@@ -741,7 +741,7 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 
 		if(!flow->dryRun)
 		{
-			if(ret->knownValue)
+			if(ret->knownValue && (!ret->knownType || ret->meta.type != PTRS_TYPE_FUNCTION))
 			{
 				expr->valuePredicted = true;
 				memcpy(&expr->valuePrediction, &ret->value, sizeof(ptrs_val_t));
@@ -850,7 +850,9 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 	{
 		analyzeFunction(flow, &node->arg.function.func, NULL);
 
+		ret->knownValue = true;
 		ret->knownType = true;
+		ret->value.nativeval = &node->arg.function.func;
 		ret->meta.type = PTRS_TYPE_FUNCTION;
 	}
 	else if(node->vtable == &ptrs_ast_vtable_call)
@@ -878,15 +880,22 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		else if(ret->knownType && ret->knownValue
 			&& ret->meta.type == PTRS_TYPE_FUNCTION)
 		{
-			// TODO only reset predictions of varibles used in the function
-			clearAddressablePredictions(flow);
 			clearPrediction(ret);
+
+			ptrs_function_t *func = ret->value.nativeval;
+			if(func->retType.meta.type != (uint8_t)-1)
+			{
+				ret->knownType = true;
+				ret->knownMeta = true;
+				memcpy(&ret->meta, &func->retType.meta, sizeof(ptrs_meta_t));
+			}
 		}
 		else
 		{
 			clearPrediction(ret);
 		}
 
+		// TODO only reset predictions of varibles used in the function
 		clearAddressablePredictions(flow);
 	}
 	else if(node->vtable == &ptrs_ast_vtable_stringformat)
@@ -1159,6 +1168,12 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		struct ptrs_ast_cast *expr = &node->arg.cast;
 
 		analyzeExpression(flow, expr->value, ret);
+
+		if(ret->knownType && ret->knownValue && ret->meta.type == PTRS_TYPE_FUNCTION)
+		{
+			ret->knownValue = false;
+			memset(&ret->value, 0, sizeof(ptrs_val_t));
+		}
 
 		ret->knownType = true;
 		ret->knownMeta = true;
