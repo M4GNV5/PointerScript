@@ -11,19 +11,6 @@
 
 void *ptrs_jit_createCallback(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, void *closure);
 
-void ptrs_arglist_handle(jit_function_t func, ptrs_scope_t *scope,
-	struct ptrs_astlist *curr, ptrs_jit_var_t *buff)
-{
-	for(int i = 0; curr != NULL; i++)
-	{
-		//if(list->expand) //TODO
-
-		buff[i] = curr->entry->vtable->get(curr->entry, func, scope);
-
-		curr = curr->next;
-	}
-}
-
 ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_typing_t *retType, jit_value_t thisPtr, ptrs_jit_var_t callee, struct ptrs_astlist *args)
 {
@@ -180,59 +167,371 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 	return ret;
 }
 
-ptrs_jit_var_t ptrs_jit_callnested(jit_function_t func, ptrs_scope_t *scope,
-	jit_value_t thisPtr, jit_function_t callee, struct ptrs_astlist *args)
+static size_t getParameterCount(ptrs_function_t *ast)
 {
-	int minArgs = jit_type_num_params(jit_function_get_signature(callee));
-	int narg = ptrs_astlist_length(args) * 2 + 1;
-	if(minArgs > narg)
-		narg = minArgs;
+	size_t count = 0;
+	for(ptrs_funcparameter_t *curr = ast->args; curr != NULL; curr = curr->next)
+		count++;
 
-	jit_value_t _args[narg];
-	_args[0] = thisPtr;
+	return count;
+}
+static void checkFunctionParameter(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+	ptrs_function_t *ast, ptrs_jit_var_t *args)
+{
+	ptrs_funcparameter_t *curr = ast->args;
 
-	for(int i = 0; i < narg / 2; i++)
+	for(int i = 0; curr != NULL; i++)
 	{
-		//if(args->expand) //TODO
-		ptrs_jit_var_t val;
-		if(args == NULL || args->entry == NULL)
+		jit_value_t paramType = NULL;
+		if(args[i].constType != -1)
+			paramType = jit_const_long(func, ulong, args[i].constType);
+
+		if(curr->argv != NULL)
 		{
-			val.val = jit_const_int(func, long, 0);
-			val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
+			if(paramType == NULL)
+				paramType = ptrs_jit_getType(func, args[i].meta);
+
+			if(args[i].constType == -1)
+			{
+				jit_label_t given = jit_label_undefined;
+				jit_value_t isGiven = jit_insn_ne(func, paramType, jit_const_int(func, ubyte, PTRS_TYPE_UNDEFINED));
+				jit_insn_branch_if(func, isGiven, &given);
+
+				ptrs_jit_var_t val = curr->argv->vtable->get(curr->argv, func, scope);
+				val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long); // TODO is this needed / a problem?
+
+				jit_insn_store(func, args[i].val, val.val);
+				jit_insn_store(func, args[i].meta, val.meta);
+
+				jit_insn_label(func, &given);
+			}
+			else if(args[i].constType == PTRS_TYPE_UNDEFINED)
+			{
+				args[i] = curr->argv->vtable->get(curr->argv, func, scope);
+			}
+		}
+
+		if(ptrs_enableSafety && curr->typing.meta.type != (uint8_t)-1)
+		{
+			jit_value_t fakeCondition = jit_const_int(func, ubyte, 1);
+			jit_value_t funcName = jit_const_int(func, void_ptr, (uintptr_t)ast->name);
+			jit_value_t iPlus1 = jit_const_int(func, int, i + 1);
+			jit_value_t metaJit = jit_const_long(func, ulong, *(uint64_t *)&curr->typing.meta);
+			struct ptrs_assertion *assertion = ptrs_jit_assert(node, func, scope, fakeCondition,
+				4, "Function %s requires the %d. parameter to be a of type %m but a variable of type %m was given",
+				funcName, iPlus1, metaJit, args[i].meta);
+
+			ptrs_jit_assertMetaCompatibility(func, assertion, curr->typing.meta, args[i].meta, paramType);
+
+			args[i].constType = curr->typing.meta.type;
+			// TODO also set args[i].meta for undefined, int and float params
 		}
 		else
 		{
-			val = args->entry->vtable->get(args->entry, func, scope);
+			args[i].val = ptrs_jit_reinterpretCast(func, args[i].val, jit_type_long);
 		}
 
-		_args[i * 2 + 1] = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
-		_args[i * 2 + 2] = val.meta;
+		curr = curr->next;
+	}
+}
+
+static void retrieveCustomAbiParameterArray(ptrs_function_t *ast, jit_function_t func)
+{
+	size_t argPos = 1;
+
+	ptrs_funcparameter_t *argDef = ast->args;
+	for(; argDef != NULL; argDef = argDef->next)
+	{
+		ptrs_jit_var_t param;
+		param.addressable = false;
+
+		if(argDef != NULL && argDef->typing.meta.type != (uint8_t)-1)
+		{
+			param.constType = argDef->typing.meta.type;
+			switch(argDef->typing.meta.type)
+			{
+				case PTRS_TYPE_UNDEFINED:
+					param.val = jit_const_long(func, long, 0);
+					param.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
+					break;
+				case PTRS_TYPE_INT:
+					param.val = jit_value_get_param(func, argPos);
+					param.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
+					argPos++;
+					break;
+				case PTRS_TYPE_FLOAT:
+					param.val = jit_value_get_param(func, argPos);
+					param.meta = ptrs_jit_const_meta(func, PTRS_TYPE_FLOAT);
+					argPos++;
+					break;
+				case PTRS_TYPE_STRUCT:
+					if(ptrs_meta_getPointer(argDef->typing.meta) != NULL)
+					{
+						param.val = jit_value_get_param(func, argPos);
+						param.meta = jit_const_long(func, ulong, *(uint64_t *)&argDef->typing.meta);
+						argPos++;
+					}
+					// else falthrough
+				case PTRS_TYPE_NATIVE:
+				case PTRS_TYPE_POINTER:
+				case PTRS_TYPE_FUNCTION:
+					param.val = jit_value_get_param(func, argPos);
+					param.meta = jit_value_get_param(func, argPos + 1);
+					argPos += 2;
+					break;
+			}
+		}
+		else
+		{
+			param.val = jit_value_get_param(func, argPos);
+			param.meta = jit_value_get_param(func, argPos + 1);
+			param.constType = -1;
+			argPos += 2;
+		}
+
+		if(argDef->arg.addressable)
+		{
+			argDef->arg.val = jit_value_create(func, ptrs_jit_getVarType());
+			jit_value_t ptr = jit_insn_address_of(func, argDef->arg.val);
+			jit_insn_store_relative(func, ptr, 0, param.val);
+			jit_insn_store_relative(func, ptr, sizeof(ptrs_val_t), param.meta);
+		}
+		else
+		{
+			argDef->arg = param;
+		}
+	}
+}
+static size_t fillCustomAbiArgumentArray(ptrs_function_t *ast, jit_type_t *typeDef, jit_value_t *jitArgs,
+	jit_value_t thisArg, size_t narg, ptrs_jit_var_t *args)
+{
+	size_t argCount = 1;
+	if(jitArgs != NULL) // TODO are there cases when we dont need this?
+		jitArgs[0] = thisArg;
+	if(typeDef != NULL)
+		typeDef[0] = jit_type_void_ptr;
+
+	ptrs_funcparameter_t *argDef = ast->args;
+	for(int i = 0; argDef != NULL; i++)
+	{
+		if(i >= narg)
+			ptrs_error(NULL, "Internal error: parameter counts dont match");
+
+		if(argDef != NULL && argDef->typing.meta.type != (uint8_t)-1)
+		{
+			switch(argDef->typing.meta.type)
+			{
+				case PTRS_TYPE_UNDEFINED:
+					// nothing
+					break;
+				case PTRS_TYPE_INT:
+					if(jitArgs != NULL && args != NULL)
+						jitArgs[argCount] = args[i].val;
+					if(typeDef != NULL)
+						typeDef[argCount] = jit_type_long;
+					argCount++;
+					break;
+				case PTRS_TYPE_FLOAT:
+					if(jitArgs != NULL && args != NULL)
+						jitArgs[argCount] = args[i].val;
+					if(typeDef != NULL)
+						typeDef[argCount] = jit_type_float64;
+					argCount++;
+					break;
+				case PTRS_TYPE_STRUCT:
+					if(ptrs_meta_getPointer(argDef->typing.meta) != NULL)
+					{
+						if(jitArgs != NULL && args != NULL)
+							jitArgs[argCount] = args[i].val;
+						if(typeDef != NULL)
+							typeDef[argCount] = jit_type_long; // TODO set void_ptr?
+						argCount++;
+						break;
+					}
+					// else falthrough
+				case PTRS_TYPE_NATIVE:
+				case PTRS_TYPE_POINTER:
+				case PTRS_TYPE_FUNCTION:
+					if(jitArgs != NULL && args != NULL)
+					{
+						jitArgs[argCount] = args[i].val;
+						jitArgs[argCount + 1] = args[i].meta;
+					}
+					if(typeDef != NULL)
+					{
+						typeDef[argCount] = jit_type_long; // TODO set void_ptr?
+						typeDef[argCount + 1] = jit_type_ulong;
+					}
+					argCount += 2;
+					break;
+			}
+		}
+		else
+		{
+			if(jitArgs != NULL && args != NULL)
+			{
+				jitArgs[argCount] = args[i].val;
+				jitArgs[argCount + 1] = args[i].meta;
+			}
+			if(typeDef != NULL)
+			{
+				typeDef[argCount] = jit_type_long;
+				typeDef[argCount + 1] = jit_type_ulong;
+			}
+			argCount += 2;
+		}
+
+		argDef = argDef->next;
+	}
+
+	return argCount;
+}
+static ptrs_jit_var_t handleCustomAbiReturn(jit_function_t func, ptrs_function_t *ast, jit_value_t jitRet)
+{
+	ptrs_jit_var_t ret;
+	ret.constType = ast->retType.meta.type;
+	ret.addressable = false;
+
+	switch(ast->retType.meta.type)
+	{
+		case PTRS_TYPE_UNDEFINED:
+			ret.val = jit_const_long(func, long, 0);
+			ret.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
+			break;
+		case PTRS_TYPE_INT:
+			ret.val = jitRet;
+			ret.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
+			break;
+		case PTRS_TYPE_FLOAT:
+			ret.val = jitRet;
+			ret.meta = ptrs_jit_const_meta(func, PTRS_TYPE_FLOAT);
+			break;
+		case PTRS_TYPE_STRUCT:
+			if(ptrs_meta_getPointer(ast->retType.meta) != NULL)
+			{
+				ret.val = jitRet;
+				ret.meta = jit_const_long(func, ulong, *(uint64_t *)&ast->retType.meta);
+				break;
+			}
+			// else fallthrough
+		default:
+			ret = ptrs_jit_valToVar(func, jitRet);
+			break;
+	}
+
+	return ret;
+}
+static jit_type_t getCustomAbiReturnType(ptrs_function_t *ast)
+{
+	switch(ast->retType.meta.type)
+	{
+		case PTRS_TYPE_UNDEFINED:
+			return jit_type_void;
+		case PTRS_TYPE_INT:
+			return jit_type_long;
+		case PTRS_TYPE_FLOAT:
+			return jit_type_float64;
+		case PTRS_TYPE_STRUCT:
+			if(ptrs_meta_getPointer(ast->retType.meta) != NULL)
+			{
+				return jit_type_void_ptr;
+			}
+			// else fallthrough
+		default:
+			return ptrs_jit_getVarType();
+	}
+}
+static ptrs_jit_var_t callWithCustomAbi(jit_function_t func, jit_function_t uncheckedCallee, jit_value_t calleeParentFrame,
+	ptrs_function_t *ast, jit_value_t thisArg, size_t narg, ptrs_jit_var_t *args, int callflags)
+{
+	size_t customAbiArgCount = fillCustomAbiArgumentArray(ast, NULL, NULL, thisArg, narg, args);
+	jit_type_t typeDef[customAbiArgCount];
+	jit_value_t jitArgs[customAbiArgCount];
+	fillCustomAbiArgumentArray(ast, typeDef, jitArgs, thisArg, narg, args);
+
+	jit_value_t jitRet;
+	if(calleeParentFrame == NULL)
+	{
+		jitRet = jit_insn_call(func, ast->name, uncheckedCallee, NULL,
+			jitArgs, customAbiArgCount, callflags);
+	}
+	else
+	{
+		jit_type_t retType = getCustomAbiReturnType(ast);
+		jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, retType, typeDef, customAbiArgCount, 0);
+
+		jit_value_t closure = jit_const_int(func, void_ptr, (uintptr_t)jit_function_to_closure(uncheckedCallee));
+
+		jitRet = jit_insn_call_nested_indirect(func, closure, calleeParentFrame, signature,
+			jitArgs, customAbiArgCount, callflags);
+
+		jit_type_free(signature);
+	}
+
+	return handleCustomAbiReturn(func, ast, jitRet);
+}
+
+void ptrs_jit_returnFromFunction(ptrs_ast_t *node, jit_function_t func, ptrs_jit_var_t val)
+{
+	ptrs_function_t *ast = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_FUNCAST);
+	if(ast == NULL)
+		ptrs_error(node, "Failed retrieving ast for returning function");
+
+	jit_type_t retType = getCustomAbiReturnType(ast);
+
+	if(retType == ptrs_jit_getVarType())
+		jit_insn_return_struct_from_values(func, val.val, val.meta);
+	else if(retType == jit_type_void)
+		jit_insn_default_return(func);
+	else
+		jit_insn_return(func, val.val);
+}
+
+ptrs_jit_var_t ptrs_jit_ncallnested(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+	jit_value_t thisPtr, jit_function_t callee, size_t narg, ptrs_jit_var_t *args)
+{
+	ptrs_function_t *calleeAst = jit_function_get_meta(callee, PTRS_JIT_FUNCTIONMETA_FUNCAST);
+	if(calleeAst == NULL)
+		ptrs_error(node, "Internal error: Could not get function ast for unchecked entry point of target function");
+
+	checkFunctionParameter(node, func, scope, calleeAst, args);
+	return callWithCustomAbi(func, callee, NULL, calleeAst, thisPtr, narg, args, 0);
+}
+
+ptrs_jit_var_t ptrs_jit_callnested(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
+	jit_value_t thisPtr, jit_function_t callee, struct ptrs_astlist *args)
+{
+	ptrs_function_t *calleeAst = jit_function_get_meta(callee, PTRS_JIT_FUNCTIONMETA_FUNCAST);
+	if(calleeAst == NULL)
+		ptrs_error(node, "Internal error: Could not get function ast for unchecked entry point of target function");
+
+	int minArgs = getParameterCount(calleeAst);
+	int narg = ptrs_astlist_length(args);
+	if(minArgs > narg)
+		narg = minArgs;
+
+	ptrs_jit_var_t _args[narg];
+
+	for(int i = 0; i < narg; i++)
+	{
+		//if(args->expand) //TODO
+		if(args == NULL || args->entry == NULL)
+		{
+			_args[i].val = jit_const_int(func, long, 0);
+			_args[i].meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
+			_args[i].constType = PTRS_TYPE_UNDEFINED;
+			_args[i].addressable = false;
+		}
+		else
+		{
+			_args[i] = args->entry->vtable->get(args->entry, func, scope);
+		}
 
 		if(args != NULL)
 			args = args->next;
 	}
 
-	const char *name = jit_function_get_meta(callee, PTRS_JIT_FUNCTIONMETA_NAME);
-	jit_value_t ret = jit_insn_call(func, name, callee, NULL, _args, narg, 0);
-
-	return ptrs_jit_valToVar(func, ret);
-}
-
-ptrs_jit_var_t ptrs_jit_ncallnested(jit_function_t func,
-	jit_value_t thisPtr, jit_function_t callee, size_t narg, ptrs_jit_var_t *args)
-{
-	jit_value_t _args[narg * 2 + 1];
-	_args[0] = thisPtr;
-	for(int i = 0; i < narg; i++)
-	{
-		_args[i * 2 + 1] = args[i].val;
-		_args[i * 2 + 2] = args[i].meta;
-	}
-
-	const char *name = jit_function_get_meta(callee, PTRS_JIT_FUNCTIONMETA_NAME);
-	jit_value_t ret = jit_insn_call(func, name, callee, NULL, _args, narg * 2 + 1, 0);
-
-	return ptrs_jit_valToVar(func, ret);
+	return ptrs_jit_ncallnested(node, func, scope, thisPtr, callee, narg, _args);
 }
 
 jit_function_t ptrs_jit_createFunction(ptrs_ast_t *node, jit_function_t parent,
@@ -255,24 +554,18 @@ jit_function_t ptrs_jit_createFunction(ptrs_ast_t *node, jit_function_t parent,
 jit_function_t ptrs_jit_createFunctionFromAst(ptrs_ast_t *node, jit_function_t parent,
 	ptrs_function_t *ast)
 {
-	size_t argc = 0;
-	ptrs_funcparameter_t *curr = ast->args;
-	for(; curr != NULL; argc++)
-		curr = curr->next;
-
-	jit_type_t paramDef[argc * 2 + 1];
-	paramDef[0] = jit_type_void_ptr; //this pointer
-	for(int i = 1; i < argc * 2 + 1;)
-	{
-		paramDef[i++] = jit_type_long;
-		paramDef[i++] = jit_type_ulong;
-	}
+	size_t argc = getParameterCount(ast);
+	size_t count = fillCustomAbiArgumentArray(ast, NULL, NULL, NULL, argc, NULL);
+	jit_type_t paramDef[count];
+	fillCustomAbiArgumentArray(ast, paramDef, NULL, NULL, argc, NULL);
+	
+	jit_type_t retType = getCustomAbiReturnType(ast);
 
 	if(ast->vararg != NULL)
 		ptrs_error(ast->body, "Support for variadic argument functions is not implemented");
 
 	jit_type_t signature = jit_type_create_signature(jit_abi_cdecl,
-		ptrs_jit_getVarType(), paramDef, argc * 2 + 1, 0);
+		retType, paramDef, count, 0);
 
 	jit_function_t func = ptrs_jit_createFunction(node, parent, signature, ast->name);
 	jit_function_set_meta(func, PTRS_JIT_FUNCTIONMETA_FUNCAST, ast, NULL, 0);
@@ -282,6 +575,10 @@ jit_function_t ptrs_jit_createFunctionFromAst(ptrs_ast_t *node, jit_function_t p
 
 void *ptrs_jit_createCallback(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, void *closure)
 {
+	jit_function_t unchecked = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_UNCHECKED);
+	if(unchecked != NULL)
+		func = unchecked; // `func` is actually a type checking closure for `unchecked` 
+
 	void *callbackClosure = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_CALLBACK);
 	if(callbackClosure != NULL)
 		return callbackClosure;
@@ -290,18 +587,15 @@ void *ptrs_jit_createCallback(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 	if(funcName == NULL)
 		funcName = "?";
 
-	char callbackName[strlen("(callback )") + strlen(funcName) + 1];
-	sprintf(callbackName, "(callback %s)", funcName);
+	char callbackName[strlen(".callback") + strlen(funcName) + 1];
+	sprintf(callbackName, "%s.callback", funcName);
 
 	ptrs_function_t *ast = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_FUNCAST);
 	ptrs_funcparameter_t *curr;
 	if(ast == NULL)
 		ptrs_error(node, "Cannot create callback for function %s, failed to get function AST", funcName);
 
-	unsigned argc = 0;
-	for(curr = ast->args; curr != NULL; curr = curr->next)
-		argc++;
-
+	size_t argc = getParameterCount(ast);
 	jit_type_t argDef[argc];
 
 	curr = ast->args;
@@ -332,12 +626,9 @@ void *ptrs_jit_createCallback(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 		0, jit_type_void_ptr
 	);
 
-	unsigned targetArgc = argc * 2 + 1;
-	jit_value_t args[targetArgc];
-	args[0] = jit_const_int(callback, void_ptr, 0);
+	ptrs_jit_var_t args[argc];
 
 	curr = ast->args;
-	jit_value_t meta = ptrs_jit_const_meta(callback, PTRS_TYPE_INT);
 	for(int i = 0; i < argc; i++)
 	{
 		jit_value_t param = jit_value_get_param(callback, i);
@@ -356,18 +647,17 @@ void *ptrs_jit_createCallback(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 		else
 			meta = ptrs_jit_const_meta(callback, PTRS_TYPE_INT);
 
-		args[i * 2 + 1] = param;
-		args[i * 2 + 2] = meta;
+		args[i].val = param;
+		args[i].meta = meta;
+		args[i].constType = curr->typing.meta.type;
+		args[i].addressable = false;
 
 		curr = curr->next;
 	}
 
-	jit_type_t signature = jit_function_get_signature(func);
-	jit_value_t ret = jit_insn_call_nested_indirect(callback,
-		jit_const_int(callback, void_ptr, (uintptr_t)closure), parentFrame,
-		signature, args, targetArgc, 0
-	);
-	ret = ptrs_jit_valToVar(callback, ret).val;
+	jit_value_t thisArg = jit_const_int(callback, void_ptr, 0);
+	ptrs_jit_var_t retVar = callWithCustomAbi(callback, func, parentFrame, ast, thisArg, argc, args, 0);
+	jit_value_t ret = retVar.val;
 
 	if(ast->retType.nativetype != NULL)
 	{
@@ -388,14 +678,76 @@ void *ptrs_jit_createCallback(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 	return callbackClosure;
 }
 
+void *ptrs_jit_function_to_closure(ptrs_ast_t *node, jit_function_t func)
+{
+	void *oldClosure = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_CLOSURE);
+	if(oldClosure != NULL)
+		return oldClosure;
+
+	if(node == NULL)
+		node = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_AST);
+	if(node == NULL)
+		ptrs_error(NULL, "Cannot create a closure for a function, failed to get AST");
+
+	ptrs_function_t *ast = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_FUNCAST);
+	if(ast == NULL)
+		ptrs_error(node, "Cannot create a closure for function, failed to get function AST");
+
+	size_t argc = getParameterCount(ast);
+	int jitArgc = argc * 2 + 1;
+
+	jit_type_t argDef[jitArgc];
+	argDef[0] = jit_type_void_ptr;
+	for(int i = 0; i < argc; i++)
+	{
+		argDef[i * 2 + 1] = jit_type_long;
+		argDef[i * 2 + 2] = jit_type_ulong;
+	}
+	jit_type_t checkerSig = jit_type_create_signature(jit_abi_cdecl, ptrs_jit_getVarType(),
+		argDef, jitArgc, 0);
+
+	char checkerName[strlen(".checked") + strlen(ast->name) + 1];
+	sprintf(checkerName, "%s.checked", ast->name);
+
+	jit_function_t funcParent = jit_function_get_nested_parent(func);
+	jit_function_t checker = ptrs_jit_createFunction(node, funcParent, checkerSig, strdup(checkerName));
+	jit_function_set_meta(checker, PTRS_JIT_FUNCTIONMETA_UNCHECKED, func, NULL, 0);
+
+	jit_value_t thisArg = jit_value_get_param(checker, 0);
+	ptrs_jit_var_t args[argc];
+	for(int i = 0; i < argc; i++)
+	{
+		args[i].val = jit_value_get_param(checker, i * 2 + 1);
+		args[i].meta = jit_value_get_param(checker, i * 2 + 2);
+		args[i].constType = -1;
+		args[i].addressable = false;
+	}
+
+	ptrs_scope_t checkerScope;
+	ptrs_initScope(&checkerScope, NULL);
+
+	checkFunctionParameter(node, checker, &checkerScope, ast, args);
+	ptrs_jit_var_t ret = callWithCustomAbi(checker, func, NULL, ast, thisArg, argc, args, JIT_CALL_TAIL);
+
+	jit_insn_return_struct_from_values(checker, ret.val, ret.meta);
+
+	jit_insn_default_return(checker);
+	ptrs_jit_placeAssertions(checker, &checkerScope);
+
+	if(ptrs_compileAot && jit_function_compile(checker) == 0)
+		ptrs_error(node, "Failed compiling function %s", checkerName);
+
+	oldClosure = jit_function_to_closure(checker);
+	jit_function_set_meta(func, PTRS_JIT_FUNCTIONMETA_CLOSURE, oldClosure, NULL, 0);
+	return oldClosure;
+}
+
 void ptrs_jit_buildFunction(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_function_t *ast, ptrs_struct_t *thisType)
 {
 	ptrs_scope_t funcScope;
 	ptrs_initScope(&funcScope, scope);
 	funcScope.returnType = ast->retType.meta;
-
-	jit_value_t funcName = jit_const_int(func, void_ptr, (uintptr_t)ast->name);
 
 	jit_insn_mark_offset(func, node->codepos);
 
@@ -414,65 +766,14 @@ void ptrs_jit_buildFunction(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t 
 		ast->thisVal.addressable = false;
 	}
 
-	ptrs_funcparameter_t *curr = ast->args;
-	ptrs_jit_var_t param;
-	for(int i = 0; curr != NULL; i++)
-	{
-		param.val = jit_value_get_param(func, i * 2 + 1);
-		param.meta = jit_value_get_param(func, i * 2 + 2);
-		param.constType = -1;
-		param.addressable = 0;
-
-		jit_value_t paramType = NULL;
-
-		if(curr->argv != NULL)
-		{
-			paramType = ptrs_jit_getType(func, param.meta);
-
-			jit_label_t given = jit_label_undefined;
-			jit_value_t isGiven = jit_insn_eq(func, paramType, jit_const_int(func, ubyte, PTRS_TYPE_UNDEFINED));
-			jit_insn_branch_if_not(func, isGiven, &given);
-
-			ptrs_jit_var_t val = curr->argv->vtable->get(curr->argv, func, &funcScope);
-			val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
-			jit_insn_store(func, param.val, val.val);
-			jit_insn_store(func, param.meta, val.meta);
-
-			jit_insn_label(func, &given);
-		}
-
-		if(ptrs_enableSafety && curr->typing.meta.type != (uint8_t)-1)
-		{
-			jit_value_t metaJit = jit_const_long(func, ulong, *(uint64_t *)&curr->typing.meta);
-			jit_value_t iPlus1 = jit_const_int(func, int, i + 1);
-			jit_value_t fakeCondition = jit_const_int(func, ubyte, 1);
-			struct ptrs_assertion *assertion = ptrs_jit_assert(node, func, &funcScope, fakeCondition,
-				4, "Function %s requires the %d. parameter to be a of type %m but a variable of type %m was given",
-				funcName, iPlus1, metaJit, param.meta);
-
-			ptrs_jit_assertMetaCompatibility(func, assertion, curr->typing.meta, param.meta, paramType);
-		}
-
-		if(curr->arg.addressable)
-		{
-			curr->arg.val = jit_value_create(func, ptrs_jit_getVarType());
-			jit_value_t ptr = jit_insn_address_of(func, curr->arg.val);
-			jit_insn_store_relative(func, ptr, 0, param.val);
-			jit_insn_store_relative(func, ptr, sizeof(ptrs_val_t), param.meta);
-		}
-		else
-		{
-			curr->arg = param;
-		}
-
-		curr = curr->next;
-	}
+	retrieveCustomAbiParameterArray(ast, func);
 
 	ast->body->vtable->get(ast->body, func, &funcScope);
 
 	if(ast->retType.meta.type != (uint8_t)-1
 		&& ast->retType.meta.type != PTRS_TYPE_UNDEFINED)
 	{
+		jit_value_t funcName = jit_const_int(func, void_ptr, (uintptr_t)ast->name);
 		ptrs_jit_assert(node, func, &funcScope, jit_const_int(func, ubyte, 0),
 			2, "Function %s defines a return type %m, but no value was returned",
 			funcName, jit_const_long(func, ulong, *(uint64_t *)&ast->retType.meta));

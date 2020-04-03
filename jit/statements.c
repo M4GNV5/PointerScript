@@ -457,7 +457,7 @@ ptrs_jit_var_t ptrs_handle_return(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	if(scope->returnAddr == NULL)
 	{
 		ret.val = ptrs_jit_reinterpretCast(func, ret.val, jit_type_long);
-		jit_insn_return_struct_from_values(func, ret.val, ret.meta);
+		ptrs_jit_returnFromFunction(node, func, ret);
 	}
 	else
 	{
@@ -568,7 +568,7 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 	ptrs_jit_buildFunction(node, ast->symbol, scope, &ast->func, NULL);
 
 	ptrs_jit_var_t ret;
-	ret.val = jit_const_long(func, long, (uintptr_t)jit_function_to_closure(ast->symbol));
+	ret.val = jit_const_long(func, long, (uintptr_t)ptrs_jit_function_to_closure(node, ast->symbol));
 	ret.meta = ptrs_jit_pointerMeta(func,
 		jit_const_long(func, ulong, PTRS_TYPE_FUNCTION),
 		jit_insn_get_frame_pointer(func)

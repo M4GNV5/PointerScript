@@ -6,14 +6,20 @@ function assert(val, msg = "Assertion failed")
 		throw msg;
 }
 
-function assertSimilar(expected, actual, msg = "Expected [$expected] got [$actual]")
+function assertSimilar(expected, actual, msg = NULL)
 {
+	if(msg === NULL)
+		msg = "Expected [$expected] got [$actual]";
+
 	if(expected != actual)
 		throw msg;
 }
 
-function assertEq(expected, actual, msg = "Expected [$expected] got [$actual]")
+function assertEq(expected, actual, msg = NULL)
 {
+	if(msg === NULL)
+		msg = "Expected [$expected] got [$actual]";
+
 	if(typeof expected != typeof actual)
 	{
 		throw msg;

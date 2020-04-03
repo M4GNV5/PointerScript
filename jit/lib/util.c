@@ -192,6 +192,7 @@ jit_value_t ptrs_jit_reinterpretCast(jit_function_t func, jit_value_t val, jit_t
 				break;
 			case JIT_TYPE_NINT:
 			case JIT_TYPE_NUINT:
+			case JIT_TYPE_PTR:
 				intVal = constVal.un.nint_value;
 				floatVal = *(jit_float64 *)&intVal;
 				break;

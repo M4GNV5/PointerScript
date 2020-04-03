@@ -4,6 +4,7 @@
 #include "../../parser/common.h"
 #include "../../parser/ast.h"
 #include "../include/error.h"
+#include "../include/call.h"
 
 #define ptrs_util_pasteTuple(...) __VA_ARGS__
 
@@ -59,10 +60,11 @@ jit_value_t ptrs_jit_import(ptrs_ast_t *node, jit_function_t func, jit_value_t v
 	ptrs_jit_reusableCall(func, callee, jit_value_t dummy, jit_type_void, types, args)
 
 //TODO libjit needs jit_function_apply_nested and jit_apply_nested
+//TODO, dont use ptrs_jit_function_to_closure but instead call it using the custom ABI
 #define ptrs_jit_applyNested(func, ret, parentFrame, thisArg, argPtrs) \
 	do \
 	{ \
-		void *closure = jit_function_to_closure(func); \
+		void *closure = ptrs_jit_function_to_closure(NULL, func); \
 		void *args[] = {&parentFrame, &thisArg, ptrs_util_pasteTuple argPtrs}; \
 		\
 		jit_type_t argDef[sizeof(args) / sizeof(void *)]; \

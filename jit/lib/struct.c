@@ -39,7 +39,7 @@ void *ptrs_struct_getOverloadClosure(ptrs_struct_t *struc, void *handler, bool i
 {
 	struct ptrs_opoverload *overload = ptrs_struct_getOverloadInfo(struc, handler, isInstance);
 	if(overload != NULL)
-		return jit_function_to_closure(overload->handlerFunc);
+		return ptrs_jit_function_to_closure(NULL, overload->handlerFunc);
 	else
 		return NULL;
 }
@@ -170,7 +170,7 @@ ptrs_var_t ptrs_struct_getMember(ptrs_ast_t *ast, void *data, ptrs_struct_t *str
 			return result;
 
 		case PTRS_STRUCTMEMBER_FUNCTION:
-			result.value.nativeval = jit_function_to_closure(member->value.function.func);
+			result.value.nativeval = ptrs_jit_function_to_closure(ast, member->value.function.func);
 			*(uint64_t *)&result.meta = ptrs_const_pointerMeta(PTRS_TYPE_FUNCTION, struc->parentFrame);
 			return result;
 
@@ -310,7 +310,7 @@ ptrs_jit_var_t ptrs_jit_struct_get(ptrs_ast_t *node, jit_function_t func, ptrs_s
 				.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_NATIVE, true, 0),
 				.constType = PTRS_TYPE_NATIVE
 			};
-			return ptrs_jit_ncallnested(func, base.val, overload, 1, &arg);
+			return ptrs_jit_ncallnested(node, func, scope, base.val, overload, 1, &arg);
 		}
 		else if(member->type == PTRS_STRUCTMEMBER_SETTER)
 		{
@@ -343,12 +343,12 @@ ptrs_jit_var_t ptrs_jit_struct_get(ptrs_ast_t *node, jit_function_t func, ptrs_s
 				return result;
 
 			case PTRS_STRUCTMEMBER_GETTER:
-				return ptrs_jit_callnested(func, scope, base.val, member->value.function.func, NULL);
+				return ptrs_jit_callnested(node, func, scope, base.val, member->value.function.func, NULL);
 
 			case PTRS_STRUCTMEMBER_FUNCTION:
 				;
 				jit_function_t target = member->value.function.func;
-				result.val = jit_const_long(func, long, (uintptr_t)jit_function_to_closure(target));
+				result.val = jit_const_long(func, long, (uintptr_t)ptrs_jit_function_to_closure(node, target));
 				result.meta = ptrs_jit_pointerMeta(func,
 					jit_const_long(func, ulong, PTRS_TYPE_FUNCTION),
 					jit_insn_get_parent_frame_pointer_of(func, target)
@@ -456,7 +456,7 @@ void ptrs_jit_struct_set(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *sc
 			args[1].val = ptrs_jit_reinterpretCast(func, value.val, jit_type_long);
 			args[1].meta = value.meta;
 
-			ptrs_jit_ncallnested(func, base.val, overload, 2, args);
+			ptrs_jit_ncallnested(node, func, scope, base.val, overload, 2, args);
 			return;
 		}
 		else if(member->type == PTRS_STRUCTMEMBER_GETTER)
@@ -583,7 +583,7 @@ ptrs_jit_var_t ptrs_jit_struct_addressof(ptrs_ast_t *node, jit_function_t func, 
 				.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_NATIVE, true, 0),
 				.constType = PTRS_TYPE_NATIVE
 			};
-			return ptrs_jit_ncallnested(func, base.val, overload, 1, &arg);
+			return ptrs_jit_ncallnested(node, func, scope, base.val, overload, 1, &arg);
 		}
 
 		jit_value_t data;
@@ -662,7 +662,7 @@ ptrs_jit_var_t ptrs_jit_struct_call(ptrs_ast_t *node, jit_function_t func, ptrs_
 		}
 		else //member->type == PTRS_STRUCTMEMBER_FUNCTION
 		{
-			return ptrs_jit_callnested(func, scope, base.val, member->value.function.func, args);
+			return ptrs_jit_callnested(node, func, scope, base.val, member->value.function.func, args);
 		}
 	}
 	else
@@ -689,7 +689,7 @@ ptrs_jit_var_t ptrs_struct_construct(ptrs_ast_t *ast, jit_function_t func, ptrs_
 
 		jit_function_t ctor = ptrs_struct_getOverload(struc, ptrs_handle_new, true);
 		if(ctor != NULL)
-			ptrs_jit_callnested(func, scope, instance, ctor, arguments);
+			ptrs_jit_callnested(ast, func, scope, instance, ctor, arguments);
 	}
 	else
 	{
