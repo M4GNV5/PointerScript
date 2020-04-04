@@ -471,20 +471,25 @@ static ptrs_jit_var_t callWithCustomAbi(jit_function_t func, jit_function_t unch
 	return handleCustomAbiReturn(func, ast, jitRet);
 }
 
-void ptrs_jit_returnFromFunction(ptrs_ast_t *node, jit_function_t func, ptrs_jit_var_t val)
+void ptrs_jit_returnFromFunction(jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
 {
-	ptrs_function_t *ast = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_FUNCAST);
-	if(ast == NULL)
-		ptrs_error(node, "Failed retrieving ast for returning function");
-
-	jit_type_t retType = getCustomAbiReturnType(ast);
-
-	if(retType == ptrs_jit_getVarType())
-		jit_insn_return_struct_from_values(func, val.val, val.meta);
-	else if(retType == jit_type_void)
+	int8_t retType = scope->returnType.type;
+	if(retType == PTRS_TYPE_UNDEFINED)
 		jit_insn_default_return(func);
-	else
+	else if(retType == PTRS_TYPE_INT || retType == PTRS_TYPE_FLOAT)
 		jit_insn_return(func, val.val);
+	else
+		jit_insn_return_struct_from_values(func, val.val, val.meta);
+}
+
+void ptrs_jit_returnPtrFromFunction(jit_function_t func, ptrs_scope_t *scope, jit_value_t addr)
+{
+	ptrs_jit_var_t ret;
+	ret.val = jit_insn_load_relative(func, addr, 0, jit_type_long);
+	ret.meta = jit_insn_load_relative(func, addr, sizeof(ptrs_val_t), jit_type_ulong);
+	ret.constType = -1;
+	ret.addressable = false;
+	ptrs_jit_returnFromFunction(func, scope, ret);
 }
 
 ptrs_jit_var_t ptrs_jit_ncallnested(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,

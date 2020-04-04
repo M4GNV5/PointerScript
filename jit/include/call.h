@@ -11,7 +11,8 @@ ptrs_jit_var_t ptrs_jit_callnested(ptrs_ast_t *node, jit_function_t func, ptrs_s
 
 void *ptrs_jit_function_to_closure(ptrs_ast_t *node, jit_function_t func);
 
-void ptrs_jit_returnFromFunction(ptrs_ast_t *node, jit_function_t func, ptrs_jit_var_t val);
+void ptrs_jit_returnFromFunction(jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val);
+void ptrs_jit_returnPtrFromFunction(jit_function_t func, ptrs_scope_t *scope, jit_value_t addr);
 
 jit_function_t ptrs_jit_createFunction(ptrs_ast_t *node, jit_function_t parent,
 	jit_type_t signature, const char *name);

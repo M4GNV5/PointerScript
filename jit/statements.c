@@ -457,7 +457,7 @@ ptrs_jit_var_t ptrs_handle_return(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	if(scope->returnAddr == NULL)
 	{
 		ret.val = ptrs_jit_reinterpretCast(func, ret.val, jit_type_long);
-		ptrs_jit_returnFromFunction(node, func, ret);
+		ptrs_jit_returnFromFunction(func, scope, ret);
 	}
 	else
 	{
@@ -1215,7 +1215,7 @@ ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	);
 
 	jit_insn_label(func, &returnVal);
-	jit_insn_return_ptr(func, retAddr, ptrs_jit_getVarType());
+	ptrs_jit_returnPtrFromFunction(func, scope, retAddr);
 
 	jit_insn_label(func, &done);
 
@@ -1272,7 +1272,7 @@ ptrs_jit_var_t ptrs_handle_scopestatement(ptrs_ast_t *node, jit_function_t func,
 		}
 
 		//return;
-		jit_insn_return_ptr(func, returnAddr, ptrs_jit_getVarType());
+		ptrs_jit_returnPtrFromFunction(func, scope, returnAddr);
 	}
 
 	jit_insn_label(func, &ok);
