@@ -76,6 +76,7 @@ struct ptrs_ast_function
 {
 	jit_function_t symbol;
 	ptrs_function_t func;
+	uint8_t isExpression : 1;
 };
 
 struct ptrs_ast_strformat

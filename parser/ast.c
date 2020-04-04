@@ -641,6 +641,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		ptrs_function_t *func = &stmt->arg.function.func;
 		func->name = readIdentifier(code);
 
+		stmt->arg.function.isExpression = false;
 		stmt->arg.function.symbol = NULL;
 
 		struct symbollist *symbol = addSpecialSymbol(code, strdup(func->name), PTRS_SYMBOL_FUNCTION);
@@ -1099,6 +1100,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 	{
 		ast = talloc(ptrs_ast_t);
 		ast->vtable = &ptrs_ast_vtable_function;
+		ast->arg.function.isExpression = true;
 
 		ptrs_function_t *func = &ast->arg.function.func;
 		func->name = "(anonymous function)";
@@ -1245,6 +1247,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 
 				ast = talloc(ptrs_ast_t);
 				ast->vtable = &ptrs_ast_vtable_function;
+				ast->arg.function.isExpression = true;
 
 				ptrs_function_t *func = &ast->arg.function.func;
 				func->name = "(lambda expression)";

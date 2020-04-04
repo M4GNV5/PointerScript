@@ -568,12 +568,21 @@ ptrs_jit_var_t ptrs_handle_function(ptrs_ast_t *node, jit_function_t func, ptrs_
 	ptrs_jit_buildFunction(node, ast->symbol, scope, &ast->func, NULL);
 
 	ptrs_jit_var_t ret;
-	ret.val = jit_const_long(func, long, (uintptr_t)ptrs_jit_function_to_closure(node, ast->symbol));
-	ret.meta = ptrs_jit_pointerMeta(func,
-		jit_const_long(func, ulong, PTRS_TYPE_FUNCTION),
-		jit_insn_get_frame_pointer(func)
-	);
-	ret.constType = PTRS_TYPE_FUNCTION;
+	if(ast->isExpression)
+	{
+		ret.val = jit_const_long(func, long, (uintptr_t)ptrs_jit_function_to_closure(node, ast->symbol));
+		ret.meta = ptrs_jit_pointerMeta(func,
+			jit_const_long(func, ulong, PTRS_TYPE_FUNCTION),
+			jit_insn_get_frame_pointer(func)
+		);
+		ret.constType = PTRS_TYPE_FUNCTION;
+	}
+	else
+	{
+		ret.val = jit_const_long(func, long, 0);
+		ret.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
+		ret.constType = PTRS_TYPE_UNDEFINED;
+	}
 
 	return ret;
 }

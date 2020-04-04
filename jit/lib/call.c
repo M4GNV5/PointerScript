@@ -182,16 +182,22 @@ static void checkFunctionParameter(ptrs_ast_t *node, jit_function_t func, ptrs_s
 
 	for(int i = 0; curr != NULL; i++)
 	{
+		ptrs_jit_var_t param;
+		if(args != NULL)
+			param = args[i];
+		else
+			param = curr->arg;
+
 		jit_value_t paramType = NULL;
-		if(args[i].constType != -1)
-			paramType = jit_const_long(func, ulong, args[i].constType);
+		if(param.constType != -1)
+			paramType = jit_const_long(func, ulong, param.constType);
 
 		if(curr->argv != NULL)
 		{
 			if(paramType == NULL)
-				paramType = ptrs_jit_getType(func, args[i].meta);
+				paramType = ptrs_jit_getType(func, param.meta);
 
-			if(args[i].constType == -1)
+			if(param.constType == -1)
 			{
 				jit_label_t given = jit_label_undefined;
 				jit_value_t isGiven = jit_insn_ne(func, paramType, jit_const_int(func, ubyte, PTRS_TYPE_UNDEFINED));
@@ -200,14 +206,14 @@ static void checkFunctionParameter(ptrs_ast_t *node, jit_function_t func, ptrs_s
 				ptrs_jit_var_t val = curr->argv->vtable->get(curr->argv, func, scope);
 				val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long); // TODO is this needed / a problem?
 
-				jit_insn_store(func, args[i].val, val.val);
-				jit_insn_store(func, args[i].meta, val.meta);
+				jit_insn_store(func, param.val, val.val);
+				jit_insn_store(func, param.meta, val.meta);
 
 				jit_insn_label(func, &given);
 			}
-			else if(args[i].constType == PTRS_TYPE_UNDEFINED)
+			else if(param.constType == PTRS_TYPE_UNDEFINED)
 			{
-				args[i] = curr->argv->vtable->get(curr->argv, func, scope);
+				param = curr->argv->vtable->get(curr->argv, func, scope);
 			}
 		}
 
@@ -219,25 +225,31 @@ static void checkFunctionParameter(ptrs_ast_t *node, jit_function_t func, ptrs_s
 			jit_value_t metaJit = jit_const_long(func, ulong, *(uint64_t *)&curr->typing.meta);
 			struct ptrs_assertion *assertion = ptrs_jit_assert(node, func, scope, fakeCondition,
 				4, "Function %s requires the %d. parameter to be a of type %m but a variable of type %m was given",
-				funcName, iPlus1, metaJit, args[i].meta);
+				funcName, iPlus1, metaJit, param.meta);
 
-			ptrs_jit_assertMetaCompatibility(func, assertion, curr->typing.meta, args[i].meta, paramType);
+			ptrs_jit_assertMetaCompatibility(func, assertion, curr->typing.meta, param.meta, paramType);
 
-			args[i].constType = curr->typing.meta.type;
-			// TODO also set args[i].meta for undefined, int and float params
+			param.constType = curr->typing.meta.type;
+			// TODO also set param.meta for undefined, int and float params
 		}
 		else
 		{
-			args[i].val = ptrs_jit_reinterpretCast(func, args[i].val, jit_type_long);
+			param.val = ptrs_jit_reinterpretCast(func, param.val, jit_type_long);
 		}
+
+		if(args != NULL)
+			args[i] = param;
+		else
+			curr->arg = param;
 
 		curr = curr->next;
 	}
 }
 
-static void retrieveCustomAbiParameterArray(ptrs_function_t *ast, jit_function_t func)
+static bool retrieveParameterArray(ptrs_function_t *ast, jit_function_t func)
 {
 	size_t argPos = 1;
+	bool usesCustomAbi = false;
 
 	ptrs_funcparameter_t *argDef = ast->args;
 	for(; argDef != NULL; argDef = argDef->next)
@@ -248,6 +260,8 @@ static void retrieveCustomAbiParameterArray(ptrs_function_t *ast, jit_function_t
 		if(argDef != NULL && argDef->typing.meta.type != (uint8_t)-1)
 		{
 			param.constType = argDef->typing.meta.type;
+			usesCustomAbi = true;
+
 			switch(argDef->typing.meta.type)
 			{
 				case PTRS_TYPE_UNDEFINED:
@@ -289,18 +303,10 @@ static void retrieveCustomAbiParameterArray(ptrs_function_t *ast, jit_function_t
 			argPos += 2;
 		}
 
-		if(argDef->arg.addressable)
-		{
-			argDef->arg.val = jit_value_create(func, ptrs_jit_getVarType());
-			jit_value_t ptr = jit_insn_address_of(func, argDef->arg.val);
-			jit_insn_store_relative(func, ptr, 0, param.val);
-			jit_insn_store_relative(func, ptr, sizeof(ptrs_val_t), param.meta);
-		}
-		else
-		{
-			argDef->arg = param;
-		}
+		argDef->arg = param;
 	}
+
+	return usesCustomAbi;
 }
 static size_t fillCustomAbiArgumentArray(ptrs_function_t *ast, jit_type_t *typeDef, jit_value_t *jitArgs,
 	jit_value_t thisArg, size_t narg, ptrs_jit_var_t *args)
@@ -685,9 +691,9 @@ void *ptrs_jit_createCallback(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 
 void *ptrs_jit_function_to_closure(ptrs_ast_t *node, jit_function_t func)
 {
-	void *oldClosure = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_CLOSURE);
-	if(oldClosure != NULL)
-		return oldClosure;
+	jit_function_t closureFunc = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_CLOSURE);
+	if(closureFunc != NULL)
+		return jit_function_to_closure(closureFunc);
 
 	if(node == NULL)
 		node = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_AST);
@@ -742,9 +748,8 @@ void *ptrs_jit_function_to_closure(ptrs_ast_t *node, jit_function_t func)
 	if(ptrs_compileAot && jit_function_compile(checker) == 0)
 		ptrs_error(node, "Failed compiling function %s", checkerName);
 
-	oldClosure = jit_function_to_closure(checker);
-	jit_function_set_meta(func, PTRS_JIT_FUNCTIONMETA_CLOSURE, oldClosure, NULL, 0);
-	return oldClosure;
+	jit_function_set_meta(func, PTRS_JIT_FUNCTIONMETA_CLOSURE, checker, NULL, 0);
+	return jit_function_to_closure(checker);
 }
 
 void ptrs_jit_buildFunction(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
@@ -771,7 +776,28 @@ void ptrs_jit_buildFunction(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t 
 		ast->thisVal.addressable = false;
 	}
 
-	retrieveCustomAbiParameterArray(ast, func);
+	bool usesCustomAbi = retrieveParameterArray(ast, func);
+
+	if(!usesCustomAbi)
+	{
+		// the function uses the default ABI, we prevent having a custom .checked
+		// function by checking parameters here and setting the function to be
+		// its own closure
+		checkFunctionParameter(node, func, &funcScope, ast, NULL);
+		jit_function_set_meta(func, PTRS_JIT_FUNCTIONMETA_CLOSURE, func, NULL, 0);
+	}
+
+	for(ptrs_funcparameter_t *curr = ast->args; curr != NULL; curr = curr->next)
+	{
+		if(curr->arg.addressable)
+		{
+			ptrs_jit_var_t param = curr->arg;
+			curr->arg.val = jit_value_create(func, ptrs_jit_getVarType());
+			jit_value_t ptr = jit_insn_address_of(func, curr->arg.val);
+			jit_insn_store_relative(func, ptr, 0, param.val);
+			jit_insn_store_relative(func, ptr, sizeof(ptrs_val_t), param.meta);
+		}
+	}
 
 	ast->body->vtable->get(ast->body, func, &funcScope);
 
