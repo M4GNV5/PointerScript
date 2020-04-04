@@ -72,7 +72,7 @@ jit_value_t ptrs_jit_import(ptrs_ast_t *node, jit_function_t func, jit_value_t v
 			argDef[i] = jit_type_ulong; \
 		\
 		jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, \
-			jit_type_get_return(jit_function_get_signature(func)), argDef, \
+			ptrs_jit_getVarType(), argDef, \
 			sizeof(argDef) / sizeof(jit_type_t), 0); \
 		\
 		jit_apply(signature, closure, args, sizeof(args) / sizeof(void *), ret); \
