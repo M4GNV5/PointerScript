@@ -47,7 +47,6 @@
 	- [IndexExpression](#indexexpression)
 	- [SliceExpression](#sliceexpression)
 	- [IndexLengthExpression](#indexlengthexpression)
-	- [ExpandExpression](#expandexpression)
 	- [AsExpression](#asexpression)
 	- [CastBuiltinExpression](#castbuiltinexpression)
 	- [CastToStringExpression](#casttostringexpression)
@@ -856,17 +855,12 @@ atol!long("-42")
 Arguments can be one of:
 - `'_'` do not pass the argument (use default value)
 - `Expression` pass a value
-- `'...' Expression` expand an array as multiple arguments (expanding it)
 ```js
 function foo(a = 3) { /* ... */ }
 foo(_); //a will be 3
 
 function bar(a) { /* ... */ }
 bar(5); //a will be 5
-
-function doSomething(x, y, z) { /* ... */ }
-var args[] = [42, 1337, "foo"];
-doSomething(...args); //x will be 42, y will be 1336 and z will be "foo"
 ```
 
 ## LambdaExpression
@@ -1049,19 +1043,6 @@ printf("%s\n", foo[$ - 1]); //prints ptrs
 var bar = foo[$ - 2 .. $]
 //sets tar to an array starting at 'foo' with length '4'
 var tar = foo[0 .. $ - 2];
-```
-
-## ExpandExpression
-note that expression must be of type `pointer`
-```js
-//'...' Expression
-
-var args = new array[] [18, "devil", 666];
-var foo = new array[] [42, ...args, "hihi"];
-
-//as seen under CallExpression
-printf("age: %d, sentence: %s, evil: %d", ...args);
-
 ```
 
 ## AsExpression

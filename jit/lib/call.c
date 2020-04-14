@@ -24,8 +24,6 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 	struct ptrs_astlist *curr = args;
 	for(int i = 0; i < narg; i++)
 	{
-		//if(curr->expand) //TODO
-
 		ptrs_jit_var_t val;
 		if(curr->entry == NULL)
 		{
@@ -525,7 +523,6 @@ ptrs_jit_var_t ptrs_jit_callnested(ptrs_ast_t *node, jit_function_t func, ptrs_s
 
 	for(int i = 0; i < narg; i++)
 	{
-		//if(args->expand) //TODO
 		if(args == NULL || args->entry == NULL)
 		{
 			_args[i].val = jit_const_int(func, long, 0);

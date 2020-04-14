@@ -1422,22 +1422,9 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end)
 
 	for(;;)
 	{
-		curr->expand = false;
-
 		if(lookahead(code, "_"))
 		{
 			curr->entry = NULL;
-		}
-		else if(lookahead(code, "..."))
-		{
-			curr->expand = true;
-			curr->entry = parseExpression(code, true);
-			if(curr->entry->vtable != &ptrs_ast_vtable_identifier
-				&& curr->entry->vtable != &ptrs_ast_vtable_constant)
-				unexpectedm(code, NULL, "Array spreading can only be used on identifiers and constants");
-
-			if(curr->entry == NULL)
-				unexpected(code, "Expression");
 		}
 		else
 		{

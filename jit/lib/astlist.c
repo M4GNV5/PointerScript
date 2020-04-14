@@ -11,9 +11,6 @@ int ptrs_astlist_length(struct ptrs_astlist *curr)
 	int len = 0;
 	while(curr != NULL)
 	{
-		if(curr->expand)
-			ptrs_error(curr->entry, "Argument array expansion is not implemented");
-
 		len++;
 		curr = curr->next;
 	}
@@ -50,8 +47,6 @@ void ptrs_astlist_handle(struct ptrs_astlist *list, jit_function_t func, ptrs_sc
 	{
 		for(; list != NULL; i++)
 		{
-			//if(list->expand) //TODO
-
 			if(list->entry == NULL)
 			{
 				result.val = zero;
@@ -124,8 +119,6 @@ void ptrs_astlist_handleByte(struct ptrs_astlist *list, jit_function_t func, ptr
 	{
 		for(; list != NULL; i++)
 		{
-			//if(list->expand) //TODO
-
 			if(list->entry == NULL)
 			{
 				result = zero;

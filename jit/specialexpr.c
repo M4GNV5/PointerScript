@@ -964,8 +964,6 @@ ptrs_jit_var_t ptrs_handle_yield(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	struct ptrs_astlist *curr = expr->values;
 	for(int i = 0; i < narg; i++)
 	{
-		//TODO curr->expand
-
 		argDef[i * 2 + 1] = jit_type_long;
 		argDef[i * 2 + 2] = jit_type_ulong;
 

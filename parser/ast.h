@@ -244,7 +244,6 @@ struct ptrs_astlist
 {
 	struct ptrs_ast *entry;
 	struct ptrs_astlist *next;
-	uint8_t expand : 1;
 };
 
 struct ptrs_stringformat
