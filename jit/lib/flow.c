@@ -1639,10 +1639,6 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		body \
 		mergePredictions(flow, &other); \
 		\
-		dupFlow(&other, flow); \
-		body \
-		mergePredictions(flow, &other); \
-		\
 		/* TODO replace this by a fix point algorithm? */ \
 	}
 

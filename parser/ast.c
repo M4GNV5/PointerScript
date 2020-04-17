@@ -392,7 +392,11 @@ static ptrs_funcparameter_t *parseArgumentDefinitionList(code_t *code,
 				parseOptionalTyping(code, &curr->typing);
 
 			if(lookahead(code, "="))
+			{
 				curr->argv = parseExpression(code, true);
+				if(curr->argv->vtable != &ptrs_ast_vtable_constant)
+					PTRS_HANDLE_ASTERROR(curr->argv, "function parameter default values have to be constants");
+			}
 
 			addSymbol(code, strdup(curr->name), &curr->arg);
 		}
