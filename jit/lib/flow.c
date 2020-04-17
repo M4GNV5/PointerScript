@@ -1874,30 +1874,12 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 			}
 		}
 	}
-	else if(node->vtable == &ptrs_ast_vtable_while)
+	else if(node->vtable == &ptrs_ast_vtable_loop)
 	{
-		struct ptrs_ast_control *stmt = &node->arg.control;
-		bool condition;
+		ptrs_ast_t *body = node->arg.astval;
 
 		loopPredictionsRemerge(
-			analyzeExpression(flow, stmt->condition, &dummy);
-			if(!flow->dryRun && prediction2bool(&dummy, &condition) && !condition)
-				return;
-
-			analyzeStatement(flow, stmt->body, &dummy);
-		);
-	}
-	else if(node->vtable == &ptrs_ast_vtable_dowhile)
-	{
-		struct ptrs_ast_control *stmt = &node->arg.control;
-		bool condition;
-
-		loopPredictionsRemerge(
-			analyzeStatement(flow, stmt->body, &dummy);
-
-			analyzeExpression(flow, stmt->condition, &dummy);
-			if(!flow->dryRun && prediction2bool(&dummy, &condition) && !condition)
-				return;
+			analyzeStatement(flow, body, &dummy);
 		);
 	}
 	else if(node->vtable == &ptrs_ast_vtable_for)

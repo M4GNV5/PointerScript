@@ -277,6 +277,49 @@ static ptrs_ast_t *parseStmtList(code_t *code, char end)
 	}
 }
 
+static ptrs_ast_t *astToAstlist(ptrs_ast_t *ast)
+{
+	struct ptrs_astlist *entry = talloc(struct ptrs_astlist);
+	entry->entry = ast;
+
+	ast = talloc(ptrs_ast_t);
+	ast->vtable = &ptrs_ast_vtable_body;
+	ast->codepos = ast->codepos;
+	ast->code = ast->code;
+	ast->file = ast->file;
+	ast->arg.astlist = entry;
+
+	return ast;
+}
+static ptrs_ast_t *prependAstToAst(ptrs_ast_t *ast, ptrs_ast_t *elem)
+{
+	if(ast->vtable != &ptrs_ast_vtable_body)
+		ast = astToAstlist(ast);
+
+	struct ptrs_astlist *entry = talloc(struct ptrs_astlist);
+	entry->entry = elem;
+	entry->next = ast->arg.astlist;
+	ast->arg.astlist = entry;
+
+	return ast;
+}
+static ptrs_ast_t *appendAstToAst(ptrs_ast_t *ast, ptrs_ast_t *elem)
+{
+	if(ast->vtable != &ptrs_ast_vtable_body)
+		ast = astToAstlist(ast);
+
+	struct ptrs_astlist *last = ast->arg.astlist;
+	while(last->next != NULL)
+		last = last->next;
+
+	last->next = talloc(struct ptrs_astlist);
+	last = last->next;
+	last->entry = elem;
+	last->next = NULL;
+
+	return ast;
+}
+
 int parseIdentifierList(code_t *code, char *end, ptrs_jit_var_t **symbols, char ***fields)
 {
 	int pos = code->pos;
@@ -684,25 +727,41 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "while"))
 	{
-		stmt->vtable = &ptrs_ast_vtable_while;
+		stmt->vtable = &ptrs_ast_vtable_loop;
 
+		ptrs_ast_t *breakIf = talloc(ptrs_ast_t);
+		breakIf->vtable = &ptrs_ast_vtable_if;
 		consumec(code, '(');
-		stmt->arg.control.condition = parseExpression(code, true);
+		breakIf->arg.ifelse.condition = parseExpression(code, true);
 		consumec(code, ')');
-		stmt->arg.control.body = parseBody(code, true, false);
+		breakIf->arg.ifelse.ifBody = NULL;
+		breakIf->arg.ifelse.elseBody = talloc(ptrs_ast_t);
+		breakIf->arg.ifelse.elseBody->vtable = &ptrs_ast_vtable_break;
+
+		stmt->arg.astval = parseBody(code, true, false);
+		stmt->arg.astval = prependAstToAst(stmt->arg.astval, breakIf);
 	}
 	else if(lookahead(code, "do"))
 	{
+		stmt->vtable = &ptrs_ast_vtable_loop;
+
 		symbolScope_increase(code, false);
-		stmt->vtable = &ptrs_ast_vtable_dowhile;
-		stmt->arg.control.body = parseScopelessBody(code, true);
+		stmt->arg.astval = parseScopelessBody(code, true);
 		consume(code, "while");
 
+		ptrs_ast_t *breakIf = talloc(ptrs_ast_t);
+		breakIf->vtable = &ptrs_ast_vtable_if;
+		breakIf->arg.ifelse.ifBody = NULL;
+		breakIf->arg.ifelse.elseBody = talloc(ptrs_ast_t);
+		breakIf->arg.ifelse.elseBody->vtable = &ptrs_ast_vtable_break;
+
 		consumec(code, '(');
-		stmt->arg.control.condition = parseExpression(code, true);
+		breakIf->arg.ifelse.condition = parseExpression(code, true);
 		consumec(code, ')');
 		consumec(code, ';');
 		symbolScope_decrease(code);
+
+		stmt->arg.astval = appendAstToAst(stmt->arg.astval, breakIf);
 	}
 	else if(lookahead(code, "foreach"))
 	{

@@ -750,16 +750,24 @@ ptrs_jit_var_t ptrs_handle_if(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 
 	ptrs_jit_var_t condition = stmt->condition->vtable->get(stmt->condition, func, scope);
 
+	jit_label_t end = jit_label_undefined;
 	jit_label_t isFalse = jit_label_undefined;
-	ptrs_jit_branch_if_not(func, &isFalse, condition);
 
-	stmt->ifBody->vtable->get(stmt->ifBody, func, scope);
+	if(stmt->ifBody != NULL)
+	{
+		ptrs_jit_branch_if_not(func, &isFalse, condition);
+		stmt->ifBody->vtable->get(stmt->ifBody, func, scope);
+
+		if(stmt->elseBody != NULL)
+			jit_insn_branch(func, &end);
+	}
+	else
+	{
+		ptrs_jit_branch_if(func, &end, condition);
+	}
 
 	if(stmt->elseBody != NULL)
 	{
-		jit_label_t end = jit_label_undefined;
-		jit_insn_branch(func, &end);
-
 		jit_insn_label(func, &isFalse);
 		stmt->elseBody->vtable->get(stmt->elseBody, func, scope);
 
@@ -768,6 +776,7 @@ ptrs_jit_var_t ptrs_handle_if(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 	else
 	{
 		jit_insn_label(func, &isFalse);
+		jit_insn_label(func, &end);
 	}
 
 	return condition;
@@ -902,10 +911,9 @@ ptrs_jit_var_t ptrs_handle_switch(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	jit_insn_label(func, &done);
 }
 
-ptrs_jit_var_t ptrs_handle_while(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_loop(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
-	struct ptrs_ast_control *stmt = &node->arg.control;
-	ptrs_jit_var_t val;
+	ptrs_ast_t *body = node->arg.astval;
 
 	bool oldAllowed = scope->loopControlAllowed;
 	jit_label_t oldContinue = scope->continueLabel;
@@ -915,53 +923,14 @@ ptrs_jit_var_t ptrs_handle_while(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	scope->continueLabel = jit_label_undefined;
 	scope->breakLabel = jit_label_undefined;
 
+	//patch all continues to the start of the loop body
 	jit_insn_label(func, &scope->continueLabel);
 
-	//evaluate the condition
-	val = stmt->condition->vtable->get(stmt->condition, func, scope);
+	//run the loop body
+	ptrs_jit_var_t val = body->vtable->get(body, func, scope);
 
-	jit_label_t end = jit_label_undefined;
-	ptrs_jit_branch_if_not(func, &end, val);
-
-	//run the while body, jumping back the condition check afterwords
-	val = stmt->body->vtable->get(stmt->body, func, scope);
+	// branch back to the start of the body
 	jit_insn_branch(func, &scope->continueLabel);
-
-	//after the loop - patch the end and breaks
-	jit_insn_label(func, &end);
-	jit_insn_label(func, &scope->breakLabel);
-
-	scope->loopControlAllowed = oldAllowed;
-	scope->continueLabel = oldContinue;
-	scope->breakLabel = oldBreak;
-
-	return val;
-}
-
-ptrs_jit_var_t ptrs_handle_dowhile(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
-{
-	struct ptrs_ast_control *stmt = &node->arg.control;
-
-	bool oldAllowed = scope->loopControlAllowed;
-	jit_label_t oldContinue = scope->continueLabel;
-	jit_label_t oldBreak = scope->breakLabel;
-
-	scope->loopControlAllowed = true;
-	scope->continueLabel = jit_label_undefined;
-	scope->breakLabel = jit_label_undefined;
-
-	jit_label_t start = jit_label_undefined;
-	jit_insn_label(func, &start);
-
-	//run the while body
-	ptrs_jit_var_t val = stmt->body->vtable->get(stmt->body, func, scope);
-
-	//patch all continues to after the body & before the condition check
-	jit_insn_label(func, &scope->continueLabel);
-
-	//evaluate the condition
-	ptrs_jit_var_t condition = stmt->condition->vtable->get(stmt->condition, func, scope);
-	ptrs_jit_branch_if(func, &start, condition);
 
 	//after the loop - patch the breaks
 	jit_insn_label(func, &scope->breakLabel);

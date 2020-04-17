@@ -154,7 +154,7 @@ struct ptrs_ast_ifelse
 	struct ptrs_ast *elseBody;
 };
 
-struct ptrs_ast_control
+struct ptrs_ast_loop
 {
 	struct ptrs_ast *condition;
 	struct ptrs_ast *body;
@@ -211,7 +211,6 @@ union ptrs_ast_arg
 	struct ptrs_ast_new newexpr;
 	struct ptrs_ast_ifelse ifelse;
 	struct ptrs_ast_switch switchcase;
-	struct ptrs_ast_control control;
 	struct ptrs_ast_for forstatement;
 	struct ptrs_ast_forin forin;
 	struct ptrs_ast_yield yield;
