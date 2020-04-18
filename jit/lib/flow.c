@@ -1639,6 +1639,10 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		body \
 		mergePredictions(flow, &other); \
 		\
+		dupFlow(&other, flow); \
+		body \
+		mergePredictions(flow, &other); \
+		\
 		/* TODO replace this by a fix point algorithm? */ \
 	}
 
@@ -1731,6 +1735,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 		analyzeExpression(flow, node->arg.astval, ret);
 	}
 	else if(node->vtable == &ptrs_ast_vtable_continue
+		|| node->vtable == &ptrs_ast_vtable_continue_label
 		|| node->vtable == &ptrs_ast_vtable_break)
 	{
 		//nothing
@@ -1882,22 +1887,6 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 			analyzeStatement(flow, body, &dummy);
 		);
 	}
-	else if(node->vtable == &ptrs_ast_vtable_for)
-	{
-		struct ptrs_ast_for *stmt = &node->arg.forstatement;
-		bool condition;
-
-		analyzeStatement(flow, stmt->init, &dummy);
-
-		loopPredictionsRemerge(
-			analyzeExpression(flow, stmt->condition, &dummy);
-			if(!flow->dryRun && prediction2bool(&dummy, &condition) && !condition)
-				return;
-
-			analyzeStatement(flow, stmt->body, &dummy);
-			analyzeExpression(flow, stmt->step, &dummy);
-		);
-	}
 	else if(node->vtable == &ptrs_ast_vtable_forin)
 	{
 		struct ptrs_ast_forin *stmt = &node->arg.forin;
@@ -1941,10 +1930,10 @@ void ptrs_flow_analyze(ptrs_ast_t *ast)
 
 	// make a dry run first to set addressable for variables used accross functions
 	flow.dryRun = true;
-	analyzeStatementList(&flow, ast->arg.astlist, &ret);
+	analyzeStatement(&flow, ast, &ret);
 
 	flow.dryRun = false;
-	analyzeStatementList(&flow, ast->arg.astlist, &ret);
+	analyzeStatement(&flow, ast, &ret);
 
 	freePredictions(flow.predictions);
 }

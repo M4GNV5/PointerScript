@@ -474,7 +474,7 @@ ptrs_jit_var_t ptrs_handle_break(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	if(!scope->loopControlAllowed)
 		ptrs_error(node, "break; statement is not allowed here");
 
-	if(scope->returnAddr != NULL)
+	if(scope->returnForLoopControl)
 		jit_insn_return(func, jit_const_int(func, ubyte, 2));
 	else
 		jit_insn_branch(func, &scope->breakLabel);
@@ -488,10 +488,27 @@ ptrs_jit_var_t ptrs_handle_continue(ptrs_ast_t *node, jit_function_t func, ptrs_
 	if(!scope->loopControlAllowed)
 		ptrs_error(node, "continue; statement is not allowed here");
 
-	if(scope->returnAddr != NULL)
+	if(scope->returnForLoopControl)
 		jit_insn_return(func, jit_const_int(func, ubyte, 1));
 	else
 		jit_insn_branch(func, &scope->continueLabel);
+
+	ptrs_jit_var_t ret = {NULL, NULL, -1};
+	return ret;
+}
+
+ptrs_jit_var_t ptrs_handle_continue_label(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+{
+	if(!scope->loopControlAllowed)
+		ptrs_error(node, "continue_label statement found but not allowed, "
+			"this is probably a bug in PointerScript");
+
+	if(scope->returnForLoopControl)
+		ptrs_error(node, "continue_label statement found inside nested function, "
+			"this is probably a bug in PointerScript");
+
+	jit_insn_label(func, &scope->continueLabel);
+	scope->hasCustomContinueLabel = true;
 
 	ptrs_jit_var_t ret = {NULL, NULL, -1};
 	return ret;
@@ -916,71 +933,36 @@ ptrs_jit_var_t ptrs_handle_loop(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 	ptrs_ast_t *body = node->arg.astval;
 
 	bool oldAllowed = scope->loopControlAllowed;
+	bool oldReturn = scope->returnForLoopControl;
+	bool oldContinueLabel = scope->hasCustomContinueLabel;
 	jit_label_t oldContinue = scope->continueLabel;
 	jit_label_t oldBreak = scope->breakLabel;
 
 	scope->loopControlAllowed = true;
+	scope->returnForLoopControl = false;
+	scope->hasCustomContinueLabel = false;
 	scope->continueLabel = jit_label_undefined;
 	scope->breakLabel = jit_label_undefined;
 
-	//patch all continues to the start of the loop body
-	jit_insn_label(func, &scope->continueLabel);
+	jit_label_t start = jit_label_undefined;
+	jit_insn_label(func, &start);
 
 	//run the loop body
 	ptrs_jit_var_t val = body->vtable->get(body, func, scope);
 
+	//patch all continues to the end of the loop body
+	if(!scope->hasCustomContinueLabel)
+		jit_insn_label(func, &scope->continueLabel);
+
 	// branch back to the start of the body
-	jit_insn_branch(func, &scope->continueLabel);
+	jit_insn_branch(func, &start);
 
 	//after the loop - patch the breaks
 	jit_insn_label(func, &scope->breakLabel);
 
 	scope->loopControlAllowed = oldAllowed;
-	scope->continueLabel = oldContinue;
-	scope->breakLabel = oldBreak;
-
-	return val;
-}
-
-ptrs_jit_var_t ptrs_handle_for(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
-{
-	struct ptrs_ast_for *stmt = &node->arg.forstatement;
-	ptrs_jit_var_t val;
-	jit_label_t start = jit_label_undefined;
-
-	stmt->init->vtable->get(stmt->init, func, scope);
-
-	bool oldAllowed = scope->loopControlAllowed;
-	jit_label_t oldContinue = scope->continueLabel;
-	jit_label_t oldBreak = scope->breakLabel;
-
-	scope->loopControlAllowed = true;
-	scope->continueLabel = jit_label_undefined;
-	scope->breakLabel = jit_label_undefined;
-
-	jit_insn_label(func, &start);
-
-	//evaluate the condition
-	val = stmt->condition->vtable->get(stmt->condition, func, scope);
-
-	jit_label_t end = jit_label_undefined;
-	ptrs_jit_branch_if_not(func, &end, val);
-
-	//run the while body, jumping back the condition check afterwords
-	val = stmt->body->vtable->get(stmt->body, func, scope);
-
-	jit_insn_label(func, &scope->continueLabel);
-
-	//run the step expression
-	stmt->step->vtable->get(stmt->step, func, scope);
-
-	jit_insn_branch(func, &start);
-
-	//after the loop - patch the end and breaks
-	jit_insn_label(func, &end);
-	jit_insn_label(func, &scope->breakLabel);
-
-	scope->loopControlAllowed = oldAllowed;
+	scope->returnForLoopControl = oldReturn;
+	scope->hasCustomContinueLabel = oldContinueLabel;
 	scope->continueLabel = oldContinue;
 	scope->breakLabel = oldBreak;
 
@@ -1134,6 +1116,8 @@ ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	ptrs_scope_t bodyScope;
 	ptrs_initScope(&bodyScope, scope);
 	bodyScope.loopControlAllowed = true;
+	bodyScope.returnForLoopControl = true;
+	bodyScope.hasCustomContinueLabel = false;
 	bodyScope.returnAddr = jit_value_get_param(body, 0);
 
 	stmt->body->vtable->get(stmt->body, body, &bodyScope);
@@ -1213,6 +1197,8 @@ ptrs_jit_var_t ptrs_handle_scopestatement(ptrs_ast_t *node, jit_function_t func,
 	ptrs_scope_t bodyScope;
 	ptrs_initScope(&bodyScope, scope);
 	bodyScope.loopControlAllowed = scope->loopControlAllowed;
+	bodyScope.returnForLoopControl = true;
+	bodyScope.hasCustomContinueLabel = false;
 	bodyScope.returnAddr = jit_value_get_param(bodyFunc, 0);
 
 	body->vtable->get(body, bodyFunc, &bodyScope);

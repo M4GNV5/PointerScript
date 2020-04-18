@@ -779,18 +779,47 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "for"))
 	{
-		stmt->vtable = &ptrs_ast_vtable_for;
-		symbolScope_increase(code, false);
+		stmt->vtable = &ptrs_ast_vtable_loop;
 
 		consumec(code, '(');
-		stmt->arg.forstatement.init = parseStatement(code);
-		stmt->arg.forstatement.condition = parseExpression(code, false);
+
+		symbolScope_increase(code, false);
+		ptrs_ast_t *init = parseStatement(code);
+
+		ptrs_ast_t *condition = parseExpression(code, false);
+		ptrs_ast_t *breakIf = NULL;
+		if(condition != NULL)
+		{
+			breakIf = talloc(ptrs_ast_t);
+			breakIf->vtable = &ptrs_ast_vtable_if;
+			breakIf->arg.ifelse.ifBody = NULL;
+			breakIf->arg.ifelse.elseBody = talloc(ptrs_ast_t);
+			breakIf->arg.ifelse.elseBody->vtable = &ptrs_ast_vtable_break;
+			breakIf->arg.ifelse.condition = condition;
+		}
+
 		consumec(code, ';');
-		stmt->arg.forstatement.step = parseExpression(code, false);
+		ptrs_ast_t *stepExpr = parseExpression(code, false);
+		ptrs_ast_t *step = talloc(ptrs_ast_t);
+		step->vtable = &ptrs_ast_vtable_exprstatement;
+		step->arg.astval = stepExpr;
 		consumec(code, ')');
 
-		stmt->arg.forstatement.body = parseScopelessBody(code, true);
+		stmt->arg.astval = parseScopelessBody(code, true);
 		symbolScope_decrease(code);
+
+		if(step != NULL)
+		{
+			ptrs_ast_t *contLabel = talloc(ptrs_ast_t);
+			contLabel->vtable = &ptrs_ast_vtable_continue_label;
+			stmt->arg.astval = appendAstToAst(stmt->arg.astval, contLabel);
+			stmt->arg.astval = appendAstToAst(stmt->arg.astval, step);
+		}
+
+		if(breakIf != NULL)
+			stmt->arg.astval = prependAstToAst(stmt->arg.astval, breakIf);
+
+		stmt = prependAstToAst(stmt, init);
 	}
 	else
 	{
