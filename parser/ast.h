@@ -170,17 +170,17 @@ struct ptrs_ast_for
 
 struct ptrs_ast_forin
 {
-	int varcount;
+	// filled by ast.c and used by forin_setup
+	struct ptrs_ast *valueAst;
 	ptrs_jit_var_t *varsymbols;
-	struct ptrs_ast *value;
-	struct ptrs_ast *body;
-};
+	int varcount;
 
-struct ptrs_ast_yield
-{
-	ptrs_jit_var_t *body;
-	ptrs_jit_var_t *returnInfo;
-	struct ptrs_astlist *values;
+	// filled by forin_setup and used by forin_step
+	ptrs_jit_var_t value;
+	jit_value_t iterator;
+	jit_value_t parentFrame;
+	jit_value_t varlist;
+	jit_value_t saveArea;
 };
 
 union ptrs_ast_arg
@@ -213,7 +213,7 @@ union ptrs_ast_arg
 	struct ptrs_ast_switch switchcase;
 	struct ptrs_ast_for forstatement;
 	struct ptrs_ast_forin forin;
-	struct ptrs_ast_yield yield;
+	struct ptrs_ast_forin *forinptr;
 };
 
 typedef ptrs_jit_var_t (*ptrs_asthandler_t)(struct ptrs_ast *, jit_function_t, ptrs_scope_t *);

@@ -1295,17 +1295,6 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		memset(&ret->meta, 0, sizeof(ptrs_meta_t));
 		ret->meta.type = PTRS_TYPE_INT;
 	}
-	else if(node->vtable == &ptrs_ast_vtable_yield)
-	{
-		struct ptrs_ast_yield *expr = &node->arg.yield;
-		analyzeList(flow, expr->values, ret);
-
-		ret->knownType = true;
-		ret->knownValue = false;
-		ret->knownMeta = true;
-		memset(&ret->meta, 0, sizeof(ptrs_meta_t));
-		ret->meta.type = PTRS_TYPE_INT;
-	}
 	else if(node->vtable == &ptrs_ast_vtable_op_assign)
 	{
 		struct ptrs_ast_binary *expr = &node->arg.binary;
@@ -1887,14 +1876,14 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 			analyzeStatement(flow, body, &dummy);
 		);
 	}
-	else if(node->vtable == &ptrs_ast_vtable_forin)
+	else if(node->vtable == &ptrs_ast_vtable_forin_setup)
 	{
 		struct ptrs_ast_forin *stmt = &node->arg.forin;
-		analyzeExpression(flow, stmt->value, &dummy);
-
-		loopPredictionsRemerge(
-			analyzeStatement(flow, stmt->body, &dummy);
-		);
+		analyzeExpression(flow, stmt->valueAst, &dummy);
+	}
+	else if(node->vtable == &ptrs_ast_vtable_forin_step)
+	{
+		// nothing
 	}
 	else if(node->vtable == &ptrs_ast_vtable_scopestatement)
 	{

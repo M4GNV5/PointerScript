@@ -765,16 +765,26 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	}
 	else if(lookahead(code, "foreach"))
 	{
-		consumec(code, '(');
-		symbolScope_increase(code, true);
-		stmt->arg.forin.varcount = parseIdentifierList(code, "in", &stmt->arg.forin.varsymbols, NULL);
+		stmt->vtable = &ptrs_ast_vtable_forin_setup;
+		symbolScope_increase(code, false);
 
+		consumec(code, '(');
+		stmt->arg.forin.varcount = parseIdentifierList(code, "in", &stmt->arg.forin.varsymbols, NULL);
 		consume(code, "in");
-		stmt->arg.forin.value = parseExpression(code, true);
-		stmt->vtable = &ptrs_ast_vtable_forin;
+		stmt->arg.forin.valueAst = parseExpression(code, true);
 		consumec(code, ')');
 
-		stmt->arg.forin.body = parseScopelessBody(code, true);
+		ptrs_ast_t *loopStmt = talloc(ptrs_ast_t);
+		loopStmt->vtable = &ptrs_ast_vtable_loop;
+		loopStmt->arg.astval = parseScopelessBody(code, true);
+
+		ptrs_ast_t *loopStep = talloc(ptrs_ast_t);
+		loopStep->vtable = &ptrs_ast_vtable_forin_step;
+		loopStep->arg.forinptr = &stmt->arg.forin;
+
+		loopStmt->arg.astval = prependAstToAst(loopStmt->arg.astval, loopStep);
+		stmt = appendAstToAst(stmt, loopStmt);
+
 		symbolScope_decrease(code);
 	}
 	else if(lookahead(code, "for"))
@@ -1172,21 +1182,6 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 
 		consumec(code, '>');
 		ast->arg.cast.value = parseUnaryExpr(code, false);
-	}
-	else if(lookahead(code, "yield"))
-	{
-		if(code->yield != NULL)
-		{
-			ast = talloc(ptrs_ast_t);
-			ast->vtable = &ptrs_ast_vtable_yield;
-			ast->arg.yield.body = code->yield[0];
-			ast->arg.yield.returnInfo = code->yield[1];
-			ast->arg.yield.values = parseExpressionList(code, ';');
-		}
-		else
-		{
-			unexpectedm(code, NULL, "Yield expressions are only allowed in foreach overloads");
-		}
 	}
 	else if(lookahead(code, "function"))
 	{
@@ -2178,7 +2173,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				consume(code, "this");
 
 				nameFormat = "%1$s.op foreach in this";
-				overload->op = ptrs_ast_vtable_forin.get;
+				overload->op = ptrs_ast_vtable_forin_step.get;
 
 				func->args = createParameterList(code, 2, NULL, (ptrs_vartype_t)-1, NULL, (ptrs_vartype_t)-1);
 				func->retType.meta.type = -1;

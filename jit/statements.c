@@ -969,220 +969,259 @@ ptrs_jit_var_t ptrs_handle_loop(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 	return val;
 }
 
-static void foreachInArray(struct ptrs_ast_forin *stmt, jit_function_t func, ptrs_jit_var_t val,
-	jit_function_t body, jit_type_t bodySignature, int totalArgCount,
-	jit_value_t retAddr, jit_label_t *ret, jit_label_t *done, bool isNative)
+struct array_iterator_save
 {
-	jit_label_t loop = jit_label_undefined;
-	jit_value_t size = ptrs_jit_getArraySize(func, val.meta);
-	jit_value_t index = jit_value_create(func, jit_type_nuint);
-	jit_insn_store(func, index, jit_const_int(func, nuint, 0));
+	size_t len;
+	size_t pos;
+};
+struct struct_iterator_save
+{
+	ptrs_struct_t *struc;
+	size_t pos;
+};
+static bool nativeIterator(void *parentFrame, uint8_t *array, ptrs_var_t *varlist, ptrs_meta_t varlistMeta,
+	struct array_iterator_save *saveArea, ptrs_meta_t saveAreaMeta)
+{
+	if(saveArea->pos >= saveArea->len)
+		return false;
 
-	jit_insn_label(func, &loop);
-	jit_insn_branch_if_not(func, jit_insn_lt(func, index, size), done);
-
-	jit_value_t args[totalArgCount];
-	args[0] = retAddr;
-	args[1] = index;
-	args[2] = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
-
-	if(totalArgCount > 3)
+	if(varlistMeta.array.size > 0)
 	{
-		if(isNative)
+		varlist[0].value.intval = saveArea->pos;
+		varlist[0].meta.type = PTRS_TYPE_INT;
+	}
+	if(varlistMeta.array.size > 1)
+	{
+		varlist[1].value.intval = array[saveArea->pos];
+		varlist[1].meta.type = PTRS_TYPE_INT;
+	}
+
+	for(int i = 2; i < varlistMeta.array.size; i++)
+	{
+		varlist[i].value.intval = 0;
+		varlist[i].meta.type = PTRS_TYPE_UNDEFINED;
+	}
+
+	saveArea->pos++;
+	return true;
+}
+static bool pointerIterator(void *parentFrame, uint8_t *array, ptrs_var_t *varlist, ptrs_meta_t varlistMeta,
+	struct array_iterator_save *saveArea, ptrs_meta_t saveAreaMeta)
+{
+	if(saveArea->pos >= saveArea->len)
+		return false;
+
+	if(varlistMeta.array.size > 0)
+	{
+		varlist[0].value.intval = saveArea->pos;
+		varlist[0].meta.type = PTRS_TYPE_INT;
+	}
+	if(varlistMeta.array.size > 1)
+	{
+		memcpy(varlist + 1, array + saveArea->pos, sizeof(ptrs_var_t));
+	}
+
+	for(int i = 2; i < varlistMeta.array.size; i++)
+	{
+		varlist[i].value.intval = 0;
+		varlist[i].meta.type = PTRS_TYPE_UNDEFINED;
+	}
+
+	saveArea->pos++;
+	return true;
+}
+static bool structIterator(void *parentFrame, void *data, ptrs_var_t *varlist, ptrs_meta_t varlistMeta,
+	struct struct_iterator_save *saveArea, ptrs_meta_t saveAreaMeta)
+{
+	ptrs_struct_t *struc = saveArea->struc;
+	bool isInstance = data != NULL;
+	struct ptrs_structmember *curr;
+	while(true)
+	{
+		if(saveArea->pos >= struc->memberCount)
+			return false;
+
+		curr = &struc->member[saveArea->pos];
+		saveArea->pos++;
+
+		if(curr->name != NULL && curr->type != PTRS_STRUCTMEMBER_SETTER
+			&& (curr->isStatic || isInstance))
+			break;
+	}
+
+	if(varlistMeta.array.size > 0)
+	{
+		varlist[0].value.strval = curr->name;
+		varlist[0].meta.type = PTRS_TYPE_NATIVE;
+		varlist[0].meta.array.size = curr->namelen + 1;
+	}
+	if(varlistMeta.array.size > 1)
+	{
+		varlist[1] = ptrs_struct_getMember(NULL, data, struc, curr);
+	}
+
+	for(int i = 2; i < varlistMeta.array.size; i++)
+	{
+		varlist[i].value.intval = 0;
+		varlist[i].meta.type = PTRS_TYPE_UNDEFINED;
+	}
+
+	return true;
+}
+static void *getForeachIterator(ptrs_ast_t *node, void **parentFrame, void *saveArea,
+	ptrs_val_t val, ptrs_meta_t meta)
+{
+	if(meta.type == PTRS_TYPE_NATIVE)
+	{
+		struct array_iterator_save *arraySave = saveArea;
+		arraySave->pos = 0;
+		arraySave->len = meta.array.size;
+		return nativeIterator;
+	}
+	else if(meta.type == PTRS_TYPE_POINTER)
+	{
+		struct array_iterator_save *arraySave = saveArea;
+		arraySave->pos = 0;
+		arraySave->len = meta.array.size;
+		return pointerIterator;
+	}
+	else if(meta.type == PTRS_TYPE_STRUCT)
+	{
+		ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
+		*parentFrame = struc->parentFrame;
+
+		void *handler = ptrs_struct_getOverloadClosure(struc, ptrs_handle_forin_setup, val.nativeval != NULL);
+		if(handler != NULL)
 		{
-			jit_value_t curr = jit_insn_load_elem(func, val.val, index, jit_type_ubyte);
-			args[3] = curr;
-			args[4] = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
+			return handler;
 		}
 		else
 		{
-			jit_value_t actualIndex = jit_insn_shl(func, index, jit_const_int(func, ubyte, 1));
-			args[3] = jit_insn_load_elem(func, val.val, actualIndex, jit_type_long);
-			actualIndex = jit_insn_add(func, actualIndex, jit_const_int(func, nuint, 1));
-			args[4] = jit_insn_load_elem(func, val.val, actualIndex, jit_type_ulong);
+			struct struct_iterator_save *strucSave = saveArea;
+			strucSave->struc = struc;
+			strucSave->pos = 0;
+			return structIterator;
 		}
-	}
-
-	for(int i = 6; i < totalArgCount; i++)
-		args[i] = jit_const_long(func, ulong, 0);
-
-	jit_value_t breaking = jit_insn_call(func, "(foreach body)",
-		body, bodySignature, args, totalArgCount, 0);
-
-	jit_insn_branch_if(func, jit_insn_eq(func, breaking, jit_const_int(func, ubyte, 2)), done); //break;
-	jit_insn_branch_if(func, jit_insn_eq(func, breaking, jit_const_int(func, ubyte, 3)), ret); //return;
-
-	jit_insn_store(func, index, jit_insn_add(func, index, jit_const_int(func, nuint, 1)));
-	jit_insn_branch(func, &loop);
-}
-
-typedef uint8_t (*foreach_body_t)(void *parentFrame, ptrs_var_t *retAddr,
-	const char *name, ptrs_meta_t nameMeta, ptrs_val_t val, ptrs_meta_t meta);
-typedef void (*foreach_overload_t)(void *parentFrame, void *this,
-	foreach_body_t body, ptrs_meta_t bodyMeta, ptrs_var_t *retAddr, uint8_t *retStatus);
-static uint8_t foreachInStruct(ptrs_ast_t *node, void *data, ptrs_meta_t meta,
-	ptrs_var_t *retAddr, void *bodyParent, foreach_body_t body)
-{
-	if(meta.type != PTRS_TYPE_STRUCT)
-		ptrs_error(node, "Called forinStruct with an argument of type %t", meta.type);
-
-	ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
-	foreach_overload_t overload = ptrs_struct_getOverloadClosure(struc, ptrs_handle_forin, data != NULL);
-
-	if(overload != NULL)
-	{
-		ptrs_meta_t yieldMeta;
-		ptrs_meta_setPointer(yieldMeta, bodyParent);
-		yieldMeta.type = PTRS_TYPE_FUNCTION;
-
-		uint8_t retStatus = 0;
-		overload(struc->parentFrame, data, body, yieldMeta, retAddr, &retStatus);
-
-		return retStatus;
 	}
 	else
 	{
-		for(int i = 0; i < struc->memberCount; i++)
-		{
-			struct ptrs_structmember *curr = &struc->member[i];
-			if(curr->name == NULL //hashmap filler entry
-				|| curr->type == PTRS_STRUCTMEMBER_SETTER
-				|| (data == NULL && !curr->isStatic))
-				continue;
-
-			uint64_t nameMeta = ptrs_const_arrayMeta(PTRS_TYPE_NATIVE, true, curr->namelen);
-			ptrs_var_t val = ptrs_struct_getMember(node, data, struc, curr);
-
-			uint8_t ret = body(bodyParent, retAddr, curr->name, *(ptrs_meta_t *)&nameMeta, val.value, val.meta);
-			//ret == 1 means continue;
-			if(ret == 2)
-				break;
-			else if(ret == 3)
-				return 3;
-		}
+		ptrs_error(node, "Cannot iterate over value of type %t", meta.type);
 	}
-
-	return 0;
 }
-
-ptrs_jit_var_t ptrs_handle_forin(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_forin_setup(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_forin *stmt = &node->arg.forin;
-	ptrs_jit_var_t val = stmt->value->vtable->get(stmt->value, func, scope);
+	stmt->value = stmt->valueAst->vtable->get(stmt->valueAst, func, scope);
 
-	int totalArgCount = stmt->varcount * 2 + 1;
-	jit_type_t argDef[totalArgCount];
-	argDef[0] = jit_type_void_ptr; //reserved
-
-	for(int i = 0; i < stmt->varcount; i++)
+	if(stmt->value.constType == PTRS_TYPE_NATIVE || stmt->value.constType == PTRS_TYPE_POINTER)
 	{
-		argDef[i * 2 + 1] = jit_type_long;
-		argDef[i * 2 + 2] = jit_type_ulong;
+		// set up variables for `iterateArray`
+		stmt->saveArea = ptrs_jit_getArraySize(func, stmt->value.meta);
+		stmt->iterator = jit_value_create(func, jit_type_ulong);
+		jit_insn_store(func, stmt->iterator, jit_const_long(func, ulong, 0));
+		return stmt->value;
 	}
 
-	//handle the body function
-	jit_type_t bodySignature = jit_type_create_signature(jit_abi_cdecl, jit_type_ubyte, argDef, totalArgCount, 0);
-	jit_function_t body = ptrs_jit_createFunction(node, func, bodySignature, "(foreach body)");
+	if(stmt->value.constType != -1 && stmt->value.constType != PTRS_TYPE_STRUCT)
+		ptrs_error(node, "Cannot iterate over value of type %t", stmt->value.constType);
 
-	for(int i = 0; i < stmt->varcount; i++)
-	{
-		stmt->varsymbols[i].val = jit_value_get_param(body, i * 2 + 1);
-		stmt->varsymbols[i].meta = jit_value_get_param(body, i * 2 + 2);
-		stmt->varsymbols[i].constType = -1;
-	}
+	stmt->saveArea = jit_insn_array(func, sizeof(ptrs_var_t));
+	stmt->varlist = jit_insn_array(func, stmt->varcount * sizeof(ptrs_var_t));
+	stmt->parentFrame = jit_value_create(func, jit_type_void_ptr);
 
-	//if we know the type of the value we iterate over we also know the iterator type(s)
-	switch(val.constType)
-	{
-		case PTRS_TYPE_NATIVE:
-			if(stmt->varcount >= 2)
-				stmt->varsymbols[1].constType = PTRS_TYPE_INT;
-			/* fallthrough */
-		case PTRS_TYPE_POINTER:
-			if(stmt->varcount >= 1)
-				stmt->varsymbols[0].constType = PTRS_TYPE_INT;
-			break;
-
-		case PTRS_TYPE_STRUCT:
-			if(stmt->varcount >= 1 && jit_value_is_constant(val.meta))
-			{
-				ptrs_meta_t valMeta = ptrs_jit_value_getMetaConstant(val.meta);
-				if(ptrs_struct_getOverload(ptrs_meta_getPointer(valMeta), ptrs_handle_forin, true) == NULL)
-					stmt->varsymbols[0].constType = PTRS_TYPE_NATIVE;
-			}
-			break;
-	}
-
-	ptrs_scope_t bodyScope;
-	ptrs_initScope(&bodyScope, scope);
-	bodyScope.loopControlAllowed = true;
-	bodyScope.returnForLoopControl = true;
-	bodyScope.hasCustomContinueLabel = false;
-	bodyScope.returnAddr = jit_value_get_param(body, 0);
-
-	stmt->body->vtable->get(stmt->body, body, &bodyScope);
-
-	jit_insn_return(body, jit_const_int(body, ubyte, 0));
-
-	ptrs_jit_placeAssertions(body, &bodyScope);
-
-	if(ptrs_compileAot && jit_function_compile(body) == 0)
-		ptrs_error(node, "Failed compiling foreach body");
-
-
-
-	//set up the iteration process
-	jit_label_t returnVal = jit_label_undefined;
-	jit_label_t done = jit_label_undefined;
-	jit_value_t ret = jit_value_create(func, ptrs_jit_getVarType());
-	jit_value_t retAddr = jit_insn_address_of(func, ret);
-
-	ptrs_jit_typeSwitch(node, func, scope, val,
-		(1, "Cannot iterate over value of type %t", TYPESWITCH_TYPE),
-		(PTRS_TYPE_NATIVE, PTRS_TYPE_POINTER, PTRS_TYPE_STRUCT),
-
-		case PTRS_TYPE_NATIVE:
-			foreachInArray(stmt, func, val,
-				body, bodySignature, totalArgCount,
-				retAddr, &returnVal, &done, true);
-			break;
-
-		case PTRS_TYPE_POINTER:
-			foreachInArray(stmt, func, val,
-				body, bodySignature, totalArgCount,
-				retAddr, &returnVal, &done, false);
-			break;
-
-		case PTRS_TYPE_STRUCT:
-			;
-			jit_value_t nodeVal = jit_const_int(func, void_ptr, (uintptr_t)node);
-			jit_value_t bodyParent = jit_insn_get_parent_frame_pointer_of(func, body);
-			jit_value_t bodyVal = jit_const_int(func, void_ptr, (uintptr_t)jit_function_to_closure(body));
-
-			jit_value_t retFlag;
-			ptrs_jit_reusableCall(func, foreachInStruct, retFlag, jit_type_ubyte,
-				(
-					jit_type_void_ptr, //node
-					jit_type_long, //struct data
-					jit_type_ulong, //struct meta
-					jit_type_void_ptr, //return address
-					jit_type_void_ptr, //body's parent frame
-					jit_type_void_ptr //body
-				),
-				(nodeVal, val.val, val.meta, retAddr, bodyParent, bodyVal)
-			);
-
-			jit_insn_branch_if(func, jit_insn_ne(func, retFlag, jit_const_int(func, ubyte, 3)), &done);
-			break;
+	jit_value_t jitNode = jit_const_int(func, void_ptr, (uintptr_t)node);
+	jit_value_t parentFramePtr = jit_insn_address_of(func, stmt->parentFrame);
+	ptrs_jit_reusableCall(func, getForeachIterator, stmt->iterator, jit_type_void_ptr,
+		(jit_type_void_ptr, jit_type_void_ptr, jit_type_void_ptr, jit_type_long, jit_type_ulong),
+		(jitNode, parentFramePtr, stmt->saveArea, stmt->value.val, stmt->value.meta)
 	);
 
-	jit_insn_label(func, &returnVal);
-	ptrs_jit_returnPtrFromFunction(func, scope, retAddr);
+	return stmt->value;
+}
 
-	jit_insn_label(func, &done);
+void iterateArray(struct ptrs_ast_forin *stmt, jit_function_t func, ptrs_scope_t *scope)
+{
+	// the value is an array, we can iterate over it without an iterator function
+	// stmt->iterator holds the current index
+	// stmt->saveArea holds the array size
 
-	//jit_type_free(bodySignature);
-	return val;
+	jit_value_t condition = jit_insn_lt(func, stmt->iterator, stmt->saveArea);
+	jit_insn_branch_if_not(func, condition, &scope->breakLabel);
+
+	stmt->varsymbols[0].val = jit_insn_dup(func, stmt->iterator);
+	stmt->varsymbols[0].meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
+	stmt->varsymbols[0].constType = PTRS_TYPE_INT;
+	stmt->varsymbols[0].addressable = false;
+
+	if(stmt->value.constType == PTRS_TYPE_NATIVE)
+	{
+		jit_value_t val = jit_insn_load_elem(func, stmt->value.val, stmt->iterator, jit_type_ubyte);
+		stmt->varsymbols[1].val = jit_insn_convert(func, val, jit_type_long, 0);
+		stmt->varsymbols[1].meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
+		stmt->varsymbols[1].constType = PTRS_TYPE_INT;
+		stmt->varsymbols[1].addressable = false;
+	}
+	else // PTRS_TYPE_POINTER
+	{
+		jit_value_t index = jit_insn_mul(func, stmt->iterator, jit_const_long(func, ulong, 2));
+		stmt->varsymbols[1].val = jit_insn_load_elem(func, stmt->value.val, index, jit_type_long);
+
+		index = jit_insn_add(func, index, jit_const_long(func, ulong, 1));
+		stmt->varsymbols[1].meta = jit_insn_load_elem(func, stmt->value.val, index, jit_type_ulong);
+
+		stmt->varsymbols[1].constType = PTRS_TYPE_INT;
+		stmt->varsymbols[1].addressable = false;
+	}
+
+	jit_insn_store(func, stmt->iterator, jit_insn_add(func, stmt->iterator, jit_const_long(func, ulong, 1)));
+}
+void iterateWithIteratorFunction(struct ptrs_ast_forin *stmt, jit_function_t func, ptrs_scope_t *scope)
+{
+	static jit_type_t iteratorSig = NULL;
+	if(iteratorSig == NULL)
+	{
+		jit_type_t args[6] = {
+			jit_type_long, //parent_frame (for structs) or val.val (for arrays)
+			jit_type_ulong, //val.val (for structs) or val.meta (for arrays) 
+			jit_type_long, //varlist.val
+			jit_type_ulong, //varlist.meta
+			jit_type_long, //saveArea.val
+			jit_type_ulong, //saveArea.meta
+		};
+		iteratorSig = jit_type_create_signature(jit_abi_cdecl, jit_type_ubyte, args, 6, 0);
+	}
+
+	jit_value_t args[6] = {
+		stmt->parentFrame,
+		stmt->value.val,
+		stmt->varlist,
+		ptrs_jit_const_arrayMeta(func, PTRS_TYPE_POINTER, false, stmt->varcount),
+		stmt->saveArea,
+		ptrs_jit_const_arrayMeta(func, PTRS_TYPE_POINTER, false, 1),
+	};
+	jit_value_t done = jit_insn_call_indirect(func, stmt->iterator, iteratorSig, args, 6, 0);
+
+	jit_insn_branch_if_not(func, done, &scope->breakLabel);
+
+	for(int i = 0; i < stmt->varcount; i++)
+	{
+		stmt->varsymbols[i].val = jit_insn_load_relative(func, stmt->varlist,
+			i * sizeof(ptrs_var_t), jit_type_long);
+		stmt->varsymbols[i].meta = jit_insn_load_relative(func, stmt->varlist,
+			i * sizeof(ptrs_var_t) + sizeof(ptrs_val_t), jit_type_ulong);
+
+		stmt->varsymbols[i].constType = -1;
+		stmt->varsymbols[i].addressable = false;
+	}
+}
+ptrs_jit_var_t ptrs_handle_forin_step(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_forin *stmt = node->arg.forinptr;
+
+	if(stmt->value.constType == PTRS_TYPE_NATIVE || stmt->value.constType == PTRS_TYPE_POINTER)
+		iterateArray(stmt, func, scope);
+	else
+		iterateWithIteratorFunction(stmt, func, scope);
 }
 
 ptrs_jit_var_t ptrs_handle_scopestatement(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
