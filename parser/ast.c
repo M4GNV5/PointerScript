@@ -67,7 +67,6 @@ struct code
 	ptrs_symboltable_t *symbols;
 	bool insideIndex;
 	ptrs_jit_var_t *thisVar;
-	ptrs_jit_var_t **yield;
 };
 
 static ptrs_ast_t *parseStmtList(code_t *code, char end);
@@ -125,7 +124,6 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 	code.pos = 0;
 	code.insideIndex = false;
 	code.thisVar = NULL;
-	code.yield = NULL;
 
 	if(symbols == NULL || *symbols == NULL)
 	{
@@ -2070,7 +2068,6 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 		{
 			symbolScope_increase(code, true);
 
-			ptrs_jit_var_t **oldYield = code->yield;
 			const char *nameFormat = NULL;
 			const char *opLabel = NULL;
 			char *otherName = NULL;
@@ -2169,18 +2166,22 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			}
 			else if(lookahead(code, "foreach"))
 			{
+				consumec(code, '(');
+				opLabel = readIdentifier(code);
+				consumec(code, ',');
+				otherName = readIdentifier(code);
+				consumec(code, ')');
+
 				consume(code, "in");
 				consume(code, "this");
 
-				nameFormat = "%1$s.op foreach in this";
+				nameFormat = "%1$s.op foreach(%2$s, %3$s) in this";
 				overload->op = ptrs_ast_vtable_forin_step.get;
 
-				func->args = createParameterList(code, 2, NULL, (ptrs_vartype_t)-1, NULL, (ptrs_vartype_t)-1);
-				func->retType.meta.type = -1;
-
-				code->yield = alloca(2 * sizeof(ptrs_jit_var_t *));
-				code->yield[0] = &func->args->arg;
-				code->yield[1] = &func->args->next->arg;
+				func->args = createParameterList(code, 2,
+					opLabel, PTRS_TYPE_POINTER,
+					otherName, PTRS_TYPE_POINTER);
+				func->retType.meta.type = PTRS_TYPE_INT;
 			}
 			else if(lookahead(code, "cast"))
 			{
@@ -2230,7 +2231,6 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			sprintf(func->name, nameFormat, structName, opLabel, otherName);
 
 			func->body = parseBody(code, false, true);
-			code->yield = oldYield;
 
 			overload->handler = func;
 			overload->next = struc->overloads;

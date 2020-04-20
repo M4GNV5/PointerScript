@@ -447,7 +447,7 @@ curl_easy_cleanup(ctx);
 ```
 
 ## ScopeStatement
-Variables and stack allocations within a scoped statement won't be available outside the statement. Please note that all statements (except `foreach`) dont create a scope by themselves so doing stack allocations within a loop (e.g. by doing `var buff{1024};`) is probably a bad idea
+Variables and stack allocations within a scoped statement won't be available outside the statement. Please note that all statements dont create a scope by themselves so doing stack allocations within a loop (e.g. by doing `var buff = new_stack array{1024};`) is probably a bad idea
 ```js
 //'scoped' '{' StatementList '}'
 var myPublicVar = 42;
@@ -712,16 +712,40 @@ operator this(a, b) //will be called when the struct is called like a function
 {
 	return a + b;
 }
-//'operator' 'foreach' 'in' 'this' '{' StatementList '}'
-operator foreach in this //overloads the foreach statement
+//'operator' 'foreach' '(' Identifier ',' Identifier ')' 'in' 'this' '{' StatementList '}'
+operator foreach(fields, saveArea) in this //overloads the foreach statement
 {
-	for(var i = 0; i < 16; i++)
-	{
-		//the yield expression will execute the foreach body like a function
-		//if the yield expression returns a non-zero value the foreach body used 'break' or 'return'
-		if(yield this.items[i], i)
-			return;
-	}
+	// for a foreach statement in the form foreach(i, val in myStructInstance) {}
+	// before each iteration this overload will be called
+	// writing to fields[0] will set `i`, writing to fields[1] will set `val` and so on
+	//     sizeof fields returns the amount of fields used in the foreach statement
+	//     e.g. foreach(a, b, c, d, e, f in x) {} leads to sizeof fields == 6
+	//     make sure to check how many fields are available before writing to `fields`
+	// saveArea is a pointer to a single variable which can be used by this overload
+	//     to store iterator meta information. Initially this will be set to `undefined`
+	// returning true from this overload lets the body execute
+	// returning false from this overload ends the foreach
+
+	// retrieve the iterator from the save area
+	var i = *saveArea;
+	if(typeof i != type<int>)
+		i = 0;
+
+	// we iterate to 10, afterwords we end the foreach by returning false
+	if(i >= 10)
+		return false;
+
+	// set the foreach fields
+	if(sizeof fields > 0)
+		fields[0] = i;
+	if(sizeof fields > 1)
+		fields[1] = "derp";
+
+	// increment and store the iterator
+	i++;
+	*saveArea = i;
+
+	return true;
 }
 ```
 
@@ -771,18 +795,20 @@ Note that having more than one iterator is optional.
 ```js
 //'foreach' '(' IdentifierList 'in' Expression ')' Statement
 
-foreach(key, val in myStruct)
-{
-
-}
-//or
 var items[16];
 foreach(i in items)
 {
 
 }
 //or
-foreach(index, val in items)
+foreach(index, value in items)
+{
+
+}
+
+// structs can overload the foreach operator
+// otherwise it will iterate over each field in the struct
+foreach(key, value in myStruct)
 {
 
 }

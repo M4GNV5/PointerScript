@@ -1090,7 +1090,7 @@ static void *getForeachIterator(ptrs_ast_t *node, void **parentFrame, void *save
 		ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
 		*parentFrame = struc->parentFrame;
 
-		void *handler = ptrs_struct_getOverloadClosure(struc, ptrs_handle_forin_setup, val.nativeval != NULL);
+		void *handler = ptrs_struct_getOverloadClosure(struc, ptrs_handle_forin_step, val.nativeval != NULL);
 		if(handler != NULL)
 		{
 			return handler;
