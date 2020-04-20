@@ -145,13 +145,13 @@ int main(int argc, char **argv)
 	{
 		ptrs_enableExceptions = true;
 
-		ptrs_var_t ret;
+		jit_long ret;
 		void *arg = arguments;
 		jit_function_apply(result.func, &arg, &ret);
 
 		exitOnError();
 
-		return ptrs_vartoi(ret.value, ret.meta);
+		return ret;
 	}
 
 }

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
 #include <assert.h>
 #include <jit/jit.h>
 
@@ -32,13 +33,9 @@ char *ptrs_readFile(const char *path)
 
 void ptrs_initScope(ptrs_scope_t *scope, ptrs_scope_t *parent)
 {
-	scope->loopControlAllowed = false;
+	memset(scope, 0, sizeof(ptrs_scope_t));
 	scope->continueLabel = jit_label_undefined;
 	scope->breakLabel = jit_label_undefined;
-	scope->firstAssertion = NULL;
-	scope->lastAssertion = NULL;
-	scope->returnAddr = NULL;
-	scope->indexSize = NULL;
 
 	if(parent != NULL)
 	{
@@ -48,8 +45,6 @@ void ptrs_initScope(ptrs_scope_t *scope, ptrs_scope_t *parent)
 	}
 	else
 	{
-		scope->rootFunc = NULL;
-		scope->rootFrame = NULL;
 		scope->returnType.type = -1;
 	}
 }

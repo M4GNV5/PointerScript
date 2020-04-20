@@ -3041,13 +3041,15 @@ static bool skipComments(code_t *code)
 
 	if(curr == '/' && code->src[pos + 1] == '/')
 	{
-		while(curr != '\n')
+		while(curr != '\n' && curr != 0)
 		{
 			pos++;
 			curr = code->src[pos];
 		}
 
-		code->pos = pos + 1;
+		code->pos = pos;
+		if(curr != 0)
+			code->pos++;
 		code->curr = curr;
 		return true;
 	}

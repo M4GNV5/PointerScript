@@ -677,6 +677,13 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 
 				ptrs_jit_reusableSignature(func, ctorSignature, ptrs_jit_getVarType(), (jit_type_void_ptr));
 				ctor = ptrs_jit_createFunction(node, func, ctorSignature, ctorName);
+
+				ptrs_function_t *func = calloc(1, sizeof(ptrs_function_t));
+				func->name = ctorName;
+				func->retType.meta.type = PTRS_TYPE_UNDEFINED;
+				jit_function_set_meta(ctor, PTRS_JIT_FUNCTIONMETA_FUNCAST, func, NULL, 0);
+				jit_function_set_meta(ctor, PTRS_JIT_FUNCTIONMETA_CLOSURE, ctor, NULL, 0);
+
 				ctorData = jit_value_get_param(ctor, 0);
 				ptrs_initScope(&ctorScope, scope);
 				ctorScope.returnType.type = -1;

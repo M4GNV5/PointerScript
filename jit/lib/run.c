@@ -37,7 +37,7 @@ void ptrs_compile(ptrs_result_t *result, char *src, const char *filename)
 	if(rootSignature == NULL)
 	{
 		jit_type_t params[1] = {jit_type_void_ptr};
-		rootSignature = jit_type_create_signature(jit_abi_cdecl, ptrs_jit_getVarType(), params, 1, 1);
+		rootSignature = jit_type_create_signature(jit_abi_cdecl, jit_type_long, params, 1, 1);
 	}
 
 	result->func = ptrs_jit_createFunction(result->ast, NULL, rootSignature, "(root)");
@@ -51,10 +51,7 @@ void ptrs_compile(ptrs_result_t *result, char *src, const char *filename)
 
 	result->ast->vtable->get(result->ast, result->func, &scope);
 
-	jit_insn_return_struct_from_values(result->func,
-		jit_const_int(result->func, long, 0),
-		ptrs_jit_const_meta(result->func, PTRS_TYPE_UNDEFINED)
-	);
+	jit_insn_return(result->func, jit_const_long(result->func, long, EXIT_SUCCESS));
 
 	ptrs_jit_placeAssertions(result->func, &scope);
 

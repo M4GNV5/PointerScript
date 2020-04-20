@@ -91,6 +91,7 @@ static void mergePredictions(ptrs_flow_t *dest, ptrs_flow_t *srcFlow)
 	{
 		freePredictions(dest->predictions);
 		dest->predictions = src;
+		dest->endsInDead = srcFlow->endsInDead;
 		return;
 	}
 	if(srcFlow->endsInDead)
@@ -1611,30 +1612,6 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 	}
 }
 
-#define loopPredictionsRemerge(body) \
-	if(flow->dryRun) \
-	{ \
-		body \
-	} \
-	else \
-	{ \
-		ptrs_flow_t other; \
-		\
-		dupFlow(&other, flow); \
-		body \
-		mergePredictions(flow, &other); \
-		\
-		dupFlow(&other, flow); \
-		body \
-		mergePredictions(flow, &other); \
-		\
-		dupFlow(&other, flow); \
-		body \
-		mergePredictions(flow, &other); \
-		\
-		/* TODO replace this by a fix point algorithm? */ \
-	}
-
 static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_prediction_t *ret)
 {
 	ptrs_prediction_t dummy;
@@ -1871,19 +1848,47 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 	else if(node->vtable == &ptrs_ast_vtable_loop)
 	{
 		ptrs_ast_t *body = node->arg.astval;
-
-		loopPredictionsRemerge(
+		if(flow->dryRun)
+		{
 			analyzeStatement(flow, body, &dummy);
-		);
+		}
+		else
+		{
+			ptrs_flow_t other;
+
+			dupFlow(&other, flow);
+			analyzeStatement(flow, body, &dummy);
+			mergePredictions(flow, &other);
+
+			dupFlow(&other, flow);
+			analyzeStatement(flow, body, &dummy);
+			mergePredictions(flow, &other);
+
+			dupFlow(&other, flow);
+			analyzeStatement(flow, body, &dummy);
+			mergePredictions(flow, &other);
+
+			/* TODO replace this by a fix point algorithm? */
+		}
 	}
 	else if(node->vtable == &ptrs_ast_vtable_forin_setup)
 	{
 		struct ptrs_ast_forin *stmt = &node->arg.forin;
 		analyzeExpression(flow, stmt->valueAst, &dummy);
+
+		if(dummy.knownType)
+			stmt->value.constType = dummy.meta.type;
+		else
+			stmt->value.constType = -1;
 	}
 	else if(node->vtable == &ptrs_ast_vtable_forin_step)
 	{
-		// nothing
+		struct ptrs_ast_forin *stmt = node->arg.forinptr;
+		if(stmt->value.constType != PTRS_TYPE_NATIVE
+			&& stmt->value.constType != PTRS_TYPE_POINTER)
+		{
+			clearAddressablePredictions(flow);
+		}
 	}
 	else if(node->vtable == &ptrs_ast_vtable_scopestatement)
 	{
@@ -1915,13 +1920,14 @@ void ptrs_flow_analyze(ptrs_ast_t *ast)
 	ptrs_flow_t flow;
 	flow.predictions = NULL;
 	flow.depth = 0;
-	flow.endsInDead = false;
 
 	// make a dry run first to set addressable for variables used accross functions
 	flow.dryRun = true;
+	flow.endsInDead = false;
 	analyzeStatement(&flow, ast, &ret);
 
 	flow.dryRun = false;
+	flow.endsInDead = false;
 	analyzeStatement(&flow, ast, &ret);
 
 	freePredictions(flow.predictions);
