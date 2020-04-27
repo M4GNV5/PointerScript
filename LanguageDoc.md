@@ -828,6 +828,16 @@ else
 {
 }
 
+//'loop' Statement
+loop handle_connection();
+
+loop
+{
+	var x = complex_logic();
+	if(x === 5)
+		break;	
+}
+
 //'while' '(' Expression ')' Statement
 while(x < 3)
 	x++;

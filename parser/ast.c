@@ -723,6 +723,11 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	{
 		parseSwitchCase(code, stmt);
 	}
+	else if(lookahead(code, "loop"))
+	{
+		stmt->vtable = &ptrs_ast_vtable_loop;
+		stmt->arg.astval = parseBody(code, true, false);
+	}
 	else if(lookahead(code, "while"))
 	{
 		stmt->vtable = &ptrs_ast_vtable_loop;
