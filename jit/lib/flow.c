@@ -1884,8 +1884,25 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 	else if(node->vtable == &ptrs_ast_vtable_forin_step)
 	{
 		struct ptrs_ast_forin *stmt = node->arg.forinptr;
-		if(stmt->value.constType != PTRS_TYPE_NATIVE
-			&& stmt->value.constType != PTRS_TYPE_POINTER)
+		clearPrediction(&dummy);
+		dummy.knownType = true;
+		dummy.knownMeta = true;
+		dummy.knownValue = false;
+		dummy.meta.type = PTRS_TYPE_INT;
+
+		if(stmt->value.constType == PTRS_TYPE_NATIVE)
+		{
+			if(stmt->varcount > 0)
+				setVariablePrediction(flow, &stmt->varsymbols[0], &dummy);
+			if(stmt->varcount > 1)
+				setVariablePrediction(flow, &stmt->varsymbols[1], &dummy);
+		}
+		else if(stmt->value.constType == PTRS_TYPE_POINTER)
+		{
+			if(stmt->varcount > 0)
+				setVariablePrediction(flow, &stmt->varsymbols[0], &dummy);
+		}
+		else
 		{
 			clearAddressablePredictions(flow);
 		}
