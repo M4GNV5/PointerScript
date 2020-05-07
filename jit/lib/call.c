@@ -9,6 +9,8 @@
 #include "../include/conversion.h"
 #include "../include/call.h"
 
+int ptrs_optimizationLevel = 2;
+
 void *ptrs_jit_createCallback(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, void *closure);
 
 ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
@@ -550,6 +552,8 @@ jit_function_t ptrs_jit_createFunction(ptrs_ast_t *node, jit_function_t parent,
 		func = jit_function_create(ptrs_jit_context, signature);
 	else
 		func = jit_function_create_nested(ptrs_jit_context, signature, parent);
+
+	jit_function_set_optimization_level(func, ptrs_optimizationLevel);
 
 	if(name != NULL)
 		jit_function_set_meta(func, PTRS_JIT_FUNCTIONMETA_NAME, (char *)name, NULL, 0);

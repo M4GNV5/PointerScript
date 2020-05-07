@@ -18,6 +18,7 @@ static bool dumpOps = false;
 extern size_t ptrs_arraymax;
 extern bool ptrs_compileAot;
 extern bool ptrs_analyzeFlow;
+extern int ptrs_optimizationLevel;
 
 static struct option options[] = {
 	{"help", no_argument, 0, 1},
@@ -28,6 +29,9 @@ static struct option options[] = {
 	{"asmdump", no_argument, 0, 6},
 	{"unsafe", no_argument, 0, 7},
 	{"error", required_argument, 0, 8},
+	{"O0", no_argument, 0, 9},
+	{"O1", no_argument, 0, 10},
+	{"O2", no_argument, 0, 11},
 	{0, 0, 0, 0}
 };
 
@@ -50,6 +54,7 @@ static int parseOptions(int argc, char **argv)
 						"\t--no-sig             Do not listen to signals.\n"
 						"\t--no-aot             Disable AOT compilation\n"
 						"\t--no-flow            Disable data flow analyzation\n"
+						"\t-O0, -O1 or -O2      Set optimization level of the jit backend\n"
 						"\t--asmdump            Output disassembly of generated instructions\n"
 						"\t--unsafe             Disable all assertions (including type checks)\n"
 					"Source code can be found at https://github.com/M4GNV5/PointerScript\n", UINT32_MAX);
@@ -79,6 +84,15 @@ static int parseOptions(int argc, char **argv)
 					fprintf(stderr, "Could not open %s\n", optarg);
 					exit(EXIT_FAILURE);
 				}
+				break;
+			case 9:
+				ptrs_optimizationLevel = 0;
+				break;
+			case 10:
+				ptrs_optimizationLevel = 1;
+				break;
+			case 11:
+				ptrs_optimizationLevel = 2;
 				break;
 			default:
 				fprintf(stderr, "Try '--help' for more information.\n");
