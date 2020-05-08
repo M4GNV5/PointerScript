@@ -106,7 +106,7 @@ static void mergePredictions(ptrs_flow_t *dest, ptrs_flow_t *srcFlow)
 		ptrs_predictions_t *curr = dest->predictions;
 		while(curr != NULL)
 		{
-			if(curr->variable == src->variable)
+			if(curr->variable == src->variable && curr->depth == src->depth)
 			{
 				int8_t currType = curr->prediction.meta.type;
 
@@ -270,21 +270,32 @@ static void getVariablePrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var, ptrs_p
 	clearPrediction(ret);
 }
 
-static void clearAddressablePredictionsIfOverloadExists(ptrs_flow_t *flow, ptrs_struct_t *struc, void *overload)
+static void clearAddressablePredictionsIfOverloadExists(ptrs_flow_t *flow,
+	ptrs_struct_t *struc, void *overload)
 {
+	if(struc == NULL)
+	{
+		clearAddressablePredictions(flow);
+		return;
+	}
+
 	struct ptrs_opoverload *overloadInfo = ptrs_struct_getOverloadInfo(struc, overload, true);
 	if(overloadInfo != NULL)
 	{
 		clearAddressablePredictions(flow);
 	}
 }
-static void clearAddressablePredictionsIfOverloadExistsOrUnavailable(ptrs_flow_t *flow, ptrs_prediction_t *prediction, void *overload)
+static void clearAddressablePredictionsIfOverloadExistsOrUnavailable(
+	ptrs_flow_t *flow, ptrs_prediction_t *prediction, void *overload)
 {
 	if(prediction->knownType && prediction->knownMeta
 		&& prediction->meta.type == PTRS_TYPE_STRUCT)
 	{
 		ptrs_struct_t *struc = ptrs_meta_getPointer(prediction->meta);
-		clearAddressablePredictionsIfOverloadExists(flow, struc, overload);
+		if(struc == NULL)
+			clearAddressablePredictions(flow);
+		else
+			clearAddressablePredictionsIfOverloadExists(flow, struc, overload);
 	}
 	else
 	{
@@ -344,6 +355,12 @@ static char *prediction2str(ptrs_prediction_t *prediction, char *buff, size_t le
 static void structMemberPrediction(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_struct_t *struc,
 	const char *name, size_t namelen, ptrs_prediction_t *ret)
 {
+	if(struc == NULL)
+	{
+		clearPrediction(ret);
+		return;
+	}
+
 	struct ptrs_structmember *member = ptrs_struct_find(struc,
 		name, namelen, PTRS_STRUCTMEMBER_SETTER, node);
 
@@ -443,6 +460,7 @@ static void analyzeFunction(ptrs_flow_t *outerFlow, ptrs_function_t *ast, ptrs_s
 	dupFlow(&functionFlow, outerFlow);
 	functionFlow.depth++;
 
+	clearAddressablePredictions(&functionFlow);
 	clearPrediction(&prediction);
 
 	ptrs_funcparameter_t *curr = ast->args;
@@ -974,9 +992,16 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 			}
 			else if(ret->meta.type == PTRS_TYPE_STRUCT)
 			{
-				ret->knownValue = true;
 				ptrs_struct_t *struc = ptrs_meta_getPointer(ret->meta);
-				ret->value.intval = struc->size;
+				if(struc != NULL)
+				{
+					ret->knownValue = true;
+					ret->value.intval = struc->size;
+				}
+				else
+				{
+					ret->knownValue = false;
+				}
 			}
 		}
 
@@ -1013,8 +1038,10 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 			{
 				ptrs_struct_t *struc = ptrs_meta_getPointer(ret->meta);
 
-				struct ptrs_structmember *member = ptrs_struct_find(struc,
-					expr->name, expr->namelen, PTRS_STRUCTMEMBER_SETTER, node);
+				struct ptrs_structmember *member = NULL;
+				if(struc != NULL)
+					member = ptrs_struct_find(struc,
+						expr->name, expr->namelen, PTRS_STRUCTMEMBER_SETTER, node);
 
 				if(member != NULL && member->type == PTRS_STRUCTMEMBER_VAR)
 				{
@@ -1357,17 +1384,18 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		char buff[32];
 		char *key = prediction2str(&dummy, buff, 32);
 
+		clearAddressablePredictionsIfOverloadExistsOrUnavailable(flow, ret, ptrs_handle_op_in);
+
+		ret->knownValue = false;
 		if(ret->knownType && ret->knownMeta && key != NULL
 			&& ret->meta.type == PTRS_TYPE_STRUCT)
 		{
 			ptrs_struct_t *struc = ptrs_meta_getPointer(ret->meta);
-
-			ret->knownValue = true;
-			ret->value.intval = ptrs_struct_find(struc, key, strlen(key) + 1, -1, node) != NULL;
-		}
-		else
-		{
-			ret->knownValue = false;
+			if(struc != NULL)
+			{
+				ret->knownValue = true;
+				ret->value.intval = ptrs_struct_find(struc, key, strlen(key) + 1, -1, node) != NULL;
+			}
 		}
 
 		memset(&ret->meta, 0, sizeof(ptrs_meta_t));
