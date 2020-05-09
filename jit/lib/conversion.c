@@ -457,7 +457,7 @@ ptrs_var_t ptrs_vartoa(ptrs_val_t val, ptrs_meta_t meta, char *buff, size_t maxl
 	{
 		case PTRS_TYPE_UNDEFINED:
 			strncpy(buff, "undefined", maxlen - 1);
-			buff[maxlen] = 0;
+			buff[maxlen - 1] = 0;
 			break;
 		case PTRS_TYPE_INT:
 			snprintf(buff, maxlen, "%"PRId64, val.intval);
