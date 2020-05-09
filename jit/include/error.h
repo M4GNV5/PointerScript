@@ -26,6 +26,8 @@ typedef struct ptrs_error
 	ptrs_codepos_t pos;
 } ptrs_error_t;
 
+void ptrs_getpos(ptrs_codepos_t *pos, const char *code, size_t index);
+
 void ptrs_handle_signals();
 void ptrs_printError(ptrs_error_t *error);
 void ptrs_error(ptrs_ast_t *ast, const char *msg, ...);

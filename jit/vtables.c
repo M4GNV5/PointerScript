@@ -6,12 +6,13 @@
 #define _hasToName_0(name) NULL
 #define hasToName(has, name) _hasToName_##has (name)
 
-#define VTABLE(name, hasGet, hasSet, hasAddressof, hasCall) \
-	ptrs_ast_vtable_t ptrs_ast_vtable_##name = { \
-		.get = hasToName(hasGet, ptrs_handle_##name), \
-		.set = hasToName(hasSet, ptrs_assign_##name),\
-		.addressof = hasToName(hasAddressof, ptrs_addressof_##name), \
-		.call = hasToName(hasCall, ptrs_call_##name) \
+#define VTABLE(_name, hasGet, hasSet, hasAddressof, hasCall) \
+	ptrs_ast_vtable_t ptrs_ast_vtable_##_name = { \
+		.name = #_name, \
+		.get = hasToName(hasGet, ptrs_handle_##_name), \
+		.set = hasToName(hasSet, ptrs_assign_##_name),\
+		.addressof = hasToName(hasAddressof, ptrs_addressof_##_name), \
+		.call = hasToName(hasCall, ptrs_call_##_name) \
 	};
 
 #define GETONLY(name) VTABLE(name, true, false, false, false)

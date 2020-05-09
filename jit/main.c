@@ -18,6 +18,7 @@ static bool dumpOps = false;
 extern size_t ptrs_arraymax;
 extern bool ptrs_compileAot;
 extern bool ptrs_analyzeFlow;
+extern bool ptrs_dumpFlow;
 extern int ptrs_optimizationLevel;
 
 static struct option options[] = {
@@ -25,13 +26,15 @@ static struct option options[] = {
 	{"array-max", required_argument, 0, 2},
 	{"no-sig", no_argument, 0, 3},
 	{"no-aot", no_argument, 0, 4},
-	{"no-flow", no_argument, 0, 5},
-	{"asmdump", no_argument, 0, 6},
-	{"unsafe", no_argument, 0, 7},
-	{"error", required_argument, 0, 8},
-	{"O0", no_argument, 0, 9},
-	{"O1", no_argument, 0, 10},
-	{"O2", no_argument, 0, 11},
+	{"no-predictions", no_argument, 0, 5},
+	{"dump-asm", no_argument, 0, 6},
+	{"dump-jit", no_argument, 0, 7},
+	{"dump-predictions", no_argument, 0, 8},
+	{"unsafe", no_argument, 0, 9},
+	{"error", required_argument, 0, 10},
+	{"O0", no_argument, 0, 11},
+	{"O1", no_argument, 0, 12},
+	{"O2", no_argument, 0, 13},
 	{0, 0, 0, 0}
 };
 
@@ -53,8 +56,11 @@ static int parseOptions(int argc, char **argv)
 						"\t--error <file>       Set where error messages are written to. Default: /dev/stderr\n"
 						"\t--no-sig             Do not listen to signals.\n"
 						"\t--no-aot             Disable AOT compilation\n"
-						"\t--no-flow            Disable data flow analyzation\n"
+						"\t--no-predictions     Disable value/type predictions using data flow analyzation\n"
 						"\t-O0, -O1 or -O2      Set optimization level of the jit backend\n"
+						"\t--dump-asm           Dump generated assembly code\n"
+						"\t--dump-jit           Dump JIT intermediate representation (same as --dump-asm --no-aot)\n"
+						"\t--dump-predictions   Dump value/type predictions\n"
 						"\t--asmdump            Output disassembly of generated instructions\n"
 						"\t--unsafe             Disable all assertions (including type checks)\n"
 					"Source code can be found at https://github.com/M4GNV5/PointerScript\n", UINT32_MAX);
@@ -75,9 +81,16 @@ static int parseOptions(int argc, char **argv)
 				dumpOps = true;
 				break;
 			case 7:
-				ptrs_enableSafety = false;
+				dumpOps = true;
+				ptrs_compileAot = false;
 				break;
 			case 8:
+				ptrs_dumpFlow = true;
+				break;
+			case 9:
+				ptrs_enableSafety = false;
+				break;
+			case 10:
 				ptrs_errorfile = fopen(optarg, "w");
 				if(ptrs_errorfile == NULL)
 				{
@@ -85,13 +98,13 @@ static int parseOptions(int argc, char **argv)
 					exit(EXIT_FAILURE);
 				}
 				break;
-			case 9:
+			case 11:
 				ptrs_optimizationLevel = 0;
 				break;
-			case 10:
+			case 12:
 				ptrs_optimizationLevel = 1;
 				break;
-			case 11:
+			case 13:
 				ptrs_optimizationLevel = 2;
 				break;
 			default:
@@ -154,6 +167,10 @@ int main(int argc, char **argv)
 		}
 
 		return EXIT_SUCCESS;
+	}
+	else if(ptrs_dumpFlow)
+	{
+		// nothing
 	}
 	else
 	{

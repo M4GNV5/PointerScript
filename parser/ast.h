@@ -223,6 +223,7 @@ typedef ptrs_jit_var_t (*ptrs_callhandler_t)(struct ptrs_ast *, jit_function_t, 
 
 typedef struct
 {
+	const char *name;
 	ptrs_asthandler_t get;
 	ptrs_sethandler_t set;
 	ptrs_asthandler_t addressof;

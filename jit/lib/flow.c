@@ -36,8 +36,121 @@ typedef struct
 	//...
 } ptrs_flow_t;
 
+typedef struct
+{
+	ptrs_codepos_t pos;
+	ptrs_prediction_t prediction;
+	ptrs_ast_t *node;
+} ptrs_prediction_dump_t;
+
 static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_prediction_t *ret);
 static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_prediction_t *ret);
+
+bool ptrs_dumpFlow = false;
+static int preductionDumpOrder(ptrs_prediction_dump_t *a, ptrs_prediction_dump_t *b)
+{
+	return b->pos.column - a->pos.column;
+}
+static void dumpPrediction(ptrs_ast_t *node, ptrs_prediction_t *pred)
+{
+	static ptrs_prediction_dump_t dumps[64];
+	static size_t dumpCount = 0;
+	static const char *lastLineDumped = NULL;
+	static const char *dumpPos = NULL;
+
+	if(node == NULL && pred == NULL)
+	{
+		// write the rest of the code
+		printf("%s", dumpPos);
+	}
+
+	if(node == NULL || pred == NULL || node->code == NULL)
+		return;
+
+	ptrs_codepos_t pos;
+	ptrs_getpos(&pos, node->code, node->codepos);
+
+	if(pos.currLine != lastLineDumped)
+	{
+		qsort(dumps, dumpCount, sizeof(ptrs_prediction_dump_t), (void *)preductionDumpOrder);
+
+		int maxColumn = 0;
+		for(int i = 0; i < dumpCount; i++)
+		{
+			if(dumps[i].pos.column > maxColumn)
+				maxColumn = dumps[i].pos.column;
+		}
+
+		for(int i = 0; i < dumpCount; i++)
+		{
+			for(int k = 1; k < dumps[i].pos.column; k++)
+			{
+				char c = ' ';
+				if(dumps[i].pos.currLine[k - 1] == '\t')
+					c = '\t';
+
+				for(int j = i; j < dumpCount; j++)
+				{
+					if(dumps[j].pos.column == k)
+						c = '|';
+				}
+
+				fputc(c, stdout);
+			}
+
+			printf("└");
+			for(int k = dumps[i].pos.column; k < maxColumn + 1; k++)
+				printf("─");
+			printf(">");
+
+
+			char buff[32];
+			if(dumps[i].prediction.knownValue && dumps[i].prediction.knownMeta)
+			{
+				ptrs_var_t ret = ptrs_vartoa(dumps[i].prediction.value, dumps[i].prediction.meta, buff, sizeof(buff));
+				printf(" value: %s", ret.value.strval);
+			}
+
+			if(dumps[i].prediction.knownMeta)
+			{
+				ptrs_metatoa(dumps[i].prediction.meta, buff, sizeof(buff));
+				printf(" meta: %s", buff);
+			}
+			else if(dumps[i].prediction.knownType)
+			{
+				printf(" type: %s", ptrs_typetoa(dumps[i].prediction.meta.type));
+			}
+
+			printf(" ast: %s\n", dumps[i].node->vtable->name);
+		}
+
+		const char *end = strchr(pos.currLine, '\n');
+		if(end == NULL)
+			end = pos.currLine + strlen(pos.currLine);
+
+		if(dumpPos == NULL)
+			dumpPos = node->code;
+
+		printf("%.*s\n", end - dumpPos, dumpPos);
+		dumpCount = 0;
+		lastLineDumped = pos.currLine;
+		dumpPos = end;
+
+		if(*dumpPos == '\n')
+			dumpPos++;
+	}
+
+	if(dumpCount > sizeof(dumps) / sizeof(ptrs_prediction_dump_t))
+		return;
+
+	if(!pred->knownType && !pred->knownMeta && !pred->knownValue)
+		return;
+
+	memcpy(&dumps[dumpCount].prediction, pred, sizeof(ptrs_prediction_t));
+	memcpy(&dumps[dumpCount].pos, &pos, sizeof(ptrs_codepos_t));
+	dumps[dumpCount].node = node;
+	dumpCount++;
+}
 
 static inline void clearPrediction(ptrs_prediction_t *prediction)
 {
@@ -1531,6 +1644,8 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 	}
 	else
 	{
+		bool foundOp = false;
+
 		for(int i = 0; i < sizeof(binaryIntrinsicHandler) / sizeof(struct vtableIntrinsicMapping); i++)
 		{
 			if(node->vtable == binaryIntrinsicHandler[i].vtable)
@@ -1586,7 +1701,8 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 					clearPrediction(ret);
 				}
 
-				return;
+				foundOp = true;
+				break;
 			}
 		}
 
@@ -1606,7 +1722,8 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 						if(!unaryIntFloatChangingHandler[i].isSuffix)
 							ret->value.intval -= unaryIntFloatChangingHandler[i].change;
 
-						return;
+						foundOp = true;
+						break;
 					}
 					else if(ret->meta.type == PTRS_TYPE_FLOAT)
 					{
@@ -1616,7 +1733,8 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 						if(!unaryIntFloatChangingHandler[i].isSuffix)
 							ret->value.floatval -= unaryIntFloatChangingHandler[i].change;
 
-						return;
+						foundOp = true;
+						break;
 					}
 				}
 
@@ -1624,7 +1742,8 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 					&& (ret->meta.type == PTRS_TYPE_INT || ret->meta.type == PTRS_TYPE_FLOAT))
 				{
 					ret->knownValue = false;
-					return;
+					foundOp = true;
+					break;
 				}
 				else
 				{
@@ -1632,12 +1751,17 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 				}
 
 				analyzeLValue(flow, node->arg.astval, ret);
-				return;
+				foundOp = true;
+				break;
 			}
 		}
 
-		ptrs_error(node, "Cannot analyze expression");
+		if(!foundOp)
+			ptrs_error(node, "Cannot analyze expression");
 	}
+
+	if(ptrs_dumpFlow && !flow->dryRun)
+		dumpPrediction(node, ret);
 }
 
 static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_prediction_t *ret)
@@ -1976,4 +2100,7 @@ void ptrs_flow_analyze(ptrs_ast_t *ast)
 	analyzeStatement(&flow, ast, &ret);
 
 	freePredictions(flow.predictions);
+
+	if(ptrs_dumpFlow)
+		dumpPrediction(NULL, NULL);
 }
