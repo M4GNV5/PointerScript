@@ -90,11 +90,11 @@ apm link
 ```
 
 ## License
-[EUPL v1.1](LICENSE.txt)
+[EUPL v1.2](LICENSE.txt)
 
-> Copyright (C) 2017 Jakob Löw (jakob@löw.com)
+> Copyright (C) 2020 Jakob Löw (jakob@löw.com)
 >
-> Licensed under the EUPL, Version 1.1 or - as soon they will be approved by the European
+> Licensed under the EUPL, Version 1.2 or - as soon they will be approved by the European
 > Commission - subsequent versions of the EUPL (the "Licence"); You may not use this work
 > except in compliance with the Licence.
 >
