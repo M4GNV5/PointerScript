@@ -131,13 +131,30 @@ static void dumpPrediction(ptrs_ast_t *node, ptrs_prediction_t *pred)
 		if(dumpPos == NULL)
 			dumpPos = node->code;
 
-		printf("%.*s\n", end - dumpPos, dumpPos);
-		dumpCount = 0;
-		lastLineDumped = pos.currLine;
-		dumpPos = end;
+		if(end < dumpPos)
+		{
+			// we got a prediction for code already printed
+			// this can happen for expressions placed in code after other expressions
+			// e.g. with step expressions of for statements.
 
-		if(*dumpPos == '\n')
-			dumpPos++;
+			if(pred->knownType || pred->knownMeta || pred->knownValue)
+			{
+				printf(">>>>>>>>>> prediction for previousely printed code in line %d:\n%.*s\n",
+					pos.line, end - pos.currLine, pos.currLine);
+				dumpCount = 0;
+				lastLineDumped = pos.currLine;
+			}
+		}
+		else
+		{
+			printf("%.*s\n", end - dumpPos, dumpPos);
+			dumpCount = 0;
+			lastLineDumped = pos.currLine;
+			dumpPos = end;
+
+			if(*dumpPos == '\n')
+				dumpPos++;
+		}
 	}
 
 	if(dumpCount > sizeof(dumps) / sizeof(ptrs_prediction_dump_t))
@@ -2007,6 +2024,8 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 		else
 		{
 			ptrs_flow_t other;
+			bool oldDump = ptrs_dumpFlow;
+			ptrs_dumpFlow = false;
 
 			dupFlow(&other, flow);
 			analyzeStatement(flow, body, &dummy);
@@ -2016,6 +2035,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 			analyzeStatement(flow, body, &dummy);
 			mergePredictions(flow, &other);
 
+			ptrs_dumpFlow = oldDump;
 			dupFlow(&other, flow);
 			analyzeStatement(flow, body, &dummy);
 			mergePredictions(flow, &other);
