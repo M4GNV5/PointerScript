@@ -516,7 +516,7 @@ spill_live_range_in_insn(jit_function_t func, jit_block_t block,
 	_jit_insn_list_add(&dummy->ends, block, insn);
 	if(prev == 0)
 	{
-		_jit_insn_list_add(&dummy->ends, block, insn);
+		_jit_insn_list_add(&dummy->starts, block, insn);
 	}
 	else
 	{
