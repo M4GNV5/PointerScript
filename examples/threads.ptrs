@@ -3,7 +3,7 @@ import pthread_create, pthread_join from "libpthread.so.0";
 
 const AMOUNT = 100000000;
 
-function addNumbers(arg)
+function addNumbers(arg: int)
 {
 	var sum = 0;
 	for(var i = arg; i < arg + AMOUNT; i++)
@@ -16,7 +16,7 @@ function addNumbers(arg)
 
 var threads[4];
 
-for(var i = 0; i < 4; i++)
+for(var i = 0; i < sizeof threads; i++)
 {
 	var start = i * AMOUNT;
 	if(pthread_create(&threads[i], NULL, addNumbers, start) != 0)
@@ -26,7 +26,7 @@ for(var i = 0; i < 4; i++)
 	}
 }
 
-for(var i = 0; i < 4; i++)
+for(var i = 0; i < sizeof threads; i++)
 {
 	var result = 0;
 	pthread_join(threads[i], &result);

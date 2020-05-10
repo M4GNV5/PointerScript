@@ -1,6 +1,6 @@
 import printf, srand, rand, time from "libc.so.6";
 
-const len = 100;
+const len = 1000;
 var parts = new array[len];
 
 srand(time(NULL));
@@ -11,21 +11,22 @@ for(var i = 0; i < len; i++)
 
 /*
 note: if you want speed use 'qsort' (see `man 3 qsort`)
-import qsort;
-qsort(parts, len, VARSIZE, (a, b) -> *as<pointer>a - *as<pointer>b);
+
+qsort(parts, len, sizeof var, (a: pointer, b: pointer) -> *a - *b);
 
 
 
 if you want even more speed (e.g. when sorting arrays of length >10mio)
-you can use a native compar function instead of a lambda:
-asm compar
+and if you can be sure the array only contains values of one type you
+can add type annotations:
+
+function compareInts(a: pointer, b: pointer)
 {
-	compar:
-		mov (%rdi), %rax
-		sub (%rsi), %rax
-		ret
+	var a2 = as<int>*a;
+	var b2 = as<int>*b;
+	return a2 - b2;
 }
-qsort(parts, len, VARSIZE, compar);
+qsort(parts, len, sizeof var, compareInts);
 */
 
 //simple bubble sort

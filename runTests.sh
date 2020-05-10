@@ -7,10 +7,10 @@ nocolor='\033[0m'
 
 hadError=0
 
-function runTest
+function runTestWithArgs
 {
 	if [ "$2" != "" ]; then
-		withArguments=" with argument $2"
+		withArguments=" with arguments $2"
 	else
 		withArguments=""
 	fi
@@ -30,25 +30,31 @@ function runTest
 	fi
 }
 
-function runAllTests
+function runTest
 {
-	runTest runtime/interop $1
-	runTest runtime/pointer $1
-	runTest runtime/types $1
-	runTest runtime/conversion $1
-	runTest runtime/loops $1
-	runTest runtime/switch $1
-	#runTest runtime/trycatch TODO
-	runTest runtime/strformat $1
-	runTest runtime/struct $1
-	runTest runtime/overload $1
-	runTest runtime/functions $1
-	runTest runtime/alignment $1
-	runTest runtime/operators $1
+	runTestWithArgs "$1"
+	runTestWithArgs "$1" -O0
+	runTestWithArgs "$1" -O1
+	runTestWithArgs "$1" -O2
+	runTestWithArgs "$1" --no-predictions
+	runTestWithArgs "$1" "--no-predictions -O0"
+	runTestWithArgs "$1" "--no-predictions -O1"
+	runTestWithArgs "$1" "--no-predictions -O2" 
 }
 
-runAllTests
-runAllTests --no-flow
+runTest runtime/interop "$1"
+runTest runtime/pointer "$1"
+runTest runtime/types "$1"
+runTest runtime/conversion "$1"
+runTest runtime/loops "$1"
+runTest runtime/switch "$1"
+#runTest runtime/trycatch TODO
+runTest runtime/strformat "$1"
+runTest runtime/struct "$1"
+runTest runtime/overload "$1"
+runTest runtime/functions "$1"
+runTest runtime/alignment "$1"
+runTest runtime/operators "$1"
 
 if [ $hadError -ne 0 ]; then
 	exit 1
