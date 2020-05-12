@@ -106,9 +106,14 @@ ptrs_val_t ptrs_jit_value_getValConstant(jit_value_t val)
 			;
 			jit_float64 float64Val = jit_value_get_float64_constant(val);
 			return *(ptrs_val_t *)&float64Val;
-		default: //int, uint, long, ulong, pointer
+		case JIT_TYPE_LONG:
+		case JIT_TYPE_ULONG:
 			;
 			jit_long longVal = jit_value_get_long_constant(val);
+			return *(ptrs_val_t *)&longVal;
+		default: //int, uint, pointer
+			;
+			jit_long longVal2 = jit_value_get_nint_constant(val);
 			return *(ptrs_val_t *)&longVal;
 	}
 }
