@@ -554,14 +554,14 @@ Defines a function.
 ```js
 //'function' Identifier '(' ArgumentDefinitionList ')' '{' StatementList '}'
 function foo(a, b) { /* ... */ }
-function bar(x, y = 42, z = foo(x, y)) { /* ... */ }
+function bar(x, y = 42, z = someConstantValue) { /* ... */ }
 function foobar(m, _, n) { /* ... */ }
 function tar(name, args...) { /* ... */ }
 ```
 ### ArgumentDefinition
 Arguments will be set to the value the caller provides or the default value if provided otherwise to `undefined`.
 ```js
-//Identifier [ '=' Expression ]
+//Identifier [ '=' ConstExpression ]
 ```
 `_` means that this argument will be ignored
 ```js
@@ -618,7 +618,7 @@ struct Person
 ### StructMemberDefinition
 Note: the following code examples are only valid within a struct definition.
 Modifiers:
-- `private` wont be accesible through the `.` and `[]` operators
+- `private` wont be accesible outside of the struct
 - `internal` wont be accesible from other files
 - `public` (default) always accesible
 - `static` all instances use the same value
@@ -916,10 +916,13 @@ var doStuff = (x, y) -> {
 };
 var pow = function(base, exp = 2) {
 	var result = 1;
-	while(base > 0)
-		result *= base--;
+	while(exp > 0)
+	{
+		result *= base;
+		exp--;
+	}
 	return result;
-}
+};
 ```
 
 ## StringFormatExpression
@@ -1099,7 +1102,7 @@ cast<float>"3.14" //returns 3.14
 
 ## CastToStringExpression
 Converts an expression to a string (0-terminated byte sequence). Useful for printing a value.
-The result is a read-only string with a lifetime bound to the lifetime of the expression.
+The result is a read-only string with a lifetime bound to the lifetime of the current function.
 ```js
 //'cast' '<' 'string' '>' Expression
 cast<string>3.14 //returns "3.14"
