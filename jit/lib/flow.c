@@ -85,17 +85,17 @@ static void dumpPrediction(ptrs_ast_t *node, ptrs_prediction_t *pred)
 		{
 			for(int k = 1; k < dumps[i].pos.column; k++)
 			{
-				char c = ' ';
+				const char *c = " ";
 				if(dumps[i].pos.currLine[k - 1] == '\t')
-					c = '\t';
+					c = "\t";
 
 				for(int j = i; j < dumpCount; j++)
 				{
 					if(dumps[j].pos.column == k)
-						c = '|';
+						c = "│";
 				}
 
-				fputc(c, stdout);
+				printf("%s", c);
 			}
 
 			printf("└");
