@@ -284,6 +284,8 @@ int jit_insn_return_struct_from_values(jit_function_t func, jit_value_t val1,
 int jit_insn_return_ptr
 	(jit_function_t func, jit_value_t value, jit_type_t type) JIT_NOTHROW;
 int jit_insn_default_return(jit_function_t func) JIT_NOTHROW;
+int jit_insn_explode_struct(jit_function_t func, jit_value_t struct_val,
+	jit_value_t fields[]) JIT_NOTHROW;
 int jit_insn_throw(jit_function_t func, jit_value_t value) JIT_NOTHROW;
 jit_value_t jit_insn_get_call_stack(jit_function_t func) JIT_NOTHROW;
 

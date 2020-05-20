@@ -3641,6 +3641,100 @@ _jit_setup_return_value(jit_function_t func, jit_value_t return_value,
 	return 1;
 }
 
+int
+_jit_explode_flushed_struct(jit_function_t func, jit_type_t struct_type,
+	jit_value_t fields[])
+{
+	jit_type_t field_type;
+	int field_size;
+	int offset;
+
+	int struct_size = jit_type_get_size(struct_type);
+	if(struct_size > 16)
+	{
+		return 0;
+	}
+
+	int count = jit_type_num_fields(struct_type);
+	for(int i = 0; i < count; i++)
+	{
+		field_type = jit_type_get_field(struct_type, i);
+		offset = jit_type_get_offset(struct_type, i);
+		field_size = jit_type_get_size(field_type);
+
+		if(offset < 8 && offset + field_size > 8)
+		{
+			return 0;
+		}
+	}
+
+	jit_value_t val1 = jit_value_create(func, jit_type_ulong);
+	jit_insn_return_reg(func, val1, X86_64_RAX);
+
+	jit_value_t val2;
+	switch(struct_size - 8)
+	{
+	case 1:
+		val2 = jit_value_create(func, jit_type_ubyte);
+		break;
+	case 2:
+		val2 = jit_value_create(func, jit_type_ushort);
+		break;
+	case 3:
+	case 4:
+		val2 = jit_value_create(func, jit_type_uint);
+		break;
+	case 5:
+	case 6:
+	case 7:
+	case 8:
+		val2 = jit_value_create(func, jit_type_ulong);
+		break;
+	default:
+		val2 = 0;
+		break;
+	}
+	if(val2)
+	{
+		jit_insn_return_reg(func, val2, X86_64_RDX);
+	}
+
+	for(int i = 0; i < count; i++)
+	{
+		field_type = jit_type_get_field(struct_type, i);
+		offset = jit_type_get_offset(struct_type, i);
+		field_size = jit_type_get_size(field_type);
+
+		jit_value_t source_val;
+		if(offset < 8)
+		{
+			source_val = val1;
+		}
+		else
+		{
+			source_val = val2;
+			offset -= 8;
+		}
+
+		jit_type_t source_val_type = jit_value_get_type(source_val);
+		jit_value_t tmp;
+
+		if(offset != 0)
+		{
+			tmp = jit_value_create_nint_constant(func, source_val_type, offset * 8);
+			source_val = jit_insn_shr(func, source_val, tmp);
+		}
+		if(field_type != source_val_type)
+		{
+			source_val = jit_insn_convert(func, source_val, field_type, 0);
+		}
+
+		fields[i] = source_val;
+	}
+
+	return 1;
+}
+
 void
 _jit_init_args(int abi, jit_param_passing_t *passing)
 {

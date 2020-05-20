@@ -218,6 +218,9 @@ int _jit_create_call_return_insns
 	(jit_function_t func, jit_type_t signature,
 	 jit_value_t *args, unsigned int num_args,
 	 jit_value_t return_value, int is_nested);
+int _jit_explode_flushed_struct
+	(jit_function_t func, jit_type_t struct_type,
+	 jit_value_t fields[]);
 int _jit_opcode_is_supported(int opcode);
 void *_jit_gen_prolog(jit_gencode_t gen, jit_function_t func, void *buf);
 void _jit_gen_epilog(jit_gencode_t gen, jit_function_t func);

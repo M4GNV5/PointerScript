@@ -7142,6 +7142,54 @@ jit_insn_default_return(jit_function_t func)
 	return jit_insn_return(func, 0);
 }
 
+int
+jit_insn_explode_struct(jit_function_t func, jit_value_t struct_val, jit_value_t fields[])
+{
+	jit_type_t type = jit_value_get_type(struct_val);
+	if(!jit_type_is_struct(type))
+	{
+		return 0;
+	}
+
+	jit_insn_iter_t iter;
+	jit_insn_iter_init_last(&iter, func->builder->current_block);
+	jit_insn_t last = jit_insn_iter_previous(&iter);
+	if(last && last->opcode == JIT_OP_FLUSH_SMALL_STRUCT)
+	{
+		/* We replace the opcode before calling _jit_explode_flushed_struct.
+		   If the function is successfull new instructions might have been
+		   added, resulting in reallocations of the instruction memory
+		   making `last` invalid.
+		   This also means that if _jit_explode_flushed_struct returns 0 it
+		   shall not have added any instructions, in order for us to be able to
+		   safely change last->opcode back. */
+		last->opcode = JIT_OP_NOP;
+
+		if(_jit_explode_flushed_struct(func, type, fields))
+		{
+			return 1;
+		}
+
+		last->opcode = JIT_OP_FLUSH_SMALL_STRUCT;
+	}
+
+	jit_value_t struct_ptr = jit_insn_address_of(func, struct_val);
+	if(!struct_ptr)
+	{
+		return 0;
+	}
+
+	int count = jit_type_num_fields(type);
+	for(int i = 0; i < count; i++)
+	{
+		int offset = jit_type_get_offset(type, i);
+		jit_type_t field = jit_type_get_field(type, i);
+		fields[i] = jit_insn_load_relative(func, struct_ptr, offset, field);
+	}
+
+	return 1;
+}
+
 /*@
  * @deftypefun int jit_insn_throw (jit_function_t @var{func}, jit_value_t @var{value})
  * Throw a pointer @var{value} as an exception object.  This can also

@@ -770,6 +770,12 @@ int _jit_create_call_return_insns
 	return 1;
 }
 
+int _jit_explode_flushed_struct(jit_function_t func, jit_type_t struct_type,
+	jit_value_t fields[])
+{
+	return 0;
+}
+
 int _jit_opcode_is_supported(int opcode)
 {
 	switch(opcode)
