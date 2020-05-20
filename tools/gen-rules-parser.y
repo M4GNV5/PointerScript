@@ -2095,7 +2095,7 @@ gensel_output_register_usage_for_rule(gensel_clause_t clause, gensel_option_t op
 				printf("JIT_INSN_COMMUTATIVE");
 			}
 
-			if(ternary || free_dest)
+			if(ternary)
 			{
 				if(is_first)
 				{
