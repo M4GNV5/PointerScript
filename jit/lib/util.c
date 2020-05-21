@@ -68,14 +68,15 @@ jit_type_t ptrs_jit_getVarType()
 ptrs_jit_var_t ptrs_jit_valToVar(jit_function_t func, jit_value_t val)
 {
 	assert(jit_value_get_type(val) == ptrs_jit_getVarType());
-	jit_value_set_addressable(val);
 
-	jit_value_t addr = jit_insn_address_of(func, val);
+	jit_value_t fields[2];
+	jit_insn_explode_struct(func, val, fields);
 
 	ptrs_jit_var_t ret = {
-		.val = jit_insn_load_relative(func, addr, 0, jit_type_long),
-		.meta = jit_insn_load_relative(func, addr, sizeof(ptrs_val_t), jit_type_ulong),
+		.val = fields[0],
+		.meta = fields[1],
 		.constType = -1,
+		.addressable = 0,
 	};
 
 	return ret;
