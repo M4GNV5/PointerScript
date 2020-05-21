@@ -1100,6 +1100,9 @@ static void *getForeachIterator(ptrs_ast_t *node, void **parentFrame, void *save
 		void *handler = ptrs_struct_getOverloadClosure(struc, ptrs_handle_forin_step, val.nativeval != NULL);
 		if(handler != NULL)
 		{
+			ptrs_var_t *varSave = saveArea;
+			varSave->value.intval = 0;
+			varSave->meta.type = PTRS_TYPE_UNDEFINED;
 			return handler;
 		}
 		else
