@@ -1037,6 +1037,27 @@ JIT_OP_RETURN_SMALL_STRUCT: note
 		jump_to_epilog(gen, &inst, block);
 	}
 
+JIT_OP_RETURN_STRUCT_FROM_REGS: note
+    [reg, reg, clobber("r0", "r1")] -> {
+        int reg1 = $0;
+        int reg2 = $1;
+        if(reg1 != ARM_R0)
+        {
+            if(reg2 == ARM_R0)
+            {
+                arm_mov_reg_reg(inst, ARM_R1, reg2);
+                reg2 = ARM_R1;
+            }
+            arm_mov_reg_reg(inst, ARM_R0, reg1);
+        }
+        if(reg2 != ARM_R1)
+        {
+            arm_mov_reg_reg(inst, ARM_R1, reg2);
+        }
+
+        jump_to_epilog(gen, &inst, block);
+    }
+
 /*
  * Exception handling
  */

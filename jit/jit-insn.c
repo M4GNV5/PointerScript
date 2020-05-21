@@ -1432,8 +1432,10 @@ jit_insn_store(jit_function_t func, jit_value_t dest, jit_value_t value)
  * one, so there is no need to move it down.
  */
 static jit_insn_t
-find_base_insn(jit_function_t func, jit_insn_iter_t iter, jit_value_t value, int *plast)
+find_base_insn(jit_function_t func, jit_insn_iter_t iter, jit_value_t *pvalue, int *plast)
 {
+	jit_value_t value = *pvalue;
+
 	/* The "value" could be vulnerable to aliasing effects so we cannot
 	   optimize it */
 	if(value->is_addressable || value->is_volatile)
@@ -1454,8 +1456,63 @@ find_base_insn(jit_function_t func, jit_insn_iter_t iter, jit_value_t value, int
 			/* This is the instruction we were looking for */
 			if(insn->opcode == JIT_OP_ADDRESS_OF)
 			{
-				*plast = last;
-				return insn;
+				if(last)
+				{
+					*plast = last;
+					return insn;
+				}
+
+				/* Scan forwards to check if we already moved insn down */
+				jit_insn_iter_t iter2 = iter;
+				jit_insn_iter_next(&iter2);
+				jit_insn_t insn2;
+				jit_insn_t movedTo = 0;
+				int notUsedCount;
+				while((insn2 = jit_insn_iter_next(&iter2)) != 0)
+				{
+					if(insn2->opcode == JIT_OP_ADDRESS_OF
+						&& insn2->value1 == insn->value1
+						&& (insn2->flags & JIT_INSN_DEST_IS_VALUE) == 0)
+					{
+						/* we already moved insn down, now continue checking,
+						   if all subsequent instructions use "insn->dest" we
+						   can use "insn->dest" too, otherwise move it down
+						   again */
+						movedTo = insn2;
+						notUsedCount = 0;
+					}
+					else if(movedTo != 0
+						&& insn2->value1 != movedTo->dest
+						&& (insn2->flags & JIT_INSN_DEST_IS_VALUE) == 0)
+					{
+						/* something between movedTo and the end did not use
+						   "movedTo->dest", if this happens more than 3 times
+						   we ignore movedTo */
+						if(++notUsedCount > 3)
+						{
+							movedTo = 0;
+						}
+					}
+				}
+
+				if(movedTo != 0)
+				{
+					/* We already moved insn down and used it recently. Set
+					   pvalue to the moved down value and signal the caller to
+					   not move it down again. This allows us to chain multiple
+					   relative loads or stores without moving down the value
+					   multiple times */
+					*pvalue = movedTo->dest;
+					*plast = 1;
+				}
+				else
+				{
+					/* We didnt move it down yet or we did something else since
+					   then. Just move it down again. */
+					*plast = 0;
+					return insn;
+				}
+
 			}
 			if(insn->opcode == JIT_OP_ADD_RELATIVE)
 			{
@@ -1517,14 +1574,14 @@ jit_insn_load_relative(jit_function_t func, jit_value_t value, jit_nint offset, 
 	jit_insn_iter_init_last(&iter, func->builder->current_block);
 
 	int last;
-	jit_insn_t insn = find_base_insn(func, iter, value, &last);
+	jit_insn_t insn = find_base_insn(func, iter, &value, &last);
 	if(insn && insn->opcode == JIT_OP_ADD_RELATIVE)
 	{
 		/* We have a previous "add_relative" instruction for this
 		   pointer. Adjust the current offset accordingly */
 		offset += jit_value_get_nint_constant(insn->value2);
 		value = insn->value1;
-		insn = find_base_insn(func, iter, value, &last);
+		insn = find_base_insn(func, iter, &value, &last);
 		last = 0;
 	}
 	if(insn && insn->opcode == JIT_OP_ADDRESS_OF && !last)
@@ -1571,14 +1628,14 @@ jit_insn_store_relative(jit_function_t func, jit_value_t dest, jit_nint offset, 
 	jit_insn_iter_init_last(&iter, func->builder->current_block);
 
 	int last;
-	jit_insn_t insn = find_base_insn(func, iter, dest, &last);
+	jit_insn_t insn = find_base_insn(func, iter, &dest, &last);
 	if(insn && insn->opcode == JIT_OP_ADD_RELATIVE)
 	{
 		/* We have a previous "add_relative" instruction for this
 		   pointer. Adjust the current offset accordingly */
 		offset += jit_value_get_nint_constant(insn->value2);
 		dest = insn->value1;
-		insn = find_base_insn(func, iter, value, &last);
+		insn = find_base_insn(func, iter, &value, &last);
 		last = 0;
 	}
 	if(insn && insn->opcode == JIT_OP_ADDRESS_OF && !last)
@@ -1643,7 +1700,7 @@ jit_insn_add_relative(jit_function_t func, jit_value_t value, jit_nint offset)
 	jit_insn_iter_init_last(&iter, func->builder->current_block);
 
 	int last;
-	jit_insn_t insn = find_base_insn(func, iter, value, &last);
+	jit_insn_t insn = find_base_insn(func, iter, &value, &last);
 	if(insn && insn->opcode == JIT_OP_ADD_RELATIVE)
 	{
 		/* We have a previous "add_relative" instruction for this
@@ -6957,6 +7014,61 @@ jit_insn_return(jit_function_t func, jit_value_t value)
 }
 
 /*@
+ * @deftypefun int jit_insn_return (jit_function_t @var{func}, jit_value_t @var{value})
+ * Output an instruction to return @var{reg1} and @var{reg2} as the function's
+ * result. This only works when the function's return type is a small struct
+ * and reg1 and reg2 fit in one register each.
+ * @end deftypefun
+@*/
+int
+jit_insn_return_struct_from_values(jit_function_t func, jit_value_t val1, jit_value_t val2)
+{
+	/* Ensure that we have a function builder */
+	if(!_jit_function_ensure_builder(func) || !val1 || !val2)
+	{
+		return 0;
+	}
+
+#if !defined(JIT_BACKEND_INTERP)
+	/* We need to pop the "setjmp" context */
+	if(func->has_try)
+	{
+		jit_type_t type = jit_type_create_signature(jit_abi_cdecl, jit_type_void, 0, 0, 1);
+		if(!type)
+		{
+			return 0;
+		}
+		jit_insn_call_native(func, "_jit_unwind_pop_setjmp",
+				     (void *) _jit_unwind_pop_setjmp, type,
+				     0, 0, JIT_CALL_NOTHROW);
+		jit_type_free(type);
+	}
+#endif
+
+	/* This function has an ordinary return path */
+	func->builder->ordinary_return = 1;
+
+	/* Output an appropriate instruction to return to the caller */
+	jit_type_t type = jit_type_get_return(func->signature);
+	if(type->kind != JIT_TYPE_UNION && type->kind != JIT_TYPE_STRUCT)
+	{
+		return 0;
+	}
+	
+	/* Return the structure via registers */
+	if(!create_note(func, JIT_OP_RETURN_STRUCT_FROM_REGS, val1, val2))
+	{
+		return 0;
+	}
+	
+	/* Mark the current block as "ends in dead" */
+	func->builder->current_block->ends_in_dead = 1;
+
+	/* Start a new block just after the "return" instruction */
+	return jit_insn_new_block(func);
+}
+
+/*@
  * @deftypefun int jit_insn_return_ptr (jit_function_t @var{func}, jit_value_t @var{value}, jit_type_t @var{type})
  * Output an instruction to return @code{*@var{value}} as the function's result.
  * This is normally used for returning @code{struct} and @code{union}
@@ -7084,6 +7196,54 @@ jit_insn_default_return(jit_function_t func)
 
 	/* Add a simple "void" return to terminate the function */
 	return jit_insn_return(func, 0);
+}
+
+int
+jit_insn_explode_struct(jit_function_t func, jit_value_t struct_val, jit_value_t fields[])
+{
+	jit_type_t type = jit_value_get_type(struct_val);
+	if(!jit_type_is_struct(type))
+	{
+		return 0;
+	}
+
+	jit_insn_iter_t iter;
+	jit_insn_iter_init_last(&iter, func->builder->current_block);
+	jit_insn_t last = jit_insn_iter_previous(&iter);
+	if(last && last->opcode == JIT_OP_FLUSH_SMALL_STRUCT)
+	{
+		/* We replace the opcode before calling _jit_explode_flushed_struct.
+		   If the function is successfull new instructions might have been
+		   added, resulting in reallocations of the instruction memory
+		   making `last` invalid.
+		   This also means that if _jit_explode_flushed_struct returns 0 it
+		   shall not have added any instructions, in order for us to be able to
+		   safely change last->opcode back. */
+		last->opcode = JIT_OP_NOP;
+
+		if(_jit_explode_flushed_struct(func, type, fields))
+		{
+			return 1;
+		}
+
+		last->opcode = JIT_OP_FLUSH_SMALL_STRUCT;
+	}
+
+	jit_value_t struct_ptr = jit_insn_address_of(func, struct_val);
+	if(!struct_ptr)
+	{
+		return 0;
+	}
+
+	int count = jit_type_num_fields(type);
+	for(int i = 0; i < count; i++)
+	{
+		int offset = jit_type_get_offset(type, i);
+		jit_type_t field = jit_type_get_field(type, i);
+		fields[i] = jit_insn_load_relative(func, struct_ptr, offset, field);
+	}
+
+	return 1;
 }
 
 /*@
@@ -7894,6 +8054,23 @@ jit_insn_alloca(jit_function_t func, jit_value_t size)
 
 	/* Allocate "size" bytes of memory from the stack */
 	return apply_unary(func, JIT_OP_ALLOCA, size, jit_type_void_ptr);
+}
+
+/*@
+ * @deftypefun jit_value_t jit_insn_alloca (jit_function_t @var{func}, jit_value_t @var{size})
+ * The returned value is a pointer to an array of @var{size} bytes. The
+ * difference to alloca is that the memory is 'allocated' in the variable
+ * space at compile time.
+ * @end deftypefun
+@*/
+jit_value_t
+jit_insn_array(jit_function_t func, jit_nint size)
+{
+	jit_type_t type = jit_type_create_struct(NULL, 0, 0);
+	jit_type_set_size_and_alignment(type, size, 1);
+
+	jit_value_t value = jit_value_create(func, type);
+	return jit_insn_address_of(func, value);
 }
 
 /*@
