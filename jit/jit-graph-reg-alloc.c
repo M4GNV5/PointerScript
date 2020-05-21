@@ -178,6 +178,11 @@ do_starting_and_ending_interfere(jit_insn_t insn,
 	if(ending->is_fixed || !ending->value)
 		return 1;
 
+	/* The starting live range starts in this instruction, it is probably a
+	   dummy live range e.g. for a constant value. */
+	if(starting != insn->dest_live)
+		return 1;
+
 	/* In ternary instructions dest and values cannot be in the same register */
 	if((insn->flags & JIT_INSN_DEST_INTERFERES_VALUES) != 0)
 		return 1;
