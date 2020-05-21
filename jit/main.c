@@ -35,6 +35,7 @@ static struct option options[] = {
 	{"O0", no_argument, 0, 11},
 	{"O1", no_argument, 0, 12},
 	{"O2", no_argument, 0, 13},
+	{"O3", no_argument, 0, 14},
 	{0, 0, 0, 0}
 };
 
@@ -107,6 +108,9 @@ static int parseOptions(int argc, char **argv)
 			case 13:
 				ptrs_optimizationLevel = 2;
 				break;
+			case 14:
+				ptrs_optimizationLevel = 3;
+				break;
 			default:
 				fprintf(stderr, "Try '--help' for more information.\n");
 				exit(EXIT_FAILURE);
@@ -161,6 +165,9 @@ int main(int argc, char **argv)
 		jit_function_t curr = jit_function_next(ptrs_jit_context, NULL);
 		while(curr != NULL)
 		{
+			if(ptrs_optimizationLevel != -1)
+				jit_function_optimize(curr);
+
 			const char *name = jit_function_get_meta(curr, PTRS_JIT_FUNCTIONMETA_NAME);
 			jit_dump_function(stdout, curr, name);
 			curr = jit_function_next(ptrs_jit_context, curr);
