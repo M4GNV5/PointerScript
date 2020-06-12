@@ -528,7 +528,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	if(lookahead(code, "var"))
 	{
 		stmt->vtable = &ptrs_ast_vtable_define;
-		addSymbol(code, readIdentifier(code), &stmt->arg.define.location);
+		char *name = readIdentifier(code);
 		stmt->arg.define.onStack = true;
 		stmt->arg.define.isArrayExpr = false;
 
@@ -595,6 +595,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 			stmt->arg.define.type = -1;
 		}
 
+		addSymbol(code, name, &stmt->arg.define.location);
 		consumec(code, ';');
 	}
 	else if(lookahead(code, "import"))
