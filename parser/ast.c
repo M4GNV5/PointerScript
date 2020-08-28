@@ -42,6 +42,12 @@ struct symbollist
 	char *text;
 	struct symbollist *next;
 };
+struct typelist
+{
+	char *name;
+	ptrs_typing_t type;
+	struct typelist *next;
+};
 struct wildcardsymbol
 {
 	ptrs_ast_t *importStmt;
@@ -54,6 +60,7 @@ struct ptrs_symboltable
 {
 	bool functionBoundary;
 	struct symbollist *current;
+	struct typelist *types;
 	struct wildcardsymbol *wildcards;
 	ptrs_symboltable_t *outer;
 };
@@ -97,6 +104,8 @@ static double readDouble(code_t *code);
 static void addSymbol(code_t *code, char *text, ptrs_jit_var_t *location);
 static struct symbollist *addSpecialSymbol(code_t *code, char *symbol, ptrs_symboltype_t type);
 static ptrs_ast_t *getSymbol(code_t *code, char *text);
+static void addType(code_t *code, char *name, ptrs_typing_t *type);
+static ptrs_typing_t *getType(code_t *code, const char *name);
 static void symbolScope_increase(code_t *code, bool functionBoundary);
 static void symbolScope_decrease(code_t *code);
 
@@ -1564,9 +1573,19 @@ static void parseTyping(code_t *code, ptrs_typing_t *typing)
 		return;
 	}
 
-	unexpected(code, "native or variable type name");
+	int oldpos = code->pos;
 
-	// TODO struct types
+	char *name = readIdentifier(code);
+	ptrs_typing_t *type = getType(code, name);
+	if(type != NULL)
+	{
+		memcpy(typing, type, sizeof(ptrs_typing_t));
+		return;
+	}
+
+	code->pos = oldpos;
+	code->curr = code->src[oldpos];
+	unexpected(code, "type name");
 }
 
 static void parseOptionalTyping(code_t *code, ptrs_typing_t *typing)
@@ -2050,6 +2069,12 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 		struc->location = talloc(ptrs_jit_var_t);
 		addSymbol(code, strdup(structName), struc->location);
 	}
+
+	ptrs_typing_t type;
+	type.meta.type = PTRS_TYPE_STRUCT;
+	ptrs_meta_setPointer(type.meta, struc);
+	type.nativetype = NULL;
+	addType(code, strdup(structName), &type);
 
 	struc->name = structName;
 	struc->overloads = NULL;
@@ -2928,12 +2953,41 @@ static ptrs_ast_t *getSymbol(code_t *code, char *text)
 	return ast; //doh
 }
 
+static void addType(code_t *code, char *name, ptrs_typing_t *type)
+{
+	struct typelist *curr = talloc(struct typelist);
+	curr->name = name;
+	memcpy(&curr->type, type, sizeof(ptrs_typing_t));
+
+	curr->next = code->symbols->types;
+	code->symbols->types = curr;
+}
+
+static ptrs_typing_t *getType(code_t *code, const char *name)
+{
+	ptrs_symboltable_t *symbols = code->symbols;
+	while(symbols != NULL)
+	{
+		struct typelist *curr = symbols->types;
+		while(curr != NULL)
+		{
+			if(strcmp(curr->name, name) == 0)
+				return &curr->type;
+		}
+
+		symbols = symbols->outer;
+	}
+
+	return NULL;
+}
+
 static void symbolScope_increase(code_t *code, bool functionBoundary)
 {
 	ptrs_symboltable_t *new = talloc(ptrs_symboltable_t);
 	new->outer = code->symbols;
 	new->current = NULL;
 	new->wildcards = NULL;
+	new->types = NULL;
 	new->functionBoundary = functionBoundary;
 
 	code->symbols = new;
@@ -2950,6 +3004,15 @@ static void symbolScope_decrease(code_t *code)
 		struct symbollist *old = curr;
 		curr = curr->next;
 		free(old->text);
+		free(old);
+	}
+
+	struct typelist *currt = scope->types;
+	while(curr != NULL)
+	{
+		struct typelist *old = currt;
+		currt = currt->next;
+		free(old->name);
 		free(old);
 	}
 

@@ -284,6 +284,7 @@ static bool retrieveParameterArray(ptrs_function_t *ast, jit_function_t func)
 						param.val = jit_value_get_param(func, argPos);
 						param.meta = jit_const_long(func, ulong, *(uint64_t *)&argDef->typing.meta);
 						argPos++;
+						break;
 					}
 					// else falthrough
 				case PTRS_TYPE_NATIVE:
