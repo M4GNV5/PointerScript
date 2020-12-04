@@ -55,7 +55,6 @@ There are examples including the usage of Types, Structs, Arrays, Threading and 
 the [examples](examples/) directory of this repository. The most interresting ones are listed here:
 
 - [pi](examples/pi.ptrs) and [circle](examples/circle.ptrs) Basic mathematic expressions and loops
-- [types](examples/types.ptrs) Using `var` and `let`
 - [fork](examples/fork.ptrs) Using posix functions for creating child processes
 - [array](examples/array.ptrs) and [bubblesort](examples/bubblesort.ptrs) Basic array usage
 - [struct](examples/struct.ptrs) Basic struct usage

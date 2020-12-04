@@ -104,18 +104,18 @@ Converting a variable to an `int` or `float` or `string`.
 Casting to string will allocate memory on the stack and return a stringified
 value of type `native`.
 ```js
-let myVal = cast<float>"3.14";
-let myInt = cast<int>myVal;
-let myString = cast<string>(myInt * myVal);
+var myVal = cast<float>"3.14";
+var myInt = cast<int>myVal;
+var myString = cast<string>(myInt * myVal);
 ```
 
 Changing the type of a variable. Note: this will not touch the actual value.
 ```js
-let x = 3;
-let y = as<pointer>3;
+var x = 3;
+var y = as<pointer>3;
 
 //by default all native functions return an int
-let ptr = malloc!native(1024);
+var ptr = malloc!native(1024);
 ```
 
 ### Type List
@@ -178,7 +178,7 @@ struct Request
 
 //create a new instance of Request
 //alternatively you could use
-let req = new Request("m4gnus.de");
+var req = new Request("m4gnus.de");
 
 //call the execute method
 req.execute();
