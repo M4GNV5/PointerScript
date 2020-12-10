@@ -17,6 +17,7 @@
 
 #define GETONLY(name) VTABLE(name, true, false, false, false)
 
+GETONLY(initroot)
 GETONLY(body)
 GETONLY(define)
 GETONLY(array)

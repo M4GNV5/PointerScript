@@ -1790,7 +1790,14 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 		return;
 
 
-	if(node->vtable == &ptrs_ast_vtable_define)
+	if(node->vtable == &ptrs_ast_vtable_initroot)
+	{
+		struct ptrs_ast_init_root *stmt = &node->arg.initroot;
+		ret->knownType = true;
+		ret->meta.type = PTRS_TYPE_POINTER;
+		setVariablePrediction(flow, &stmt->argumentsLocation, ret);
+	}
+	else if(node->vtable == &ptrs_ast_vtable_define)
 	{
 		struct ptrs_ast_define *stmt = &node->arg.define;
 		analyzeExpression(flow, stmt->value, ret);
@@ -1881,7 +1888,31 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 
 		analyzeStatement(flow, stmt->tryBody, &dummy);
 
-		//TODO catchBody
+		ptrs_funcparameter_t *curr = stmt->args;
+		for(int i = 0; curr != NULL; i++)
+		{
+			if(curr->name == NULL)
+			{
+				curr = curr->next;
+				continue;
+			}
+
+			clearPrediction(&dummy);
+			dummy.knownType = true;
+			if(i < 3)
+			{
+				dummy.meta.type = PTRS_TYPE_NATIVE;
+			}
+			else
+			{
+				dummy.knownMeta = true;
+				dummy.meta.type = PTRS_TYPE_INT;
+			}
+			setVariablePrediction(flow, &curr->arg, &dummy);
+
+			curr = curr->next;
+		}
+		analyzeStatement(flow, stmt->catchBody, &dummy);
 
 		analyzeStatement(flow, stmt->finallyBody, &dummy);
 	}

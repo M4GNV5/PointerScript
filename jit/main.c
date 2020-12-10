@@ -184,8 +184,18 @@ int main(int argc, char **argv)
 		ptrs_enableExceptions = true;
 
 		jit_long ret;
-		void *arg = arguments;
-		if(jit_function_apply(result.func, &arg, &ret) == 0)
+		ptrs_val_t arg0;
+		ptrs_meta_t arg1;
+		void *args[] = {
+			&arg0,
+			&arg1,
+		};
+		arg0.ptrval = arguments;
+		arg1.type = PTRS_TYPE_POINTER;
+		arg1.array.readOnly = true;
+		arg1.array.size = len;
+
+		if(jit_function_apply(result.func, args, &ret) == 0)
 		{
 			exitOnError();
 

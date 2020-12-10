@@ -4,6 +4,7 @@
 #include "../parser/common.h"
 #include "../parser/ast.h"
 
+extern ptrs_ast_vtable_t ptrs_ast_vtable_initroot;
 extern ptrs_ast_vtable_t ptrs_ast_vtable_body;
 extern ptrs_ast_vtable_t ptrs_ast_vtable_define;
 extern ptrs_ast_vtable_t ptrs_ast_vtable_array;

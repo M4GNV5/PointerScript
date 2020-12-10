@@ -26,7 +26,7 @@ void ptrs_compile(ptrs_result_t *result, char *src, const char *filename)
 		ptrs_jit_context = jit_context_create();
 
 	result->symbols = NULL;
-	result->ast = ptrs_parse(src, filename, &result->symbols);
+	result->ast = ptrs_parse(src, filename, &result->symbols, true);
 
 	if(ptrs_analyzeFlow)
 		ptrs_flow_analyze(result->ast);
@@ -36,21 +36,16 @@ void ptrs_compile(ptrs_result_t *result, char *src, const char *filename)
 	static jit_type_t rootSignature = NULL;
 	if(rootSignature == NULL)
 	{
-		jit_type_t params[1] = {jit_type_void_ptr};
-		rootSignature = jit_type_create_signature(jit_abi_cdecl, jit_type_long, params, 1, 1);
+		jit_type_t params[] = {jit_type_long, jit_type_ulong};
+		rootSignature = jit_type_create_signature(jit_abi_cdecl, jit_type_long, params, 2, 1);
 	}
 
 	result->func = ptrs_jit_createFunction(result->ast, NULL, rootSignature, "(root)");
 
 	scope.rootFunc = result->func;
 	scope.rootFrame = &result->funcFrame;
-	jit_insn_store_relative(result->func,
-		jit_const_int(result->func, void_ptr, (uintptr_t)scope.rootFrame), 0,
-		jit_insn_get_frame_pointer(result->func)
-	);
 
 	result->ast->vtable->get(result->ast, result->func, &scope);
-
 	jit_insn_return(result->func, jit_const_long(result->func, long, EXIT_SUCCESS));
 
 	ptrs_jit_placeAssertions(result->func, &scope);

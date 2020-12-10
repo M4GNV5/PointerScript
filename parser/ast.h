@@ -10,6 +10,12 @@ typedef struct ptrs_symboltable ptrs_symboltable_t;
 
 #include "common.h"
 
+struct ptrs_ast_init_root
+{
+	ptrs_jit_var_t argumentsLocation;
+	bool hasTryCatch;
+};
+
 struct ptrs_ast_define
 {
 	ptrs_jit_var_t location;
@@ -195,6 +201,7 @@ union ptrs_ast_arg
 	struct ptrs_astlist *astlist;
 	struct ptrs_algorithmlist *algolist;
 
+	struct ptrs_ast_init_root initroot;
 	struct ptrs_ast_define define;
 	struct ptrs_ast_identifier identifier;
 	struct ptrs_ast_member member;
@@ -264,7 +271,7 @@ struct ptrs_importlist
 	struct ptrs_importlist *next;
 };
 
-ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **symbols);
+ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **symbols, bool addInitRoot);
 int ptrs_ast_getSymbol(ptrs_symboltable_t *symbols, char *text, ptrs_ast_t **node);
 
 #endif

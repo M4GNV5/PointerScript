@@ -16,6 +16,27 @@
 #include "include/call.h"
 #include "include/run.h"
 
+ptrs_jit_var_t ptrs_handle_initroot(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_init_root *stmt = &node->arg.initroot;
+
+	// initialize try/catch for the root function
+	if(stmt->hasTryCatch)
+		jit_insn_uses_catcher(func);
+
+	// initialize the arguments array
+	stmt->argumentsLocation.val = jit_value_get_param(func, 0);
+	stmt->argumentsLocation.meta = jit_value_get_param(func, 1);
+	stmt->argumentsLocation.constType = PTRS_TYPE_POINTER;
+	stmt->argumentsLocation.addressable = false;
+
+	// initialize the root scope
+	jit_insn_store_relative(func,
+		jit_const_int(func, void_ptr, (uintptr_t)scope->rootFrame), 0,
+		jit_insn_get_frame_pointer(func)
+	);
+}
+
 ptrs_jit_var_t ptrs_handle_body(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_astlist *list = node->arg.astlist;
@@ -282,7 +303,7 @@ static void importScript(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *sc
 		cache = malloc(sizeof(ptrs_cache_t));
 		cache->path = from;
 		cache->symbols = NULL;
-		cache->ast = ptrs_parse(src, from, &cache->symbols);
+		cache->ast = ptrs_parse(src, from, &cache->symbols, false);
 
 		cache->ast->vtable->get(cache->ast, func, scope);
 
@@ -584,7 +605,10 @@ ptrs_jit_var_t ptrs_handle_trycatch(ptrs_ast_t *node, jit_function_t func, ptrs_
 		for(int i = 0; curr != NULL; i++)
 		{
 			if(curr->name == NULL) // argument ignored with _
+			{
+				curr = curr->next;
 				continue;
+			}
 
 			if(scope->tryCatchException == NULL)
 				scope->tryCatchException = jit_value_create(func, jit_type_void_ptr);

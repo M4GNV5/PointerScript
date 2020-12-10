@@ -125,13 +125,14 @@ static void unexpectedm(code_t *code, const char *expected, const char *msg);
 #define unexpected(code, expected) \
 	unexpectedm(code, expected, NULL)
 
-ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **symbols)
+ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **symbols, bool addInitRoot)
 {
 	code_t code;
 	code.filename = filename;
 	code.src = src;
 	code.curr = src[0];
 	code.pos = 0;
+	code.usesTryCatch = false;
 	code.insideIndex = false;
 	code.thisVar = NULL;
 
@@ -158,7 +159,28 @@ ptrs_ast_t *ptrs_parse(char *src, const char *filename, ptrs_symboltable_t **sym
 
 	while(skipSpaces(&code) || skipComments(&code));
 
+	ptrs_ast_t *initRoot;
+	if(addInitRoot)
+	{
+		initRoot = talloc(ptrs_ast_t);
+		initRoot->vtable = &ptrs_ast_vtable_initroot;
+		initRoot->code = code.src;
+		initRoot->codepos = 0;
+		initRoot->file = code.filename;
+		addSymbol(&code, strdup("arguments"), &initRoot->arg.initroot.argumentsLocation);
+	}
+
 	ptrs_ast_t *ast = parseStmtList(&code, 0);
+
+	if(addInitRoot)
+	{
+		initRoot->arg.initroot.hasTryCatch = code.usesTryCatch;
+
+		struct ptrs_astlist *entry = talloc(struct ptrs_astlist);
+		entry->entry = initRoot;
+		entry->next = ast->arg.astlist;
+		ast->arg.astlist = entry;
+	}
 
 	if(symbols == NULL)
 		symbolScope_decrease(&code);
