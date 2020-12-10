@@ -586,6 +586,9 @@ jit_function_t ptrs_jit_createFunctionFromAst(ptrs_ast_t *node, jit_function_t p
 	jit_function_t func = ptrs_jit_createFunction(node, parent, signature, ast->name);
 	jit_function_set_meta(func, PTRS_JIT_FUNCTIONMETA_FUNCAST, ast, NULL, 0);
 
+	if(ast->usesTryCatch)
+		jit_insn_uses_catcher(func);
+
 	return func;
 }
 

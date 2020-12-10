@@ -100,6 +100,8 @@ typedef struct
 	jit_label_t breakLabel;
 	struct ptrs_assertion *firstAssertion;
 	struct ptrs_assertion *lastAssertion;
+	jit_label_t rethrowLabel;
+	struct ptrs_catcher_labels *tryCatches;
 	ptrs_meta_t returnType;
 	jit_value_t returnAddr;
 	jit_value_t indexSize;
@@ -145,6 +147,7 @@ typedef struct
 {
 	char *name;
 	ptrs_jit_var_t thisVal;
+	bool usesTryCatch;
 	ptrs_jit_var_t *vararg;
 	ptrs_funcparameter_t *args;
 	ptrs_typing_t retType;

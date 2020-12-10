@@ -73,6 +73,7 @@ struct code
 	int pos;
 	ptrs_symboltable_t *symbols;
 	bool insideIndex;
+	bool usesTryCatch;
 	ptrs_jit_var_t *thisVar;
 };
 
@@ -482,29 +483,40 @@ static ptrs_ast_t *parseScopelessBody(code_t *code, bool allowStmt)
 	return result;
 }
 
-static ptrs_ast_t *parseBody(code_t *code, bool allowStmt, bool isFunction)
+static ptrs_ast_t *parseBody(code_t *code, bool allowStmt)
 {
-	if(!isFunction)
-		symbolScope_increase(code, false);
-
+	symbolScope_increase(code, false);
 	ptrs_ast_t *result = parseScopelessBody(code, allowStmt);
-
 	symbolScope_decrease(code);
 
 	return result;
 }
 
-static ptrs_function_t *parseFunction(code_t *code, char *name)
+static void parseFunctionBody(code_t *code, ptrs_function_t *func)
+{
+	bool oldTryCatch = code->usesTryCatch;
+	code->usesTryCatch = false;
+	func->body = parseScopelessBody(code, false);
+	func->usesTryCatch = code->usesTryCatch;
+	code->usesTryCatch = oldTryCatch;
+}
+
+static void parseFunctionInto(code_t *code, ptrs_function_t *func)
 {
 	symbolScope_increase(code, true);
-
-	ptrs_function_t *func = talloc(ptrs_function_t);
-	func->name = name;
-
 	addSymbol(code, strdup("this"), &func->thisVal);
 
 	func->args = parseArgumentDefinitionList(code, &func->vararg, &func->retType);
-	func->body = parseBody(code, false, true);
+	parseFunctionBody(code, func);
+
+	symbolScope_decrease(code);
+}
+
+static ptrs_function_t *parseFunction(code_t *code, char *name)
+{
+	ptrs_function_t *func = talloc(ptrs_function_t);
+	func->name = name;
+	parseFunctionInto(code, func);
 
 	return func;
 }
@@ -513,7 +525,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 {
 	if(code->curr == '{')
 	{
-		return parseBody(code, false, false);
+		return parseBody(code, false);
 	}
 	else if(lookahead(code, "const"))
 	{
@@ -643,12 +655,15 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	{
 		stmt->vtable = &ptrs_ast_vtable_scopestatement;
 		symbolScope_increase(code, true);
-		stmt->arg.astval = parseBody(code, true, true);
+		stmt->arg.astval = parseBody(code, true);
+		symbolScope_decrease(code);
 	}
 	else if(lookahead(code, "try"))
 	{
+		code->usesTryCatch = true;
+
 		stmt->vtable = &ptrs_ast_vtable_trycatch;
-		stmt->arg.trycatch.tryBody = parseBody(code, true, false);
+		stmt->arg.trycatch.tryBody = parseBody(code, true);
 
 		if(lookahead(code, "catch"))
 		{
@@ -678,7 +693,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 				stmt->arg.trycatch.retVal.constType = -1;
 			}
 
-			stmt->arg.trycatch.finallyBody = parseBody(code, true, false);
+			stmt->arg.trycatch.finallyBody = parseBody(code, true);
 			symbolScope_decrease(code);
 		}
 		else
@@ -702,11 +717,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		struct symbollist *symbol = addSpecialSymbol(code, strdup(func->name), PTRS_SYMBOL_FUNCTION);
 		symbol->arg.function = &stmt->arg.function;
 
-		symbolScope_increase(code, true);
-		addSymbol(code, strdup("this"), &func->thisVal);
-
-		func->args = parseArgumentDefinitionList(code, &func->vararg, &func->retType);
-		func->body = parseBody(code, false, true);
+		parseFunctionInto(code, func);
 	}
 	else if(lookahead(code, "struct"))
 	{
@@ -722,10 +733,10 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		consumec(code, '(');
 		stmt->arg.ifelse.condition = parseExpression(code, true);
 		consumec(code, ')');
-		stmt->arg.ifelse.ifBody = parseBody(code, true, false);
+		stmt->arg.ifelse.ifBody = parseBody(code, true);
 
 		if(lookahead(code, "else"))
-			stmt->arg.ifelse.elseBody = parseBody(code, true, false);
+			stmt->arg.ifelse.elseBody = parseBody(code, true);
 		else
 			stmt->arg.ifelse.elseBody = NULL;
 	}
@@ -736,7 +747,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 	else if(lookahead(code, "loop"))
 	{
 		stmt->vtable = &ptrs_ast_vtable_loop;
-		stmt->arg.astval = parseBody(code, true, false);
+		stmt->arg.astval = parseBody(code, true);
 	}
 	else if(lookahead(code, "while"))
 	{
@@ -751,7 +762,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		breakIf->arg.ifelse.elseBody = talloc(ptrs_ast_t);
 		breakIf->arg.ifelse.elseBody->vtable = &ptrs_ast_vtable_break;
 
-		stmt->arg.astval = parseBody(code, true, false);
+		stmt->arg.astval = parseBody(code, true);
 		stmt->arg.astval = prependAstToAst(stmt->arg.astval, breakIf);
 	}
 	else if(lookahead(code, "do"))
@@ -1205,11 +1216,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 		ptrs_function_t *func = &ast->arg.function.func;
 		func->name = "(anonymous function)";
 
-		symbolScope_increase(code, true);
-		addSymbol(code, strdup("this"), &func->thisVal);
-
-		func->args = parseArgumentDefinitionList(code, &func->vararg, &func->retType);
-		func->body = parseBody(code, false, true);
+		parseFunctionInto(code, func);
 	}
 	else if(lookahead(code, "map_stack"))
 	{
@@ -1357,7 +1364,8 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 				consume(code, "->");
 				if(code->curr == '{')
 				{
-					func->body = parseBody(code, false, true);
+					parseFunctionBody(code, func);
+					symbolScope_decrease(code);
 				}
 				else
 				{
@@ -1365,6 +1373,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 					retStmt->vtable = &ptrs_ast_vtable_return;
 					retStmt->arg.astval = parseExpression(code, true);
 					func->body = retStmt;
+					func->usesTryCatch = false;
 
 					symbolScope_decrease(code);
 				}
@@ -2261,7 +2270,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			func->name = malloc(snprintf(NULL, 0, nameFormat, structName, opLabel, otherName) + 1);
 			sprintf(func->name, nameFormat, structName, opLabel, otherName);
 
-			func->body = parseBody(code, false, true);
+			parseFunctionBody(code, func);
+			symbolScope_decrease(code);
 
 			overload->handler = func;
 			overload->next = struc->overloads;
@@ -2371,8 +2381,10 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				sprintf(func->name, "%s.set %s", structName, name);
 			}
 
-			func->body = parseBody(code, false, true);
+			parseFunctionBody(code, func);
 			curr->value.function.ast = func;
+
+			symbolScope_decrease(code);
 		}
 		else if(code->curr == '(')
 		{

@@ -185,9 +185,13 @@ int main(int argc, char **argv)
 
 		jit_long ret;
 		void *arg = arguments;
-		jit_function_apply(result.func, &arg, &ret);
+		if(jit_function_apply(result.func, &arg, &ret) == 0)
+		{
+			exitOnError();
 
-		exitOnError();
+			// we should have exited by now
+			ptrs_error(NULL, "jit_function_apply returned 0 but no exception is present!");
+		}
 
 		return ret;
 	}

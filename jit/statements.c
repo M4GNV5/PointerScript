@@ -566,12 +566,34 @@ ptrs_jit_var_t ptrs_handle_trycatch(ptrs_ast_t *node, jit_function_t func, ptrs_
 {
 	struct ptrs_ast_trycatch *ast = &node->arg.trycatch;
 
+	ptrs_catcher_labels_t *catcher = ptrs_jit_addCatcher(scope);
+	jit_label_t beforeFinally = jit_label_undefined;
+	jit_value_t hadException = jit_value_create(func, jit_type_int);
+
+	jit_insn_label(func, &catcher->beforeTry);
 	ptrs_jit_var_t val = ast->tryBody->vtable->get(ast->tryBody, func, scope);
+	if(ast->finallyBody != NULL && ast->catchBody == NULL)
+		jit_insn_store(func, hadException, jit_const_int(func, int, 0));
+	jit_insn_branch(func, &beforeFinally);
+	jit_insn_label(func, &catcher->afterTry);
 
-	// TODO catch errors and compile catch body
+	jit_insn_label(func, &catcher->catcher);
+	if(ast->catchBody)
+		ast->catchBody->vtable->get(ast->catchBody, func, scope);
+	if(ast->finallyBody != NULL && ast->catchBody == NULL)
+		jit_insn_store(func, hadException, jit_const_int(func, int, 1));
 
-	if(ast->finallyBody != NULL)
+	jit_insn_label(func, &beforeFinally);
+	if(ast->finallyBody)
+	{
 		ast->finallyBody->vtable->get(ast->finallyBody, func, scope);
+
+		if(ast->catchBody == NULL)
+		{
+			//hadException = jit_insn_to_bool(func, hadException);
+			jit_insn_branch_if(func, hadException, &scope->rethrowLabel);
+		}
+	}
 
 	return val;
 }

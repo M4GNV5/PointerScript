@@ -413,6 +413,20 @@ void ptrs_jit_assertMetaCompatibility(jit_function_t func, struct ptrs_assertion
 	}
 }
 
+ptrs_catcher_labels_t *ptrs_jit_addCatcher(ptrs_scope_t *scope)
+{
+	ptrs_catcher_labels_t *entry = malloc(sizeof(ptrs_catcher_labels_t));
+
+	entry->beforeTry = jit_label_undefined;
+	entry->afterTry = jit_label_undefined;
+	entry->catcher = jit_label_undefined;
+
+	entry->next = scope->tryCatches;
+	scope->tryCatches = entry;
+
+	return entry;
+}
+
 void ptrs_jit_placeAssertions(jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_assertion *curr = scope->firstAssertion;
@@ -433,6 +447,30 @@ void ptrs_jit_placeAssertions(jit_function_t func, ptrs_scope_t *scope)
 		jit_type_free(signature);
 		free(argDef);
 		free(old);
+	}
+
+	if(scope->tryCatches != NULL)
+	{
+		jit_insn_start_catcher(func);
+
+		ptrs_catcher_labels_t *curr = scope->tryCatches;
+		while(curr != NULL)
+		{
+			jit_label_t next = jit_label_undefined;
+			jit_insn_branch_if_pc_not_in_range(func, curr->beforeTry, curr->afterTry, &next);
+			jit_insn_branch(func, &curr->catcher);
+			jit_insn_label(func, &next);
+
+			ptrs_catcher_labels_t *old = curr;
+			curr = curr->next;
+			free(old);
+		}
+
+		jit_insn_label(func, &scope->rethrowLabel);
+		jit_insn_rethrow_unhandled(func);
+
+		scope->rethrowLabel = jit_label_undefined;
+		scope->tryCatches = NULL;
 	}
 
 	scope->firstAssertion = NULL;

@@ -36,6 +36,7 @@ void ptrs_initScope(ptrs_scope_t *scope, ptrs_scope_t *parent)
 	memset(scope, 0, sizeof(ptrs_scope_t));
 	scope->continueLabel = jit_label_undefined;
 	scope->breakLabel = jit_label_undefined;
+	scope->rethrowLabel = jit_label_undefined;
 
 	if(parent != NULL)
 	{
