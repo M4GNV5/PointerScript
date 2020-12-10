@@ -576,11 +576,13 @@ ptrs_jit_var_t ptrs_handle_throw(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	val = ptrs_jit_vartoa(func, val);
 
 	jit_value_t nodeVal = jit_const_int(func, void_ptr, (uintptr_t)node);
-	jit_value_t format = jit_const_int(func, void_ptr, (uintptr_t)"%s");
-	ptrs_jit_reusableCallVoid(func, ptrs_error,
-		(jit_type_void_ptr, jit_type_void_ptr, jit_type_void_ptr),
-		(nodeVal, format, val.val)
+	jit_value_t errorVal;
+	ptrs_jit_reusableCall(func, ptrs_createError, errorVal, jit_type_void_ptr,
+		(jit_type_void_ptr, jit_type_int, jit_type_void_ptr),
+		(nodeVal, jit_const_int(func, int, 2), val.val)
 	);
+
+	jit_insn_throw(func, errorVal);
 }
 
 ptrs_jit_var_t ptrs_handle_trycatch(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)

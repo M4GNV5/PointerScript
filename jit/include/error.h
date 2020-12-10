@@ -20,7 +20,7 @@ typedef struct
 
 typedef struct ptrs_error
 {
-	char *message;
+	const char *message;
 	char *backtrace;
 	const char *file;
 	int messageLen;
@@ -39,6 +39,8 @@ typedef struct ptrs_catcher_labels
 } ptrs_catcher_labels_t;
 
 void ptrs_getpos(ptrs_codepos_t *pos, const char *code, size_t index);
+
+ptrs_error_t *ptrs_createError(ptrs_ast_t *ast, int skipTrace, const char *message);
 
 void ptrs_handle_signals();
 void ptrs_printError(ptrs_error_t *error);

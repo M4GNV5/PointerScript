@@ -237,18 +237,15 @@ void *ptrs_formatErrorMsg(const char *msg, va_list ap)
 	return buff;
 }
 
-static void _ptrs_verror(ptrs_ast_t *ast, int skipTrace, const char *msg, va_list ap)
+ptrs_error_t *ptrs_createError(ptrs_ast_t *ast, int skipTrace, const char *message)
 {
-	static __thread int hadError = false;
-
 	ptrs_error_t *error = malloc(sizeof(ptrs_error_t));
 	error->ast = ast;
 	error->file = ast ? ast->file : "<unknown>";
 	error->fileLen = strlen(error->file) + 1;
-	error->message = ptrs_formatErrorMsg(msg, ap);
+	error->message = message;
 	error->messageLen = strlen(error->message) + 1;
 
-	error->ast = ast;
 	if(ast == NULL)
 	{
 		error->pos.currLine = NULL;
@@ -260,21 +257,36 @@ static void _ptrs_verror(ptrs_ast_t *ast, int skipTrace, const char *msg, va_lis
 		ptrs_getpos(&error->pos, ast->code, ast->codepos);
 	}
 
-	if(ptrs_enableExceptions && !hadError)
+	static __thread bool hadError = false;
+	if(!hadError)
 	{
 		hadError = true;
 		error->backtrace = ptrs_backtrace(skipTrace);
-		error->backtraceLen = strlen(error->backtrace) + 1;
 		hadError = false;
+	}
+	else
+	{
+		error->backtrace = "<an error occured while obtaining the backtrace>\n";
+	}
+
+	error->backtraceLen = strlen(error->backtrace) + 1;
+	return error;
+}
+
+static void _ptrs_verror(ptrs_ast_t *ast, int skipTrace, const char *msg, va_list ap)
+{
+	msg = ptrs_formatErrorMsg(msg, ap);
+	ptrs_error_t *error = ptrs_createError(ast, skipTrace, msg);
+
+	if(ptrs_enableExceptions)
+	{
 		jit_exception_throw(error);
 	}
 	else
 	{
-		error->backtrace = "";
 		ptrs_printError(error);
 		exit(EXIT_FAILURE);
 	}
-
 }
 static void _ptrs_error(ptrs_ast_t *ast, int skipTrace, const char *msg, ...)
 {
@@ -287,7 +299,7 @@ void ptrs_error(ptrs_ast_t *ast, const char *msg, ...)
 {
 	va_list ap;
 	va_start(ap, msg);
-	_ptrs_verror(ast, 3, msg, ap);
+	_ptrs_verror(ast, 4, msg, ap);
 }
 
 void ptrs_handle_sig(int sig, siginfo_t *info, void *data)
@@ -309,12 +321,12 @@ void ptrs_handle_sig(int sig, siginfo_t *info, void *data)
 		exit(EXIT_FAILURE);
 	}
 
-	_ptrs_error(NULL, 5, "Received signal: %s", strsignal(sig));
+	_ptrs_error(NULL, 6, "Received signal: %s", strsignal(sig));
 }
 
 void *ptrs_handle_exception(int type)
 {
-	_ptrs_error(NULL, 5, "JIT Exception: %d", type);
+	_ptrs_error(NULL, 6, "JIT Exception: %d", type);
 }
 
 void ptrs_handle_signals(jit_function_t func)
