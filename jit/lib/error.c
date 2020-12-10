@@ -61,7 +61,7 @@ void ptrs_printError(ptrs_error_t *error)
 
 	if(error->ast != NULL && error->pos.currLine != NULL)
 	{
-		fprintf(ptrs_errorfile, " at %s:%d:%d\n\n", error->ast->file, error->pos.line, error->pos.column);
+		fprintf(ptrs_errorfile, " at %s:%d:%d\n\n", error->file, error->pos.line, error->pos.column);
 
 		int linelen = strchr(error->pos.currLine, '\n') - error->pos.currLine;
 		fprintf(ptrs_errorfile, "%.*s\n", linelen, error->pos.currLine);
@@ -242,7 +242,11 @@ static void _ptrs_verror(ptrs_ast_t *ast, int skipTrace, const char *msg, va_lis
 	static __thread int hadError = false;
 
 	ptrs_error_t *error = malloc(sizeof(ptrs_error_t));
+	error->ast = ast;
+	error->file = ast ? ast->file : "<unknown>";
+	error->fileLen = strlen(error->file) + 1;
 	error->message = ptrs_formatErrorMsg(msg, ap);
+	error->messageLen = strlen(error->message) + 1;
 
 	error->ast = ast;
 	if(ast == NULL)
@@ -260,6 +264,7 @@ static void _ptrs_verror(ptrs_ast_t *ast, int skipTrace, const char *msg, va_lis
 	{
 		hadError = true;
 		error->backtrace = ptrs_backtrace(skipTrace);
+		error->backtraceLen = strlen(error->backtrace) + 1;
 		hadError = false;
 		jit_exception_throw(error);
 	}
@@ -451,7 +456,9 @@ void ptrs_jit_placeAssertions(jit_function_t func, ptrs_scope_t *scope)
 
 	if(scope->tryCatches != NULL)
 	{
-		jit_insn_start_catcher(func);
+		jit_value_t exception = jit_insn_start_catcher(func);
+		if(scope->tryCatchException != NULL)
+			jit_insn_store(func, scope->tryCatchException, exception);
 
 		ptrs_catcher_labels_t *curr = scope->tryCatches;
 		while(curr != NULL)

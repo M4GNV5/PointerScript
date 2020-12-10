@@ -102,6 +102,7 @@ typedef struct
 	struct ptrs_assertion *lastAssertion;
 	jit_label_t rethrowLabel;
 	struct ptrs_catcher_labels *tryCatches;
+	jit_value_t tryCatchException; // at runtime a pointer to a ptrs_error_t
 	ptrs_meta_t returnType;
 	jit_value_t returnAddr;
 	jit_value_t indexSize;

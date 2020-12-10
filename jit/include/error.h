@@ -22,6 +22,10 @@ typedef struct ptrs_error
 {
 	char *message;
 	char *backtrace;
+	const char *file;
+	int messageLen;
+	int backtraceLen;
+	int fileLen;
 	ptrs_ast_t *ast;
 	ptrs_codepos_t pos;
 } ptrs_error_t;

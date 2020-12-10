@@ -579,7 +579,77 @@ ptrs_jit_var_t ptrs_handle_trycatch(ptrs_ast_t *node, jit_function_t func, ptrs_
 
 	jit_insn_label(func, &catcher->catcher);
 	if(ast->catchBody)
+	{
+		ptrs_funcparameter_t *curr = ast->args;
+		for(int i = 0; curr != NULL; i++)
+		{
+			if(curr->name == NULL) // argument ignored with _
+				continue;
+
+			if(scope->tryCatchException == NULL)
+				scope->tryCatchException = jit_value_create(func, jit_type_void_ptr);
+
+			jit_value_t tmp;
+			switch(i)
+			{
+				case 0: // message
+					curr->arg.val = jit_insn_load_relative(func, scope->tryCatchException,
+						offsetof(ptrs_error_t, message), jit_type_void_ptr);
+					tmp = jit_insn_load_relative(func, scope->tryCatchException,
+						offsetof(ptrs_error_t, messageLen), jit_type_int);
+					break;
+
+				case 1: // traceback
+					curr->arg.val = jit_insn_load_relative(func, scope->tryCatchException,
+						offsetof(ptrs_error_t, backtrace), jit_type_void_ptr);
+					tmp = jit_insn_load_relative(func, scope->tryCatchException,
+						offsetof(ptrs_error_t, backtraceLen), jit_type_int);
+					break;
+
+				case 2: // file
+					curr->arg.val = jit_insn_load_relative(func, scope->tryCatchException,
+						offsetof(ptrs_error_t, file), jit_type_void_ptr);
+					tmp = jit_insn_load_relative(func, scope->tryCatchException,
+						offsetof(ptrs_error_t, fileLen), jit_type_int);
+					break;
+
+				case 3: // line
+					tmp = jit_insn_load_relative(func, scope->tryCatchException,
+						offsetof(ptrs_error_t, pos) + offsetof(ptrs_codepos_t, line), jit_type_int);
+					curr->arg.val = jit_insn_convert(func, tmp, jit_type_long, 0);
+					break;
+
+				case 4: // column
+					tmp = jit_insn_load_relative(func, scope->tryCatchException,
+						offsetof(ptrs_error_t, pos) + offsetof(ptrs_codepos_t, column), jit_type_int);
+					curr->arg.val = jit_insn_convert(func, tmp, jit_type_long, 0);
+					break;
+
+				default:
+					ptrs_error(node, "Catch statements can receive a maximum of 5 parameters");
+			}
+
+			if(i < 3)
+			{
+				// TODO retrieve the actual size
+				curr->arg.meta = ptrs_jit_arrayMeta(func,
+					jit_const_long(func, ulong, PTRS_TYPE_NATIVE),
+					jit_const_long(func, ulong, 1),
+					tmp
+				);
+				curr->arg.constType = PTRS_TYPE_NATIVE;
+			}
+			else
+			{
+				curr->arg.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
+				curr->arg.constType = PTRS_TYPE_INT;
+			}
+
+			curr = curr->next;
+		}
+
 		ast->catchBody->vtable->get(ast->catchBody, func, scope);
+	}
 	if(ast->finallyBody != NULL && ast->catchBody == NULL)
 		jit_insn_store(func, hadException, jit_const_int(func, int, 1));
 
