@@ -1608,6 +1608,7 @@ static void parseTyping(code_t *code, ptrs_typing_t *typing)
 
 	char *name = readIdentifier(code);
 	ptrs_typing_t *type = getType(code, name);
+	free(name);
 	if(type != NULL)
 	{
 		memcpy(typing, type, sizeof(ptrs_typing_t));
@@ -3007,6 +3008,8 @@ static ptrs_typing_t *getType(code_t *code, const char *name)
 		{
 			if(strcmp(curr->name, name) == 0)
 				return &curr->type;
+			
+			curr = curr->next;
 		}
 
 		symbols = symbols->outer;

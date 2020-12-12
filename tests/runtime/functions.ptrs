@@ -25,6 +25,24 @@ function testIgnore(x, _, z)
 assertEq(4, testIgnore(3, _, 1));
 assertEq(45, testIgnore(3, "hello", 42));
 
+function testTyped(x: int, y: float)
+{
+	assertEq(type<int>, typeof x);
+	assertEq(type<float>, typeof y);
+	return x + y;
+}
+assertEq(type<float>, typeof testTyped(3, 5.0));
+
+struct SomeStruct
+{
+	x = 3;
+};
+function testTypedStruct(a: int, b: SomeStruct)
+{
+	return a + b.x;
+}
+assertEq(type<int>, typeof testTypedStruct(5, new SomeStruct()));
+
 //TODO make varargs work again
 /*function testVarArgs(args...)
 {
