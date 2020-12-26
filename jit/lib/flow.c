@@ -31,6 +31,7 @@ typedef struct
 {
 	bool dryRun;
 	bool endsInDead;
+	bool inTryBlock;
 	unsigned depth;
 	ptrs_predictions_t *predictions;
 	//...
@@ -339,6 +340,26 @@ static void setVariablePrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var, ptrs_p
 					newIsAddressable = true;
 					// we need a second prediction for this variable in the current depth
 					// we continue to search for it or create a new one, thus no return here.
+				}
+				else if(flow->inTryBlock)
+				{
+					// this instruction may or may not be executed depending on wether an
+					// exception was raised in the statements before
+					// e.g. after:
+					// 		var x = 0; try { someFunction(); x = "foo"; }
+					// x might either be an int or a string
+
+					if(curr->prediction.knownType != prediction->knownType
+						|| curr->prediction.meta.type != prediction->meta.type)
+						curr->prediction.knownType = false;
+
+					if(curr->prediction.knownMeta != prediction->knownMeta
+						|| memcmp(&curr->prediction.meta, &prediction->meta, sizeof(ptrs_meta_t)) != 0)
+						curr->prediction.knownMeta = false;
+
+					if(curr->prediction.knownValue != prediction->knownValue
+						|| memcmp(&curr->prediction.value, &prediction->value, sizeof(ptrs_val_t)) != 0)
+						curr->prediction.knownValue = false;
 				}
 				else if(flow->dryRun)
 				{
@@ -1868,9 +1889,8 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 	{
 		analyzeExpression(flow, node->arg.astval, ret);
 
-		//TODO additionally flag for throwing which is unset by try/catch?
-		// try/catch isn't implemented at the moment anyways though
-		flow->endsInDead = true;
+		if(!flow->inTryBlock)
+			flow->endsInDead = true;
 	}
 	else if(node->vtable == &ptrs_ast_vtable_delete)
 	{
@@ -1886,7 +1906,10 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 	{
 		struct ptrs_ast_trycatch *stmt = &node->arg.trycatch;
 
+		bool oldInTry = flow->inTryBlock;
+		flow->inTryBlock = true;
 		analyzeStatement(flow, stmt->tryBody, &dummy);
+		flow->inTryBlock = oldInTry;
 
 		ptrs_funcparameter_t *curr = stmt->args;
 		for(int i = 0; curr != NULL; i++)
@@ -1912,7 +1935,18 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 
 			curr = curr->next;
 		}
-		analyzeStatement(flow, stmt->catchBody, &dummy);
+
+		if(flow->dryRun)
+		{
+			analyzeStatement(flow, stmt->catchBody, &dummy);
+		}
+		else
+		{
+			ptrs_flow_t other;
+			dupFlow(&other, flow);
+			analyzeStatement(&other, stmt->catchBody, &dummy);
+			mergePredictions(flow, &other);
+		}
 
 		analyzeStatement(flow, stmt->finallyBody, &dummy);
 	}
@@ -2140,6 +2174,7 @@ void ptrs_flow_analyze(ptrs_ast_t *ast)
 	ptrs_flow_t flow;
 	flow.predictions = NULL;
 	flow.depth = 0;
+	flow.inTryBlock = false;
 
 	// make a dry run first to set addressable for variables used accross functions
 	flow.dryRun = true;
