@@ -237,8 +237,11 @@ void *ptrs_formatErrorMsg(const char *msg, va_list ap)
 	return buff;
 }
 
-ptrs_error_t *ptrs_createError(ptrs_ast_t *ast, int skipTrace, const char *message)
+ptrs_error_t *ptrs_createError(ptrs_ast_t *ast, int skipTrace, const char *message, bool dupMessage)
 {
+	if(dupMessage)
+		message = strdup(message);
+
 	ptrs_error_t *error = malloc(sizeof(ptrs_error_t));
 	error->ast = ast;
 	error->file = ast ? ast->file : "<unknown>";
@@ -276,7 +279,7 @@ ptrs_error_t *ptrs_createError(ptrs_ast_t *ast, int skipTrace, const char *messa
 static void _ptrs_verror(ptrs_ast_t *ast, int skipTrace, const char *msg, va_list ap)
 {
 	msg = ptrs_formatErrorMsg(msg, ap);
-	ptrs_error_t *error = ptrs_createError(ast, skipTrace, msg);
+	ptrs_error_t *error = ptrs_createError(ast, skipTrace, msg, false);
 
 	if(ptrs_enableExceptions)
 	{

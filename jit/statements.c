@@ -578,8 +578,8 @@ ptrs_jit_var_t ptrs_handle_throw(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	jit_value_t nodeVal = jit_const_int(func, void_ptr, (uintptr_t)node);
 	jit_value_t errorVal;
 	ptrs_jit_reusableCall(func, ptrs_createError, errorVal, jit_type_void_ptr,
-		(jit_type_void_ptr, jit_type_int, jit_type_void_ptr),
-		(nodeVal, jit_const_int(func, int, 2), val.val)
+		(jit_type_void_ptr, jit_type_int, jit_type_void_ptr, jit_type_sys_bool),
+		(nodeVal, jit_const_int(func, int, 2), val.val, jit_const_int(func, sys_bool, 1))
 	);
 
 	jit_insn_throw(func, errorVal);
