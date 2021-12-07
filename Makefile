@@ -27,10 +27,10 @@ RUN_OBJECTS += $(BIN)/ops/binary.o
 RUN_OBJECTS += $(BIN)/ops/unary.o
 RUN_OBJECTS += $(BIN)/ops/special.o
 
+EXTERN_LIBS += $(LIBJIT_BIN)
 EXTERN_LIBS += -lm
 EXTERN_LIBS += -ldl
 EXTERN_LIBS += -lpthread
-EXTERN_LIBS += $(LIBJIT_BIN)
 
 CFLAGS = -I$(LIBJIT_DIR) -std=c99
 
