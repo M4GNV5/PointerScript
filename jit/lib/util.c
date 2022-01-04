@@ -50,6 +50,26 @@ void ptrs_initScope(ptrs_scope_t *scope, ptrs_scope_t *parent)
 	}
 }
 
+ptrs_nativetype_info_t *ptrs_getNativeTypeForArray(ptrs_ast_t *node, ptrs_meta_t meta)
+{
+	if(meta.type != PTRS_TYPE_POINTER)
+	{
+		if(node)
+			ptrs_error(node, "Attempting to dereference a value of type %t", meta.type);
+		else
+			return NULL;
+	}
+	if(meta.array.typeIndex < 0 || meta.array.typeIndex >= ptrs_nativeTypeCount)
+	{
+		if(node)
+			ptrs_error(node, "Attempting to dereference a pointer with an invalid array kind");
+		else
+			return NULL;
+	}
+
+	return &ptrs_nativeTypes[meta.array.typeIndex];
+}
+
 jit_type_t ptrs_jit_getVarType()
 {
 	static jit_type_t vartype = NULL;

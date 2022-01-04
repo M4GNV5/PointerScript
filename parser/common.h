@@ -19,9 +19,7 @@ typedef union
 {
 	int64_t intval;
 	double floatval;
-	const char *strval;
-	struct ptrs_var *ptrval;
-	void *nativeval;
+	void *ptrval;
 	struct ptrs_struct *structval;
 } ptrs_val_t;
 
@@ -33,8 +31,7 @@ typedef struct
 	{
 		struct
 		{
-			bool readOnly;
-			uint16_t padding;
+			uint8_t typeIndex;
 			uint32_t size;
 		} __attribute__((packed)) array;
 		uint8_t pointer[7]; //actually 8, use the ptrs_meta_getPointer macro below
@@ -48,8 +45,7 @@ typedef struct
 		struct
 		{
 			uint32_t size;
-			uint16_t padding;
-			bool readOnly;
+			uint8_t typeIndex;
 		} __attribute__((packed)) array;
 		uint8_t pointer[7]; //actually 8, use the ptrs_meta_getPointer macro below
 	};
@@ -76,7 +72,6 @@ typedef enum
 	PTRS_TYPE_UNDEFINED,
 	PTRS_TYPE_INT,
 	PTRS_TYPE_FLOAT,
-	PTRS_TYPE_NATIVE,
 	PTRS_TYPE_POINTER,
 	PTRS_TYPE_STRUCT,
 	PTRS_TYPE_FUNCTION,
@@ -111,15 +106,26 @@ typedef struct
 } ptrs_scope_t;
 
 typedef void (*ptrs_nativetype_handler_t)(void *target, size_t typeSize, struct ptrs_var *value);
+typedef void (*ptrs_nativetype_jit_handler_t)(jit_value_t target, size_t typeSize, ptrs_jit_var_t *value);
 typedef struct
 {
+	uint64_t size; // make sure the size is the first element so we can load it directly from JIT code
 	const char *name;
-	size_t size;
 	jit_type_t jitType;
 	ptrs_vartype_t varType;
 	ptrs_nativetype_handler_t getHandler;
 	ptrs_nativetype_handler_t setHandler;
 } ptrs_nativetype_info_t;
+
+// array with all existing native types
+extern ptrs_nativetype_info_t ptrs_nativeTypes[];
+extern const int ptrs_nativeTypeCount;
+
+// index of the `var` and `char` type in ptrs_nativeTypes
+#define PTRS_NATIVETYPE_INDEX_CHAR ((size_t)0)
+#define PTRS_NATIVETYPE_INDEX_U8 ((size_t)14)
+#define PTRS_NATIVETYPE_INDEX_CFUNC ((size_t)20)
+#define PTRS_NATIVETYPE_INDEX_VAR ((size_t)28)
 
 typedef struct
 {
@@ -160,7 +166,6 @@ enum ptrs_structmembertype
 	PTRS_STRUCTMEMBER_VAR,
 	PTRS_STRUCTMEMBER_FUNCTION,
 	PTRS_STRUCTMEMBER_ARRAY,
-	PTRS_STRUCTMEMBER_VARARRAY,
 	PTRS_STRUCTMEMBER_GETTER,
 	PTRS_STRUCTMEMBER_SETTER,
 	PTRS_STRUCTMEMBER_TYPED,
@@ -176,11 +181,7 @@ struct ptrs_structmember
 	union
 	{
 		struct ptrs_ast *startval;
-		struct
-		{
-			struct ptrs_astlist *init;
-			uint64_t size;
-		} array;
+		ptrs_meta_t array;
 		struct
 		{
 			ptrs_function_t *ast;
@@ -216,8 +217,8 @@ typedef struct ptrs_struct
 #define jit_const_float(func, val) (jit_value_create_float64_constant(func, jit_type_float64, val))
 
 #define ptrs_const_meta(type) ((uint64_t)(type))
-#define ptrs_const_arrayMeta(type, readOnly, size) \
-	(((uint64_t)(size) << 32) | (uint64_t)(readOnly) << 8 | (uint64_t)(type))
+#define ptrs_const_arrayMeta(size, typeIndex) \
+	((uint64_t)(size) << 32 | (uint64_t)(typeIndex) << 8 | (uint64_t)(PTRS_TYPE_POINTER))
 #define ptrs_const_pointerMeta(type, ptr) \
 	(((uint64_t)(uintptr_t)(ptr) << 8) | (uint64_t)(type))
 
@@ -228,22 +229,32 @@ typedef struct ptrs_struct
 
 #define ptrs_jit_const_meta(func, type) \
 	(jit_const_long(func, ulong, ptrs_const_meta(type)))
-#define ptrs_jit_const_arrayMeta(func, type, readOnly, size) \
-	(jit_const_long(func, ulong, ptrs_const_arrayMeta(type, readOnly, size)))
+#define ptrs_jit_const_arrayMeta(func, size, typeIndex) \
+	(jit_const_long(func, ulong, ptrs_const_arrayMeta((size), (typeIndex))))
 #define ptrs_jit_const_pointerMeta(func, type, ptr) \
 	(jit_const_long(func, ulong, ptrs_const_pointerMeta(type, ptr)))
 
-#define ptrs_jit_arrayMeta(func, type, readOnly, size) \
+#define ptrs_jit_arrayMeta(func, size, typeIndex) \
 	(jit_insn_or(func, \
 		jit_insn_or(func, \
-			jit_insn_shl(func, \
-				jit_insn_convert(func, (size), jit_type_ulong, 0), \
-				jit_const_long(func, ulong, 32) \
-			), \
-			jit_insn_shl(func, (readOnly), jit_const_long(func, ulong, 8)) \
+			jit_const_long(func, ulong, PTRS_TYPE_POINTER), \
+			jit_insn_shl(func, (typeIndex), jit_const_long(func, ulong, 8)) \
 		), \
-		(type) \
+		jit_insn_shl(func, \
+			jit_insn_convert(func, (size), jit_type_ulong, 0), \
+			jit_const_long(func, ulong, 32) \
+		) \
 	))
+
+#define ptrs_jit_arrayMetaKnownType(func, length, typeIndex) \
+	(jit_insn_or(func, \
+		jit_insn_shl(func, \
+			jit_insn_convert(func, (length), jit_type_ulong, 0), \
+			jit_const_long(func, ulong, 32) \
+		), \
+		jit_const_long(func, ulong, ((uint64_t)(typeIndex) << 8) | (uint64_t)PTRS_TYPE_POINTER) \
+	))
+
 #define ptrs_jit_pointerMeta(func, type, ptr) \
 	(jit_insn_or(func, \
 		jit_insn_shl(func, (ptr), jit_const_long(func, ulong, 8)), \
@@ -252,6 +263,17 @@ typedef struct ptrs_struct
 
 #define ptrs_jit_getType(func, meta) (jit_insn_and(func, meta, jit_const_long(func, ulong, 0xFF)))
 #define ptrs_jit_getArraySize(func, meta) (jit_insn_shr(func, meta, jit_const_int(func, ubyte, 32)))
+#define ptrs_jit_getArrayTypeIndex(func, meta) \
+	(jit_insn_and(func, \
+		jit_insn_shr(func, (meta), jit_const_int(func, ubyte, 8)), \
+		jit_const_long(func, ulong, 0xFF) \
+	))
+#define ptrs_jit_getArrayTypeSize(func, typeIndex) \
+	(jit_insn_load_elem(func, \
+		jit_const_int(func, void_ptr, (uintptr_t)ptrs_nativeTypes), \
+		jit_insn_mul(func, (typeIndex), jit_const_long(func, ulong, sizeof(ptrs_nativetype_info_t))), \
+		jit_type_ulong \
+	))
 #define ptrs_jit_getMetaPointer(func, meta) (jit_insn_shr(func, meta, jit_const_int(func, ubyte, 8)))
 
 #define ptrs_jit_setArraySize(func, meta, size) \

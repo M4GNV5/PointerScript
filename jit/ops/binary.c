@@ -38,37 +38,18 @@ static jit_type_t getComparasionInstrinsicSignature()
 }
 
 #define binary_add_cases \
-	case const_typecomp(NATIVE, INT): \
-		ret.meta.type = PTRS_TYPE_NATIVE; \
-		ret.meta.array.size = leftMeta.array.size - right.intval; \
-		ret.value.nativeval = left.nativeval + right.intval; \
-		break; \
-	case const_typecomp(INT, NATIVE): \
-		ret.meta.type = PTRS_TYPE_NATIVE; \
-		ret.meta.array.size = rightMeta.array.size - left.intval; \
-		ret.value.nativeval = left.nativeval + right.intval; \
-		break; \
 	case const_typecomp(POINTER, INT): \
 		ret.meta.type = PTRS_TYPE_POINTER; \
 		ret.meta.array.size = leftMeta.array.size - right.intval; \
-		ret.value.nativeval = left.ptrval + right.intval; \
+		ret.value.ptrval = left.ptrval + right.intval; \
 		break; \
 	case const_typecomp(INT, POINTER): \
 		ret.meta.type = PTRS_TYPE_POINTER; \
 		ret.meta.array.size = rightMeta.array.size - left.intval; \
-		ret.value.nativeval = left.intval + right.ptrval; \
+		ret.value.ptrval = left.intval + right.ptrval; \
 		break;
 
 #define binary_sub_cases \
-	case const_typecomp(NATIVE, INT): \
-		ret.meta.type = PTRS_TYPE_NATIVE; \
-		ret.meta.array.size = leftMeta.array.size + right.intval; \
-		ret.value.nativeval = left.nativeval - right.intval; \
-		break; \
-	case const_typecomp(NATIVE, NATIVE): \
-		ret.meta.type = PTRS_TYPE_INT; \
-		ret.value.intval = left.nativeval - right.nativeval; \
-		break; \
 	case const_typecomp(POINTER, INT): \
 		ret.meta.type = PTRS_TYPE_POINTER; \
 		ret.meta.array.size = leftMeta.array.size - right.intval; \
@@ -80,20 +61,6 @@ static jit_type_t getComparasionInstrinsicSignature()
 		break;
 
 #define binary_add_jit_cases \
-	case const_typecomp(NATIVE, INT): \
-		left.constType = PTRS_TYPE_NATIVE; \
-		left.meta = ptrs_jit_setArraySize(func, left.meta, \
-			jit_insn_sub(func, ptrs_jit_getArraySize(func, left.meta), right.val) \
-		); \
-		left.val = jit_insn_add(func, left.val, right.val); \
-		break; \
-	case const_typecomp(INT, NATIVE): \
-		left.constType = PTRS_TYPE_NATIVE; \
-		left.meta = ptrs_jit_setArraySize(func, right.meta, \
-			jit_insn_sub(func, ptrs_jit_getArraySize(func, right.meta), left.val) \
-		); \
-		left.val = jit_insn_add(func, left.val, right.val); \
-		break; \
 	case const_typecomp(POINTER, INT): \
 		left.constType = PTRS_TYPE_POINTER; \
 		left.meta = ptrs_jit_setArraySize(func, left.meta, \
@@ -112,18 +79,6 @@ static jit_type_t getComparasionInstrinsicSignature()
 		break;
 
 #define binary_sub_jit_cases \
-	case const_typecomp(NATIVE, INT): \
-		left.constType = PTRS_TYPE_NATIVE; \
-		left.meta = ptrs_jit_setArraySize(func, left.meta, \
-			jit_insn_add(func, ptrs_jit_getArraySize(func, left.meta), right.val) \
-		); \
-		left.val = jit_insn_sub(func, left.val, right.val); \
-		break; \
-	case const_typecomp(NATIVE, NATIVE): \
-		left.constType = PTRS_TYPE_INT; \
-		left.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT); \
-		left.val = jit_insn_sub(func, left.val, right.val); \
-		break; \
 	case const_typecomp(POINTER, INT): \
 		left.constType = PTRS_TYPE_POINTER; \
 		left.meta = ptrs_jit_setArraySize(func, left.meta, \

@@ -170,21 +170,14 @@ ptrs_var_t ptrs_struct_getMember(ptrs_ast_t *ast, void *data, ptrs_struct_t *str
 			return result;
 
 		case PTRS_STRUCTMEMBER_FUNCTION:
-			result.value.nativeval = ptrs_jit_function_to_closure(ast, member->value.function.func);
+			result.value.ptrval = ptrs_jit_function_to_closure(ast, member->value.function.func);
 			*(uint64_t *)&result.meta = ptrs_const_pointerMeta(PTRS_TYPE_FUNCTION, struc->parentFrame);
 			return result;
 
 		case PTRS_STRUCTMEMBER_ARRAY:
-			result.meta.type = PTRS_TYPE_NATIVE;
-			result.value.nativeval = data + member->offset;
-			result.meta.array.readOnly = false;
-			result.meta.array.size = member->value.array.size;
-			return result;
-
-		case PTRS_STRUCTMEMBER_VARARRAY:
 			result.meta.type = PTRS_TYPE_POINTER;
 			result.value.ptrval = data + member->offset;
-			result.meta.array.size = member->value.array.size / sizeof(ptrs_var_t);
+			result.meta = member->value.array;
 			return result;
 
 		case PTRS_STRUCTMEMBER_TYPED:
@@ -243,9 +236,10 @@ ptrs_var_t ptrs_struct_addressOfMember(ptrs_ast_t *ast, void *data, ptrs_struct_
 	}
 	else if(member->type == PTRS_STRUCTMEMBER_TYPED)
 	{
-		result.meta.type = PTRS_TYPE_NATIVE;
-		result.meta.array.size = member->value.type->size;
-		result.value.nativeval = data + member->offset;
+		result.meta.type = PTRS_TYPE_POINTER;
+		result.meta.array.size = 1;
+		result.meta.array.typeIndex = member->value.type - ptrs_nativeTypes;
+		result.value.ptrval = data + member->offset;
 	}
 	else
 	{
@@ -270,7 +264,7 @@ ptrs_var_t ptrs_struct_get(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta,
 			ptrs_error(ast, "Struct %s has no property named %s", struc->name, key);
 
 		ptrs_var_t result;
-		uint64_t nameMeta = ptrs_const_arrayMeta(PTRS_TYPE_NATIVE, true, keyLen);
+		uint64_t nameMeta = ptrs_const_arrayMeta(keyLen, PTRS_NATIVETYPE_INDEX_CHAR);
 		ptrs_jit_applyNested(overload, &result, struc->parentFrame, instance, (&key, &nameMeta));
 		return result;
 	}
@@ -307,8 +301,8 @@ ptrs_jit_var_t ptrs_jit_struct_get(ptrs_ast_t *node, jit_function_t func, ptrs_s
 
 			ptrs_jit_var_t arg = {
 				.val = keyVal,
-				.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_NATIVE, true, 0),
-				.constType = PTRS_TYPE_NATIVE
+				.meta = ptrs_jit_const_arrayMeta(func, constKeyLen, PTRS_NATIVETYPE_INDEX_CHAR),
+				.constType = PTRS_TYPE_POINTER
 			};
 			return ptrs_jit_ncallnested(node, func, scope, base.val, overload, 1, &arg);
 		}
@@ -358,21 +352,7 @@ ptrs_jit_var_t ptrs_jit_struct_get(ptrs_ast_t *node, jit_function_t func, ptrs_s
 
 			case PTRS_STRUCTMEMBER_ARRAY:
 				result.val = jit_insn_add_relative(func, data, member->offset);
-				result.meta = ptrs_jit_const_arrayMeta(func,
-					PTRS_TYPE_NATIVE,
-					false,
-					member->value.array.size
-				);
-				result.constType = PTRS_TYPE_NATIVE;
-				return result;
-
-			case PTRS_STRUCTMEMBER_VARARRAY:
-				result.val = jit_insn_add_relative(func, data, member->offset);
-				result.meta = ptrs_jit_const_arrayMeta(func,
-					PTRS_TYPE_POINTER,
-					false,
-					member->value.array.size / sizeof(ptrs_var_t)
-				);
+				result.meta = jit_const_long(func, ulong, *(uint64_t *)&member->value.array);
 				result.constType = PTRS_TYPE_POINTER;
 				return result;
 
@@ -413,7 +393,7 @@ void ptrs_struct_set(ptrs_ast_t *ast, void *instance, ptrs_meta_t meta,
 			ptrs_error(ast, "Struct %s has no property named %s", struc->name, key);
 
 		ptrs_var_t result;
-		uint64_t nameMeta = ptrs_const_arrayMeta(PTRS_TYPE_NATIVE, true, keyLen);
+		uint64_t nameMeta = ptrs_const_arrayMeta(keyLen, PTRS_NATIVETYPE_INDEX_CHAR);
 		ptrs_jit_applyNested(overload, &result, struc->parentFrame,
 			instance, (&key, &nameMeta, &val, &valMeta));
 		return;
@@ -450,9 +430,9 @@ void ptrs_jit_struct_set(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *sc
 				ptrs_error(node, "Struct %s has no property named %s", struc->name, key);
 
 			ptrs_jit_var_t args[2];
-			args[0].constType = PTRS_TYPE_NATIVE;
+			args[0].constType = PTRS_TYPE_POINTER;
 			args[0].val = keyVal;
-			args[0].meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_NATIVE, true, 0);
+			args[0].meta = ptrs_jit_const_arrayMeta(func, constKeyLen, PTRS_NATIVETYPE_INDEX_CHAR);
 			args[1].constType = -1;
 			args[1].val = ptrs_jit_reinterpretCast(func, value.val, jit_type_long);
 			args[1].meta = value.meta;
@@ -548,7 +528,7 @@ ptrs_var_t ptrs_struct_addressOf(ptrs_ast_t *ast, void *instance, ptrs_meta_t me
 			ptrs_error(ast, "Struct %s has no property named %s", struc->name, key);
 
 		ptrs_var_t result;
-		uint64_t nameMeta = ptrs_const_arrayMeta(PTRS_TYPE_NATIVE, true, keyLen);
+		uint64_t nameMeta = ptrs_const_arrayMeta(keyLen, PTRS_NATIVETYPE_INDEX_CHAR);
 		ptrs_jit_applyNested(overload, &result, struc->parentFrame, instance, (&key, &nameMeta));
 		return result;
 	}
@@ -581,8 +561,8 @@ ptrs_jit_var_t ptrs_jit_struct_addressof(ptrs_ast_t *node, jit_function_t func, 
 
 			ptrs_jit_var_t arg = {
 				.val = keyVal,
-				.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_NATIVE, true, 0),
-				.constType = PTRS_TYPE_NATIVE
+				.meta = ptrs_jit_const_arrayMeta(func, keyLen, PTRS_NATIVETYPE_INDEX_CHAR),
+				.constType = PTRS_TYPE_POINTER
 			};
 			return ptrs_jit_ncallnested(node, func, scope, base.val, overload, 1, &arg);
 		}
@@ -606,13 +586,13 @@ ptrs_jit_var_t ptrs_jit_struct_addressof(ptrs_ast_t *node, jit_function_t func, 
 		if(member->type == PTRS_STRUCTMEMBER_VAR)
 		{
 			result.constType = PTRS_TYPE_POINTER;
-			result.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_POINTER, false, 1);
+			result.meta = ptrs_jit_const_arrayMeta(func, 1, PTRS_NATIVETYPE_INDEX_VAR);
 			result.val = jit_insn_add_relative(func, data, member->offset);
 		}
 		else if(member->type == PTRS_STRUCTMEMBER_TYPED)
 		{
-			result.constType = PTRS_TYPE_NATIVE;
-			result.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_NATIVE, false, member->value.type->size);
+			result.constType = PTRS_TYPE_POINTER;
+			result.meta = ptrs_jit_const_arrayMeta(func, 1, member->value.type - ptrs_nativeTypes);
 			result.val = jit_insn_add_relative(func, data, member->offset);
 		}
 		else

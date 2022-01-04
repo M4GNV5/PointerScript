@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <string.h>
 
 #include "../../parser/common.h"
 #include "../include/conversion.h"
@@ -83,19 +84,12 @@ void ptrs_handle_native_setUInt(void *target, size_t size, ptrs_var_t *value)
 	}
 }
 
-void ptrs_handle_native_getNative(void *target, size_t size, ptrs_var_t *value)
-{
-	value->meta.type = PTRS_TYPE_NATIVE;
-	value->value.ptrval = *(ptrs_var_t **)target;
-	value->meta.array.size = 0;
-	value->meta.array.readOnly = false;
-}
-
 void ptrs_handle_native_getPointer(void *target, size_t size, ptrs_var_t *value)
 {
 	value->meta.type = PTRS_TYPE_POINTER;
 	value->value.ptrval = *(ptrs_var_t **)target;
 	value->meta.array.size = 0;
+	value->meta.array.typeIndex = PTRS_NATIVETYPE_INDEX_U8;
 }
 
 void ptrs_handle_native_setPointer(void *target, size_t size, ptrs_var_t *value)
@@ -103,7 +97,7 @@ void ptrs_handle_native_setPointer(void *target, size_t size, ptrs_var_t *value)
 	if(value->meta.type == PTRS_TYPE_FLOAT)
 		*(void **)target = (void *)(uint64_t)value->value.floatval;
 	else
-		*(void **)target = value->value.nativeval;
+		*(void **)target = value->value.ptrval;
 }
 
 void ptrs_handle_native_getFloat(void *target, size_t size, ptrs_var_t *value)
@@ -132,4 +126,14 @@ void ptrs_handle_native_setFloat(void *target, size_t size, ptrs_var_t *value)
 			*(double *)target = val;
 			break;
 	}
+}
+
+void ptrs_handle_native_getVar(void *target, size_t size, ptrs_var_t *value)
+{
+	memcpy(value, target, sizeof(ptrs_var_t));
+}
+
+void ptrs_handle_native_setVar(void *target, size_t size, ptrs_var_t *value)
+{
+	memcpy(target, value, sizeof(ptrs_var_t));
 }

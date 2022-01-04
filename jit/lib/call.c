@@ -49,7 +49,7 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 
 	ptrs_jit_typeSwitch(node, func, scope, callee,
 		(1, "Cannot call variable of type %t", TYPESWITCH_TYPE),
-		(PTRS_TYPE_FUNCTION, PTRS_TYPE_NATIVE),
+		(PTRS_TYPE_FUNCTION, PTRS_TYPE_POINTER),
 		case PTRS_TYPE_FUNCTION:
 			{
 				paramDef[0] = jit_type_void_ptr;
@@ -78,7 +78,7 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 			}
 			break;
 
-		case PTRS_TYPE_NATIVE:
+		case PTRS_TYPE_POINTER:
 			{
 				for(int i = 0; i < narg; i++)
 				{
@@ -102,7 +102,7 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 						case PTRS_TYPE_FUNCTION:
 							if(jit_value_is_constant(evaledArgs[i].val))
 							{
-								void *closure = ptrs_jit_value_getValConstant(evaledArgs[i].val).nativeval;
+								void *closure = ptrs_jit_value_getValConstant(evaledArgs[i].val).ptrval;
 								jit_function_t funcArg = jit_function_from_closure(ptrs_jit_context, closure);
 								if(funcArg && jit_function_get_nested_parent(funcArg) == scope->rootFunc)
 								{
@@ -149,7 +149,7 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 				retVal = ptrs_jit_normalizeForVar(func, retVal);
 				jit_value_t retMetaVal = jit_const_long(func, ulong, *(uint64_t *)&retMeta);
 
-				if(callee.constType == PTRS_TYPE_NATIVE)
+				if(callee.constType == PTRS_TYPE_POINTER)
 				{
 					ret.constType = retMeta.type;
 					ret.val = retVal;
@@ -287,7 +287,6 @@ static bool retrieveParameterArray(ptrs_function_t *ast, jit_function_t func)
 						break;
 					}
 					// else falthrough
-				case PTRS_TYPE_NATIVE:
 				case PTRS_TYPE_POINTER:
 				case PTRS_TYPE_FUNCTION:
 					param.val = jit_value_get_param(func, argPos);
@@ -356,7 +355,6 @@ static size_t fillCustomAbiArgumentArray(ptrs_function_t *ast, jit_type_t *typeD
 						break;
 					}
 					// else falthrough
-				case PTRS_TYPE_NATIVE:
 				case PTRS_TYPE_POINTER:
 				case PTRS_TYPE_FUNCTION:
 					if(jitArgs != NULL && args != NULL)

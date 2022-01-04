@@ -6,6 +6,7 @@
 #include "../../parser/common.h"
 #include "../include/conversion.h"
 #include "../include/error.h"
+#include "../include/util.h"
 #include "../ops/intrinsics.h"
 #include "../jit.h"
 
@@ -109,7 +110,7 @@ static void dumpPrediction(ptrs_ast_t *node, ptrs_prediction_t *pred)
 			if(dumps[i].prediction.knownValue && dumps[i].prediction.knownMeta)
 			{
 				ptrs_var_t ret = ptrs_vartoa(dumps[i].prediction.value, dumps[i].prediction.meta, buff, sizeof(buff));
-				printf(" value: %s", ret.value.strval);
+				printf(" value: %s", (char *)ret.value.ptrval);
 			}
 
 			if(dumps[i].prediction.knownMeta)
@@ -148,7 +149,7 @@ static void dumpPrediction(ptrs_ast_t *node, ptrs_prediction_t *pred)
 		}
 		else
 		{
-			printf("%.*s\n", end - dumpPos, dumpPos);
+			printf("%.*s\n", (int)(end - dumpPos), dumpPos);
 			dumpCount = 0;
 			lastLineDumped = pos.currLine;
 			dumpPos = end;
@@ -500,7 +501,7 @@ static char *prediction2str(ptrs_prediction_t *prediction, char *buff, size_t le
 
 	ptrs_var_t ret = ptrs_vartoa(prediction->value, prediction->meta, buff, len);
 
-	return ret.value.nativeval;
+	return ret.value.ptrval;
 }
 
 static void structMemberPrediction(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_struct_t *struc,
@@ -535,7 +536,7 @@ static void structMemberPrediction(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_str
 			ret->knownValue = true;
 			ret->knownMeta = false;
 
-			ret->value.nativeval = member->value.function.ast;
+			ret->value.ptrval = member->value.function.ast;
 			ret->meta.type = PTRS_TYPE_FUNCTION;
 			break;
 
@@ -557,19 +558,8 @@ static void structMemberPrediction(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_str
 			ret->knownValue = false;
 			ret->knownMeta = true;
 
-			ret->meta.array.size = member->value.array.size;
-			ret->meta.array.readOnly = false;
-			ret->meta.type = PTRS_TYPE_NATIVE;
-			break;
-
-		case PTRS_STRUCTMEMBER_VARARRAY:
-			ret->knownType = true;
-			ret->knownValue = false;
-			ret->knownMeta = true;
-
-			ret->meta.array.size = member->value.array.size;
-			ret->meta.array.readOnly = false;
 			ret->meta.type = PTRS_TYPE_POINTER;
+			ret->meta = member->value.array;
 			break;
 	}
 }
@@ -721,8 +711,6 @@ static const uint8_t addTypeTable[NUM_TYPECOMPS] = {
 	typetablecomp(FLOAT, INT, FLOAT),
 	typetablecomp(FLOAT, FLOAT, FLOAT),
 
-	typetablecomp(NATIVE, INT, NATIVE),
-	typetablecomp(INT, NATIVE, NATIVE),
 	typetablecomp(POINTER, INT, POINTER),
 	typetablecomp(INT, POINTER, POINTER),
 };
@@ -733,12 +721,9 @@ static const uint8_t subTypeTable[NUM_TYPECOMPS] = {
 	typetablecomp(FLOAT, INT, FLOAT),
 	typetablecomp(FLOAT, FLOAT, FLOAT),
 
-	typetablecomp(NATIVE, INT, NATIVE),
-	typetablecomp(INT, NATIVE, NATIVE),
 	typetablecomp(POINTER, INT, POINTER),
 	typetablecomp(INT, POINTER, POINTER),
 
-	typetablecomp(NATIVE, NATIVE, INT),
 	typetablecomp(POINTER, POINTER, INT),
 };
 
@@ -952,68 +937,33 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 	{
 		ret->knownValue = true;
 		ret->knownType = true;
-		ret->value.nativeval = &node->arg.funcval->func;
+		ret->value.ptrval = &node->arg.funcval->func;
 		ret->meta.type = PTRS_TYPE_FUNCTION;
 	}
 	else if(node->vtable == &ptrs_ast_vtable_array)
 	{
-		struct ptrs_ast_define *stmt = &node->arg.define;
-		bool knownSize = false;
+		struct ptrs_ast_definearray *stmt = &node->arg.definearray;
 		int64_t size;
 
-		if(stmt->isInitExpr)
+		if(stmt->length)
 		{
-			analyzeExpression(flow, stmt->initExpr, ret);
+			analyzeExpression(flow, stmt->length, ret);
 
 			if(ret->knownType && ret->knownMeta
-				&& ret->meta.type == PTRS_TYPE_NATIVE)
+				&& ret->meta.type == PTRS_TYPE_INT)
 			{
-				knownSize = true;
-				size = ret->meta.array.size;
+				ret->meta.array.size = ret->value.intval;
+				ret->meta.array.typeIndex = stmt->meta.array.typeIndex;
+				ret->knownMeta = true;
 			}
 		}
-
-		if(stmt->value != NULL) //size
-		{
-			analyzeExpression(flow, stmt->value, &dummy);
-			knownSize = prediction2int(&dummy, &size);
-		}
-
-		if(!stmt->isInitExpr) // TODO derive array size
-			analyzeList(flow, stmt->initVal, &dummy);
-
-		if(knownSize)
+		else
 		{
 			ret->knownMeta = true;
-			ret->meta.array.size = size;
-			ret->meta.array.readOnly = false;
+			ret->meta = stmt->meta;
 		}
 
 		ret->knownType = true;
-		ret->meta.type = PTRS_TYPE_NATIVE;
-	}
-	else if(node->vtable == &ptrs_ast_vtable_vararray)
-	{
-		struct ptrs_ast_define *stmt = &node->arg.define;
-		ret->meta.array.readOnly = false;
-
-		if(stmt->value != NULL) //size
-		{
-			analyzeExpression(flow, stmt->value, &dummy);
-
-			int64_t size;
-			if(prediction2int(&dummy, &size))
-			{
-				ret->knownMeta = true;
-				ret->meta.array.size = size;
-				ret->meta.array.readOnly = false;
-			}
-		}
-
-		// TODO derive array size
-		analyzeList(flow, stmt->initVal, &dummy);
-
-		ret->knownType = 1;
 		ret->meta.type = PTRS_TYPE_POINTER;
 	}
 	else if(node->vtable == &ptrs_ast_vtable_function)
@@ -1022,7 +972,7 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 
 		ret->knownValue = true;
 		ret->knownType = true;
-		ret->value.nativeval = &node->arg.function.func;
+		ret->value.ptrval = &node->arg.function.func;
 		ret->meta.type = PTRS_TYPE_FUNCTION;
 	}
 	else if(node->vtable == &ptrs_ast_vtable_call)
@@ -1032,7 +982,7 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 
 		analyzeList(flow, expr->arguments, &dummy);
 
-		if(ret->knownType && ret->meta.type == PTRS_TYPE_NATIVE)
+		if(ret->knownType && ret->meta.type == PTRS_TYPE_POINTER)
 		{
 			ret->knownType = true;
 			ret->knownValue = false;
@@ -1042,7 +992,7 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 
 			if(expr->typing.nativetype != NULL)
 				ret->meta.type = expr->typing.nativetype->varType;
-			else if(expr->typing.meta.type != -1)
+			else if(expr->typing.meta.type != (uint8_t)-1)
 				memcpy(&ret->meta, &expr->typing.meta, sizeof(ptrs_meta_t));
 			else
 				ret->meta.type = PTRS_TYPE_INT;
@@ -1052,7 +1002,7 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		{
 			clearPrediction(ret);
 
-			ptrs_function_t *func = ret->value.nativeval;
+			ptrs_function_t *func = ret->value.ptrval;
 			if(func->retType.meta.type != (uint8_t)-1)
 			{
 				ret->knownType = true;
@@ -1082,7 +1032,8 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		ret->knownType = true;
 		ret->knownMeta = false;
 		ret->knownValue = false;
-		ret->meta.type = PTRS_TYPE_NATIVE;
+		ret->meta.type = PTRS_TYPE_POINTER;
+		ret->meta.array.typeIndex = PTRS_NATIVETYPE_INDEX_CHAR;
 	}
 	else if(node->vtable == &ptrs_ast_vtable_new)
 	{
@@ -1136,7 +1087,7 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		ret->knownValue = false;
 		if(ret->knownType && ret->knownMeta)
 		{
-			if(ret->meta.type == PTRS_TYPE_NATIVE || ret->meta.type == PTRS_TYPE_POINTER)
+			if(ret->meta.type == PTRS_TYPE_POINTER)
 			{
 				ret->knownValue = true;
 				ret->value.intval = ret->meta.array.size;
@@ -1177,7 +1128,7 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 			ret->knownMeta = true;
 
 			ret->meta.type = PTRS_TYPE_POINTER;
-			ret->meta.array.readOnly = false;
+			ret->meta.array.typeIndex = PTRS_NATIVETYPE_INDEX_VAR;
 			ret->meta.array.size = 1;
 		}
 		else if(target->vtable == &ptrs_ast_vtable_member)
@@ -1200,7 +1151,7 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 					ret->knownMeta = true;
 					ret->knownValue = false;
 					ret->meta.type = PTRS_TYPE_POINTER;
-					ret->meta.array.readOnly = false;
+					ret->meta.array.typeIndex = PTRS_NATIVETYPE_INDEX_VAR;
 					ret->meta.array.size = 1;
 				}
 				else if(member != NULL && member->type == PTRS_STRUCTMEMBER_TYPED)
@@ -1208,8 +1159,8 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 					ret->knownType = true;
 					ret->knownMeta = true;
 					ret->knownValue = false;
-					ret->meta.type = PTRS_TYPE_NATIVE;
-					ret->meta.array.readOnly = false;
+					ret->meta.type = PTRS_TYPE_POINTER;
+					ret->meta.array.typeIndex = member->value.type - ptrs_nativeTypes;
 					ret->meta.array.size = member->value.type->size;
 				}
 				else
@@ -1232,21 +1183,22 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 			analyzeExpression(flow, expr->left, ret);
 			analyzeExpression(flow, expr->right, &dummy);
 
-			if(ret->knownType && ret->meta.type == PTRS_TYPE_NATIVE)
+			if(ret->knownType && ret->meta.type == PTRS_TYPE_POINTER)
 			{
+				if(dummy.knownType && dummy.knownValue && dummy.meta.type == PTRS_TYPE_INT)
+				{
+					ret->meta.array.size = ret->meta.array.size - dummy.value.intval;
+					ret->knownMeta = true;
+				}
+				else
+				{
+					ret->knownMeta = false;
+				}
+
+				ret->meta.array.typeIndex = ret->meta.array.typeIndex;
+				ret->meta.type = PTRS_TYPE_POINTER;
 				ret->knownType = true;
-				ret->knownMeta = false;
 				ret->knownValue = false;
-				ret->meta.type = PTRS_TYPE_NATIVE;
-				// TODO predict array size when index and size are known
-			}
-			else if(ret->knownType && ret->meta.type == PTRS_TYPE_POINTER)
-			{
-				ret->knownType = true;
-				ret->knownMeta = false;
-				ret->knownValue = false;
-				ret->meta.type = PTRS_TYPE_NATIVE;
-				// TODO predict array size when index and size are known
 			}
 			else
 			{
@@ -1264,15 +1216,15 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 	{
 		analyzeExpression(flow, node->arg.astval, ret);
 
-		if(ret->knownType && ret->meta.type == PTRS_TYPE_NATIVE)
+		if(ret->knownType && ret->knownMeta && ret->meta.type == PTRS_TYPE_POINTER)
 		{
 			ret->knownType = true;
 			ret->knownValue = false;
 			ret->knownMeta = true;
 
-			ret->meta.type = PTRS_TYPE_INT;
-			ret->meta.array.readOnly = false;
-			ret->meta.array.size = 1;
+			ptrs_nativetype_info_t *type = ptrs_getNativeTypeForArray(NULL, ret->meta);
+			memset(&ret->meta, 0, sizeof(ptrs_meta_t));
+			ret->meta.type = type->varType;
 		}
 		else
 		{
@@ -1292,15 +1244,15 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		analyzeExpression(flow, expr->left, ret);
 		analyzeExpression(flow, expr->right, &dummy);
 
-		if(ret->knownType && ret->meta.type == PTRS_TYPE_NATIVE)
+		if(ret->knownType && ret->knownMeta && ret->meta.type == PTRS_TYPE_POINTER)
 		{
 			ret->knownType = true;
 			ret->knownValue = false;
 			ret->knownMeta = true;
 
-			ret->meta.type = PTRS_TYPE_INT;
-			ret->meta.array.readOnly = false;
-			ret->meta.array.size = 1;
+			ptrs_nativetype_info_t *type = ptrs_getNativeTypeForArray(NULL, ret->meta);
+			memset(&ret->meta, 0, sizeof(ptrs_meta_t));
+			ret->meta.type = type->varType;
 		}
 		else if(ret->knownType && ret->knownMeta && ret->meta.type == PTRS_TYPE_STRUCT)
 		{
@@ -1320,8 +1272,7 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		struct ptrs_ast_slice *expr = &node->arg.slice;
 
 		analyzeExpression(flow, expr->base, ret);
-		bool isArray = ret->knownType
-			&& (ret->meta.type == PTRS_TYPE_NATIVE || ret->meta.type == PTRS_TYPE_POINTER);
+		bool isArray = ret->knownType && ret->meta.type == PTRS_TYPE_POINTER;
 
 		if(!isArray)
 			clearPrediction(ret);
@@ -1422,12 +1373,13 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		else
 		{
 			ret->knownValue = true;
-			ret->value.nativeval = retStr;
+			ret->value.ptrval = retStr;
 		}
 
 		ret->knownType = true;
 		ret->knownMeta = false;
-		ret->meta.type = PTRS_TYPE_NATIVE;
+		ret->meta.type = PTRS_TYPE_POINTER;
+		ret->meta.array.typeIndex = PTRS_NATIVETYPE_INDEX_CHAR;
 	}
 	else if(node->vtable == &ptrs_ast_vtable_cast)
 	{
@@ -1827,57 +1779,25 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 	}
 	else if(node->vtable == &ptrs_ast_vtable_array)
 	{
-		struct ptrs_ast_define *stmt = &node->arg.define;
+		struct ptrs_ast_definearray *stmt = &node->arg.definearray;
 
 		ret->knownType = true;
 		ret->knownValue = false;
-		ret->knownMeta = false;
-		ret->meta.type = PTRS_TYPE_NATIVE;
-
-		if(stmt->isInitExpr)
-			analyzeExpression(flow, stmt->initExpr, &dummy);
-
-		if(stmt->value != NULL)
-		{
-			analyzeExpression(flow, stmt->value, &dummy);
-
-			int64_t size;
-			if(prediction2int(&dummy, &size))
-			{
-				ret->knownMeta = true;
-				ret->meta.array.readOnly = false;
-				ret->meta.array.size = size;
-			}
-		}
-
-		if(!stmt->isInitExpr)
-			analyzeList(flow, stmt->initVal, &dummy);
-
-		setVariablePrediction(flow, &stmt->location, ret);
-	}
-	else if(node->vtable == &ptrs_ast_vtable_vararray)
-	{
-		struct ptrs_ast_define *stmt = &node->arg.define;
-
-		ret->knownType = true;
-		ret->knownValue = false;
-		ret->knownMeta = false;
+		ret->knownMeta = true;
+		ret->meta = stmt->meta;
 		ret->meta.type = PTRS_TYPE_POINTER;
 
-		if(stmt->value != NULL)
+		if(stmt->length)
 		{
-			analyzeExpression(flow, stmt->value, &dummy);
-
-			int64_t size;
-			if(prediction2int(&dummy, &size))
-			{
-				ret->knownMeta = true;
-				ret->meta.array.readOnly = false;
-				ret->meta.array.size = size;
-			}
+			analyzeExpression(flow, stmt->length, &dummy);
+			if(dummy.knownType && dummy.knownValue && dummy.meta.type == PTRS_TYPE_INT)
+				ret->meta.array.size = dummy.value.intval;
+			else
+				ret->knownMeta = false;
 		}
 
 		analyzeList(flow, stmt->initVal, &dummy);
+
 		setVariablePrediction(flow, &stmt->location, ret);
 	}
 	else if(node->vtable == &ptrs_ast_vtable_import)
@@ -1924,7 +1844,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 			dummy.knownType = true;
 			if(i < 3)
 			{
-				dummy.meta.type = PTRS_TYPE_NATIVE;
+				dummy.meta.type = PTRS_TYPE_POINTER;
 			}
 			else
 			{
@@ -2127,14 +2047,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 		dummy.knownValue = false;
 		dummy.meta.type = PTRS_TYPE_INT;
 
-		if(stmt->value.constType == PTRS_TYPE_NATIVE)
-		{
-			if(stmt->varcount > 0)
-				setVariablePrediction(flow, &stmt->varsymbols[0], &dummy);
-			if(stmt->varcount > 1)
-				setVariablePrediction(flow, &stmt->varsymbols[1], &dummy);
-		}
-		else if(stmt->value.constType == PTRS_TYPE_POINTER)
+		if(stmt->value.constType == PTRS_TYPE_POINTER)
 		{
 			if(stmt->varcount > 0)
 				setVariablePrediction(flow, &stmt->varsymbols[0], &dummy);

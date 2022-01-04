@@ -7,6 +7,7 @@ BIN = bin
 RUN = $(BIN)/ptrs
 
 PARSER_OBJECTS += $(BIN)/ast.o
+PARSER_OBJECTS += $(BIN)/nativetypes.o
 
 RUN_OBJECTS += $(BIN)/statements.o
 RUN_OBJECTS += $(BIN)/specialexpr.o

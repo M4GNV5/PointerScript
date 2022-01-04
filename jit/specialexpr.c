@@ -12,6 +12,9 @@
 #include "include/util.h"
 #include "include/run.h"
 #include "include/astlist.h"
+#include "jit/jit-insn.h"
+#include "jit/jit-type.h"
+#include "jit/jit-value.h"
 
 ptrs_jit_var_t ptrs_handle_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
@@ -71,11 +74,8 @@ ptrs_jit_var_t ptrs_handle_stringformat(ptrs_ast_t *node, jit_function_t func, p
 
 	ptrs_jit_var_t ret = {
 		.val = buff,
-		.meta = ptrs_jit_arrayMeta(func,
-			jit_const_long(func, ulong, PTRS_TYPE_NATIVE),
-			jit_const_long(func, ulong, 0),
-			len),
-		.constType = PTRS_TYPE_NATIVE,
+		.meta = ptrs_jit_arrayMetaKnownType(func, len, PTRS_NATIVETYPE_INDEX_CHAR),
+		.constType = PTRS_TYPE_POINTER,
 	};
 	return ret;
 }
@@ -142,10 +142,13 @@ ptrs_jit_var_t ptrs_handle_prefix_sizeof(ptrs_ast_t *node, jit_function_t func, 
 
 	ptrs_jit_typeSwitch(node, func, scope, val,
 		(1, "Cannot get the size of a value of type %t", TYPESWITCH_TYPE),
-		(PTRS_TYPE_NATIVE, PTRS_TYPE_POINTER, PTRS_TYPE_STRUCT),
-		case PTRS_TYPE_NATIVE:
+		(PTRS_TYPE_POINTER, PTRS_TYPE_STRUCT),
 		case PTRS_TYPE_POINTER:
-			jit_insn_store(func, ret.val, ptrs_jit_getArraySize(func, val.meta));
+			;
+			jit_value_t arraySize = ptrs_jit_getArraySize(func, val.meta);
+			jit_value_t typeIndex = ptrs_jit_getArrayTypeIndex(func, val.meta);
+			jit_value_t typeSize = ptrs_jit_getArrayTypeSize(func, typeIndex);
+			jit_insn_store(func, ret.val, jit_insn_mul(func, arraySize, typeSize));
 			break;
 
 		case PTRS_TYPE_STRUCT:
@@ -177,10 +180,19 @@ ptrs_jit_var_t ptrs_handle_prefix_address(ptrs_ast_t *node, jit_function_t func,
 	return node->vtable->addressof(node, func, scope);
 }
 
+ptrs_var_t ptrs_intrinsic_prefix_dereference(ptrs_ast_t *node, ptrs_val_t value, ptrs_meta_t meta)
+{
+	ptrs_var_t result;
+	ptrs_nativetype_info_t *type = ptrs_getNativeTypeForArray(node, meta);
+	type->getHandler(value.ptrval, type->size, &result);
+
+	return result;
+}
 ptrs_jit_var_t ptrs_handle_prefix_dereference(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	node = node->arg.astval;
 	ptrs_jit_var_t val = node->vtable->get(node, func, scope);
+	ptrs_jit_typeCheck(node, func, scope, val, PTRS_TYPE_POINTER, "Cannot dereference value of type %t");
 
 	ptrs_jit_var_t ret = {
 		jit_value_create(func, jit_type_long),
@@ -188,45 +200,72 @@ ptrs_jit_var_t ptrs_handle_prefix_dereference(ptrs_ast_t *node, jit_function_t f
 		-1,
 	};
 
-	ptrs_jit_typeSwitch(node, func, scope, val,
-		(1, "Cannot dereference variable of type %t", TYPESWITCH_TYPE),
-		(PTRS_TYPE_NATIVE, PTRS_TYPE_POINTER),
-		case PTRS_TYPE_POINTER:
-			jit_insn_store(func, ret.val,
-				jit_insn_load_relative(func, val.val, 0, jit_type_long));
-			jit_insn_store(func, ret.meta,
-				jit_insn_load_relative(func, val.val, sizeof(ptrs_val_t), jit_type_ulong));
-			break;
+	if(jit_value_is_constant(val.meta))
+	{
+		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(val.meta);
+		ptrs_nativetype_info_t *type = ptrs_getNativeTypeForArray(node, meta);
+		jit_value_t result = jit_insn_load_relative(func, val.val, 0, type->jitType);
 
-		case PTRS_TYPE_NATIVE:
-			jit_insn_store(func, ret.val, jit_insn_load_relative(func, val.val, 0, jit_type_ubyte));
-			jit_insn_store(func, ret.meta, ptrs_jit_const_meta(func, PTRS_TYPE_INT));
-			ret.constType = PTRS_TYPE_INT;
-			break;
-	);
+		if(type->varType == PTRS_TYPE_FLOAT)
+			ret.val = ptrs_jit_reinterpretCast(func, jit_insn_convert(func, result, jit_type_float64, 0), jit_type_long);
+		else
+			ret.val = jit_insn_convert(func, result, jit_type_long, 0);
+
+		ret.meta = ptrs_jit_const_meta(func, type->varType);
+		ret.constType = type->varType;
+	}
+	else
+	{
+		jit_value_t result;
+		ptrs_jit_reusableCall(func, ptrs_intrinsic_prefix_dereference, result, ptrs_jit_getVarType(),
+			(jit_type_void_ptr, jit_type_void_ptr, jit_type_ulong),
+			(jit_const_int(func, void_ptr, (uintptr_t)node), val.val, val.meta)
+		);
+
+		ret = ptrs_jit_valToVar(func, result);
+	}
 
 	return ret;
+}
+
+void ptrs_intrinsic_assign_prefix_dereference(ptrs_ast_t *node, ptrs_val_t addr, ptrs_meta_t meta, ptrs_val_t value, ptrs_meta_t valMeta)
+{
+	ptrs_var_t valueVar;
+	valueVar.value = value;
+	valueVar.meta = valMeta;
+
+	ptrs_nativetype_info_t *type = ptrs_getNativeTypeForArray(node, meta);
+	type->setHandler(addr.ptrval, type->size, &valueVar);
 }
 void ptrs_assign_prefix_dereference(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
 {
 	node = node->arg.astval;
 	ptrs_jit_var_t base = node->vtable->get(node, func, scope);
 
-	ptrs_jit_typeSwitch(node, func, scope, base,
-		(1, "Cannot dereference variable of type %t", TYPESWITCH_TYPE),
-		(PTRS_TYPE_NATIVE, PTRS_TYPE_POINTER),
+	ptrs_jit_typeCheck(node, func, scope, base, PTRS_TYPE_POINTER, "Cannot dereference value of type %t");
 
-		case PTRS_TYPE_NATIVE:
-			;
-			jit_value_t byteVal = jit_insn_convert(func, ptrs_jit_vartoi(func, val), jit_type_ubyte, 0);
-			jit_insn_store_relative(func, base.val, 0, byteVal);
-			break;
+	if(jit_value_is_constant(base.meta))
+	{
+		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(val.meta);
+		ptrs_nativetype_info_t *type = ptrs_getNativeTypeForArray(node, meta);
 
-		case PTRS_TYPE_POINTER:
-			jit_insn_store_relative(func, base.val, 0, val.val);
-			jit_insn_store_relative(func, base.val, sizeof(ptrs_val_t), val.meta);
-			break;
-	);
+		jit_value_t value;
+		if(type->varType == PTRS_TYPE_FLOAT)
+			value = ptrs_jit_vartof(func, val);
+		else
+			value = ptrs_jit_vartoi(func, val);
+
+		value = jit_insn_convert(func, value, type->jitType, 0);
+		jit_insn_store_relative(func, base.val, 0, value);
+	}
+	else
+	{
+		jit_value_t result;
+		ptrs_jit_reusableCallVoid(func, ptrs_intrinsic_assign_prefix_dereference,
+			(jit_type_void_ptr, jit_type_void_ptr, jit_type_long, jit_type_ulong),
+			(jit_const_int(func, void_ptr, (uintptr_t)node), base.val, val.val, val.meta)
+		);
+	}
 }
 
 ptrs_jit_var_t ptrs_handle_indexlength(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
@@ -239,219 +278,306 @@ ptrs_jit_var_t ptrs_handle_indexlength(ptrs_ast_t *node, jit_function_t func, pt
 	return ret;
 }
 
-#define ptrs_handle_index_common(structOp, arraySetup, nativeOp, pointerOp) \
-	do { \
-		struct ptrs_ast_binary *expr = &node->arg.binary; \
-		ptrs_jit_var_t base = expr->left->vtable->get(expr->left, func, scope); \
-		\
-		jit_value_t oldSize = scope->indexSize; \
-		jit_value_t arraySize = ptrs_jit_getArraySize(func, base.meta); \
-		scope->indexSize = arraySize; \
-		ptrs_jit_var_t index = expr->right->vtable->get(expr->right, func, scope); \
-		scope->indexSize = oldSize; \
-		\
-		jit_label_t isArray = jit_label_undefined; \
-		jit_label_t done = jit_label_undefined; \
-		if(base.constType == -1) \
-		{ \
-			jit_value_t type = ptrs_jit_getType(func, base.meta); \
-			\
-			jit_insn_branch_if(func, \
-				jit_insn_ne(func, type, jit_const_int(func, sbyte, PTRS_TYPE_STRUCT)), \
-				&isArray \
-			); \
-		} \
-		\
-		if(base.constType == -1 || base.constType == PTRS_TYPE_STRUCT) \
-		{ \
-			ptrs_jit_var_t strIndex; \
-			if(index.constType != PTRS_TYPE_NATIVE) \
-				strIndex = ptrs_jit_vartoa(func, index); \
-			else \
-				strIndex = index; \
-			\
-			structOp \
-			jit_insn_branch(func, &done); \
-		} \
-		\
-		if(base.constType == -1 \
-			|| base.constType == PTRS_TYPE_NATIVE \
-			|| base.constType == PTRS_TYPE_POINTER) \
-		{ \
-			jit_insn_label(func, &isArray); \
-			jit_value_t intIndex = ptrs_jit_vartoi(func, index); \
-			\
-			struct ptrs_assertion *assert = ptrs_jit_assert(node, func, scope, \
-				jit_insn_ge(func, intIndex, jit_const_int(func, nuint, 0)), \
-				3, "Cannot get index %v of array of size %d", index.val, index.meta, arraySize); \
-			\
-			ptrs_jit_appendAssert(func, assert, \
-				jit_insn_le(func, intIndex, arraySize)); \
-			\
-			arraySetup \
-			\
-			ptrs_jit_typeSwitch(node, func, scope, base, \
-				(1, "Cannot dereference variable of type %t", TYPESWITCH_TYPE), \
-				(PTRS_TYPE_NATIVE, PTRS_TYPE_POINTER), \
-				\
-				case PTRS_TYPE_NATIVE: \
-					; \
-					nativeOp \
-					break; \
-					\
-				case PTRS_TYPE_POINTER: \
-					; \
-					pointerOp \
-					break; \
-			); \
-		} \
-		\
-		jit_insn_label(func, &done); \
-	} while(0)
-
-ptrs_jit_var_t ptrs_handle_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+ptrs_var_t ptrs_intrinsic_index(ptrs_ast_t *node, ptrs_val_t base, ptrs_meta_t baseMeta, ptrs_val_t index, ptrs_meta_t indexMeta)
 {
-	ptrs_jit_var_t result = {
-		.val = jit_value_create(func, jit_type_long),
-		.meta = jit_value_create(func, jit_type_ulong),
-		.constType = -1,
-	};
+	ptrs_var_t result;
 
-	ptrs_handle_index_common(
-		{
-			jit_value_t keyLen = ptrs_jit_getArraySize(func, strIndex.meta);
-			ptrs_jit_var_t _result = ptrs_jit_struct_get(node, func, scope,
-				base, strIndex.val, keyLen);
-			jit_insn_store(func, result.val, _result.val);
-			jit_insn_store(func, result.meta, _result.meta);
+	if(baseMeta.type == PTRS_TYPE_POINTER)
+	{
+		if(indexMeta.type != PTRS_TYPE_INT)
+			ptrs_error(node, "Array index needs to be of type int not %t", indexMeta.type);
+		if(index.intval < 0 || index.intval >= baseMeta.array.size)
+			ptrs_error(node, "Cannot get index %d of array of length %d", index.intval, baseMeta.array.size);
 
-			if(base.constType == PTRS_TYPE_STRUCT)
-				result.constType = _result.constType;
-		},
-		/* nothing */,
-		{
-			jit_insn_store(func, result.val, jit_insn_load_elem(func, base.val, intIndex, jit_type_ubyte));
-			jit_insn_store(func, result.meta, ptrs_jit_const_meta(func, PTRS_TYPE_INT));
-
-			if(base.constType == PTRS_TYPE_NATIVE)
-				result.constType = PTRS_TYPE_INT;
-		},
-		{
-			intIndex = jit_insn_shl(func, intIndex, jit_const_int(func, nint, 1));
-			jit_insn_store(func, result.val, jit_insn_load_elem(func, base.val, intIndex, jit_type_long));
-			intIndex = jit_insn_add(func, intIndex, jit_const_int(func, nint, 1));
-			jit_insn_store(func, result.meta, jit_insn_load_elem(func, base.val, intIndex, jit_type_ulong));
-		}
-	);
+		ptrs_nativetype_info_t *type = ptrs_getNativeTypeForArray(node, baseMeta);
+		type->getHandler((uint8_t *)base.ptrval + index.intval * type->size, type->size, &result);
+	}
+	else if(baseMeta.type == PTRS_TYPE_STRUCT)
+	{
+		char buff[32];
+		ptrs_var_t key = ptrs_vartoa(index, indexMeta, buff, 32);
+		result = ptrs_struct_get(node, base.ptrval, baseMeta, key.value.ptrval, key.meta.array.size);
+	}
+	else
+	{
+		ptrs_error(node, "Cannot get index of value of type %t", baseMeta.type);
+	}
 
 	return result;
+}
+ptrs_jit_var_t ptrs_handle_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_binary *expr = &node->arg.binary;
+
+	ptrs_jit_var_t base = expr->left->vtable->get(expr->left, func, scope);
+
+	jit_value_t oldArraySize = scope->indexSize;
+	scope->indexSize = ptrs_jit_getArraySize(func, base.meta);
+	ptrs_jit_var_t index = expr->right->vtable->get(expr->right, func, scope);
+	scope->indexSize = oldArraySize;
+
+	if(base.constType == PTRS_TYPE_POINTER && jit_value_is_constant(base.meta))
+	{
+		ptrs_jit_typeCheck(node, func, scope, index, PTRS_TYPE_INT, "Array index needs to be of type int not %t");
+		ptrs_meta_t baseMeta = ptrs_jit_value_getMetaConstant(base.meta);
+		ptrs_nativetype_info_t *arrayType = ptrs_getNativeTypeForArray(node, baseMeta);
+
+		jit_value_t indexPos = jit_insn_mul(func, index.val, jit_const_long(func, long, arrayType->size));
+		jit_value_t loadedValue = jit_insn_load_elem(func, base.val, indexPos, arrayType->jitType);
+
+		ptrs_jit_var_t result;
+		if(arrayType->varType == PTRS_TYPE_FLOAT)
+		{
+			loadedValue = jit_insn_convert(func, loadedValue, jit_type_float64, 0);
+			result.val = ptrs_jit_reinterpretCast(func, loadedValue, jit_type_long);
+			result.meta = ptrs_jit_const_meta(func, PTRS_TYPE_FLOAT);
+			result.constType = PTRS_TYPE_FLOAT;
+			result.addressable = false;
+		}
+		else
+		{
+			result.val = jit_insn_convert(func, loadedValue, jit_type_long, 0);
+			result.meta = ptrs_jit_const_meta(func, arrayType->varType);
+			result.constType = arrayType->varType;
+			result.addressable = false;
+		}
+
+		return result;
+	}
+	else if(base.constType == PTRS_TYPE_STRUCT)
+	{
+		return ptrs_jit_struct_get(node, func, scope, base, index.val, index.meta);
+	}
+	else if(base.constType == -1 || base.constType == PTRS_TYPE_POINTER)
+	{
+		jit_value_t ret;
+		ptrs_jit_reusableCall(func, ptrs_intrinsic_index, ret, ptrs_jit_getVarType(),
+			(jit_type_void_ptr, jit_type_long, jit_type_ulong, jit_type_long, jit_type_ulong),
+			(jit_const_int(func, void_ptr, (uintptr_t)node), base.val, base.meta, index.val, index.meta)
+		);
+
+		return ptrs_jit_valToVar(func, ret);
+	}
+	else
+	{
+		ptrs_error(node, "Cannot get index of value of type %t", base.constType);
+
+		// dummy
+		ptrs_jit_var_t result;
+		return result;
+	}
+}
+
+void ptrs_intrinsic_assign_index(ptrs_ast_t *node, ptrs_val_t base, ptrs_meta_t baseMeta, ptrs_val_t index, ptrs_meta_t indexMeta, ptrs_val_t val, ptrs_meta_t valMeta)
+{
+	if(baseMeta.type == PTRS_TYPE_POINTER)
+	{
+		if(indexMeta.type != PTRS_TYPE_INT)
+			ptrs_error(node, "Array index needs to be of type int not %t", indexMeta.type);
+		if(index.intval < 0 || index.intval >= baseMeta.array.size)
+			ptrs_error(node, "Cannot get index %d of array of length %d", index.intval, baseMeta.array.size);
+
+		if(valMeta.type != PTRS_TYPE_INT && valMeta.type != PTRS_TYPE_FLOAT)
+			ptrs_error(node, "Cannot assign an array element to value of type %t", valMeta.type);
+
+		ptrs_var_t value = {
+			.value = val,
+			.meta = valMeta,
+		};
+
+		ptrs_nativetype_info_t *type = ptrs_getNativeTypeForArray(node, baseMeta);
+		type->setHandler((uint8_t *)base.ptrval + index.intval * type->size, type->size, &value);
+	}
+	else if(baseMeta.type == PTRS_TYPE_STRUCT)
+	{
+		char buff[32];
+		ptrs_var_t key = ptrs_vartoa(index, indexMeta, buff, 32);
+		ptrs_struct_set(node, base.ptrval, baseMeta, key.value.ptrval, key.meta.array.size, val, valMeta);
+	}
+	else
+	{
+		ptrs_error(node, "Cannot assign index of value of type %t", baseMeta.type);
+	}
 }
 void ptrs_assign_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope, ptrs_jit_var_t val)
 {
-	ptrs_handle_index_common(
-		{
-			jit_value_t keyLen = ptrs_jit_getArraySize(func, strIndex.meta);
-			ptrs_jit_struct_set(node, func, scope,
-				base, strIndex.val, keyLen, val);
-		},
-		/* nothing */,
-		{
-			jit_value_t intVal = ptrs_jit_vartoi(func, val);
-			jit_value_t uByteVal = jit_insn_convert(func, intVal, jit_type_ubyte, 0);
-			jit_insn_store_elem(func, base.val, intIndex, uByteVal);
-		},
-		{
-			intIndex = jit_insn_shl(func, intIndex, jit_const_int(func, nint, 1));
-			jit_insn_store_elem(func, base.val, intIndex, val.val);
-			intIndex = jit_insn_add(func, intIndex, jit_const_int(func, nint, 1));
-			jit_insn_store_elem(func, base.val, intIndex, val.meta);
-		}
-	);
+	struct ptrs_ast_binary *expr = &node->arg.binary;
+
+	ptrs_jit_var_t base = expr->left->vtable->get(expr->left, func, scope);
+
+	jit_value_t oldArraySize = scope->indexSize;
+	scope->indexSize = ptrs_jit_getArraySize(func, base.meta);
+	ptrs_jit_var_t index = expr->right->vtable->get(expr->right, func, scope);
+	scope->indexSize = oldArraySize;
+
+	if(base.constType == PTRS_TYPE_POINTER && jit_value_is_constant(base.meta))
+	{
+		ptrs_jit_typeCheck(node, func, scope, index, PTRS_TYPE_INT, "Array index needs to be of type int not %t");
+		ptrs_meta_t baseMeta = ptrs_jit_value_getMetaConstant(base.meta);
+		ptrs_nativetype_info_t *arrayType = ptrs_getNativeTypeForArray(node, baseMeta);
+
+		jit_value_t indexPos = jit_insn_mul(func, index.val, jit_const_long(func, long, arrayType->size));
+		jit_value_t value = jit_insn_convert(func, val.val, arrayType->jitType, 0);
+		jit_insn_store_elem(func, base.val, indexPos, value);
+	}
+	else if(base.constType == PTRS_TYPE_STRUCT)
+	{
+		ptrs_jit_struct_set(node, func, scope, base, index.val, index.meta, val);
+	}
+	else if(base.constType == -1 || base.constType == PTRS_TYPE_POINTER)
+	{
+		jit_value_t ret;
+		ptrs_jit_reusableCallVoid(func, ptrs_intrinsic_assign_index,
+			(jit_type_void_ptr, jit_type_long, jit_type_ulong, jit_type_long, jit_type_ulong, jit_type_long, jit_type_ulong),
+			(jit_const_int(func, void_ptr, (uintptr_t)node), base.val, base.meta, val.val, val.meta)
+		);
+	}
+	else
+	{
+		ptrs_error(node, "Cannot get index of value of type %t", base.constType);
+	}
 }
-ptrs_jit_var_t ptrs_addressof_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+
+ptrs_var_t ptrs_intrinsic_addressof_index(ptrs_ast_t *node, ptrs_val_t base, ptrs_meta_t baseMeta, ptrs_val_t index, ptrs_meta_t indexMeta)
 {
-	ptrs_jit_var_t result = {
-		.val = jit_value_create(func, jit_type_long),
-		.meta = jit_value_create(func, jit_type_ulong),
-		.constType = -1,
-	};
+	ptrs_var_t result;
 
-	ptrs_handle_index_common(
-		{
-			jit_value_t keyLen = ptrs_jit_getArraySize(func, strIndex.meta);
-			ptrs_jit_var_t _result = ptrs_jit_struct_addressof(node, func, scope,
-				base, strIndex.val, keyLen);
-			jit_insn_store(func, result.val, _result.val);
-			jit_insn_store(func, result.meta, _result.meta);
+	if(baseMeta.type == PTRS_TYPE_POINTER)
+	{
+		if(indexMeta.type != PTRS_TYPE_INT)
+			ptrs_error(node, "Array index needs to be of type int not %t", indexMeta.type);
+		if(index.intval < 0 || index.intval >= baseMeta.array.size)
+			ptrs_error(node, "Cannot get index %d of array of length %d", index.intval, baseMeta.array.size);
 
-			if(base.constType == PTRS_TYPE_STRUCT)
-				result.constType = _result.constType;
-		},
-		{
-			if(base.constType != PTRS_TYPE_STRUCT)
-				result.constType = base.constType;
-
-			jit_value_t newSize = jit_insn_sub(func, ptrs_jit_getArraySize(func, base.meta), intIndex);
-			jit_insn_store(func, result.meta, ptrs_jit_setArraySize(func, base.meta, newSize));
-		},
-		{
-			jit_insn_store(func, result.val,
-				jit_insn_load_elem_address(func, base.val, intIndex, jit_type_ubyte));
-		},
-		{
-			intIndex = jit_insn_shl(func, intIndex, jit_const_int(func, nint, 1));
-			jit_insn_store(func, result.val,
-				jit_insn_load_elem_address(func, base.val, intIndex, jit_type_long));
-		}
-	);
+		ptrs_nativetype_info_t *type = ptrs_getNativeTypeForArray(node, baseMeta);
+		result.value.ptrval = (uint8_t *)base.ptrval + index.intval * type->size;
+		result.meta.type = PTRS_TYPE_POINTER;
+		result.meta.array.typeIndex = baseMeta.array.typeIndex;
+		result.meta.array.size = baseMeta.array.size - index.intval;
+	}
+	else if(baseMeta.type == PTRS_TYPE_STRUCT)
+	{
+		char buff[32];
+		ptrs_var_t key = ptrs_vartoa(index, indexMeta, buff, 32);
+		result = ptrs_struct_addressOf(node, base.ptrval, baseMeta, key.value.ptrval, key.meta.array.size);
+	}
+	else
+	{
+		ptrs_error(node, "Cannot get index of value of type %t", baseMeta.type);
+	}
 
 	return result;
 }
+ptrs_jit_var_t ptrs_addressof_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_binary *expr = &node->arg.binary;
+
+	ptrs_jit_var_t base = expr->left->vtable->get(expr->left, func, scope);
+
+	jit_value_t oldArraySize = scope->indexSize;
+	jit_value_t baseArraySize = ptrs_jit_getArraySize(func, base.meta);
+	scope->indexSize = baseArraySize;
+	ptrs_jit_var_t index = expr->right->vtable->get(expr->right, func, scope);
+	scope->indexSize = oldArraySize;
+
+	if(base.constType == PTRS_TYPE_POINTER)
+	{
+		ptrs_jit_typeCheck(node, func, scope, index, PTRS_TYPE_INT, "Array index needs to be of type int not %t");
+
+		ptrs_jit_var_t result;
+		ptrs_jit_assert(node, func, scope, jit_insn_lt(func, index.val, baseArraySize),
+			2, "Cannot get index %d of array of length %d", index.val, baseArraySize
+		);
+		jit_value_t newLen = jit_insn_sub(func, baseArraySize, index.val);
+
+		jit_value_t typeIndex = ptrs_jit_getArrayTypeIndex(func, base.meta);
+		jit_value_t typeSize = ptrs_jit_getArrayTypeSize(func, base.meta);
+
+		result.val = jit_insn_add(func, base.val, jit_insn_mul(func, index.val, typeSize));
+		result.meta = ptrs_jit_arrayMeta(func, newLen, typeIndex);
+		result.constType = PTRS_TYPE_POINTER;
+		return result;
+	}
+	else if(base.constType == PTRS_TYPE_STRUCT)
+	{
+		return ptrs_jit_struct_addressof(node, func, scope, base, index.val, index.meta);
+	}
+	else if(base.constType == -1)
+	{
+		jit_value_t ret;
+		ptrs_jit_reusableCall(func, ptrs_intrinsic_addressof_index, ret, ptrs_jit_getVarType(),
+			(jit_type_void_ptr, jit_type_long, jit_type_ulong, jit_type_long, jit_type_ulong),
+			(jit_const_int(func, void_ptr, (uintptr_t)node), base.val, base.meta, index.val, index.meta)
+		);
+
+		return ptrs_jit_valToVar(func, ret);
+	}
+	else
+	{
+		ptrs_error(node, "Cannot get index of value of type %t", base.constType);
+
+		// dummy
+		ptrs_jit_var_t result;
+		return result;
+	}
+}
+
 ptrs_jit_var_t ptrs_call_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
 	ptrs_ast_t *caller, ptrs_typing_t *typing, struct ptrs_astlist *arguments)
 {
-	ptrs_jit_var_t _base;
-	ptrs_jit_var_t callee = {
-		.val = jit_value_create(func, jit_type_long),
-		.meta = jit_value_create(func, jit_type_ulong),
-		.constType = -1,
-	};
+	ptrs_jit_var_t callee;
 
-	ptrs_handle_index_common(
-		{
-			jit_value_t keyLen = ptrs_jit_getArraySize(func, strIndex.meta);
-			_base = base;
-			ptrs_jit_var_t _result = ptrs_jit_struct_get(node, func, scope,
-				base, strIndex.val, keyLen);
-			jit_insn_store(func, callee.val, _result.val);
-			jit_insn_store(func, callee.meta, _result.meta);
-		},
-		{
-			_base = base;
-		},
-		{
-			if(base.constType == PTRS_TYPE_NATIVE)
-			{
-				ptrs_error(node, "Cannot call an index of a byte array");
-			}
-			else
-			{
-				jit_value_t msg = jit_const_int(func, void_ptr, (uintptr_t)"Cannot call index %d of a byte array");
-				({ptrs_jit_reusableCallVoid(func, ptrs_error,
-					(jit_type_void_ptr, jit_type_void_ptr, jit_type_nint),
-					(jit_const_int(func, void_ptr, (uintptr_t)node), msg, intIndex)
-				);});
-			}
-		},
-		{
-			intIndex = jit_insn_shl(func, intIndex, jit_const_int(func, nint, 1));
-			jit_insn_store(func, callee.val, jit_insn_load_elem(func, base.val, intIndex, jit_type_long));
-			intIndex = jit_insn_add(func, intIndex, jit_const_int(func, nint, 1));
-			jit_insn_store(func, callee.meta, jit_insn_load_elem(func, base.val, intIndex, jit_type_ulong));
-		}
-	);
+	struct ptrs_ast_binary *expr = &node->arg.binary;
 
-	return ptrs_jit_call(node, func, scope, typing, _base.val, callee, arguments);
+	ptrs_jit_var_t base = expr->left->vtable->get(expr->left, func, scope);
+
+	jit_value_t oldArraySize = scope->indexSize;
+	jit_value_t baseArraySize = ptrs_jit_getArraySize(func, base.meta);
+	scope->indexSize = baseArraySize;
+	ptrs_jit_var_t index = expr->right->vtable->get(expr->right, func, scope);
+	scope->indexSize = oldArraySize;
+
+	if(base.constType == PTRS_TYPE_POINTER && jit_value_is_constant(base.meta))
+	{
+		ptrs_jit_typeCheck(node, func, scope, index, PTRS_TYPE_INT, "Array index needs to be of type int not %t");
+		ptrs_meta_t baseMeta = ptrs_jit_value_getMetaConstant(base.meta);
+		ptrs_nativetype_info_t *arrayType = ptrs_getNativeTypeForArray(node, baseMeta);
+
+		if(arrayType->varType != PTRS_TYPE_STRUCT && arrayType->varType != PTRS_TYPE_POINTER && arrayType->varType != PTRS_TYPE_FUNCTION)
+			ptrs_error(node, "Cannot call value of type %t", arrayType->varType);
+
+		jit_value_t indexPos = jit_insn_mul(func, index.val, jit_const_long(func, long, arrayType->size));
+		jit_value_t loadedValue = jit_insn_load_elem(func, base.val, indexPos, arrayType->jitType);
+
+		callee.val = jit_insn_convert(func, loadedValue, jit_type_long, 0);
+		callee.meta = ptrs_jit_const_meta(func, arrayType->varType);
+		callee.constType = arrayType->varType;
+		callee.addressable = false;
+	}
+	else if(base.constType == PTRS_TYPE_STRUCT)
+	{
+		return ptrs_jit_struct_call(node, func, scope, base, index.val, index.meta, typing, arguments);
+	}
+	else if(base.constType == -1 || base.constType == PTRS_TYPE_POINTER)
+	{
+		jit_value_t ret;
+		ptrs_jit_reusableCall(func, ptrs_intrinsic_index, ret, ptrs_jit_getVarType(),
+			(jit_type_void_ptr, jit_type_long, jit_type_ulong, jit_type_long, jit_type_ulong),
+			(jit_const_int(func, void_ptr, (uintptr_t)node), base.val, base.meta, index.val, index.meta)
+		);
+
+		callee = ptrs_jit_valToVar(func, ret);
+	}
+	else
+	{
+		ptrs_error(node, "Cannot get index of value of type %t", base.constType);
+
+		// dummy
+		ptrs_jit_var_t result;
+		return result;
+	}
+
+	return ptrs_jit_call(node, func, scope, typing, base.val, callee, arguments);
 }
 
 ptrs_jit_var_t ptrs_handle_slice(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
@@ -459,54 +585,34 @@ ptrs_jit_var_t ptrs_handle_slice(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	struct ptrs_ast_slice *expr = &node->arg.slice;
 
 	ptrs_jit_var_t val = expr->base->vtable->get(expr->base, func, scope);
-	jit_value_t type = ptrs_jit_getType(func, val.meta);
 
 	jit_value_t oldSize = scope->indexSize;
 	scope->indexSize = ptrs_jit_getArraySize(func, val.meta);
+	ptrs_jit_var_t start = expr->start->vtable->get(expr->start, func, scope);
+	ptrs_jit_var_t end = expr->end->vtable->get(expr->end, func, scope);
 
-	jit_value_t start = ptrs_jit_vartoi(func,
-		expr->start->vtable->get(expr->start, func, scope));
-	jit_value_t end = ptrs_jit_vartoi(func,
-		expr->end->vtable->get(expr->end, func, scope));
+	ptrs_jit_typeCheck(node, func, scope, val, PTRS_TYPE_POINTER, "Cannot slice a value of type %t");
+	ptrs_jit_typeCheck(node, func, scope, start, PTRS_TYPE_INT, "Slice start value needs to be of type int not %t");
+	ptrs_jit_typeCheck(node, func, scope, end, PTRS_TYPE_INT, "Slice end value needs to be of type int not %t");
 
-	jit_value_t newSize = jit_insn_sub(func, end, start);
-	jit_value_t newPtr = jit_value_create(func, jit_type_void_ptr);
-
-	ptrs_jit_typeSwitch(node, func, scope, val,
-		(1, "Cannot slice variable of type %t", TYPESWITCH_TYPE),
-		(PTRS_TYPE_NATIVE, PTRS_TYPE_POINTER),
-
-		case PTRS_TYPE_NATIVE:
-			jit_insn_store(func, newPtr,
-				jit_insn_load_elem_address(func, val.val, start, jit_type_ubyte));
-			break;
-
-		case PTRS_TYPE_POINTER:
-			jit_insn_store(func, newPtr,
-				jit_insn_load_elem_address(func, val.val, start, ptrs_jit_getVarType()));
-			break;
-	);
-
-	/*
-	disabled so we can slice arrays received from native functions.
-	TODO: should there be a seperate syntax for that?
-
-	ptrs_jit_assert(node, func, scope, jit_insn_le(func, end, scope->indexSize),
+	ptrs_jit_assert(node, func, scope, jit_insn_le(func, end.val, scope->indexSize),
 		2, "Cannot end a slice at %d for an array of size %d", end, scope->indexSize);
-	ptrs_jit_assert(node, func, scope, jit_insn_ge(func, start, jit_const_long(func, ulong, 0)),
+	ptrs_jit_assert(node, func, scope, jit_insn_ge(func, start.val, jit_const_long(func, ulong, 0)),
 		1, "Cannot start a slice at %d", start);
-	*/
 
-	ptrs_jit_assert(node, func, scope, jit_insn_le(func, start, end),
+	ptrs_jit_assert(node, func, scope, jit_insn_le(func, start.val, end.val),
 		2, "Slice start (%d) is after slice end (%d)", start, end);
 
 	scope->indexSize = oldSize;
 
+	jit_value_t typeSize = ptrs_jit_getArrayTypeSize(func, val.meta);
+	jit_value_t newPtr = jit_insn_add(func, val.val, jit_insn_mul(func, start.val, typeSize));
+	jit_value_t newSize = jit_insn_sub(func, end.val, start.val);
+
 	ptrs_jit_var_t ret;
 	ret.val = newPtr;
 	ret.meta = ptrs_jit_setArraySize(func, val.meta, newSize);
-	ret.constType = val.constType;
-
+	ret.constType = PTRS_TYPE_POINTER;
 	return ret;
 }
 
@@ -591,7 +697,7 @@ ptrs_jit_var_t ptrs_handle_importedsymbol(ptrs_ast_t *node, jit_function_t func,
 	{
 		ptrs_jit_var_t ret;
 		jit_value_t addr = jit_const_int(func, void_ptr,
-			(uintptr_t)stmt->symbols[expr->index].value.nativeval);
+			(uintptr_t)stmt->symbols[expr->index].value.ptrval);
 
 		ret.val = jit_insn_load_relative(func, addr, 0, expr->type->jitType);
 		ret.meta = ptrs_jit_const_meta(func, expr->type->varType);
@@ -623,7 +729,7 @@ void ptrs_assign_importedsymbol(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 		}
 
 		jit_value_t addr = jit_const_int(func, void_ptr,
-			(uintptr_t)stmt->symbols[expr->index].value.nativeval);
+			(uintptr_t)stmt->symbols[expr->index].value.ptrval);
 		ptrs_jit_assignTypedFromVar(func, addr, expr->type->jitType, val);
 	}
 }
@@ -650,7 +756,7 @@ ptrs_jit_var_t ptrs_call_importedsymbol(ptrs_ast_t *node, jit_function_t func, p
 	{
 		ptrs_jit_var_t ret;
 		jit_value_t addr = jit_const_int(func, void_ptr,
-			(uintptr_t)stmt->symbols[expr->index].value.nativeval);
+			(uintptr_t)stmt->symbols[expr->index].value.ptrval);
 
 		val.val = jit_insn_load_relative(func, addr, 0, expr->type->jitType);
 		val.meta = ptrs_jit_const_meta(func, expr->type->varType);
@@ -682,9 +788,10 @@ ptrs_jit_var_t ptrs_addressof_importedsymbol(ptrs_ast_t *node,
 	{
 		ptrs_jit_var_t ret;
 		ret.val = jit_const_int(func, void_ptr,
-			(uintptr_t)stmt->symbols[expr->index].value.nativeval);
-		ret.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_NATIVE, false, expr->type->size);
-		ret.constType = PTRS_TYPE_NATIVE;
+			(uintptr_t)stmt->symbols[expr->index].value.ptrval);
+		size_t size = expr->type->size;
+		ret.meta = ptrs_jit_const_arrayMeta(func, size, expr->type - ptrs_nativeTypes);
+		ret.constType = PTRS_TYPE_POINTER;
 
 		return ret;
 	}
@@ -825,7 +932,7 @@ ptrs_jit_var_t ptrs_addressof_identifier(ptrs_ast_t *node, jit_function_t func, 
 		ptrs_error(node, "Variable is not marked as addressable. This is probably an internal error");
 
 	target.val = ptrs_jit_import(node, func, target.val, true);
-	target.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_POINTER, false, 1);
+	target.meta = ptrs_jit_const_arrayMeta(func, 1, PTRS_NATIVETYPE_INDEX_VAR);
 	target.constType = PTRS_TYPE_POINTER;
 
 	return target;
@@ -921,7 +1028,7 @@ ptrs_jit_var_t ptrs_handle_op_in(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 		ptrs_struct_t *struc = ptrs_meta_getPointer(strucMeta);
 
 		char buff[32];
-		const char *name = ptrs_vartoa(nameVal, nameMeta, buff, 32).value.strval;
+		const char *name = ptrs_vartoa(nameVal, nameMeta, buff, 32).value.ptrval;
 		int32_t nameLen = strlen(name);
 
 		if(ptrs_struct_find(struc, name, nameLen, -1, node) != NULL)

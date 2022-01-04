@@ -13,7 +13,10 @@
 #include "../include/conversion.h"
 #include "../include/util.h"
 #include "../include/struct.h"
+#include "../include/run.h"
 #include "../jit.h"
+#include "jit/jit-function.h"
+#include "jit/jit-value.h"
 
 void ptrs_jit_branch_if(jit_function_t func, jit_label_t *target, ptrs_jit_var_t val)
 {
@@ -139,7 +142,6 @@ jit_value_t ptrs_jit_vartoi(jit_function_t func, ptrs_jit_var_t val)
 	switch(val.constType)
 	{
 		case -1:
-		case PTRS_TYPE_NATIVE:
 			break; //use intrinsic
 		case PTRS_TYPE_STRUCT:
 			if(jit_value_is_constant(val.meta))
@@ -180,7 +182,6 @@ jit_value_t ptrs_jit_vartof(jit_function_t func, ptrs_jit_var_t val)
 	switch(val.constType)
 	{
 		case -1:
-		case PTRS_TYPE_NATIVE:
 			break; //use instrinsic
 		case PTRS_TYPE_STRUCT:
 			if(jit_value_is_constant(val.meta))
@@ -211,43 +212,40 @@ void ptrs_itoa(char *buff, ptrs_val_t val)
 {
 	sprintf(buff, "%"PRId64, val.intval);
 }
-void ptrs_ftona(char *buff, size_t maxlen, ptrs_val_t val)
-{
-	snprintf(buff, maxlen, "%.8f", val.floatval);
-
-	int i = 0;
-	while(buff[i] != '.')
-		i++;
-
-	int last = i;
-	i++;
-
-	while(buff[i] != 0)
-	{
-		if(buff[i] != '0')
-			last = i + 1;
-		i++;
-	}
-	buff[last] = 0;
-}
 void ptrs_ftoa(char *buff, ptrs_val_t val)
 {
-	ptrs_ftona(buff, 32, val);
+	jit_function_t func = jit_function_from_closure(ptrs_jit_context, val.ptrval);
+	if(func)
+	{
+		const char *name = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_NAME);
+		snprintf(buff, 32, "function:%s", name);
+	}
+	else
+	{
+		snprintf(buff, 32, "function:%p", val.ptrval);
+	}
 }
-void ptrs_ptoa(char *buff, ptrs_val_t val)
+const char *ptrs_ptoa(ptrs_val_t val, ptrs_meta_t meta, char *buff)
 {
-	sprintf(buff, "pointer:%p", val.ptrval);
+	if(meta.array.typeIndex == PTRS_NATIVETYPE_INDEX_CHAR && strnlen(val.ptrval, meta.array.size) < meta.array.size)
+	{
+		return val.ptrval;
+	}
+
+	ptrs_nativetype_info_t *type = ptrs_getNativeTypeForArray(NULL, meta);
+	snprintf(buff, 32, "%s[%d]@%p", type->name, meta.array.size, val.ptrval);
+	return buff;
 }
 const char *ptrs_stoa(ptrs_val_t val, ptrs_meta_t meta, char *buff)
 {
 	ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
-	jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_tostring, val.nativeval != NULL);
+	jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_tostring, val.ptrval != NULL);
 	if(overload != NULL)
 	{
 		ptrs_var_t ret;
-		ptrs_jit_applyNested(overload, &ret, struc->parentFrame, val.nativeval, ());
+		ptrs_jit_applyNested(overload, &ret, struc->parentFrame, val.ptrval, ());
 
-		return ptrs_vartoa(ret.value, ret.meta, buff, 32).value.strval;
+		return ptrs_vartoa(ret.value, ret.meta, buff, 32).value.ptrval;
 	}
 
 	sprintf(buff, "%s:%p", struc->name, val.structval);
@@ -255,18 +253,17 @@ const char *ptrs_stoa(ptrs_val_t val, ptrs_meta_t meta, char *buff)
 }
 void ptrs_functoa(char *buff, ptrs_val_t val)
 {
-	sprintf(buff, "function:%p", val.nativeval);
+	sprintf(buff, "function:%p", val.ptrval);
 }
 ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, ptrs_jit_var_t val)
 {
 	jit_value_t buff;
 	ptrs_jit_var_t ret;
-	ret.constType = PTRS_TYPE_NATIVE;
+	ret.constType = PTRS_TYPE_POINTER;
 
 	if(val.constType == -1)
 	{
-		jit_value_t size = jit_const_int(func, nuint, 32);
-		buff = jit_insn_alloca(func, size);
+		buff = jit_insn_array(func, 32);
 
 		val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
 		jit_value_t retVal;
@@ -277,25 +274,27 @@ ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, ptrs_jit_var_t val)
 				jit_type_void_ptr,
 				jit_type_ulong
 			),
-			(val.val, val.meta, buff, size)
+			(val.val, val.meta, buff, jit_const_int(func, nuint, 32))
 		);
 
 		ret = ptrs_jit_valToVar(func, retVal);
-		ret.constType = PTRS_TYPE_NATIVE;
+		ret.constType = PTRS_TYPE_POINTER;
 		return ret;
 	}
 	else
 	{
-		if(val.constType == PTRS_TYPE_NATIVE)
+		if(val.constType == PTRS_TYPE_POINTER && jit_value_is_constant(val.meta))
 		{
-			return val;
+			ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(val.meta);
+			if(meta.array.typeIndex == PTRS_NATIVETYPE_INDEX_CHAR)
+				return val;
 		}
 
 		buff = jit_insn_array(func, 32);
 		ptrs_jit_var_t ret;
-		ret.constType = PTRS_TYPE_NATIVE;
+		ret.constType = PTRS_TYPE_POINTER;
 		ret.val = buff;
-		ret.meta = ptrs_jit_const_arrayMeta(func, PTRS_TYPE_NATIVE, 0, 32);
+		ret.meta = ptrs_jit_const_arrayMeta(func, 32, PTRS_NATIVETYPE_INDEX_CHAR);
 
 		if(val.constType == PTRS_TYPE_UNDEFINED)
 		{
@@ -303,8 +302,9 @@ ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, ptrs_jit_var_t val)
 				jit_const_int(func, nuint, strlen("undefined") + 1));
 			return ret;
 		}
-		else if(val.constType == PTRS_TYPE_STRUCT)
+		else if(val.constType == PTRS_TYPE_STRUCT || val.constType == PTRS_TYPE_POINTER)
 		{
+			void *handler = val.constType == PTRS_TYPE_STRUCT ? ptrs_stoa : ptrs_ptoa;
 			ptrs_jit_reusableCall(func, ptrs_stoa, ret.val, jit_type_void_ptr,
 				(jit_type_long, jit_type_long, jit_type_void_ptr),
 				(val.val, val.meta, buff)
@@ -316,7 +316,6 @@ ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, ptrs_jit_var_t val)
 			void *converters[] = {
 				[PTRS_TYPE_INT] = ptrs_itoa,
 				[PTRS_TYPE_FLOAT] = ptrs_ftoa,
-				[PTRS_TYPE_POINTER] = ptrs_ptoa,
 				[PTRS_TYPE_FUNCTION] = ptrs_functoa,
 			};
 
@@ -340,8 +339,10 @@ bool ptrs_vartob(ptrs_val_t val, ptrs_meta_t meta)
 			return val.intval != 0;
 		case PTRS_TYPE_FLOAT:
 			return val.floatval != 0;
+		case PTRS_TYPE_POINTER:
+			return val.ptrval != NULL && meta.array.size != 0;
 		default: //pointer type
-			return val.strval != NULL;
+			return val.ptrval != NULL;
 	}
 }
 
@@ -371,27 +372,23 @@ int64_t ptrs_vartoi(ptrs_val_t val, ptrs_meta_t meta)
 			return val.intval;
 		case PTRS_TYPE_FLOAT:
 			return val.floatval;
-		case PTRS_TYPE_NATIVE:
-			if(meta.array.size > 0)
-				return strntol(val.strval, meta.array.size);
-			return (intptr_t)val.nativeval;
 		case PTRS_TYPE_STRUCT:
 			;
 			ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
-			jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_cast_builtin, val.nativeval != NULL);
+			jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_cast_builtin, val.ptrval != NULL);
 			if(overload != NULL)
 			{
 				ptrs_var_t ret;
 				ptrs_val_t arg0 = {.intval = PTRS_TYPE_INT};
 				ptrs_meta_t arg1 = {.type = PTRS_TYPE_INT};
-				ptrs_jit_applyNested(overload, &ret, struc->parentFrame, val.nativeval,
+				ptrs_jit_applyNested(overload, &ret, struc->parentFrame, val.ptrval,
 					(&arg0, &arg1));
 
 				return ptrs_vartoi(ret.value, ret.meta);
 			}
 			/* fallthrough */
 		default: //pointer type
-			return (intptr_t)val.nativeval;
+			return (intptr_t)val.ptrval;
 	}
 }
 
@@ -421,36 +418,32 @@ double ptrs_vartof(ptrs_val_t val, ptrs_meta_t meta)
 			return val.intval;
 		case PTRS_TYPE_FLOAT:
 			return val.floatval;
-		case PTRS_TYPE_NATIVE:
-			if(meta.array.size > 0)
-				return strntod(val.strval, meta.array.size);
-			return (intptr_t)val.nativeval;
 		case PTRS_TYPE_STRUCT:
 			;
 			ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
-			jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_cast_builtin, val.nativeval != NULL);
+			jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_cast_builtin, val.ptrval != NULL);
 			if(overload != NULL)
 			{
 				ptrs_var_t ret;
 				ptrs_val_t arg0 = {.intval = PTRS_TYPE_FLOAT};
 				ptrs_meta_t arg1 = {.type = PTRS_TYPE_INT};
-				ptrs_jit_applyNested(overload, &ret, struc->parentFrame, val.nativeval,
+				ptrs_jit_applyNested(overload, &ret, struc->parentFrame, val.ptrval,
 					(&arg0, &arg1));
 
 				return ptrs_vartoi(ret.value, ret.meta);
 			}
 			/* fallthrough */
 		default: //pointer type
-			return (intptr_t)val.nativeval;
+			return (intptr_t)val.ptrval;
 	}
 }
 
 ptrs_var_t ptrs_vartoa(ptrs_val_t val, ptrs_meta_t meta, char *buff, size_t maxlen)
 {
 	ptrs_var_t result;
-	result.value.nativeval = buff;
-	result.meta.type = PTRS_TYPE_NATIVE;
-	result.meta.array.readOnly = false;
+	result.value.ptrval = buff;
+	result.meta.type = PTRS_TYPE_POINTER;
+	result.meta.array.typeIndex = PTRS_NATIVETYPE_INDEX_CHAR;
 	result.meta.array.size = maxlen;
 
 	switch(meta.type)
@@ -463,45 +456,53 @@ ptrs_var_t ptrs_vartoa(ptrs_val_t val, ptrs_meta_t meta, char *buff, size_t maxl
 			snprintf(buff, maxlen, "%"PRId64, val.intval);
 			break;
 		case PTRS_TYPE_FLOAT:
-			ptrs_ftona(buff, maxlen, val);
+			snprintf(buff, maxlen, "%g", val.floatval);
 			break;
-		case PTRS_TYPE_NATIVE:
-			;
-			if(meta.array.size == 0)
+		case PTRS_TYPE_POINTER:
+			if(meta.array.typeIndex == PTRS_NATIVETYPE_INDEX_CHAR && meta.array.size > 0)
 			{
-				snprintf(buff, maxlen, "native:%p", val.strval);
-				break;
-			}
-
-			int len = strnlen(val.strval, meta.array.size);
-			if(len < meta.array.size)
-			{
-				result.value = val;
-				result.meta = meta;
+				int len = strnlen(val.ptrval, meta.array.size);
+				if(len < meta.array.size)
+				{
+					result.value = val;
+					result.meta = meta;
+				}
+				else
+				{
+					snprintf(buff, maxlen, "%.*s", len, (char *)val.ptrval); // XXX: what should we do when maxlen < len? :(
+				}
 			}
 			else
 			{
-				snprintf(buff, maxlen, "%.*s", len, val.strval); //wat do when maxlen < len? :(
+				ptrs_nativetype_info_t *type = ptrs_getNativeTypeForArray(NULL, meta);
+				snprintf(buff, maxlen, "%s[%d]@%p", type->name, meta.array.size, val.ptrval);
 			}
-			break;
-		case PTRS_TYPE_POINTER:
-			snprintf(buff, maxlen, "pointer:%p", val.ptrval);
 			break;
 		case PTRS_TYPE_STRUCT:
 			;
 			ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
-			jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_tostring, val.nativeval != NULL);
+			jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_tostring, val.ptrval != NULL);
 			if(overload != NULL)
 			{
 				ptrs_var_t ret;
-				ptrs_jit_applyNested(overload, &ret, struc->parentFrame, val.nativeval, ());
+				ptrs_jit_applyNested(overload, &ret, struc->parentFrame, val.ptrval, ());
 				return ptrs_vartoa(ret.value, ret.meta, buff, maxlen);
 			}
 
 			snprintf(buff, maxlen, "%s:%p", struc->name, val.structval);
 			break;
 		case PTRS_TYPE_FUNCTION:
-			snprintf(buff, maxlen, "function:%p", val.nativeval);
+			;
+			jit_function_t func = jit_function_from_closure(ptrs_jit_context, val.ptrval);
+			if(func)
+			{
+				const char *name = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_NAME);
+				snprintf(buff, maxlen, "function:%s", name);
+			}
+			else
+			{
+				snprintf(buff, maxlen, "function:%p", val.ptrval);
+			}
 			break;
 	}
 
@@ -513,27 +514,15 @@ void ptrs_metatoa(ptrs_meta_t meta, char *buff, size_t maxlen)
 {
 	switch(meta.type)
 	{
-		case PTRS_TYPE_NATIVE:
-			if(meta.array.size == 0)
-				snprintf(buff, maxlen, "native");
-			else
-				snprintf(buff, maxlen, "native[%d]", meta.array.size);
-			break;
 		case PTRS_TYPE_POINTER:
-			if(meta.array.size == 0)
-				snprintf(buff, maxlen, "pointer");
-			else
-				snprintf(buff, maxlen, "pointer[%d]", meta.array.size);
+			;
+			ptrs_nativetype_info_t *type = ptrs_getNativeTypeForArray(NULL, meta);
+			snprintf(buff, maxlen, "%s[%d]", type->name, meta.array.size);
 			break;
 		case PTRS_TYPE_STRUCT:
 			;
 			ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
 			snprintf(buff, maxlen, "struct:%s", struc->name);
-			break;
-		case PTRS_TYPE_FUNCTION:
-			;
-			ptrs_function_t *func = ptrs_meta_getPointer(meta);
-			snprintf(buff, maxlen, "function:%s", func->name);
 			break;
 		default:
 			snprintf(buff, maxlen, "%s", ptrs_typetoa(meta.type));
@@ -546,7 +535,6 @@ const char * const ptrs_typeStrings[] = {
 	[PTRS_TYPE_UNDEFINED] = "undefined",
 	[PTRS_TYPE_INT] = "int",
 	[PTRS_TYPE_FLOAT] = "float",
-	[PTRS_TYPE_NATIVE] = "native",
 	[PTRS_TYPE_POINTER] = "pointer",
 	[PTRS_TYPE_STRUCT] = "struct",
 	[PTRS_TYPE_FUNCTION] = "function",

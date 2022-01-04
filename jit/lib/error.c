@@ -190,7 +190,7 @@ void *ptrs_formatErrorMsg(const char *msg, va_list ap)
 				case 'v':
 					val = va_arg(ap, uintptr_t);
 					uintptr_t meta = va_arg(ap, uintptr_t);
-					str = ptrs_vartoa(*(ptrs_val_t *)&val, *(ptrs_meta_t *)&meta, valbuff, 32).value.strval;
+					str = ptrs_vartoa(*(ptrs_val_t *)&val, *(ptrs_meta_t *)&meta, valbuff, 32).value.ptrval;
 					break;
 				default:
 					;
@@ -424,8 +424,7 @@ void ptrs_jit_assertMetaCompatibility(jit_function_t func, struct ptrs_assertion
 
 	ptrs_jit_appendAssert(func, assertion, condition);
 
-	if((expected.type == PTRS_TYPE_NATIVE || expected.type == PTRS_TYPE_POINTER)
-		&& expected.array.size != 0)
+	if(expected.type == PTRS_TYPE_POINTER && expected.array.size != 0)
 	{
 		jit_value_t size = ptrs_jit_getArraySize(func, actual);
 		condition = jit_insn_ge(func, size, jit_const_int(func, uint, expected.array.size));

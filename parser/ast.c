@@ -87,6 +87,7 @@ static struct ptrs_astlist *parseExpressionList(code_t *code, char end);
 static ptrs_ast_t *parseNew(code_t *code, bool onStack);
 static void parseTyping(code_t *code, ptrs_typing_t *typing);
 static void parseOptionalTyping(code_t *code, ptrs_typing_t *typing);
+static void parseArrayTyping(code_t *code, ptrs_nativetype_info_t *nativeType, ptrs_meta_t *result, struct ptrs_ast **sizePtr);
 static void parseMap(code_t *code, ptrs_ast_t *expr);
 static void parseStruct(code_t *code, ptrs_struct_t *struc);
 static void parseImport(code_t *code, ptrs_ast_t *stmt);
@@ -570,75 +571,37 @@ static ptrs_ast_t *parseStatement(code_t *code)
 
 	if(lookahead(code, "var"))
 	{
-		stmt->vtable = &ptrs_ast_vtable_define;
 		char *name = readIdentifier(code);
-		stmt->arg.define.onStack = true;
-		stmt->arg.define.isArrayExpr = false;
 
-		if(lookahead(code, "["))
+		if(lookahead(code, ":"))
 		{
-			stmt->vtable = &ptrs_ast_vtable_vararray;
-			stmt->arg.define.value = parseExpression(code, false);
-			stmt->arg.define.isInitExpr = false;
-			consumec(code, ']');
+			ptrs_nativetype_info_t *nativeType = readNativeType(code);
+			stmt->vtable = &ptrs_ast_vtable_array;
+			stmt->arg.definearray.onStack = true;
+			parseArrayTyping(code, nativeType, &stmt->arg.definearray.meta, &stmt->arg.definearray.length);
 
 			if(lookahead(code, "="))
 			{
 				consumec(code, '[');
-				stmt->arg.define.initVal = parseExpressionList(code, ']');
+				stmt->arg.definearray.initVal = parseExpressionList(code, ']');
 				consumec(code, ']');
 			}
-			else if(stmt->arg.define.value == NULL)
-			{
-				unexpectedm(code, "Array initializer for implicitly sized array", NULL);
-			}
-			else
-			{
-				stmt->arg.define.initVal = NULL;
-			}
-		}
-		else if(lookahead(code, "{"))
-		{
-			stmt->vtable = &ptrs_ast_vtable_array;
-			stmt->arg.define.value = parseExpression(code, false);
-			consumec(code, '}');
 
-			if(lookahead(code, "="))
-			{
-				if(lookahead(code, "{"))
-				{
-					stmt->arg.define.initVal = parseExpressionList(code, '}');
-					stmt->arg.define.isInitExpr = false;
-					consumec(code, '}');
-				}
-				else
-				{
-					stmt->arg.define.initExpr = parseExpression(code, true);
-					stmt->arg.define.isInitExpr = true;
-				}
-			}
-			else if(stmt->arg.define.value == NULL)
-			{
-				unexpectedm(code, "Array or String initializer for implicitly sized byte array", NULL);
-			}
-			else
-			{
-				stmt->arg.define.initExpr = NULL;
-				stmt->arg.define.isInitExpr = false;
-			}
+			addSymbol(code, name, &stmt->arg.definearray.location);
 		}
 		else if(lookahead(code, "="))
 		{
+			stmt->vtable = &ptrs_ast_vtable_define;
 			stmt->arg.define.value = parseExpression(code, true);
-			stmt->arg.define.type = -1;
+			addSymbol(code, name, &stmt->arg.define.location);
 		}
 		else
 		{
+			stmt->vtable = &ptrs_ast_vtable_define;
 			stmt->arg.define.value = NULL;
-			stmt->arg.define.type = -1;
+			addSymbol(code, name, &stmt->arg.define.location);
 		}
 
-		addSymbol(code, name, &stmt->arg.define.location);
 		consumec(code, ';');
 	}
 	else if(lookahead(code, "import"))
@@ -1060,7 +1023,6 @@ struct constinfo
 struct constinfo constants[] = {
 	{"true", PTRS_TYPE_INT, {.intval = true}},
 	{"false", PTRS_TYPE_INT, {.intval = false}},
-	{"NULL", PTRS_TYPE_NATIVE, {.nativeval = NULL}},
 	{"null", PTRS_TYPE_POINTER, {.ptrval = NULL}},
 	{"undefined", PTRS_TYPE_UNDEFINED, {}},
 	{"NaN", PTRS_TYPE_FLOAT, {.floatval = NAN}},
@@ -1328,10 +1290,10 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 		else
 		{
 			ast->vtable = &ptrs_ast_vtable_constant;
-			ast->arg.constval.meta.type = PTRS_TYPE_NATIVE;
-			ast->arg.constval.value.strval = str;
-			ast->arg.constval.meta.array.readOnly = true;
+			ast->arg.constval.meta.type = PTRS_TYPE_POINTER;
+			ast->arg.constval.value.ptrval = str;
 			ast->arg.constval.meta.array.size = len;
+			ast->arg.constval.meta.array.typeIndex = PTRS_NATIVETYPE_INDEX_CHAR;
 		}
 	}
 	else if(curr == '`')
@@ -1350,10 +1312,10 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 
 		ast = talloc(ptrs_ast_t);
 		ast->vtable = &ptrs_ast_vtable_constant;
-		ast->arg.constval.meta.type = PTRS_TYPE_NATIVE;
-		ast->arg.constval.value.strval = str;
-		ast->arg.constval.meta.array.readOnly = true;
+		ast->arg.constval.meta.type = PTRS_TYPE_POINTER;
+		ast->arg.constval.value.ptrval = str;
 		ast->arg.constval.meta.array.size = len;
+		ast->arg.constval.meta.array.typeIndex = PTRS_NATIVETYPE_INDEX_CHAR;
 	}
 	else if(curr == '(')
 	{
@@ -1584,23 +1546,20 @@ static void parseTyping(code_t *code, ptrs_typing_t *typing)
 	
 	typing->meta.type = readTypeName(code);
 	if(typing->meta.type != PTRS_NUM_TYPES)
-	{
-		if(typing->meta.type == PTRS_TYPE_NATIVE
-			|| typing->meta.type == PTRS_TYPE_POINTER)
-		{
-			if(lookahead(code, "["))
-			{
-				typing->meta.array.size = readInt(code, 0);
-				consumec(code, ']');
-			}
-		}
 		return;
-	}
 
 	typing->nativetype = readNativeType(code);
 	if(typing->nativetype != NULL)
 	{
-		typing->meta.type = typing->nativetype->varType;
+		if(code->curr == '[')
+		{
+			parseArrayTyping(code, typing->nativetype, &typing->meta, NULL);
+			typing->nativetype = NULL;
+		}
+		else
+		{
+			typing->meta.type = typing->nativetype->varType;
+		}
 		return;
 	}
 
@@ -1623,10 +1582,49 @@ static void parseTyping(code_t *code, ptrs_typing_t *typing)
 static void parseOptionalTyping(code_t *code, ptrs_typing_t *typing)
 {
 	if(lookahead(code, ":"))
+	{
 		parseTyping(code, typing);
+	}
 	else
+	{
 		typing->meta.type = (uint8_t)-1;
+		typing->nativetype = NULL;
+	}
 }
+
+static void parseArrayTyping(code_t *code, ptrs_nativetype_info_t *nativeType, ptrs_meta_t *result, struct ptrs_ast **sizePtr)
+{
+	result->type = PTRS_TYPE_POINTER;
+
+	if(nativeType == NULL)
+		unexpected(code, "native type name");
+
+	result->array.typeIndex = nativeType - ptrs_nativeTypes;
+
+	consumec(code, '[');
+
+	int oldpos = code->pos;
+	struct ptrs_ast *size = parseExpression(code, true);
+	if(size->vtable == &ptrs_ast_vtable_constant)
+	{
+		result->array.size = size->arg.constval.value.intval;
+		if(sizePtr != NULL)
+			*sizePtr = NULL;
+	}
+	else if(sizePtr != NULL)
+	{
+		*sizePtr = size;
+		result->array.size = 0;
+	}
+	else
+	{
+		code->pos = oldpos;
+		code->curr = code->src[oldpos];
+		unexpected(code, sizePtr == NULL ? "constant array size" : "array size");
+	}
+	consumec(code, ']');
+}
+
 
 static void parseImport(code_t *code, ptrs_ast_t *stmt)
 {
@@ -1839,57 +1837,24 @@ static void parseSwitchCase(code_t *code, ptrs_ast_t *stmt)
 	stmt->arg.switchcase.cases = first.next;
 }
 
-
-
 static ptrs_ast_t *parseNew(code_t *code, bool onStack)
 {
 	ptrs_ast_t *ast = talloc(ptrs_ast_t);
 
-	if(lookahead(code, "array"))
+	ptrs_nativetype_info_t *nativeType = readNativeType(code);
+	if(nativeType != NULL)
 	{
-		ast->arg.define.location.val = NULL;
-		ast->arg.define.location.meta = NULL;
-		ast->arg.define.initExpr = NULL;
-		ast->arg.define.isInitExpr = false;
-		ast->arg.define.isArrayExpr = true;
-		ast->arg.define.onStack = onStack;
+		ast->vtable = &ptrs_ast_vtable_array;
+		ast->arg.definearray.onStack = false;
+		ast->arg.definearray.location.val = NULL;
+		ast->arg.definearray.location.meta = NULL;
+
+		parseArrayTyping(code, nativeType, &ast->arg.definearray.meta, &ast->arg.definearray.length);
 
 		if(lookahead(code, "["))
 		{
-			ast->vtable = &ptrs_ast_vtable_vararray;
-			ast->arg.define.value = parseExpression(code, false);
+			ast->arg.definearray.initVal = parseExpressionList(code, ']');
 			consumec(code, ']');
-
-			if(lookahead(code, "["))
-			{
-				ast->arg.define.initVal = parseExpressionList(code, ']');
-				consumec(code, ']');
-			}
-			else if(ast->arg.define.value == NULL)
-			{
-				unexpected(code, "Array initializer for implicitly sized var-array");
-			}
-		}
-		else if(lookahead(code, "{"))
-		{
-			ast->vtable = &ptrs_ast_vtable_array;
-			ast->arg.define.location.constType = PTRS_TYPE_NATIVE;
-			ast->arg.define.value = parseExpression(code, false);
-			consumec(code, '}');
-
-			if(lookahead(code, "{"))
-			{
-				ast->arg.define.initVal = parseExpressionList(code, '}');
-				consumec(code, '}');
-			}
-			else if(ast->arg.define.value == NULL)
-			{
-				unexpected(code, "Array initializer for implicitly sized array");
-			}
-		}
-		else
-		{
-			unexpected(code, "[ or {");
 		}
 	}
 	else
@@ -2074,6 +2039,12 @@ static ptrs_funcparameter_t *createParameterList(code_t *code, size_t count, ...
 		curr->argv = NULL;
 		curr->next = NULL;
 
+		if(curr->typing.meta.type == PTRS_TYPE_POINTER)
+		{
+			curr->typing.meta.array.typeIndex = va_arg(ap, size_t);
+			curr->typing.meta.array.size = va_arg(ap, size_t);
+		}
+
 		if(curr->name != NULL)
 			addSymbol(code, strdup(curr->name), &curr->arg);
 	}
@@ -2160,7 +2131,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 					if(isAddressOf)
 					{
-						func->args = createParameterList(code, 1, otherName, PTRS_TYPE_NATIVE);
+						func->args = createParameterList(code, 1, otherName, PTRS_TYPE_POINTER, PTRS_NATIVETYPE_INDEX_CHAR, 0);
 						parseOptionalTyping(code, &func->retType);
 
 						nameFormat = "%1$s.op &this[%3$s]";
@@ -2170,7 +2141,9 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					{
 						opLabel = readIdentifier(code);
 						func->args = createParameterList(code, 2,
-							otherName, PTRS_TYPE_NATIVE, opLabel, (ptrs_vartype_t)-1);
+							otherName, PTRS_TYPE_POINTER, PTRS_NATIVETYPE_INDEX_CHAR, 0,
+							opLabel, (ptrs_vartype_t)-1
+						);
 						func->retType.meta.type = -1;
 
 						nameFormat = "%1$s.op this[%3$s] = %2$s";
@@ -2197,7 +2170,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					}
 					else
 					{
-						func->args = createParameterList(code, 1, otherName, PTRS_TYPE_NATIVE);
+						func->args = createParameterList(code, 1, otherName, PTRS_TYPE_POINTER, PTRS_NATIVETYPE_INDEX_CHAR, 0);
 						parseOptionalTyping(code, &func->retType);
 
 						nameFormat = "%1$s.op this[%3$s]";
@@ -2242,8 +2215,9 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				overload->op = ptrs_ast_vtable_forin_step.get;
 
 				func->args = createParameterList(code, 2,
-					opLabel, PTRS_TYPE_POINTER,
-					otherName, PTRS_TYPE_POINTER);
+					opLabel, PTRS_TYPE_POINTER, PTRS_NATIVETYPE_INDEX_VAR, 1,
+					otherName, PTRS_TYPE_POINTER, PTRS_NATIVETYPE_INDEX_VAR, 1
+				);
 				func->retType.meta.type = PTRS_TYPE_INT;
 			}
 			else if(lookahead(code, "cast"))
@@ -2257,7 +2231,9 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					overload->op = ptrs_ast_vtable_tostring.get;
 
 					func->args = NULL;
-					func->retType.meta.type = PTRS_TYPE_NATIVE;
+					func->retType.meta.type = PTRS_TYPE_POINTER;
+					func->retType.meta.array.typeIndex = PTRS_NATIVETYPE_INDEX_CHAR;
+					func->retType.meta.array.size = 0;
 				}
 				else
 				{
@@ -2282,7 +2258,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					nameFormat = "%1$s.op %3$s in this";
 					overload->op = ptrs_ast_vtable_op_in.get;
 
-					func->args = createParameterList(code, 1, otherName, PTRS_TYPE_NATIVE);
+					func->args = createParameterList(code, 1, otherName, PTRS_TYPE_POINTER, PTRS_NATIVETYPE_INDEX_CHAR, 0);
 					func->retType.meta.type = PTRS_TYPE_INT;
 				}
 			}
@@ -2417,94 +2393,61 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			curr->type = PTRS_STRUCTMEMBER_FUNCTION;
 			curr->value.function.ast = parseFunction(code, funcName);
 		}
-		else if(code->curr == '[')
-		{
-			curr->type = PTRS_STRUCTMEMBER_VARARRAY;
-			consumec(code, '[');
-			ptrs_ast_t *ast = parseExpression(code, true);
-			consumec(code, ']');
-
-			if(lookahead(code, "="))
-			{
-				consumec(code, '[');
-				curr->value.array.init = parseExpressionList(code, ']');
-				consumec(code, ']');
-			}
-			else
-			{
-				curr->value.array.init = NULL;
-			}
-
-			consumec(code, ';');
-
-			if(ast->vtable != &ptrs_ast_vtable_constant)
-				PTRS_HANDLE_ASTERROR(ast, "Struct array member size must be a constant");
-
-			curr->value.array.size = ast->arg.constval.value.intval * sizeof(ptrs_var_t);
-			curr->offset = currSize;
-			currSize += curr->value.array.size;
-			free(ast);
-		}
-		else if(code->curr == '{')
-		{
-			curr->type = PTRS_STRUCTMEMBER_ARRAY;
-			consumec(code, '{');
-			ptrs_ast_t *ast = parseExpression(code, true);
-			consumec(code, '}');
-
-			if(lookahead(code, "="))
-			{
-				consumec(code, '{');
-				curr->value.array.init = parseExpressionList(code, '}');
-				consumec(code, '}');
-			}
-			else
-			{
-				curr->value.array.init = NULL;
-			}
-
-			consumec(code, ';');
-
-			if(ast->vtable != &ptrs_ast_vtable_constant)
-				PTRS_HANDLE_ASTERROR(ast, "Struct array member size must be a constant");
-
-			curr->value.array.size = ast->arg.constval.value.intval;
-
-			if(old != NULL && old->isStatic == curr->isStatic && old->type == PTRS_STRUCTMEMBER_TYPED)
-				curr->offset = old->offset + old->value.type->size;
-			else if(old != NULL && old->isStatic == curr->isStatic && old->type == PTRS_STRUCTMEMBER_ARRAY)
-				curr->offset = old->offset + old->value.array.size;
-			else
-				curr->offset = currSize;
-
-			currSize = ((curr->offset + curr->value.array.size - 1) & ~7) + 8;
-			free(ast);
-		}
 		else if(code->curr == ':')
 		{
 			consumec(code, ':');
 			ptrs_nativetype_info_t *type = readNativeType(code);
-			consumec(code, ';');
 
-			curr->type = PTRS_STRUCTMEMBER_TYPED;
-			curr->value.type = type;
-
-			if(old != NULL && old->isStatic == curr->isStatic && old->type == PTRS_STRUCTMEMBER_TYPED)
+			if(code->curr == '[')
 			{
-				if(old->value.type->size < type->size)
-					curr->offset = (old->offset & ~(type->size - 1)) + type->size;
+				curr->type = PTRS_STRUCTMEMBER_ARRAY;
+				parseArrayTyping(code, type, &curr->value.array, NULL);
+				size_t arraySize = type->size * curr->value.array.array.size;
+
+				if(old != NULL && old->isStatic == curr->isStatic && old->type == PTRS_STRUCTMEMBER_TYPED)
+				{
+					if(old->value.type->size < type->size)
+						curr->offset = (old->offset & ~(type->size - 1)) + type->size;
+					else
+						curr->offset = old->offset + old->value.type->size;
+				}
+				else if(old != NULL && old->isStatic == curr->isStatic && old->type == PTRS_STRUCTMEMBER_ARRAY)
+				{
+					ptrs_nativetype_info_t *oldType = &ptrs_nativeTypes[old->value.array.array.typeIndex];
+					size_t oldByteSize = oldType->size * old->value.array.array.size;
+					curr->offset = ((old->offset + oldByteSize) & ~(type->size - 1)) + type->size;
+				}
 				else
-					curr->offset = old->offset + old->value.type->size;
-			}
-			else if(old != NULL && old->isStatic == curr->isStatic && old->type == PTRS_STRUCTMEMBER_ARRAY)
-			{
-				curr->offset = ((old->offset + old->value.array.size - 1) & ~(type->size - 1)) + type->size;
+				{
+					curr->offset = currSize;
+				}
+				currSize = (curr->offset & ~7) + 8;
 			}
 			else
 			{
-				curr->offset = currSize;
+				curr->type = PTRS_STRUCTMEMBER_TYPED;
+				curr->value.type = type;
+
+				if(old != NULL && old->isStatic == curr->isStatic && old->type == PTRS_STRUCTMEMBER_TYPED)
+				{
+					if(old->value.type->size < type->size)
+						curr->offset = (old->offset & ~(type->size - 1)) + type->size;
+					else
+						curr->offset = old->offset + old->value.type->size;
+				}
+				else if(old != NULL && old->isStatic == curr->isStatic && old->type == PTRS_STRUCTMEMBER_ARRAY)
+				{
+					ptrs_nativetype_info_t *oldType = &ptrs_nativeTypes[old->value.array.array.typeIndex];
+					size_t oldByteSize = oldType->size * old->value.array.array.size;
+					curr->offset = ((old->offset + oldByteSize) & ~(type->size - 1)) + type->size;
+				}
+				else
+				{
+					curr->offset = currSize;
+				}
+				currSize = (curr->offset & ~7) + 8;
 			}
-			currSize = (curr->offset & ~7) + 8;
+			consumec(code, ';');
 		}
 		else
 		{
@@ -2546,7 +2489,6 @@ const char * const typeNames[] = {
 	[PTRS_TYPE_UNDEFINED] = "undefined",
 	[PTRS_TYPE_INT] = "int",
 	[PTRS_TYPE_FLOAT] = "float",
-	[PTRS_TYPE_NATIVE] = "native",
 	[PTRS_TYPE_POINTER] = "pointer",
 	[PTRS_TYPE_STRUCT] = "struct",
 	[PTRS_TYPE_FUNCTION] = "function",
@@ -2566,89 +2508,8 @@ static ptrs_vartype_t readTypeName(code_t *code)
 	return PTRS_NUM_TYPES;
 }
 
-ptrs_nativetype_info_t ptrs_nativeTypes[] = {
-	{"char", sizeof(signed char), NULL, PTRS_TYPE_INT, ptrs_handle_native_getInt, ptrs_handle_native_setInt},
-	{"short", sizeof(short), NULL, PTRS_TYPE_INT, ptrs_handle_native_getInt, ptrs_handle_native_setInt},
-	{"int", sizeof(int), NULL, PTRS_TYPE_INT, ptrs_handle_native_getInt, ptrs_handle_native_setInt},
-	{"long", sizeof(long), NULL, PTRS_TYPE_INT, ptrs_handle_native_getInt, ptrs_handle_native_setInt},
-	{"longlong", sizeof(long long), NULL, PTRS_TYPE_INT, ptrs_handle_native_getInt, ptrs_handle_native_setInt},
-
-	{"uchar", sizeof(unsigned char), NULL, PTRS_TYPE_INT, ptrs_handle_native_getUInt, ptrs_handle_native_setUInt},
-	{"ushort", sizeof(unsigned short), NULL, PTRS_TYPE_INT, ptrs_handle_native_getUInt, ptrs_handle_native_setUInt},
-	{"uint", sizeof(unsigned int), NULL, PTRS_TYPE_INT, ptrs_handle_native_getUInt, ptrs_handle_native_setUInt},
-	{"ulong", sizeof(unsigned long), NULL, PTRS_TYPE_INT, ptrs_handle_native_getUInt, ptrs_handle_native_setUInt},
-	{"ulonglong", sizeof(unsigned long long), NULL, PTRS_TYPE_INT, ptrs_handle_native_getUInt, ptrs_handle_native_setUInt},
-
-	{"i8", sizeof(int8_t), NULL, PTRS_TYPE_INT, ptrs_handle_native_getInt, ptrs_handle_native_setInt},
-	{"i16", sizeof(int16_t), NULL, PTRS_TYPE_INT, ptrs_handle_native_getInt, ptrs_handle_native_setInt},
-	{"i32", sizeof(int32_t), NULL, PTRS_TYPE_INT, ptrs_handle_native_getInt, ptrs_handle_native_setInt},
-	{"i64", sizeof(int64_t), NULL, PTRS_TYPE_INT, ptrs_handle_native_getInt, ptrs_handle_native_setInt},
-
-	{"u8", sizeof(uint8_t), NULL, PTRS_TYPE_INT, ptrs_handle_native_getUInt, ptrs_handle_native_setUInt},
-	{"u16", sizeof(uint16_t), NULL, PTRS_TYPE_INT, ptrs_handle_native_getUInt, ptrs_handle_native_setUInt},
-	{"u32", sizeof(uint32_t), NULL, PTRS_TYPE_INT, ptrs_handle_native_getUInt, ptrs_handle_native_setUInt},
-	{"u64", sizeof(uint64_t), NULL, PTRS_TYPE_INT, ptrs_handle_native_getUInt, ptrs_handle_native_setUInt},
-
-	{"single", sizeof(float), NULL, PTRS_TYPE_FLOAT, ptrs_handle_native_getFloat, ptrs_handle_native_setFloat},
-	{"double", sizeof(double), NULL, PTRS_TYPE_FLOAT, ptrs_handle_native_getFloat, ptrs_handle_native_setFloat},
-
-	{"native", sizeof(char *), NULL, PTRS_TYPE_NATIVE, ptrs_handle_native_getNative, ptrs_handle_native_setPointer},
-	{"pointer", sizeof(ptrs_var_t *), NULL, PTRS_TYPE_POINTER, ptrs_handle_native_getPointer, ptrs_handle_native_setPointer},
-
-	{"bool", sizeof(bool), NULL, PTRS_TYPE_INT, ptrs_handle_native_getUInt, ptrs_handle_native_setUInt},
-	{"ssize", sizeof(ssize_t), NULL, PTRS_TYPE_INT, ptrs_handle_native_getInt, ptrs_handle_native_setInt},
-	{"size", sizeof(size_t), NULL, PTRS_TYPE_INT, ptrs_handle_native_getUInt, ptrs_handle_native_setUInt},
-	{"intptr", sizeof(uintptr_t), NULL, PTRS_TYPE_INT, ptrs_handle_native_getInt, ptrs_handle_native_setInt},
-	{"uintptr", sizeof(intptr_t), NULL, PTRS_TYPE_INT, ptrs_handle_native_getUInt, ptrs_handle_native_setUInt},
-	{"ptrdiff", sizeof(ptrdiff_t), NULL, PTRS_TYPE_INT, ptrs_handle_native_getInt, ptrs_handle_native_setInt},
-};
-int ptrs_nativeTypeCount = sizeof(ptrs_nativeTypes) / sizeof(ptrs_nativetype_info_t);
-
 static ptrs_nativetype_info_t *readNativeType(code_t *code)
 {
-	if(ptrs_nativeTypes[0].jitType == NULL)
-	{
-		jit_type_t types[] = {
-			jit_type_sys_char,
-			jit_type_sys_short,
-			jit_type_sys_int,
-			jit_type_sys_long,
-			jit_type_sys_longlong,
-
-			jit_type_sys_uchar,
-			jit_type_sys_ushort,
-			jit_type_sys_uint,
-			jit_type_sys_ulong,
-			jit_type_sys_ulonglong,
-
-			jit_type_sbyte,
-			jit_type_short,
-			jit_type_int,
-			jit_type_long,
-
-			jit_type_ubyte,
-			jit_type_ushort,
-			jit_type_uint,
-			jit_type_ulong,
-
-			jit_type_float32,
-			jit_type_float64,
-
-			jit_type_void_ptr,
-			jit_type_void_ptr,
-
-			jit_type_sys_bool,
-			jit_type_nint, //ssize
-			jit_type_nuint, //size
-			jit_type_nint,
-			jit_type_nuint,
-			jit_type_nint, //ptrdiff
-		};
-
-		for(int i = 0; i < ptrs_nativeTypeCount; i++)
-			ptrs_nativeTypes[i].jitType = types[i];
-	}
-
 	for(int i = 0; i < ptrs_nativeTypeCount; i++)
 	{
 		if(lookahead(code, ptrs_nativeTypes[i].name))

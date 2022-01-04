@@ -8,7 +8,6 @@ extern ptrs_ast_vtable_t ptrs_ast_vtable_initroot;
 extern ptrs_ast_vtable_t ptrs_ast_vtable_body;
 extern ptrs_ast_vtable_t ptrs_ast_vtable_define;
 extern ptrs_ast_vtable_t ptrs_ast_vtable_array;
-extern ptrs_ast_vtable_t ptrs_ast_vtable_vararray;
 extern ptrs_ast_vtable_t ptrs_ast_vtable_import;
 extern ptrs_ast_vtable_t ptrs_ast_vtable_return;
 extern ptrs_ast_vtable_t ptrs_ast_vtable_break;

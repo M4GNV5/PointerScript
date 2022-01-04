@@ -14,7 +14,6 @@ ptrs_jit_var_t ptrs_handle_initroot(ptrs_ast_t *node, jit_function_t func, ptrs_
 ptrs_jit_var_t ptrs_handle_body(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_define(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
-ptrs_jit_var_t ptrs_handle_vararray(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_import(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_return(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
 ptrs_jit_var_t ptrs_handle_break(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope);
@@ -116,10 +115,11 @@ void ptrs_handle_native_getInt(void *target, size_t size, ptrs_var_t *value);
 void ptrs_handle_native_setInt(void *target, size_t size, ptrs_var_t *value);
 void ptrs_handle_native_getUInt(void *target, size_t size, ptrs_var_t *value);
 void ptrs_handle_native_setUInt(void *target, size_t size, ptrs_var_t *value);
-void ptrs_handle_native_getNative(void *target, size_t size, ptrs_var_t *value);
 void ptrs_handle_native_getPointer(void *target, size_t size, ptrs_var_t *value);
 void ptrs_handle_native_setPointer(void *target, size_t size, ptrs_var_t *value);
 void ptrs_handle_native_getFloat(void *target, size_t size, ptrs_var_t *value);
 void ptrs_handle_native_setFloat(void *target, size_t size, ptrs_var_t *value);
+void ptrs_handle_native_getVar(void *target, size_t size, ptrs_var_t *value);
+void ptrs_handle_native_setVar(void *target, size_t size, ptrs_var_t *value);
 
 #endif

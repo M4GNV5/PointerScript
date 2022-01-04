@@ -20,15 +20,16 @@ struct ptrs_ast_define
 {
 	ptrs_jit_var_t location;
 	struct ptrs_ast *value;
-	union
-	{
-		struct ptrs_astlist *initVal;
-		struct ptrs_ast *initExpr;
-		ptrs_vartype_t type;
-	};
-	uint8_t isInitExpr : 1;
-	uint8_t onStack : 1;
-	uint8_t isArrayExpr : 1;
+	int8_t type;
+};
+
+struct ptrs_ast_definearray
+{
+	ptrs_jit_var_t location;
+	bool onStack;
+	ptrs_meta_t meta;
+	struct ptrs_ast *length;
+	struct ptrs_astlist *initVal;
 };
 
 struct ptrs_ast_identifier
@@ -203,6 +204,7 @@ union ptrs_ast_arg
 
 	struct ptrs_ast_init_root initroot;
 	struct ptrs_ast_define define;
+	struct ptrs_ast_definearray definearray;
 	struct ptrs_ast_identifier identifier;
 	struct ptrs_ast_member member;
 	struct ptrs_ast_import import;

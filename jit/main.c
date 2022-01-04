@@ -21,6 +21,8 @@ extern bool ptrs_analyzeFlow;
 extern bool ptrs_dumpFlow;
 extern int ptrs_optimizationLevel;
 
+extern void ptrs_initialize_nativeTypes();
+
 static struct option options[] = {
 	{"help", no_argument, 0, 1},
 	{"array-max", required_argument, 0, 2},
@@ -147,12 +149,15 @@ int main(int argc, char **argv)
 	ptrs_var_t arguments[len];
 	for(int j = 0; j < len; j++)
 	{
-		arguments[j].value.strval = argv[i++];
-		arguments[j].meta.type = PTRS_TYPE_NATIVE;
-		arguments[j].meta.array.readOnly = false;
+		arguments[j].value.ptrval = argv[i];
+		arguments[j].meta.type = PTRS_TYPE_POINTER;
+		arguments[j].meta.array.typeIndex = PTRS_NATIVETYPE_INDEX_CHAR;
+		arguments[j].meta.array.size = strlen(argv[i]);
+		i++;
 	}
 
 	jit_init();
+	ptrs_initialize_nativeTypes();
 
 	ptrs_result_t result;
 	ptrs_compilefile(&result, file);
@@ -192,8 +197,8 @@ int main(int argc, char **argv)
 		};
 		arg0.ptrval = arguments;
 		arg1.type = PTRS_TYPE_POINTER;
-		arg1.array.readOnly = true;
 		arg1.array.size = len;
+		arg1.array.typeIndex = PTRS_NATIVETYPE_INDEX_VAR;
 
 		if(jit_function_apply(result.func, args, &ret) == 0)
 		{
