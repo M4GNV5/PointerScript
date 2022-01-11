@@ -322,8 +322,7 @@ ptrs_jit_var_t ptrs_handle_index(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 		ptrs_meta_t baseMeta = ptrs_jit_value_getMetaConstant(base.meta);
 		ptrs_nativetype_info_t *arrayType = ptrs_getNativeTypeForArray(node, baseMeta);
 
-		jit_value_t indexPos = jit_insn_mul(func, index.val, jit_const_long(func, long, arrayType->size));
-		jit_value_t loadedValue = jit_insn_load_elem(func, base.val, indexPos, arrayType->jitType);
+		jit_value_t loadedValue = jit_insn_load_elem(func, base.val, index.val, arrayType->jitType);
 
 		ptrs_jit_var_t result;
 		if(arrayType->varType == PTRS_TYPE_FLOAT)
@@ -416,9 +415,8 @@ void ptrs_assign_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scop
 		ptrs_meta_t baseMeta = ptrs_jit_value_getMetaConstant(base.meta);
 		ptrs_nativetype_info_t *arrayType = ptrs_getNativeTypeForArray(node, baseMeta);
 
-		jit_value_t indexPos = jit_insn_mul(func, index.val, jit_const_long(func, long, arrayType->size));
 		jit_value_t value = jit_insn_convert(func, val.val, arrayType->jitType, 0);
-		jit_insn_store_elem(func, base.val, indexPos, value);
+		jit_insn_store_elem(func, base.val, index.val, value);
 	}
 	else if(base.constType == PTRS_TYPE_STRUCT)
 	{
@@ -546,8 +544,7 @@ ptrs_jit_var_t ptrs_call_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 		if(arrayType->varType != PTRS_TYPE_STRUCT && arrayType->varType != PTRS_TYPE_POINTER && arrayType->varType != PTRS_TYPE_FUNCTION)
 			ptrs_error(node, "Cannot call value of type %t", arrayType->varType);
 
-		jit_value_t indexPos = jit_insn_mul(func, index.val, jit_const_long(func, long, arrayType->size));
-		jit_value_t loadedValue = jit_insn_load_elem(func, base.val, indexPos, arrayType->jitType);
+		jit_value_t loadedValue = jit_insn_load_elem(func, base.val, index.val, arrayType->jitType);
 
 		callee.val = jit_insn_convert(func, loadedValue, jit_type_long, 0);
 		callee.meta = ptrs_jit_const_meta(func, arrayType->varType);
