@@ -30,8 +30,10 @@ ptrs_nativetype_info_t ptrs_nativeTypes[] = {
 	define_nativetype("u16",       uint16_t,           PTRS_TYPE_INT, UInt),
 	define_nativetype("u32",       uint32_t,           PTRS_TYPE_INT, UInt),
 	define_nativetype("u64",       uint64_t,           PTRS_TYPE_INT, UInt),
-	define_nativetype("single",    float,              PTRS_TYPE_FLOAT, Float),
+	define_nativetype("float",     float,              PTRS_TYPE_FLOAT, Float),
 	define_nativetype("double",    double,             PTRS_TYPE_FLOAT, Float),
+	define_nativetype("f32",       float,              PTRS_TYPE_FLOAT, Float),
+	define_nativetype("f64",       double,             PTRS_TYPE_FLOAT, Float),
 	define_nativetype("cfunc",     void *,             PTRS_TYPE_POINTER, Pointer),
 	define_nativetype("pointer",   void *,             PTRS_TYPE_POINTER, Pointer),
 	define_nativetype("bool",      bool,               PTRS_TYPE_INT, UInt),
@@ -70,6 +72,8 @@ void ptrs_initialize_nativeTypes()
 		jit_type_uint,
 		jit_type_ulong,
 
+		jit_type_float32,
+		jit_type_float64,
 		jit_type_float32,
 		jit_type_float64,
 

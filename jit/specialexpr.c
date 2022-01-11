@@ -327,8 +327,7 @@ ptrs_jit_var_t ptrs_handle_index(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 		ptrs_jit_var_t result;
 		if(arrayType->varType == PTRS_TYPE_FLOAT)
 		{
-			loadedValue = jit_insn_convert(func, loadedValue, jit_type_float64, 0);
-			result.val = ptrs_jit_reinterpretCast(func, loadedValue, jit_type_long);
+			result.val = jit_insn_convert(func, loadedValue, jit_type_float64, 0);
 			result.meta = ptrs_jit_const_meta(func, PTRS_TYPE_FLOAT);
 			result.constType = PTRS_TYPE_FLOAT;
 			result.addressable = false;

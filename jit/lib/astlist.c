@@ -7,6 +7,7 @@
 #include "../include/conversion.h"
 #include "../include/util.h"
 #include "jit/jit-insn.h"
+#include "jit/jit-value.h"
 
 int ptrs_astlist_length(struct ptrs_astlist *curr)
 {
@@ -76,9 +77,17 @@ void ptrs_astlist_handle(struct ptrs_astlist *list, jit_function_t func, ptrs_sc
 
 			if(type->varType == PTRS_TYPE_FLOAT)
 			{
-				ptrs_jit_typeCheck(list->entry, func, scope, result, PTRS_TYPE_FLOAT, "Initializer of float array needs to be of type float not %t");
-				convertedResult = ptrs_jit_reinterpretCast(func, result.val, jit_type_float64);
-				convertedResult = jit_insn_convert(func, convertedResult, type->jitType, 0);
+				if(result.constType == PTRS_TYPE_INT && jit_value_is_constant(result.val))
+				{
+					// allow int constants to act as initializers for float arrays
+					convertedResult = jit_insn_convert(func, result.val, type->jitType, 0);
+				}
+				else
+				{
+					ptrs_jit_typeCheck(list->entry, func, scope, result, PTRS_TYPE_FLOAT, "Initializer of float array needs to be of type float not %t");
+					convertedResult = ptrs_jit_reinterpretCast(func, result.val, jit_type_float64);
+					convertedResult = jit_insn_convert(func, convertedResult, type->jitType, 0);
+				}
 			}
 			else if(type->varType == PTRS_TYPE_INT)
 			{

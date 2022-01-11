@@ -124,8 +124,8 @@ extern const int ptrs_nativeTypeCount;
 // index of the `var` and `char` type in ptrs_nativeTypes
 #define PTRS_NATIVETYPE_INDEX_CHAR ((size_t)0)
 #define PTRS_NATIVETYPE_INDEX_U8 ((size_t)14)
-#define PTRS_NATIVETYPE_INDEX_CFUNC ((size_t)20)
-#define PTRS_NATIVETYPE_INDEX_VAR ((size_t)28)
+#define PTRS_NATIVETYPE_INDEX_CFUNC ((size_t)22)
+#define PTRS_NATIVETYPE_INDEX_VAR ((size_t)30)
 
 typedef struct
 {
