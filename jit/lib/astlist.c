@@ -1,3 +1,4 @@
+#include <bits/stdint-uintn.h>
 #include <string.h>
 #include <jit/jit.h>
 
@@ -5,6 +6,7 @@
 #include "../../parser/ast.h"
 #include "../include/conversion.h"
 #include "../include/util.h"
+#include "jit/jit-insn.h"
 
 int ptrs_astlist_length(struct ptrs_astlist *curr)
 {
@@ -18,20 +20,35 @@ int ptrs_astlist_length(struct ptrs_astlist *curr)
 	return len;
 }
 
-void ptrs_initArray(ptrs_var_t *array, size_t len, ptrs_val_t val, ptrs_meta_t meta)
+void ptrs_fillArray(void *array, size_t len, ptrs_val_t val, ptrs_meta_t meta, ptrs_nativetype_info_t *type)
 {
-	for(int i = 0; i < len; i++)
+	if(type->varType == (uint8_t)-1)
 	{
-		array[i].value = val;
-		array[i].meta = meta;
+		ptrs_var_t *vararray = array;
+		for(int i = 0; i < len; i++)
+		{
+			vararray[i].value = val;
+			vararray[i].meta = meta;
+		}
+	}
+	else
+	{
+		ptrs_var_t filler;
+		filler.value = val;
+		filler.meta = meta;
+		for(int i = 0; i < len; i++)
+		{
+			type->setHandler(array + i * type->size, type->size, &filler);
+		}
 	}
 }
 void ptrs_astlist_handle(struct ptrs_astlist *list, jit_function_t func, ptrs_scope_t *scope,
-	jit_value_t val, jit_value_t size)
+	jit_value_t val, jit_value_t size, ptrs_nativetype_info_t *type)
 {
 	int i = 0;
 	jit_value_t zero = jit_const_long(func, ulong, 0);
 	ptrs_jit_var_t result = {zero, zero, PTRS_TYPE_UNDEFINED};
+	jit_value_t convertedResult = zero;
 
 	if(list == NULL)
 	{
@@ -57,9 +74,40 @@ void ptrs_astlist_handle(struct ptrs_astlist *list, jit_function_t func, ptrs_sc
 				result = list->entry->vtable->get(list->entry, func, scope);
 			}
 
-			jit_insn_store_relative(func, val, i * sizeof(ptrs_var_t), result.val);
-			jit_insn_store_relative(func, val, i * sizeof(ptrs_var_t) + sizeof(ptrs_val_t), result.meta);
+			if(type->varType == PTRS_TYPE_FLOAT)
+			{
+				ptrs_jit_typeCheck(list->entry, func, scope, result, PTRS_TYPE_FLOAT, "Initializer of float array needs to be of type float not %t");
+				convertedResult = ptrs_jit_reinterpretCast(func, result.val, jit_type_float64);
+				convertedResult = jit_insn_convert(func, convertedResult, type->jitType, 0);
+			}
+			else if(type->varType == PTRS_TYPE_INT)
+			{
+				ptrs_jit_typeCheck(list->entry, func, scope, result, PTRS_TYPE_INT, "Initializer of int array needs to be of type int not %t");
+				convertedResult = jit_insn_convert(func, result.val, type->jitType, 0);
+			}
+			else if(type->varType == PTRS_TYPE_POINTER)
+			{
+				ptrs_jit_typeCheck(list->entry, func, scope, result, PTRS_TYPE_POINTER, "Initializer of pointer array needs to be of type pointer not %t");
+				convertedResult = jit_insn_convert(func, result.val, type->jitType, 0);
+			}
+			else if(type->varType == (uint8_t)-1)
+			{
+				// no conversion
+			}
+			else
+			{
+				ptrs_error(list->entry, "Unknown list type, initialization is not implemented.");
+			}
 
+			if(type->varType == (uint8_t)-1)
+			{
+				jit_insn_store_relative(func, val, i * sizeof(ptrs_var_t), result.val);
+				jit_insn_store_relative(func, val, i * sizeof(ptrs_var_t) + sizeof(ptrs_val_t), result.meta);
+			}
+			else
+			{
+				jit_insn_store_relative(func, val, i * type->size, convertedResult);
+			}
 			list = list->next;
 		}
 	}
@@ -67,77 +115,48 @@ void ptrs_astlist_handle(struct ptrs_astlist *list, jit_function_t func, ptrs_sc
 	if(jit_value_is_constant(result.val) && jit_value_is_constant(result.meta)
 		&& !jit_value_is_true(result.val) && !jit_value_is_true(result.meta))
 	{
-		val = jit_insn_add(func, val, jit_const_int(func, nuint, i * 16));
+		val = jit_insn_add(func, val, jit_const_int(func, nuint, i * type->size));
 		size = jit_insn_sub(func, size, jit_const_int(func, nuint, i)); //size = size - i
-		size = jit_insn_shl(func, size, jit_const_int(func, long, 4)); //size = size * 16
+		size = jit_insn_mul(func, size, jit_const_int(func, long, type->size)); //size = size * type->size
 		jit_insn_memset(func, val, zero, size);
+	}
+	else if(type->size == 1)
+	{
+		val = jit_insn_add(func, val, jit_const_int(func, nuint, i));
+		size = jit_insn_sub(func, size, jit_const_int(func, nuint, i));
+		jit_insn_memset(func, val, convertedResult, size);
 	}
 	else if(jit_value_is_constant(size) && jit_value_get_nint_constant(size) <= 8)
 	{
 		size_t len = jit_value_get_nint_constant(size);
 		for(; i < len; i++)
 		{
-			jit_insn_store_relative(func, val, i * 16, result.val);
-			jit_insn_store_relative(func, val, i * 16 + 8, result.meta);
+			if(type->varType == (uint8_t)-1)
+			{
+				jit_insn_store_relative(func, val, i * sizeof(ptrs_var_t), result.val);
+				jit_insn_store_relative(func, val, i * sizeof(ptrs_var_t) + sizeof(ptrs_val_t), result.meta);
+			}
+			else
+			{
+				jit_insn_store_relative(func, val, i * type->size, convertedResult);
+			}
 		}
 	}
 	else
 	{
-		ptrs_jit_reusableCallVoid(func, ptrs_initArray, (
+		ptrs_jit_reusableCallVoid(func, ptrs_fillArray, (
 				jit_type_void_ptr,
 				jit_type_nuint,
 				jit_type_long,
-				jit_type_ulong
+				jit_type_ulong,
+				jit_type_void_ptr
 			), (
 				jit_insn_add(func, val, jit_const_int(func, nuint, i * 16)),
 				jit_insn_sub(func, size, jit_const_int(func, nuint, i)),
 				result.val,
-				result.meta
+				result.meta,
+				jit_const_int(func, void_ptr, (uintptr_t)type)
 			)
 		);
 	}
-}
-
-void ptrs_astlist_handleByte(struct ptrs_astlist *list, jit_function_t func, ptrs_scope_t *scope,
-	jit_value_t val, jit_value_t size)
-{
-	int i = 0;
-	jit_value_t zero = jit_const_long(func, ubyte, 0);
-	jit_value_t result;
-
-	if(list == NULL)
-	{
-		result = zero;
-	}
-	else if(list->next == NULL)
-	{
-		ptrs_jit_var_t _result = list->entry->vtable->get(list->entry, func, scope);
-		result = ptrs_jit_vartoi(func, _result);
-		result = jit_insn_convert(func, result, jit_type_ubyte, 0);
-	}
-	else
-	{
-		for(; list != NULL; i++)
-		{
-			if(list->entry == NULL)
-			{
-				result = zero;
-			}
-			else
-			{
-				ptrs_jit_var_t _result = list->entry->vtable->get(list->entry, func, scope);
-				result = ptrs_jit_vartoi(func, _result);
-			}
-
-			result = jit_insn_convert(func, result, jit_type_ubyte, 0);
-			jit_insn_store_relative(func, val, i, result);
-			list = list->next;
-		}
-
-		jit_value_t index = jit_const_int(func, nuint, i);
-		size = jit_insn_sub(func, size, index);
-		val = jit_insn_add(func, val, index);
-	}
-
-	jit_insn_memset(func, val, result, size);
 }

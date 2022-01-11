@@ -139,7 +139,7 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	val.meta = ptrs_jit_arrayMetaKnownType(func, size, stmt->meta.array.typeIndex);
 	val.constType = PTRS_TYPE_POINTER;
 
-	if(!stmt->onStack)
+	if(stmt->onStack)
 	{
 		//store the array
 		if(stmt->location.addressable)
@@ -158,7 +158,7 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 		}
 	}
 
-	ptrs_astlist_handleByte(stmt->initVal, func, scope, val.val, size);
+	ptrs_astlist_handle(stmt->initVal, func, scope, val.val, size, type);
 	return val;
 }
 
@@ -1177,8 +1177,7 @@ void iterateArray(struct ptrs_ast_forin *stmt, jit_function_t func, ptrs_scope_t
 	stmt->varsymbols[0].addressable = false;
 
 	ptrs_nativetype_info_t *type = &ptrs_nativeTypes[meta.array.typeIndex];
-	jit_value_t indexPos = jit_insn_mul(func, stmt->iterator, jit_const_long(func, long, type->size));
-	jit_value_t loadedValue = jit_insn_load_elem(func, stmt->value.val, indexPos, type->jitType);
+	jit_value_t loadedValue = jit_insn_load_elem(func, stmt->value.val, stmt->iterator, type->jitType);
 
 	ptrs_jit_var_t result;
 	if(type->varType == PTRS_TYPE_FLOAT)
