@@ -51,6 +51,10 @@ void ptrs_astlist_handle(struct ptrs_astlist *list, jit_function_t func, ptrs_sc
 	ptrs_jit_var_t result = {zero, zero, PTRS_TYPE_UNDEFINED};
 	jit_value_t convertedResult = zero;
 
+	jit_value_t initializerLength = jit_const_long(func, ulong, ptrs_astlist_length(list));
+	ptrs_jit_assert(list->entry, func, scope, jit_insn_le(func, initializerLength, size),
+		2, "Array initializer of length %d is larger than array size of length %d", initializerLength, size);
+
 	if(list == NULL)
 	{
 		result.val = zero;
