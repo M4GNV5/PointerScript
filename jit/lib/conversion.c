@@ -210,20 +210,11 @@ jit_value_t ptrs_jit_vartof(jit_function_t func, ptrs_jit_var_t val)
 
 void ptrs_itoa(char *buff, ptrs_val_t val)
 {
-	sprintf(buff, "%"PRId64, val.intval);
+	snprintf(buff, 32, "%"PRId64, val.intval);
 }
 void ptrs_ftoa(char *buff, ptrs_val_t val)
 {
-	jit_function_t func = jit_function_from_closure(ptrs_jit_context, val.ptrval);
-	if(func)
-	{
-		const char *name = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_NAME);
-		snprintf(buff, 32, "function:%s", name);
-	}
-	else
-	{
-		snprintf(buff, 32, "function:%p", val.ptrval);
-	}
+	snprintf(buff, 32, "%g", val.floatval);
 }
 const char *ptrs_ptoa(ptrs_val_t val, ptrs_meta_t meta, char *buff)
 {
@@ -253,7 +244,16 @@ const char *ptrs_stoa(ptrs_val_t val, ptrs_meta_t meta, char *buff)
 }
 void ptrs_functoa(char *buff, ptrs_val_t val)
 {
-	sprintf(buff, "function:%p", val.ptrval);
+	jit_function_t func = jit_function_from_closure(ptrs_jit_context, val.ptrval);
+	if(func)
+	{
+		const char *name = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_NAME);
+		snprintf(buff, 32, "function:%s", name);
+	}
+	else
+	{
+		snprintf(buff, 32, "function:%p", val.ptrval);
+	}
 }
 ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, ptrs_jit_var_t val)
 {
@@ -302,30 +302,49 @@ ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, ptrs_jit_var_t val)
 				jit_const_int(func, nuint, strlen("undefined") + 1));
 			return ret;
 		}
-		else if(val.constType == PTRS_TYPE_STRUCT || val.constType == PTRS_TYPE_POINTER)
+		else if(val.constType == PTRS_TYPE_INT)
 		{
-			void *handler = val.constType == PTRS_TYPE_STRUCT ? ptrs_stoa : ptrs_ptoa;
+			ptrs_jit_reusableCallVoid(func, ptrs_itoa,
+				(jit_type_void_ptr, jit_type_long),
+				(buff, val.val)
+			);
+		}
+		else if(val.constType == PTRS_TYPE_FLOAT)
+		{
+			val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
+			ptrs_jit_reusableCallVoid(func, ptrs_ftoa,
+				(jit_type_void_ptr, jit_type_long),
+				(buff, val.val)
+			);
+
+		}
+		else if(val.constType == PTRS_TYPE_STRUCT)
+		{
 			ptrs_jit_reusableCall(func, ptrs_stoa, ret.val, jit_type_void_ptr,
 				(jit_type_long, jit_type_long, jit_type_void_ptr),
 				(val.val, val.meta, buff)
 			);
-			return ret;
 		}
-		else
+		else if(val.constType == PTRS_TYPE_POINTER)
 		{
-			void *converters[] = {
-				[PTRS_TYPE_INT] = ptrs_itoa,
-				[PTRS_TYPE_FLOAT] = ptrs_ftoa,
-				[PTRS_TYPE_FUNCTION] = ptrs_functoa,
-			};
-
-			val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
-			ptrs_jit_reusableCallVoid(func, converters[val.constType],
+			ptrs_jit_reusableCall(func, ptrs_ptoa, ret.val, jit_type_void_ptr,
+				(jit_type_long, jit_type_long, jit_type_void_ptr),
+				(val.val, val.meta, buff)
+			);
+		}
+		else if(val.constType == PTRS_TYPE_FUNCTION)
+		{
+			ptrs_jit_reusableCallVoid(func, ptrs_functoa,
 				(jit_type_void_ptr, jit_type_long),
 				(buff, val.val)
 			);
-			return ret;
 		}
+		else
+		{
+			ptrs_error(NULL, "Cannot convert unknown type to string: %t", val.constType);
+		}
+
+		return ret;
 	}
 }
 
