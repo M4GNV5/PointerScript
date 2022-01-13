@@ -2421,7 +2421,10 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				{
 					curr->offset = currSize;
 				}
-				currSize = (curr->offset & ~7) + 8;
+
+				currSize = curr->offset + arraySize;
+				if((currSize & 7) != 0)
+					currSize = (currSize & ~7) + 8;
 			}
 			else
 			{
