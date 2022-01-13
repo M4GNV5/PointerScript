@@ -43,7 +43,7 @@ void ptrs_fillArray(void *array, size_t len, ptrs_val_t val, ptrs_meta_t meta, p
 		}
 	}
 }
-void ptrs_astlist_handle(struct ptrs_astlist *list, jit_function_t func, ptrs_scope_t *scope,
+void ptrs_astlist_handle(ptrs_ast_t *node, struct ptrs_astlist *list, jit_function_t func, ptrs_scope_t *scope,
 	jit_value_t val, jit_value_t size, ptrs_nativetype_info_t *type)
 {
 	int i = 0;
@@ -52,7 +52,7 @@ void ptrs_astlist_handle(struct ptrs_astlist *list, jit_function_t func, ptrs_sc
 	jit_value_t convertedResult = zero;
 
 	jit_value_t initializerLength = jit_const_long(func, ulong, ptrs_astlist_length(list));
-	ptrs_jit_assert(list->entry, func, scope, jit_insn_le(func, initializerLength, size),
+	ptrs_jit_assert(node, func, scope, jit_insn_le(func, initializerLength, size),
 		2, "Array initializer of length %d is larger than array size of length %d", initializerLength, size);
 
 	if(list == NULL)

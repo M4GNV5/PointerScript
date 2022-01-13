@@ -2078,6 +2078,12 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 	{
 		ptrs_error(node, "Cannot analyze statement");
 	}
+
+	if(ptrs_dumpFlow && !flow->dryRun)
+	{
+		clearPrediction(ret);
+		dumpPrediction(node, ret);
+	}
 }
 
 void ptrs_flow_analyze(ptrs_ast_t *ast)
@@ -2099,7 +2105,4 @@ void ptrs_flow_analyze(ptrs_ast_t *ast)
 	analyzeStatement(&flow, ast, &ret);
 
 	freePredictions(flow.predictions);
-
-	if(ptrs_dumpFlow)
-		dumpPrediction(NULL, NULL);
 }

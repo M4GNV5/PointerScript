@@ -593,12 +593,14 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		{
 			stmt->vtable = &ptrs_ast_vtable_define;
 			stmt->arg.define.value = parseExpression(code, true);
+			stmt->arg.define.type = (uint8_t)-1;
 			addSymbol(code, name, &stmt->arg.define.location);
 		}
 		else
 		{
 			stmt->vtable = &ptrs_ast_vtable_define;
 			stmt->arg.define.value = NULL;
+			stmt->arg.define.type = (uint8_t)-1;
 			addSymbol(code, name, &stmt->arg.define.location);
 		}
 

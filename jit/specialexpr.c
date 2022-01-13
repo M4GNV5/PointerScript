@@ -875,8 +875,8 @@ void ptrs_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t 
 			jit_value_t type = ptrs_jit_getType(func, val.meta);
 			ptrs_jit_assert(node, func, scope,
 				jit_insn_eq(func, type, jit_const_long(func, ulong, target.constType)),
-				2, "Cannot assign value of type %mt to variable of type %t",
-				type, jit_const_int(func, sbyte, target.constType)
+				2, "Cannot assign value of type %m to a variable of type %t",
+				val.meta, jit_const_int(func, sbyte, target.constType)
 			);
 		}
 		else if(val.constType != target.constType)
@@ -906,7 +906,7 @@ void ptrs_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t 
 			target.meta = ptrs_jit_import(node, func, target.meta, false);
 
 			ptrs_jit_assert(node, func, scope, jit_insn_eq(func, target.meta, val.meta),
-				2, "The right side's meta value does not match the defined meta"
+				0, "The right side's meta value does not match the defined meta"
 				" of the variable. Are you trying to assign a different struct"
 				" to a struct variable?");
 		}

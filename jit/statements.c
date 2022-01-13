@@ -158,7 +158,7 @@ ptrs_jit_var_t ptrs_handle_array(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 		}
 	}
 
-	ptrs_astlist_handle(stmt->initVal, func, scope, val.val, size, type);
+	ptrs_astlist_handle(node, stmt->initVal, func, scope, val.val, size, type);
 	return val;
 }
 
