@@ -32,6 +32,7 @@ typedef struct
 		struct
 		{
 			uint8_t typeIndex;
+			uint16_t padding;
 			uint32_t size;
 		} __attribute__((packed)) array;
 		uint8_t pointer[7]; //actually 8, use the ptrs_meta_getPointer macro below
