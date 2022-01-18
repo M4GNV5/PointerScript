@@ -269,12 +269,6 @@ typedef struct ptrs_struct
 		jit_insn_shr(func, (meta), jit_const_int(func, ubyte, 8)), \
 		jit_const_long(func, ulong, 0xFF) \
 	))
-#define ptrs_jit_getArrayTypeSize(func, typeIndex) \
-	(jit_insn_load_elem(func, \
-		jit_const_int(func, void_ptr, (uintptr_t)ptrs_nativeTypes), \
-		jit_insn_mul(func, (typeIndex), jit_const_long(func, ulong, sizeof(ptrs_nativetype_info_t))), \
-		jit_type_ulong \
-	))
 #define ptrs_jit_getMetaPointer(func, meta) (jit_insn_shr(func, meta, jit_const_int(func, ubyte, 8)))
 
 #define ptrs_jit_setArraySize(func, meta, size) \

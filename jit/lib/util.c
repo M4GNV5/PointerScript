@@ -11,6 +11,7 @@
 #include "../include/conversion.h"
 #include "../include/error.h"
 #include "../include/util.h"
+#include "jit/jit-value.h"
 
 char *ptrs_readFile(const char *path)
 {
@@ -68,6 +69,30 @@ ptrs_nativetype_info_t *ptrs_getNativeTypeForArray(ptrs_ast_t *node, ptrs_meta_t
 	}
 
 	return &ptrs_nativeTypes[meta.array.typeIndex];
+}
+
+jit_value_t ptrs_jit_getArrayTypeSize(ptrs_ast_t *node, jit_function_t func,
+	jit_value_t meta, jit_value_t typeIndex)
+{
+	if(meta && jit_value_is_constant(meta))
+	{
+		ptrs_meta_t constMeta = ptrs_jit_value_getMetaConstant(meta);
+		ptrs_nativetype_info_t *type = ptrs_getNativeTypeForArray(node, constMeta);
+		return jit_const_long(func, ulong, type->size);
+	}
+
+	if(typeIndex && jit_value_is_constant(typeIndex))
+	{
+		ptrs_nativetype_info_t *type = &ptrs_nativeTypes[jit_value_get_long_constant(typeIndex)];
+		return jit_const_long(func, ulong, type->size);
+	}
+
+	if(!typeIndex)
+		typeIndex = ptrs_jit_getArrayTypeIndex(func, meta);
+
+	jit_value_t nativeTypes = jit_const_int(func, void_ptr, (uintptr_t)ptrs_nativeTypes);
+	jit_value_t offset = jit_insn_mul(func, (typeIndex), jit_const_long(func, ulong, sizeof(ptrs_nativetype_info_t)));
+	return jit_insn_load_elem(func, nativeTypes, offset, jit_type_ulong);
 }
 
 jit_type_t ptrs_jit_getVarType()

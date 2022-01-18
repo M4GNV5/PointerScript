@@ -40,20 +40,23 @@ static jit_type_t getComparasionInstrinsicSignature()
 #define binary_add_cases \
 	case const_typecomp(POINTER, INT): \
 		ret.meta.type = PTRS_TYPE_POINTER; \
+		ptrs_nativetype_info_t *typeL = ptrs_getNativeTypeForArray(node, leftMeta); \
 		ret.meta.array.size = leftMeta.array.size - right.intval; \
-		ret.value.ptrval = left.ptrval + right.intval; \
+		ret.value.ptrval = (uint8_t *)left.ptrval + right.intval * typeL->size; \
 		break; \
 	case const_typecomp(INT, POINTER): \
 		ret.meta.type = PTRS_TYPE_POINTER; \
+		ptrs_nativetype_info_t *typeR = ptrs_getNativeTypeForArray(node, rightMeta); \
 		ret.meta.array.size = rightMeta.array.size - left.intval; \
-		ret.value.ptrval = left.intval + right.ptrval; \
+		ret.value.ptrval = left.intval * typeR->size + (uint8_t *)right.ptrval; \
 		break;
 
 #define binary_sub_cases \
 	case const_typecomp(POINTER, INT): \
 		ret.meta.type = PTRS_TYPE_POINTER; \
+		ptrs_nativetype_info_t *type = ptrs_getNativeTypeForArray(node, leftMeta); \
 		ret.meta.array.size = leftMeta.array.size - right.intval; \
-		ret.value.ptrval = left.ptrval - right.intval; \
+		ret.value.ptrval = (uint8_t *)left.ptrval - right.intval * type->size; \
 		break; \
 	case const_typecomp(POINTER, POINTER): \
 		ret.meta.type = PTRS_TYPE_INT; \
@@ -63,28 +66,30 @@ static jit_type_t getComparasionInstrinsicSignature()
 #define binary_add_jit_cases \
 	case const_typecomp(POINTER, INT): \
 		left.constType = PTRS_TYPE_POINTER; \
+		jit_value_t typeSizeL = ptrs_jit_getArrayTypeSize(node, func, left.meta, NULL); \
 		left.meta = ptrs_jit_setArraySize(func, left.meta, \
 			jit_insn_sub(func, ptrs_jit_getArraySize(func, left.meta), right.val) \
 		); \
-		left.val = jit_insn_add(func, left.val, \
-			jit_insn_shl(func, right.val, jit_const_int(func, int, 4))); \
+		left.val = jit_insn_add(func, left.val, jit_insn_mul(func, right.val, typeSizeL)); \
 		break; \
 	case const_typecomp(INT, POINTER): \
 		left.constType = PTRS_TYPE_POINTER; \
+		jit_value_t typeSizeR = ptrs_jit_getArrayTypeSize(node, func, right.meta, NULL); \
 		left.meta = ptrs_jit_setArraySize(func, right.meta, \
 			jit_insn_sub(func, ptrs_jit_getArraySize(func, right.meta), left.val) \
 		); \
-		left.val = jit_insn_add(func, \
-			jit_insn_shl(func, left.val, jit_const_int(func, int, 4)), right.val); \
+		left.val = jit_insn_add(func, jit_insn_mul(func, left.val, typeSizeR), right.val); \
 		break;
 
 #define binary_sub_jit_cases \
 	case const_typecomp(POINTER, INT): \
+		; \
+		jit_value_t typeSize = ptrs_jit_getArrayTypeSize(node, func, left.meta, NULL); \
 		left.constType = PTRS_TYPE_POINTER; \
 		left.meta = ptrs_jit_setArraySize(func, left.meta, \
 			jit_insn_add(func, ptrs_jit_getArraySize(func, left.meta), right.val) \
 		); \
-		left.val = jit_insn_sub(func, left.val, right.val); \
+		left.val = jit_insn_sub(func, left.val, jit_insn_mul(func, right.val, typeSize)); \
 		break; \
 	case const_typecomp(POINTER, POINTER): \
 		left.constType = PTRS_TYPE_INT; \

@@ -146,9 +146,7 @@ ptrs_jit_var_t ptrs_handle_prefix_sizeof(ptrs_ast_t *node, jit_function_t func, 
 		case PTRS_TYPE_POINTER:
 			;
 			jit_value_t arraySize = ptrs_jit_getArraySize(func, val.meta);
-			jit_value_t typeIndex = ptrs_jit_getArrayTypeIndex(func, val.meta);
-			jit_value_t typeSize = ptrs_jit_getArrayTypeSize(func, typeIndex);
-			jit_insn_store(func, ret.val, jit_insn_mul(func, arraySize, typeSize));
+			jit_insn_store(func, ret.val, arraySize);
 			break;
 
 		case PTRS_TYPE_STRUCT:
@@ -322,22 +320,30 @@ ptrs_jit_var_t ptrs_handle_index(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 		ptrs_meta_t baseMeta = ptrs_jit_value_getMetaConstant(base.meta);
 		ptrs_nativetype_info_t *arrayType = ptrs_getNativeTypeForArray(node, baseMeta);
 
-		jit_value_t loadedValue = jit_insn_load_elem(func, base.val, index.val, arrayType->jitType);
-
 		ptrs_jit_var_t result;
-		if(arrayType->varType == PTRS_TYPE_FLOAT)
+		result.addressable = false;
+
+		if(arrayType->varType == (uint8_t)-1)
 		{
+			jit_value_t varIndex = jit_insn_shl(func, index.val, jit_const_long(func, ulong, 1));
+			result.val = jit_insn_load_elem(func, base.val, varIndex, jit_type_long);
+			varIndex = jit_insn_add(func, varIndex, jit_const_long(func, ulong, 1));
+			result.meta = jit_insn_load_elem(func, base.val, varIndex, jit_type_ulong);
+			result.constType = -1;
+		}
+		else if(arrayType->varType == PTRS_TYPE_FLOAT)
+		{
+			jit_value_t loadedValue = jit_insn_load_elem(func, base.val, index.val, arrayType->jitType);
 			result.val = jit_insn_convert(func, loadedValue, jit_type_float64, 0);
 			result.meta = ptrs_jit_const_meta(func, PTRS_TYPE_FLOAT);
 			result.constType = PTRS_TYPE_FLOAT;
-			result.addressable = false;
 		}
 		else
 		{
+			jit_value_t loadedValue = jit_insn_load_elem(func, base.val, index.val, arrayType->jitType);
 			result.val = jit_insn_convert(func, loadedValue, jit_type_long, 0);
 			result.meta = ptrs_jit_const_meta(func, arrayType->varType);
 			result.constType = arrayType->varType;
-			result.addressable = false;
 		}
 
 		return result;
@@ -488,7 +494,7 @@ ptrs_jit_var_t ptrs_addressof_index(ptrs_ast_t *node, jit_function_t func, ptrs_
 		jit_value_t newLen = jit_insn_sub(func, baseArraySize, index.val);
 
 		jit_value_t typeIndex = ptrs_jit_getArrayTypeIndex(func, base.meta);
-		jit_value_t typeSize = ptrs_jit_getArrayTypeSize(func, base.meta);
+		jit_value_t typeSize = ptrs_jit_getArrayTypeSize(node, func, base.meta, typeIndex);
 
 		result.val = jit_insn_add(func, base.val, jit_insn_mul(func, index.val, typeSize));
 		result.meta = ptrs_jit_arrayMeta(func, newLen, typeIndex);
@@ -601,7 +607,7 @@ ptrs_jit_var_t ptrs_handle_slice(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 
 	scope->indexSize = oldSize;
 
-	jit_value_t typeSize = ptrs_jit_getArrayTypeSize(func, val.meta);
+	jit_value_t typeSize = ptrs_jit_getArrayTypeSize(node, func, val.meta, NULL);
 	jit_value_t newPtr = jit_insn_add(func, val.val, jit_insn_mul(func, start.val, typeSize));
 	jit_value_t newSize = jit_insn_sub(func, end.val, start.val);
 
