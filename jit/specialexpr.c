@@ -192,25 +192,35 @@ ptrs_jit_var_t ptrs_handle_prefix_dereference(ptrs_ast_t *node, jit_function_t f
 	ptrs_jit_var_t val = node->vtable->get(node, func, scope);
 	ptrs_jit_typeCheck(node, func, scope, val, PTRS_TYPE_POINTER, "Cannot dereference value of type %t");
 
-	ptrs_jit_var_t ret = {
-		jit_value_create(func, jit_type_long),
-		jit_value_create(func, jit_type_ulong),
-		-1,
-	};
+	ptrs_jit_var_t ret;
+	ret.addressable = false;
 
 	if(jit_value_is_constant(val.meta))
 	{
 		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(val.meta);
 		ptrs_nativetype_info_t *type = ptrs_getNativeTypeForArray(node, meta);
-		jit_value_t result = jit_insn_load_relative(func, val.val, 0, type->jitType);
 
-		if(type->varType == PTRS_TYPE_FLOAT)
-			ret.val = ptrs_jit_reinterpretCast(func, jit_insn_convert(func, result, jit_type_float64, 0), jit_type_long);
+		if(type->varType == (uint8_t)-1)
+		{
+			ret.val = jit_insn_load_relative(func, val.val, 0, jit_type_long);
+			ret.meta = jit_insn_load_relative(func, val.val, sizeof(ptrs_val_t), jit_type_ulong);
+			ret.constType = -1;
+		}
+		else if(type->varType == PTRS_TYPE_FLOAT)
+		{
+			jit_value_t result = jit_insn_load_relative(func, val.val, 0, type->jitType);
+			ret.val = jit_insn_convert(func, result, jit_type_float64, 0);
+			ret.meta = ptrs_jit_const_meta(func, type->varType);
+			ret.constType = type->varType;
+		}
 		else
+		{
+			jit_value_t result = jit_insn_load_relative(func, val.val, 0, type->jitType);
 			ret.val = jit_insn_convert(func, result, jit_type_long, 0);
+			ret.meta = ptrs_jit_const_meta(func, type->varType);
+			ret.constType = type->varType;
+		}
 
-		ret.meta = ptrs_jit_const_meta(func, type->varType);
-		ret.constType = type->varType;
 	}
 	else
 	{
@@ -244,24 +254,34 @@ void ptrs_assign_prefix_dereference(ptrs_ast_t *node, jit_function_t func, ptrs_
 
 	if(jit_value_is_constant(base.meta))
 	{
-		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(val.meta);
+		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(base.meta);
 		ptrs_nativetype_info_t *type = ptrs_getNativeTypeForArray(node, meta);
 
 		jit_value_t value;
-		if(type->varType == PTRS_TYPE_FLOAT)
+		if(type->varType == (uint8_t)-1)
+		{
+			jit_insn_store_relative(func, base.val, 0, val.val);
+			jit_insn_store_relative(func, base.val, sizeof(ptrs_val_t), val.meta);
+		}
+		else if(type->varType == PTRS_TYPE_FLOAT)
+		{
 			value = ptrs_jit_vartof(func, val);
+			value = jit_insn_convert(func, value, type->jitType, 0);
+			jit_insn_store_relative(func, base.val, 0, value);
+		}
 		else
+		{
 			value = ptrs_jit_vartoi(func, val);
-
-		value = jit_insn_convert(func, value, type->jitType, 0);
-		jit_insn_store_relative(func, base.val, 0, value);
+			value = jit_insn_convert(func, value, type->jitType, 0);
+			jit_insn_store_relative(func, base.val, 0, value);
+		}
 	}
 	else
 	{
 		jit_value_t result;
 		ptrs_jit_reusableCallVoid(func, ptrs_intrinsic_assign_prefix_dereference,
-			(jit_type_void_ptr, jit_type_void_ptr, jit_type_long, jit_type_ulong),
-			(jit_const_int(func, void_ptr, (uintptr_t)node), base.val, val.val, val.meta)
+			(jit_type_void_ptr, jit_type_long, jit_type_ulong, jit_type_long, jit_type_ulong),
+			(jit_const_int(func, void_ptr, (uintptr_t)node), base.val, base.meta, val.val, val.meta)
 		);
 	}
 }
@@ -381,15 +401,14 @@ void ptrs_intrinsic_assign_index(ptrs_ast_t *node, ptrs_val_t base, ptrs_meta_t 
 		if(index.intval < 0 || index.intval >= baseMeta.array.size)
 			ptrs_error(node, "Cannot get index %d of array of length %d", index.intval, baseMeta.array.size);
 
-		if(valMeta.type != PTRS_TYPE_INT && valMeta.type != PTRS_TYPE_FLOAT)
+		ptrs_nativetype_info_t *type = ptrs_getNativeTypeForArray(node, baseMeta);
+		if(type->varType != (uint8_t)-1 && type->varType != valMeta.type)
 			ptrs_error(node, "Cannot assign an array element to value of type %t", valMeta.type);
 
 		ptrs_var_t value = {
 			.value = val,
 			.meta = valMeta,
 		};
-
-		ptrs_nativetype_info_t *type = ptrs_getNativeTypeForArray(node, baseMeta);
 		type->setHandler((uint8_t *)base.ptrval + index.intval * type->size, type->size, &value);
 	}
 	else if(baseMeta.type == PTRS_TYPE_STRUCT)
@@ -420,8 +439,25 @@ void ptrs_assign_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scop
 		ptrs_meta_t baseMeta = ptrs_jit_value_getMetaConstant(base.meta);
 		ptrs_nativetype_info_t *arrayType = ptrs_getNativeTypeForArray(node, baseMeta);
 
-		jit_value_t value = jit_insn_convert(func, val.val, arrayType->jitType, 0);
-		jit_insn_store_elem(func, base.val, index.val, value);
+		if(arrayType->varType == (uint8_t)-1)
+		{
+			jit_value_t indexPos = jit_insn_shl(func, index.val, jit_const_long(func, ulong, 1));
+			jit_insn_store_elem(func, base.val, indexPos, val.val);
+			indexPos = jit_insn_add(func, indexPos, jit_const_long(func, ulong, 1));
+			jit_insn_store_elem(func, base.val, indexPos, val.meta);
+		}
+		else if(arrayType->varType == PTRS_TYPE_FLOAT)
+		{
+			jit_value_t value = ptrs_jit_vartof(func, val);
+			value = jit_insn_convert(func, value, arrayType->jitType, 0);
+			jit_insn_store_elem(func, base.val, index.val, value);
+		}
+		else
+		{
+			jit_value_t value = ptrs_jit_vartoi(func, val);
+			value = jit_insn_convert(func, value, arrayType->jitType, 0);
+			jit_insn_store_elem(func, base.val, index.val, value);
+		}
 	}
 	else if(base.constType == PTRS_TYPE_STRUCT)
 	{
@@ -431,8 +467,18 @@ void ptrs_assign_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scop
 	{
 		jit_value_t ret;
 		ptrs_jit_reusableCallVoid(func, ptrs_intrinsic_assign_index,
-			(jit_type_void_ptr, jit_type_long, jit_type_ulong, jit_type_long, jit_type_ulong, jit_type_long, jit_type_ulong),
-			(jit_const_int(func, void_ptr, (uintptr_t)node), base.val, base.meta, val.val, val.meta)
+			(
+				jit_type_void_ptr,
+				jit_type_long, jit_type_ulong,
+				jit_type_long, jit_type_ulong,
+				jit_type_long, jit_type_ulong
+			),
+			(
+				jit_const_int(func, void_ptr, (uintptr_t)node),
+				base.val, base.meta,
+				index.val, index.meta,
+				val.val, val.meta
+			)
 		);
 	}
 	else
@@ -546,15 +592,29 @@ ptrs_jit_var_t ptrs_call_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 		ptrs_meta_t baseMeta = ptrs_jit_value_getMetaConstant(base.meta);
 		ptrs_nativetype_info_t *arrayType = ptrs_getNativeTypeForArray(node, baseMeta);
 
-		if(arrayType->varType != PTRS_TYPE_STRUCT && arrayType->varType != PTRS_TYPE_POINTER && arrayType->varType != PTRS_TYPE_FUNCTION)
+		if(arrayType->varType != PTRS_TYPE_STRUCT
+			&& arrayType->varType != PTRS_TYPE_POINTER
+			&& arrayType->varType != PTRS_TYPE_FUNCTION
+			&& arrayType->varType != (uint8_t)-1)
 			ptrs_error(node, "Cannot call value of type %t", arrayType->varType);
 
-		jit_value_t loadedValue = jit_insn_load_elem(func, base.val, index.val, arrayType->jitType);
-
-		callee.val = jit_insn_convert(func, loadedValue, jit_type_long, 0);
-		callee.meta = ptrs_jit_const_meta(func, arrayType->varType);
-		callee.constType = arrayType->varType;
-		callee.addressable = false;
+		if(arrayType->varType == (uint8_t)-1)
+		{
+			jit_value_t varIndex = jit_insn_shl(func, index.val, jit_const_long(func, ulong, 1));
+			callee.val = jit_insn_load_elem(func, base.val, varIndex, jit_type_long);
+			varIndex = jit_insn_add(func, varIndex, jit_const_long(func, ulong, 1));
+			callee.meta = jit_insn_load_elem(func, base.val, varIndex, jit_type_ulong);
+			callee.constType = -1;
+			callee.addressable = false;
+		}
+		else
+		{
+			jit_value_t loadedValue = jit_insn_load_elem(func, base.val, index.val, arrayType->jitType);
+			callee.val = jit_insn_convert(func, loadedValue, jit_type_long, 0);
+			callee.meta = ptrs_jit_const_meta(func, arrayType->varType);
+			callee.constType = arrayType->varType;
+			callee.addressable = false;
+		}
 	}
 	else if(base.constType == PTRS_TYPE_STRUCT)
 	{
