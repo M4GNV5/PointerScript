@@ -117,7 +117,7 @@ struct ptrs_ast_cast
 {
 	union
 	{
-		ptrs_vartype_t builtinType;
+		ptrs_meta_t meta;
 		struct ptrs_ast *type;
 	};
 	struct ptrs_ast *value;

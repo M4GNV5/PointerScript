@@ -32,9 +32,9 @@ extern ptrs_ast_vtable_t ptrs_ast_vtable_new;
 extern ptrs_ast_vtable_t ptrs_ast_vtable_indexlength;
 extern ptrs_ast_vtable_t ptrs_ast_vtable_slice;
 extern ptrs_ast_vtable_t ptrs_ast_vtable_as;
+extern ptrs_ast_vtable_t ptrs_ast_vtable_as_struct;
 extern ptrs_ast_vtable_t ptrs_ast_vtable_cast_builtin;
 extern ptrs_ast_vtable_t ptrs_ast_vtable_tostring;
-extern ptrs_ast_vtable_t ptrs_ast_vtable_cast;
 extern ptrs_ast_vtable_t ptrs_ast_vtable_constant;
 extern ptrs_ast_vtable_t ptrs_ast_vtable_typed;
 

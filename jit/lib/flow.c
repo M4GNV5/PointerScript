@@ -1307,8 +1307,27 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 
 		ret->knownType = true;
 		ret->knownMeta = true;
-		memset(&ret->meta, 0, sizeof(ptrs_meta_t));
-		ret->meta.type = expr->builtinType;
+		ret->meta = expr->meta;
+	}
+	else if(node->vtable == &ptrs_ast_vtable_as_struct)
+	{
+		struct ptrs_ast_cast *expr = &node->arg.cast;
+		analyzeExpression(flow, expr->value, &dummy);
+		analyzeExpression(flow, expr->type, ret);
+
+		if(!ret->knownType || ret->meta.type != PTRS_TYPE_STRUCT)
+		{
+			clearPrediction(ret);
+		}
+		else if(dummy.knownValue)
+		{
+			ret->knownValue = true;
+			ret->value = dummy.value;
+		}
+		else
+		{
+			ret->knownValue = false;
+		}
 	}
 	else if(node->vtable == &ptrs_ast_vtable_cast_builtin)
 	{
@@ -1319,7 +1338,7 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		if(!ret->knownType || ret->meta.type == PTRS_TYPE_STRUCT)
 			clearAddressablePredictions(flow); // TODO cast<int> overload
 
-		if(expr->builtinType == PTRS_TYPE_INT)
+		if(expr->meta.type == PTRS_TYPE_INT)
 		{
 			int64_t value;
 			if(prediction2int(ret, &value))
@@ -1332,7 +1351,7 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 				ret->knownValue = false;
 			}
 		}
-		else if(expr->builtinType == PTRS_TYPE_FLOAT)
+		else if(expr->meta.type == PTRS_TYPE_FLOAT)
 		{
 			double value;
 			if(prediction2float(ret, &value))
@@ -1352,8 +1371,7 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 
 		ret->knownType = true;
 		ret->knownMeta = true;
-		memset(&ret->meta, 0, sizeof(ptrs_meta_t));
-		ret->meta.type = expr->builtinType;
+		ret->meta = expr->meta;
 	}
 	else if(node->vtable == &ptrs_ast_vtable_tostring)
 	{
@@ -1380,26 +1398,6 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		ret->knownMeta = false;
 		ret->meta.type = PTRS_TYPE_POINTER;
 		ret->meta.array.typeIndex = PTRS_NATIVETYPE_INDEX_CHAR;
-	}
-	else if(node->vtable == &ptrs_ast_vtable_cast)
-	{
-		struct ptrs_ast_cast *expr = &node->arg.cast;
-		analyzeExpression(flow, expr->value, &dummy);
-		analyzeExpression(flow, expr->type, ret);
-
-		if(!ret->knownType || ret->meta.type != PTRS_TYPE_STRUCT)
-		{
-			clearPrediction(ret);
-		}
-		else if(dummy.knownValue)
-		{
-			ret->knownValue = true;
-			ret->value = dummy.value;
-		}
-		else
-		{
-			ret->knownValue = false;
-		}
 	}
 	else if(node->vtable == &ptrs_ast_vtable_importedsymbol)
 	{

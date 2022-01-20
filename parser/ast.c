@@ -1147,14 +1147,36 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 		consumec(code, '<');
 		ptrs_vartype_t type = readTypeName(code);
 
-		if(type >= PTRS_NUM_TYPES)
-			unexpectedm(code, NULL, "Syntax is as<TYPE>");
+		if(type < PTRS_NUM_TYPES)
+		{
+			ast = talloc(ptrs_ast_t);
+			ast->vtable = &ptrs_ast_vtable_as;
+			ast->arg.cast.meta.type = type;
+		}
+		else
+		{
+			ptrs_nativetype_info_t *type = readNativeType(code);
+
+			if(type != NULL)
+			{
+				ast = talloc(ptrs_ast_t);
+				ast->vtable = &ptrs_ast_vtable_as;
+				parseArrayTyping(code, type, &ast->arg.cast.meta, NULL);
+			}
+			else
+			{
+				ptrs_ast_t *structType = parseUnaryExpr(code, false);
+
+				if(structType == NULL)
+					unexpectedm(code, NULL, "Expected a variable, native or struct type to cast to");
+
+				ast = talloc(ptrs_ast_t);
+				ast->vtable = &ptrs_ast_vtable_as_struct;
+				ast->arg.cast.type = structType;
+			}
+		}
 
 		consumec(code, '>');
-
-		ast = talloc(ptrs_ast_t);
-		ast->vtable = &ptrs_ast_vtable_as;
-		ast->arg.cast.builtinType = type;
 		ast->arg.cast.value = parseUnaryExpr(code, false);
 	}
 	else if(lookahead(code, "cast"))
@@ -1165,13 +1187,13 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 		{
 			ast = talloc(ptrs_ast_t);
 			ast->vtable = &ptrs_ast_vtable_cast_builtin;
-			ast->arg.cast.builtinType = PTRS_TYPE_INT;
+			ast->arg.cast.meta.type = PTRS_TYPE_INT;
 		}
 		else if(lookahead(code, "float"))
 		{
 			ast = talloc(ptrs_ast_t);
 			ast->vtable = &ptrs_ast_vtable_cast_builtin;
-			ast->arg.cast.builtinType = PTRS_TYPE_FLOAT;
+			ast->arg.cast.meta.type = PTRS_TYPE_FLOAT;
 		}
 		else if(lookahead(code, "string"))
 		{
@@ -1180,14 +1202,7 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 		}
 		else
 		{
-			ptrs_ast_t *structType = parseUnaryExpr(code, false);
-
-			if(structType == NULL)
-				unexpectedm(code, NULL, "Syntax is cast<int>, cast<float>, cast<string> or cast<StructName>");
-
-			ast = talloc(ptrs_ast_t);
-			ast->vtable = &ptrs_ast_vtable_cast;
-			ast->arg.cast.type = structType;
+			unexpected(code, "int, float or string");
 		}
 
 		consumec(code, '>');

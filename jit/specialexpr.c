@@ -715,47 +715,15 @@ ptrs_jit_var_t ptrs_handle_as(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 
 	ptrs_jit_var_t val = expr->value->vtable->get(expr->value, func, scope);
 
-	if(expr->builtinType != PTRS_TYPE_FLOAT)
+	if(expr->meta.type != PTRS_TYPE_FLOAT)
 		val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
 
-	val.meta = ptrs_jit_const_meta(func, expr->builtinType);
-	val.constType = expr->builtinType;
+	val.meta = jit_const_long(func, ulong, *(uint64_t *)&expr->meta);
+	val.constType = expr->meta.type;
 	return val;
 }
 
-ptrs_jit_var_t ptrs_handle_cast_builtin(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
-{
-	struct ptrs_ast_cast *expr = &node->arg.cast;
-	ptrs_jit_var_t val = expr->value->vtable->get(expr->value, func, scope);
-
-	switch(expr->builtinType)
-	{
-		case PTRS_TYPE_INT:
-			val.val = ptrs_jit_vartoi(func, val);
-			val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
-			val.constType = PTRS_TYPE_INT;
-			break;
-		case PTRS_TYPE_FLOAT:
-			val.val = ptrs_jit_vartof(func, val);
-			val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_FLOAT);
-			val.constType = PTRS_TYPE_FLOAT;
-			break;
-		default:
-			ptrs_error(node, "Cannot convert to type %s", ptrs_typetoa(expr->builtinType));
-	}
-
-	return val;
-}
-
-ptrs_jit_var_t ptrs_handle_tostring(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
-{
-	struct ptrs_ast_cast *expr = &node->arg.cast;
-	ptrs_jit_var_t val = expr->value->vtable->get(expr->value, func, scope);
-
-	return ptrs_jit_vartoa(func, val);
-}
-
-ptrs_jit_var_t ptrs_handle_cast(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+ptrs_jit_var_t ptrs_handle_as_struct(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
 	struct ptrs_ast_cast *expr = &node->arg.cast;
 
@@ -770,6 +738,38 @@ ptrs_jit_var_t ptrs_handle_cast(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 	val.constType = PTRS_TYPE_STRUCT;
 
 	return val;
+}
+
+ptrs_jit_var_t ptrs_handle_cast_builtin(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_cast *expr = &node->arg.cast;
+	ptrs_jit_var_t val = expr->value->vtable->get(expr->value, func, scope);
+
+	switch(expr->meta.type)
+	{
+		case PTRS_TYPE_INT:
+			val.val = ptrs_jit_vartoi(func, val);
+			val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
+			val.constType = PTRS_TYPE_INT;
+			break;
+		case PTRS_TYPE_FLOAT:
+			val.val = ptrs_jit_vartof(func, val);
+			val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_FLOAT);
+			val.constType = PTRS_TYPE_FLOAT;
+			break;
+		default:
+			ptrs_error(node, "Cannot convert to type %s", ptrs_typetoa(expr->meta.type));
+	}
+
+	return val;
+}
+
+ptrs_jit_var_t ptrs_handle_tostring(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
+{
+	struct ptrs_ast_cast *expr = &node->arg.cast;
+	ptrs_jit_var_t val = expr->value->vtable->get(expr->value, func, scope);
+
+	return ptrs_jit_vartoa(func, val);
 }
 
 ptrs_jit_var_t ptrs_handle_importedsymbol(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
