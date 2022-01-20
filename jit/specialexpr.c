@@ -180,6 +180,9 @@ ptrs_jit_var_t ptrs_handle_prefix_address(ptrs_ast_t *node, jit_function_t func,
 
 ptrs_var_t ptrs_intrinsic_prefix_dereference(ptrs_ast_t *node, ptrs_val_t value, ptrs_meta_t meta)
 {
+	if(meta.array.size <= 0)
+		ptrs_error(node, "Attempting to dereference an array of size 0");
+
 	ptrs_var_t result;
 	ptrs_nativetype_info_t *type = ptrs_getNativeTypeForArray(node, meta);
 	type->getHandler(value.ptrval, type->size, &result);
@@ -199,6 +202,9 @@ ptrs_jit_var_t ptrs_handle_prefix_dereference(ptrs_ast_t *node, jit_function_t f
 	{
 		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(val.meta);
 		ptrs_nativetype_info_t *type = ptrs_getNativeTypeForArray(node, meta);
+
+		if(meta.array.size <= 0)
+			ptrs_error(node, "Attempting to dereference an array of size 0");
 
 		if(type->varType == (uint8_t)-1)
 		{
@@ -242,6 +248,9 @@ void ptrs_intrinsic_assign_prefix_dereference(ptrs_ast_t *node, ptrs_val_t addr,
 	valueVar.value = value;
 	valueVar.meta = valMeta;
 
+	if(meta.array.size <= 0)
+		ptrs_error(node, "Attempting to dereference an array of size 0");
+
 	ptrs_nativetype_info_t *type = ptrs_getNativeTypeForArray(node, meta);
 	type->setHandler(addr.ptrval, type->size, &valueVar);
 }
@@ -256,6 +265,9 @@ void ptrs_assign_prefix_dereference(ptrs_ast_t *node, jit_function_t func, ptrs_
 	{
 		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(base.meta);
 		ptrs_nativetype_info_t *type = ptrs_getNativeTypeForArray(node, meta);
+
+		if(meta.array.size <= 0)
+			ptrs_error(node, "Attempting to dereference an array of size 0");
 
 		jit_value_t value;
 		if(type->varType == (uint8_t)-1)
@@ -339,6 +351,12 @@ ptrs_jit_var_t ptrs_handle_index(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 		ptrs_jit_typeCheck(node, func, scope, index, PTRS_TYPE_INT, "Array index needs to be of type int not %t");
 		ptrs_meta_t baseMeta = ptrs_jit_value_getMetaConstant(base.meta);
 		ptrs_nativetype_info_t *arrayType = ptrs_getNativeTypeForArray(node, baseMeta);
+
+		jit_value_t arraySize = jit_const_long(func, ulong, baseMeta.array.size);
+		struct ptrs_assertion *sizeCheck = ptrs_jit_assert(node, func, scope,
+			jit_insn_lt(func, index.val, arraySize),
+			2, "Attempting to access index %d of an array of size %d", index.val, arraySize);
+		ptrs_jit_appendAssert(func, sizeCheck, jit_insn_ge(func, index.val, jit_const_long(func, ulong, 0)));
 
 		ptrs_jit_var_t result;
 		result.addressable = false;
@@ -429,7 +447,8 @@ void ptrs_assign_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scop
 	ptrs_jit_var_t base = expr->left->vtable->get(expr->left, func, scope);
 
 	jit_value_t oldArraySize = scope->indexSize;
-	scope->indexSize = ptrs_jit_getArraySize(func, base.meta);
+	jit_value_t baseArraySize = ptrs_jit_getArraySize(func, base.meta);
+	scope->indexSize = baseArraySize;
 	ptrs_jit_var_t index = expr->right->vtable->get(expr->right, func, scope);
 	scope->indexSize = oldArraySize;
 
@@ -438,6 +457,11 @@ void ptrs_assign_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scop
 		ptrs_jit_typeCheck(node, func, scope, index, PTRS_TYPE_INT, "Array index needs to be of type int not %t");
 		ptrs_meta_t baseMeta = ptrs_jit_value_getMetaConstant(base.meta);
 		ptrs_nativetype_info_t *arrayType = ptrs_getNativeTypeForArray(node, baseMeta);
+
+		struct ptrs_assertion *sizeCheck = ptrs_jit_assert(node, func, scope,
+			jit_insn_lt(func, index.val, baseArraySize),
+			2, "Attempting to access index %d of an array of size %d", index.val, baseArraySize);
+		ptrs_jit_appendAssert(func, sizeCheck, jit_insn_ge(func, index.val, jit_const_long(func, ulong, 0)));
 
 		if(arrayType->varType == (uint8_t)-1)
 		{
@@ -533,15 +557,17 @@ ptrs_jit_var_t ptrs_addressof_index(ptrs_ast_t *node, jit_function_t func, ptrs_
 	{
 		ptrs_jit_typeCheck(node, func, scope, index, PTRS_TYPE_INT, "Array index needs to be of type int not %t");
 
-		ptrs_jit_var_t result;
-		ptrs_jit_assert(node, func, scope, jit_insn_lt(func, index.val, baseArraySize),
-			2, "Cannot get index %d of array of length %d", index.val, baseArraySize
-		);
+		struct ptrs_assertion *sizeCheck = ptrs_jit_assert(node, func, scope,
+			jit_insn_lt(func, index.val, baseArraySize),
+			2, "Attempting to access index %d of an array of size %d", index.val, baseArraySize);
+		ptrs_jit_appendAssert(func, sizeCheck, jit_insn_ge(func, index.val, jit_const_long(func, ulong, 0)));
+
 		jit_value_t newLen = jit_insn_sub(func, baseArraySize, index.val);
 
 		jit_value_t typeIndex = ptrs_jit_getArrayTypeIndex(func, base.meta);
 		jit_value_t typeSize = ptrs_jit_getArrayTypeSize(node, func, base.meta, typeIndex);
 
+		ptrs_jit_var_t result;
 		result.val = jit_insn_add(func, base.val, jit_insn_mul(func, index.val, typeSize));
 		result.meta = ptrs_jit_arrayMeta(func, newLen, typeIndex);
 		result.constType = PTRS_TYPE_POINTER;
@@ -597,6 +623,11 @@ ptrs_jit_var_t ptrs_call_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 			&& arrayType->varType != PTRS_TYPE_FUNCTION
 			&& arrayType->varType != (uint8_t)-1)
 			ptrs_error(node, "Cannot call value of type %t", arrayType->varType);
+
+		struct ptrs_assertion *sizeCheck = ptrs_jit_assert(node, func, scope,
+			jit_insn_lt(func, index.val, baseArraySize),
+			2, "Attempting to access index %d of an array of size %d", index.val, baseArraySize);
+		ptrs_jit_appendAssert(func, sizeCheck, jit_insn_ge(func, index.val, jit_const_long(func, ulong, 0)));
 
 		if(arrayType->varType == (uint8_t)-1)
 		{

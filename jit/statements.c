@@ -483,7 +483,10 @@ ptrs_jit_var_t ptrs_handle_delete(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	{
 		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(val.meta);
 		ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
-		ptrs_jit_assert(node, func, scope, jit_insn_ne(func, val.val, jit_const_long(func, long, 0)), 1, "Cannot delete constructor of struct %s", struc->name);
+		ptrs_jit_assert(node, func, scope,
+			jit_insn_ne(func, val.val, jit_const_long(func, long, 0)),
+			1, "Cannot delete constructor of struct %s", jit_const_int(func, void_ptr, (uintptr_t)struc->name)
+		);
 
 		jit_function_t dtor = ptrs_struct_getOverload(struc, ptrs_handle_delete, true);
 		if(dtor != NULL)
