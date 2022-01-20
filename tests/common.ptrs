@@ -6,25 +6,25 @@ function assert(val, msg = "Assertion failed")
 		throw msg;
 }
 
-function assertSimilar(expected, actual, msg = NULL)
+function assertSimilar(expected, actual, msg = null)
 {
-	if(msg === NULL)
+	if(msg === null)
 		msg = "Expected [$expected] got [$actual]";
 
 	if(expected != actual)
 		throw msg;
 }
 
-function assertEq(expected, actual, msg = NULL)
+function assertEq(expected, actual, msg = null)
 {
-	if(msg === NULL)
+	if(msg === null)
 		msg = "Expected [$expected] got [$actual]";
 
 	if(typeof expected != typeof actual)
 	{
 		throw msg;
 	}
-	else if(typeof expected == type<native>)
+	else if(typeof expected == type<pointer>)
 	{
 		if(strcmp(expected, actual) != 0)
 			throw msg;

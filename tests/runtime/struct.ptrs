@@ -4,8 +4,8 @@ var lastAction = "none";
 struct Test
 {
 	normal;
-	varArray[16];
-	byteArray{1024};
+	varArray: var[16];
+	byteArray: u8[1024];
 
 	static staticVal = 1337;
 
@@ -61,7 +61,7 @@ assertEq("constructor", lastAction);
 assertEq(8, val.normal);
 
 assertEq(type<pointer>, typeof val.varArray);
-assertEq(type<native>, typeof val.byteArray);
+assertEq(type<pointer>, typeof val.byteArray);
 assertEq(16, sizeof val.varArray);
 assertEq(1024, sizeof val.byteArray);
 

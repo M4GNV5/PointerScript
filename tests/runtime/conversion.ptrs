@@ -2,8 +2,6 @@ import assertEq from "../common.ptrs";
 
 assertEq(42, cast<int>42);
 assertEq(42, cast<int>42.666);
-assertEq(42, cast<int>"42");
-assertEq(42, cast<int>"42.666");
 
 assertEq(3.14, cast<float>3.14);
 assertEq(3f, cast<float>3);
@@ -15,15 +13,24 @@ assertEq("3.14", cast<string>3.14);
 assertEq("foo bar", cast<string>"foo bar");
 assertEq("0123456789abcdefghijklmnopqrstuvwxyz", cast<string>"0123456789abcdefghijklmnopqrstuvwxyz");
 
+var values8: u8[8] = [1, 2, 3, 4, 5, 6, 7, 8];
+assertEq(8, sizeof values8);
+assertEq(4, sizeof as<u16[4]>values8);
+assertEq(0x0201, *as<u16[1]>values8);
+assertEq(0x04030201, *as<u32[1]>values8);
+assertEq(0x0807060504030201, *as<u64[1]>values8);
+assertEq(0x0403, (as<u16[4]>values8)[1]);
+assertEq(0x08070605, (as<u32[2]>values8)[1]);
+
 struct Test1
 {
     a: i32;
     b: u8;
     c: u8;
-    d{10};
+    d: char[10];
 };
-var buff1{sizeof Test1} = {1, 2, 3, 4, 5, 6, 'h', 'i', 0};
-var buffAsTest1 = cast<Test1>buff1;
+var buff1: u8[sizeof Test1] = [1, 2, 3, 4, 5, 6, 'h', 'i', 0];
+var buffAsTest1 = as<Test1>buff1;
 
 assertEq("hi", buffAsTest1.d);
 assertEq(6, buffAsTest1.c, 6);
@@ -37,8 +44,8 @@ struct Test2
     c;
     d;
 };
-var buff2[sizeof Test2] = [42, 3.14, "hi", assertEq];
-var buffAsTest2 = cast<Test2>buff2;
+var buff2: var[sizeof Test2] = [42, 3.14, "hi", assertEq];
+var buffAsTest2 = as<Test2>buff2;
 
 assertEq(42, buffAsTest2.a);
 assertEq(3.14, buffAsTest2.b);

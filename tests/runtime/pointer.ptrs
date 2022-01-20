@@ -10,11 +10,12 @@ assertEq(3, *ptr);
 assertEq(42, val);
 assertEq(42, *ptr);
 
-ptr = new array[16];
+ptr = new var[16];
 assertEq(16, sizeof ptr);
-assertEq(sizeof var, as<native>(ptr + 1) - as<native>ptr);
+assertEq(sizeof var, as<pointer>(ptr + 1) - as<pointer>ptr);
 
-/*try
+/*</pointer>
+try
 {
 	ptr[16];
 	allFine = false;
@@ -26,7 +27,8 @@ try
 	ptr[-3];
 	allFine = false;
 }
-assert(allFine);*/
+assert(allFine);
+*/
 
 assertEq(6, sizeof ptr[2 .. 8]);
 assertEq(8, sizeof ptr[0 .. 8]);
@@ -34,19 +36,19 @@ assertEq(14, sizeof ptr[2 .. $]);
 assertEq(16, sizeof ptr[0 .. $]);
 delete ptr;
 
-ptr = new array[] [42, "hello", 31.12];
+ptr = new var[3] [42, "hello", 31.12];
 assertEq(3, sizeof ptr);
 assertEq(42, ptr[0]);
 assertEq("hello", ptr[1]);
 assertEq(31.12, ptr[2]);
 delete ptr;
 
-ptr = new array{} {'h', 'i', 0};
+ptr = new char[3] ['h', 'i', 0];
 assertEq(3, sizeof ptr);
 assertEq("hi", ptr);
 delete ptr;
 
-var buff{128};
+var buff: u8[128];
 buff[7] = 257;
 buff[8] = -4;
 assertEq(1, buff[7]);

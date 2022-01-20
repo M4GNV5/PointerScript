@@ -9,7 +9,7 @@ struct AlignmentTest
 	reset1;
 
 	x : u16;
-	y{17};
+	y : u8[17];
 	z : u32;
 
 	reset2;

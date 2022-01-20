@@ -42,12 +42,14 @@ finally
 	worked = true;
 assert(worked);
 
+/*
 worked = false;
 try
-	*as<native>0;
+	*as<u8[4]>0;
 catch()
 	worked = true;
 assert(worked);
+*/
 
 function tryFinallyRet()
 {

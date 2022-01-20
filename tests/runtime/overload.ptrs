@@ -7,8 +7,9 @@ struct Test
 	constructor(a, b, c)
 	{
 		op = "ctor";
-		val = new array[] [a, b, c];
+		val = new var[3] [a, b, c];
 	}
+
 
 	operator cast<typ>this
 	{
@@ -25,7 +26,7 @@ struct Test
 	operator this(a, b)
 	{
 		op = "call";
-		val = new array[] [a, b];
+		val = new var[2] [a, b];
 	}
 
 	operator this[key]
@@ -37,13 +38,13 @@ struct Test
 	operator this[key] = rval
 	{
 		op = ".set";
-		val = new array[] [key, rval];
+		val = new var[2] [key, rval];
 		return 7;
 	}
 	operator this[key](a, b)
 	{
 		op = ".call";
-		val = new array[] [key, a, b];
+		val = new var[3] [key, a, b];
 		return 8;
 	}
 

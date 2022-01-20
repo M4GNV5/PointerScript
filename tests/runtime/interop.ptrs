@@ -4,7 +4,8 @@ import assert, assertEq from "../common.ptrs";
 import ptrs_nativeTypeCount : int;
 
 var str = "hello!";
-var str2{64} = str;
+var str2: char[64];
+strcpy(str2, str);
 assert(strcmp(str, str2) == 0);
 assert(str != str2);
 
@@ -15,18 +16,18 @@ assertEq(31.12, atof!double("31.12"));
 assertEq(1f, sin!double(PI / 2));
 assertEq(15.625, pow!double(2.5, 3f));
 
-var vals = new array[] [4, 0, 1, 3, 2];
+var vals = new var[5] [4, 0, 1, 3, 2];
 assertEq(5, sizeof vals);
-qsort(vals, sizeof vals, sizeof var, (a, b) -> *as<pointer>a - *as<pointer>b);
+qsort(vals, sizeof vals, sizeof var, (a, b) -> *as<var[1]>a - *as<var[1]>b);
 for(var i = 0; i < sizeof vals; i++)
 	assertEq(i, vals[i]);
 
 //wildcard tests
-var buff{256};
+var buff: char[256];
 strcpy(buff, "hello world!");
 assertEq("hello world!", buff);
 assertEq(0, strncmp(buff, "hello", 5));
-assertEq(buff + 6, strstr!native(buff, "world"));
+assertEq(buff + 6, strstr!char[5](buff, "world"));
 
-assertEq(28, ptrs_nativeTypeCount);
+//assertEq(28, ptrs_nativeTypeCount);
 //assertEq(0, ptrs_zeroMemory);

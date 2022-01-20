@@ -3,17 +3,17 @@ import assertEq from "../common.ptrs";
 assertEq(type<undefined>, typeof undefined);
 assertEq(type<int>, typeof 3);
 assertEq(type<float>, typeof 3.14);
-assertEq(type<native>, typeof "constant");
+assertEq(type<pointer>, typeof "constant");
 
-var varArray[16];
+var varArray: var[16];
 assertEq(type<pointer>, typeof varArray);
-assertEq(type<pointer>, typeof new array[16]);
+assertEq(type<pointer>, typeof new var[16]);
 
-var byteArray{128};
+var byteArray: u8[128];
 import printf;
-assertEq(type<native>, typeof byteArray);
-assertEq(type<native>, typeof new array{16});
-assertEq(type<native>, typeof printf);
+assertEq(type<pointer>, typeof byteArray);
+assertEq(type<pointer>, typeof new u8[16]);
+assertEq(type<pointer>, typeof printf);
 
 
 function func() {}

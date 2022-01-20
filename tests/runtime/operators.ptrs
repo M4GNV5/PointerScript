@@ -9,8 +9,6 @@ assertEq(type<int>, typeof (3 + 3));
 assertEq(type<float>, typeof (3f + 3));
 assertEq(type<float>, typeof (3 + 3f));
 assertEq(type<float>, typeof (3f + 3f));
-assertEq(type<native>, typeof (NULL + 1));
-assertEq(type<native>, typeof (1 + NULL));
 assertEq(type<pointer>, typeof (null + 1));
 assertEq(type<pointer>, typeof (1 + null));
 
@@ -18,9 +16,7 @@ assertEq(type<int>, typeof (3 - 3));
 assertEq(type<float>, typeof (3f - 3));
 assertEq(type<float>, typeof (3 - 3f));
 assertEq(type<float>, typeof (3f - 3f));
-assertEq(type<native>, typeof (NULL - 1));
 assertEq(type<pointer>, typeof (null - 1));
-assertEq(type<int>, typeof (NULL - NULL));
 assertEq(type<int>, typeof (null - null));
 
 assertEq(type<int>, typeof (3 * 3));
@@ -101,14 +97,14 @@ function testUnaries(x)
 	assertSimilar(0, x);
 
 	x += 5;
-	if(typeof x == type<native>)
+	if(typeof x == type<pointer>)
 		x = x[0 .. 0];
 
 	assertSimilar(5, x);
 	assertSimilar(-5, -x);
 
 	x -= 10; //set x to -5
-	if(typeof x == type<native>)
+	if(typeof x == type<pointer>)
 		x = x[0 .. 0];
 
 	assertSimilar(-5, x);
@@ -117,4 +113,4 @@ function testUnaries(x)
 
 testUnaries(0);
 testUnaries(0f);
-testUnaries(as<native>0);
+testUnaries(as<pointer>0);
