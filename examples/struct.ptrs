@@ -5,9 +5,9 @@ struct Foo
 	//struct can have field-,
 	value = 42;
 	//array-
-	myByteArray{128};
+	myByteArray: u8[128];
 	//var-array-
-	myValues[42];
+	myValues: var[42];
 	//and function-members
 	dump()
 	{
@@ -53,6 +53,6 @@ struct Time
 };
 var now = new Time();
 
-gettimeofday(now, NULL);
+gettimeofday(now, null);
 printf("milliseconds since epoch: %lld\n", now.seconds * 1000 + now.microseconds / 1000);
 delete now;

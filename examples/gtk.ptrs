@@ -17,14 +17,14 @@ function activate(app, data)
 	gtk_container_add(window, box);
 
 	var button = gtk_button_new_with_label("click me\nreal hard");
-	g_signal_connect_data(button, "clicked", print_hello, NULL, NULL, 0);
-	g_signal_connect_data(button, "clicked", gtk_widget_destroy, window, NULL, G_CONNECT_SWAPPED);
+	g_signal_connect_data(button, "clicked", print_hello, null, null, 0);
+	g_signal_connect_data(button, "clicked", gtk_widget_destroy, window, null, G_CONNECT_SWAPPED);
 	gtk_container_add(box, button);
 
 	gtk_widget_show_all(window);
 }
 
 var app = gtk_application_new("org.gtk.example", 0);
-g_signal_connect_data(app, "activate", activate, NULL, NULL, 0);
-var status = g_application_run(app, 0, NULL);
+g_signal_connect_data(app, "activate", activate, null, null, 0);
+var status = g_application_run(app, 0, null);
 g_object_unref(app);

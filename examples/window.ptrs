@@ -17,7 +17,7 @@ else
 		var screenSurface = SDL_GetWindowSurface(window);
 
 		//show a black window for 3 seconds
-		SDL_FillRect(screenSurface, NULL, 0);
+		SDL_FillRect(screenSurface, null, 0);
 		SDL_UpdateWindowSurface(window);
 		SDL_Delay(3000);
 

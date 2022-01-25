@@ -14,12 +14,12 @@ function addNumbers(arg: int)
 	return sum;
 }
 
-var threads[4];
+var threads: pointer[4];
 
 for(var i = 0; i < sizeof threads; i++)
 {
 	var start = i * AMOUNT;
-	if(pthread_create(&threads[i], NULL, addNumbers, start) != 0)
+	if(pthread_create(&threads[i], null, addNumbers, start) != 0)
 	{
 		printf("Error creating thread %d\n", i);
 		exit(1);

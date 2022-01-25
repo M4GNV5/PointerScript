@@ -1,9 +1,9 @@
 import printf, srand, rand, time from "libc.so.6";
 
-const len = 1000;
-var parts = new array[len];
+const len = 40000;
+var parts = new i32[len];
 
-srand(time(NULL));
+srand(time(null));
 for(var i = 0; i < len; i++)
 {
 	parts[i] = rand() & 0xffff;
@@ -22,8 +22,8 @@ can add type annotations:
 
 function compareInts(a: pointer, b: pointer)
 {
-	var a2 = as<int>*a;
-	var b2 = as<int>*b;
+	var a2 = as<i32[1]>*a;
+	var b2 = as<i32[1]>*b;
 	return a2 - b2;
 }
 qsort(parts, len, sizeof var, compareInts);

@@ -3,7 +3,7 @@ import printf, strcmp from "libc.so.6";
 //create an array of 3 variables
 //you can use var parts{42}; to create an array of 42 bytes
 const len = 3;
-var parts[len];
+var parts: var[len];
 
 parts[0] = "jumps over the lazy dog";
 parts[1] = "!";
