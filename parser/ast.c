@@ -1568,7 +1568,7 @@ static void parseTyping(code_t *code, ptrs_typing_t *typing)
 	typing->nativetype = readNativeType(code);
 	if(typing->nativetype != NULL)
 	{
-		if(code->curr == '[')
+		if(code->curr == '[' || code->curr == '*')
 		{
 			parseArrayTyping(code, typing->nativetype, &typing->meta, NULL);
 			typing->nativetype = NULL;
@@ -1617,6 +1617,14 @@ static void parseArrayTyping(code_t *code, ptrs_nativetype_info_t *nativeType, p
 		unexpected(code, "native type name");
 
 	result->array.typeIndex = nativeType - ptrs_nativeTypes;
+
+	if(lookahead(code, "*"))
+	{
+		result->array.size = 1;
+		if(sizePtr != NULL)
+			*sizePtr = NULL;
+		return;
+	}
 
 	consumec(code, '[');
 
