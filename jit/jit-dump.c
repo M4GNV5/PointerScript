@@ -20,6 +20,7 @@
  * <http://www.gnu.org/licenses/>.
  */
 
+#include "jit-bitset.h"
 #include "jit-internal.h"
 #include "jit-rules.h"
 #include <jit/jit-dump.h>
@@ -929,6 +930,7 @@ static void dump_object_code(FILE *stream, void *start, void *end)
 void jit_dump_function(FILE *stream, jit_function_t func, const char *name)
 {
 	jit_block_t block;
+	jit_block_t other_block;
 	jit_insn_iter_t iter;
 	jit_insn_t insn;
 	jit_type_t signature;
@@ -1022,6 +1024,25 @@ void jit_dump_function(FILE *stream, jit_function_t func, const char *name)
 			if(block->index != (unsigned)-1)
 			{
 				fprintf(stream, "Block #%u:\n", block->index);
+			}
+
+			/* Output block dominators if available */
+			if(_jit_bitset_is_allocated(&block->dominating_blocks))
+			{
+				fprintf(stream, "Dominators: ");
+
+				other_block = 0;
+				while((other_block = jit_block_next(func, other_block)) != 0)
+				{
+					if(other_block->index != (unsigned)-1
+						&& _jit_bitset_test_bit(&block->dominating_blocks,
+							other_block->index))
+					{
+						fprintf(stream, "#%u, ", other_block->index);
+					}
+				}
+
+				fprintf(stream, "\n");
 			}
 
 			/* Output the block's labels, if it has any */

@@ -150,6 +150,11 @@ _JIT_ALIGN_CHECK_TYPE(jit_nfloat, nfloat);
 #define	JIT_ALIGN_PTR			_JIT_ALIGN_FOR_TYPE(ptr)
 
 /*
+ * Forward definition for lists of instructions
+ */
+typedef struct _jit_insn_list *_jit_insn_list_t;
+
+/*
  * Structure of a memory pool.
  */
 typedef struct jit_pool_block *jit_pool_block_t;
@@ -253,6 +258,15 @@ struct _jit_block
 	_jit_edge_t		*preds;
 	int			num_preds;
 
+	/* Blocks which dominate this block. A block x dominates y when all paths
+	   from the origin to y go through x */
+	_jit_bitset_t dominating_blocks;
+
+	/* List of instructions which will be validated at the start and end of
+	   this block */
+	_jit_insn_list_t validations_at_start;
+	_jit_insn_list_t validations_at_end;
+
 	/* Values which the block uses before setting them */
 	_jit_bitset_t upward_exposes;
 
@@ -279,7 +293,6 @@ struct _jit_block
 	void			*fixup_absolute_list;
 };
 
-typedef struct _jit_insn_list *_jit_insn_list_t;
 struct _jit_insn_list
 {
 	jit_block_t block;
@@ -367,6 +380,11 @@ struct _jit_live_range
 	/* Previous & Next live ranges of the function */
 	_jit_live_range_t func_next;
 };
+
+/*
+ * Create validation instructions for glitching detection.
+ */
+void _jit_function_generate_glitching_detection(jit_function_t func);
 
 /*
  * Create a live range
@@ -651,6 +669,8 @@ struct _jit_function
 	unsigned		has_try : 1;
 	unsigned		computed_liveness : 1;
 	unsigned		registers_graph_allocated : 1;
+	unsigned		enable_glitching_detection : 1;
+	unsigned		glitching_detection_created : 1;
 	unsigned		optimization_level : 8;
 
 	/* Flag set once the function is compiled */

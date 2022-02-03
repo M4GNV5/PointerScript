@@ -755,6 +755,7 @@ _jit_block_free(jit_function_t func)
 	while(block)
 	{
 		next = block->next;
+		_jit_bitset_free(&block->dominating_blocks);
 		_jit_block_destroy(block);
 		block = next;
 	}
@@ -763,6 +764,7 @@ _jit_block_free(jit_function_t func)
 	while(block)
 	{
 		next = block->next;
+		_jit_bitset_free(&block->dominating_blocks);
 		_jit_block_destroy(block);
 		block = next;
 	}
@@ -1256,6 +1258,7 @@ _jit_block_create(jit_function_t func)
 	_jit_bitset_init(&block->upward_exposes);
 	_jit_bitset_init(&block->var_kills);
 	_jit_bitset_init(&block->live_out);
+	_jit_bitset_init(&block->dominating_blocks);
 
 	return block;
 }

@@ -142,6 +142,16 @@ _jit_bitset_clear(_jit_bitset_t *bs)
 	}
 }
 
+void
+_jit_bitset_set_all(_jit_bitset_t *bs)
+{
+	int i;
+	for(i = 0; i < bs->size; i++)
+	{
+		bs->bits[i] = ~(_jit_bitset_word_t)0;
+	}
+}
+
 int
 _jit_bitset_empty(_jit_bitset_t *bs)
 {
@@ -173,6 +183,16 @@ _jit_bitset_sub(_jit_bitset_t *dest, _jit_bitset_t *src)
 	for(i = 0; i < dest->size; i++)
 	{
 		dest->bits[i] &= ~src->bits[i];
+	}
+}
+
+void
+_jit_bitset_and(_jit_bitset_t *dest, _jit_bitset_t *src)
+{
+	int i;
+	for(i = 0; i < dest->size; i++)
+	{
+		dest->bits[i] &= src->bits[i];
 	}
 }
 

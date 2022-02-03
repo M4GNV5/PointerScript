@@ -108,6 +108,13 @@ optimize(jit_function_t func)
 			continue;
 		}
 
+		if(/*func->enable_glitching_detection && */!func->glitching_detection_created)
+		{
+			_jit_function_generate_glitching_detection(func);
+			func->glitching_detection_created = 1;
+			continue;
+		}
+
 		/* Optimization level 3 (graph coloring register allocator) */
 		if(func->optimization_level < 3)
 		{
