@@ -26,6 +26,7 @@
 #include "jit/jit-common.h"
 #include "jit/jit-dump.h"
 #include "jit/jit-insn.h"
+#include "jit/jit-util.h"
 #include "jit/jit-value.h"
 
 /* https://en.wikipedia.org/wiki/Dominator_(graph_theory) */
@@ -177,6 +178,15 @@ find_possible_validator_blocks(jit_function_t func, jit_block_t creator,
 }
 
 void
+add_duplicate_to_insn_list(_jit_insn_list_t *list, jit_block_t creator,
+	jit_insn_t insn)
+{
+	jit_insn_t dup = jit_malloc(sizeof(*dup));
+	jit_memcpy(dup, insn, sizeof(*dup));
+	_jit_insn_list_add(list, creator, dup);
+}
+
+void
 prepare_validations(jit_function_t func, jit_block_t creator, jit_insn_t insn,
 	jit_block_t block, _jit_bitset_t *validators,
 	_jit_bitset_t *placed_validations)
@@ -196,7 +206,8 @@ prepare_validations(jit_function_t func, jit_block_t creator, jit_insn_t insn,
 	if(check_for_kill_of_dependency(block, insn))
 	{
 		/* we need to place a validation at the start of this block */
-		_jit_insn_list_add(&block->validations_at_start, creator, insn);
+		add_duplicate_to_insn_list(&block->validations_at_start, creator,
+			insn);
 		return;
 	}
 
@@ -217,11 +228,13 @@ prepare_validations(jit_function_t func, jit_block_t creator, jit_insn_t insn,
 		   validate it here */
 		if(block->ends_in_dead)
 		{
-			_jit_insn_list_add(&block->validations_at_start, creator, insn);
+			add_duplicate_to_insn_list(&block->validations_at_start, creator,
+				insn);
 		}
 		else
 		{
-			_jit_insn_list_add(&block->validations_at_end, creator, insn);
+			add_duplicate_to_insn_list(&block->validations_at_end, creator,
+				insn);
 		}
 	}
 	else
@@ -240,6 +253,7 @@ void
 place_validations_from_list(jit_function_t func, jit_block_t block, _jit_insn_list_t curr,
 	jit_label_t *validation_fail)
 {
+	_jit_insn_list_t next;
 	jit_insn_t recomputation;
 	jit_value_t equality;
 
@@ -260,7 +274,10 @@ place_validations_from_list(jit_function_t func, jit_block_t block, _jit_insn_li
 		equality = jit_insn_eq(func, curr->insn->dest, recomputation->dest);
 		jit_insn_branch_if_not(func, equality, validation_fail);
 
-		curr = curr->next;
+		next = curr->next;
+		jit_free(curr->insn);
+		jit_free(curr);
+		curr = next;
 	}
 }
 
@@ -282,6 +299,7 @@ place_validations(jit_function_t func, jit_block_t block, jit_label_t *validatio
 
 		place_validations_from_list(func, new_block,
 			block->validations_at_start, validation_fail);
+		block->validations_at_start = 0;
 
 		func->builder->exit_block = old_exit;
 	}
@@ -291,6 +309,7 @@ place_validations(jit_function_t func, jit_block_t block, jit_label_t *validatio
 		func->builder->current_block = block;
 		place_validations_from_list(func, block,
 			block->validations_at_end, validation_fail);
+		block->validations_at_end = 0;
 	}
 }
 

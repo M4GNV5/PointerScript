@@ -1255,6 +1255,8 @@ _jit_block_create(jit_function_t func)
 	block->func = func;
 	block->label = jit_label_undefined;
 	block->index = (unsigned)-1;
+	block->validations_at_start = 0;
+	block->validations_at_end = 0;
 	_jit_bitset_init(&block->upward_exposes);
 	_jit_bitset_init(&block->var_kills);
 	_jit_bitset_init(&block->live_out);
