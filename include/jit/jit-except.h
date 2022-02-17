@@ -47,6 +47,7 @@ extern	"C" {
  * Exception handling function for builtin exceptions.
  */
 typedef void *(*jit_exception_func)(int exception_type);
+typedef void (*jit_glitch_detection_func)();
 
 /*
  * External function declarations.
@@ -57,6 +58,7 @@ void jit_exception_set_last(void *object);
 void jit_exception_clear_last(void);
 void jit_exception_throw(void *object);
 void jit_exception_builtin(int exception_type);
+void jit_glitch_detection_set_handler(jit_glitch_detection_func handler);
 jit_exception_func jit_exception_set_handler(jit_exception_func handler);
 jit_exception_func jit_exception_get_handler(void);
 jit_stack_trace_t jit_exception_get_stack_trace(void);

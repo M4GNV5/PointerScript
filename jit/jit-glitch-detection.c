@@ -21,11 +21,14 @@
  * <http://www.gnu.org/licenses/>.
  */
 
+#include <assert.h>
+
 #include "jit-bitset.h"
 #include "jit-internal.h"
 #include "jit/jit-common.h"
 #include "jit/jit-dump.h"
 #include "jit/jit-insn.h"
+#include "jit/jit-type.h"
 #include "jit/jit-util.h"
 #include "jit/jit-value.h"
 
@@ -313,6 +316,20 @@ place_validations(jit_function_t func, jit_block_t block, jit_label_t *validatio
 	}
 }
 
+static jit_glitch_detection_func detection_handler;
+static void jit_handle_glitch_detection()
+{
+	if(detection_handler != NULL)
+		detection_handler();
+
+	assert(("Glitch detection triggered", 0));
+}
+
+void jit_glitch_detection_set_handler(jit_glitch_detection_func handler)
+{
+	detection_handler = handler;
+}
+
 void _jit_function_generate_glitching_detection(jit_function_t func)
 {
 	jit_block_t block;
@@ -321,6 +338,7 @@ void _jit_function_generate_glitching_detection(jit_function_t func)
 	_jit_bitset_t validators;
 	_jit_bitset_t placed_validations;
 	jit_label_t validation_fail_target;
+	jit_type_t handler_signature;
 
 	_jit_bitset_init(&validators);
 	_jit_bitset_init(&placed_validations);
@@ -328,6 +346,9 @@ void _jit_function_generate_glitching_detection(jit_function_t func)
 	_jit_bitset_allocate(&placed_validations, func->builder->block_count);
 
 	compute_dominating_blocks(func);
+#ifdef _JIT_DEBUG_GLITCH_DETECTION
+	jit_dump_function(stdout, func, "(validation target)");
+#endif
 
 	block = func->builder->entry_block;
 	while(block)
@@ -364,11 +385,16 @@ void _jit_function_generate_glitching_detection(jit_function_t func)
 	_jit_bitset_free(&validators);
 	_jit_bitset_free(&placed_validations);
 
-	/* for now we just loop infinitely when we detect a validation failure */
 	validation_fail_target = jit_label_undefined;
 	jit_insn_label(func, &validation_fail_target);
-	jit_insn_default_return(func);
-	jit_insn_branch(func, &validation_fail_target);
+
+	/* call the jit_handle_glitch_detection function when a glitch is
+	   detected. This function then in turn calls the custom handler */
+	handler_signature = jit_type_create_signature(jit_abi_cdecl, jit_type_void, 0, 0, 0);
+	jit_insn_call_native(func,
+		"jit_handle_glitch_detection", jit_handle_glitch_detection,
+		handler_signature, 0, 0, JIT_CALL_NORETURN
+	);
 
 	/* actually place the validations. We need to do this after analysis, as
 	   adding validations will add additional blocks and edges which might
