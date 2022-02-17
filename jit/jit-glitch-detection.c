@@ -208,9 +208,25 @@ prepare_validations(jit_function_t func, jit_block_t creator, jit_insn_t insn,
 
 	if(check_for_kill_of_dependency(block, insn))
 	{
-		/* we need to place a validation at the start of this block */
-		add_duplicate_to_insn_list(&block->validations_at_start, creator,
-			insn);
+		if(block == creator)
+		{
+#ifdef _JIT_DEBUG_GLITCH_DETECTION
+			printf("    - skipping validation in block %d (created in this block, dependency is killed)\n", block->index);
+#endif
+			/* we need to place a validation inside of this block before the
+			   dependency is killed. There is also the special case of
+			   a = a + 1, which makes validation kind of impossible */
+			/* TODO */
+		}
+		else
+		{
+#ifdef _JIT_DEBUG_GLITCH_DETECTION
+			printf("    - validation at the start of block %d (kill in this block)\n", block->index);
+#endif
+			/* we need to place a validation at the start of this block */
+			add_duplicate_to_insn_list(&block->validations_at_start, creator,
+				insn);
+		}
 		return;
 	}
 
@@ -231,11 +247,17 @@ prepare_validations(jit_function_t func, jit_block_t creator, jit_insn_t insn,
 		   validate it here */
 		if(block->ends_in_dead)
 		{
+#ifdef _JIT_DEBUG_GLITCH_DETECTION
+		printf("    - validation at the start of block %d (a successor cannot validate)\n", block->index);
+#endif
 			add_duplicate_to_insn_list(&block->validations_at_start, creator,
 				insn);
 		}
 		else
 		{
+#ifdef _JIT_DEBUG_GLITCH_DETECTION
+		printf("    - validation at the end of block %d (a successor cannot validate)\n", block->index);
+#endif
 			add_duplicate_to_insn_list(&block->validations_at_end, creator,
 				insn);
 		}
@@ -372,6 +394,15 @@ void _jit_function_generate_glitching_detection(jit_function_t func)
 #ifdef _JIT_DEBUG_GLITCH_DETECTION
 			printf("Preparing the validation of: ");
 			jit_dump_insn(stdout, func, insn);
+			printf("\n    - Created in block %d\n", block->index);
+			printf("    - Possible validation candidates: ");
+			for(int i = 0; i < func->builder->block_count; i++)
+			{
+				if(_jit_bitset_test_bit(&validators, i))
+				{
+					printf("#%d, ", i);
+				}
+			}
 			printf("\n");
 #endif
 			prepare_validations(func, block, insn, block, &validators,
