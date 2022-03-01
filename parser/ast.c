@@ -1718,6 +1718,7 @@ static void parseImport(code_t *code, ptrs_ast_t *stmt)
 		}
 		else if(lookahead(code, "from"))
 		{
+			consumec(code, '"');
 			stmt->arg.import.from = readString(code, NULL, NULL, NULL);
 
 			const char *ending = strrchr(stmt->arg.import.from, '.');
