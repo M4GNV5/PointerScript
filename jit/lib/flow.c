@@ -1408,6 +1408,13 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 			ret->knownType = true;
 			ret->meta.type = expr->type->varType;
 		}
+		else if(!expr->import->arg.import.isScriptImport)
+		{
+			ret->knownType = true;
+			ret->meta.type = PTRS_TYPE_POINTER;
+			ret->meta.array.typeIndex = PTRS_NATIVETYPE_INDEX_CFUNC;
+			ret->meta.array.size = 0;
+		}
 	}
 	else if(node->vtable == &ptrs_ast_vtable_prefix_typeof)
 	{

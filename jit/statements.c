@@ -196,7 +196,7 @@ static char *resolveRelPath(ptrs_ast_t *node, const char *from)
 	return fullPath;
 }
 static void importScript(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
-	ptrs_ast_t **expressions, char *from)
+	ptrs_ast_t **expressions, const char *from)
 {
 	from = resolveRelPath(node, from);
 
@@ -204,10 +204,7 @@ static void importScript(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *sc
 	while(cache != NULL)
 	{
 		if(strcmp(cache->path, from) == 0)
-		{
-			free(from);
 			break;
-		}
 		cache = cache->next;
 	}
 
@@ -235,7 +232,7 @@ static void importScript(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *sc
 		curr = curr->next;
 	}
 }
-static void importNative(ptrs_ast_t *node, ptrs_var_t *values, char *from)
+static void importNative(ptrs_ast_t *node, void **values, const char *from)
 {
 	const char *error;
 
@@ -248,7 +245,6 @@ static void importNative(ptrs_ast_t *node, ptrs_var_t *values, char *from)
 			from = resolveRelPath(node, from);
 
 		handle = dlopen(from, RTLD_NOW);
-		free(from);
 
 		error = dlerror();
 		if(error != NULL)
@@ -258,10 +254,7 @@ static void importNative(ptrs_ast_t *node, ptrs_var_t *values, char *from)
 	struct ptrs_importlist *curr = node->arg.import.imports;
 	for(int i = 0; curr != NULL; i++)
 	{
-		values[i].value.ptrval = dlsym(handle, curr->name);
-		values[i].meta.type = PTRS_TYPE_POINTER;
-		values[i].meta.array.size = 0;
-		values[i].meta.array.typeIndex = PTRS_NATIVETYPE_INDEX_CFUNC;
+		values[i] = dlsym(handle, curr->name);
 
 		error = dlerror();
 		if(error != NULL)
@@ -285,58 +278,22 @@ ptrs_jit_var_t ptrs_handle_import(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 		curr = curr->next;
 	}
 
-	ptrs_jit_var_t from;
-	char *path;
-	if(stmt->from == NULL)
+	if(stmt->isScriptImport)
 	{
-		from.val = jit_const_long(func, long, 0);
-		from.meta = jit_const_long(func, ulong, 0);
-		path = NULL;
-	}
-	else
-	{
-		from = stmt->from->vtable->get(stmt->from, func, scope);
-
-		if(!jit_value_is_constant(from.val) || !jit_value_is_constant(from.meta))
-			ptrs_error(node, "Dynamic imports are not supported");
-
-		ptrs_val_t val = ptrs_jit_value_getValConstant(from.val);
-		ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(from.meta);
-
-		if(meta.type != PTRS_TYPE_POINTER || meta.array.typeIndex != PTRS_NATIVETYPE_INDEX_CHAR)
-			ptrs_error(node, "Import source needs to be of type char[] not %m", meta);
-
-		int len = strnlen(val.ptrval, meta.array.size);
-		if(len < meta.array.size)
-		{
-			path = (char *)val.ptrval;
-		}
-		else
-		{
-			path = alloca(len + 1);
-			memcpy(path, val.ptrval, len);
-			path[len] = 0;
-		}
-	}
-
-	char *ending = NULL;
-	if(path != NULL)
-		ending = strrchr(path, '.');
-
-	if(ending != NULL && strcmp(ending, ".ptrs") == 0)
-	{
-		stmt->isScriptImport = true;
 		stmt->expressions = calloc(len, sizeof(ptrs_ast_t *));
-		importScript(node, func, scope, stmt->expressions, path);
+		importScript(node, func, scope, stmt->expressions, stmt->from);
 	}
 	else
 	{
-		stmt->isScriptImport = false;
-		stmt->symbols = calloc(len, sizeof(ptrs_var_t));
-		importNative(node, stmt->symbols, path);
+		stmt->symbols = calloc(len, sizeof(void *));
+		importNative(node, stmt->symbols, stmt->from);
 	}
 
-	return from;
+	ptrs_jit_var_t ret;
+	ret.val = jit_const_long(func, long, 0);
+	ret.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
+	ret.constType = PTRS_TYPE_UNDEFINED;
+	return ret;
 }
 
 ptrs_jit_var_t ptrs_handle_return(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)

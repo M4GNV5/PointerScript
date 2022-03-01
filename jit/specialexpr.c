@@ -784,13 +784,16 @@ ptrs_jit_var_t ptrs_handle_importedsymbol(ptrs_ast_t *node, jit_function_t func,
 	}
 	else if(expr->type == NULL)
 	{
-		return ptrs_jit_varFromConstant(func, stmt->symbols[expr->index]);
+		ptrs_jit_var_t ret;
+		ret.val = jit_const_long(func, long, (uintptr_t)stmt->symbols[expr->index]);
+		ret.meta = ptrs_jit_const_arrayMeta(func, 0, PTRS_NATIVETYPE_INDEX_CFUNC);
+		ret.constType = PTRS_TYPE_POINTER;
+		return ret;
 	}
 	else
 	{
 		ptrs_jit_var_t ret;
-		jit_value_t addr = jit_const_int(func, void_ptr,
-			(uintptr_t)stmt->symbols[expr->index].value.ptrval);
+		jit_value_t addr = jit_const_int(func, void_ptr, (uintptr_t)stmt->symbols[expr->index]);
 
 		ret.val = jit_insn_load_relative(func, addr, 0, expr->type->jitType);
 		ret.meta = ptrs_jit_const_meta(func, expr->type->varType);
@@ -821,8 +824,7 @@ void ptrs_assign_importedsymbol(ptrs_ast_t *node, jit_function_t func, ptrs_scop
 			ptrs_error(node, "Cannot re-assign an imported function");
 		}
 
-		jit_value_t addr = jit_const_int(func, void_ptr,
-			(uintptr_t)stmt->symbols[expr->index].value.ptrval);
+		jit_value_t addr = jit_const_int(func, void_ptr, (uintptr_t)stmt->symbols[expr->index]);
 		ptrs_jit_assignTypedFromVar(func, addr, expr->type->jitType, val);
 	}
 }
@@ -843,13 +845,14 @@ ptrs_jit_var_t ptrs_call_importedsymbol(ptrs_ast_t *node, jit_function_t func, p
 	}
 	else if(expr->type == NULL)
 	{
-		val = ptrs_jit_varFromConstant(func, stmt->symbols[expr->index]);
+		val.val = jit_const_long(func, long, (uintptr_t)stmt->symbols[expr->index]);
+		val.meta = ptrs_jit_const_arrayMeta(func, 0, PTRS_NATIVETYPE_INDEX_CFUNC);
+		val.constType = PTRS_TYPE_POINTER;
 	}
 	else
 	{
 		ptrs_jit_var_t ret;
-		jit_value_t addr = jit_const_int(func, void_ptr,
-			(uintptr_t)stmt->symbols[expr->index].value.ptrval);
+		jit_value_t addr = jit_const_int(func, void_ptr, (uintptr_t)stmt->symbols[expr->index]);
 
 		val.val = jit_insn_load_relative(func, addr, 0, expr->type->jitType);
 		val.meta = ptrs_jit_const_meta(func, expr->type->varType);
@@ -880,8 +883,7 @@ ptrs_jit_var_t ptrs_addressof_importedsymbol(ptrs_ast_t *node,
 	else
 	{
 		ptrs_jit_var_t ret;
-		ret.val = jit_const_int(func, void_ptr,
-			(uintptr_t)stmt->symbols[expr->index].value.ptrval);
+		ret.val = jit_const_int(func, void_ptr, (uintptr_t)stmt->symbols[expr->index]);
 		size_t size = expr->type->size;
 		ret.meta = ptrs_jit_const_arrayMeta(func, size, expr->type - ptrs_nativeTypes);
 		ret.constType = PTRS_TYPE_POINTER;

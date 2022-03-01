@@ -53,14 +53,14 @@ struct ptrs_ast_import
 {
 	union
 	{
-		ptrs_var_t *symbols;
+		void **symbols;
 		struct ptrs_ast **expressions;
 	};
 	int count;
 	bool isScriptImport;
 	struct ptrs_importlist *imports;
 	struct ptrs_importlist *lastImport;
-	struct ptrs_ast *from;
+	const char *from;
 };
 
 struct ptrs_ast_importedsymbol

@@ -89,6 +89,7 @@ static int parseOptions(int argc, char **argv)
 				break;
 			case 8:
 				ptrs_dumpFlow = true;
+				ptrs_compileAot = false;
 				break;
 			case 9:
 				ptrs_enableSafety = false;

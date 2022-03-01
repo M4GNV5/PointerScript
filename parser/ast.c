@@ -1713,11 +1713,16 @@ static void parseImport(code_t *code, ptrs_ast_t *stmt)
 		if(code->curr == ';')
 		{
 			stmt->arg.import.from = NULL;
+			stmt->arg.import.isScriptImport = false;
 			break;
 		}
 		else if(lookahead(code, "from"))
 		{
-			stmt->arg.import.from = parseExpression(code, true);
+			stmt->arg.import.from = readString(code, NULL, NULL, NULL);
+
+			const char *ending = strrchr(stmt->arg.import.from, '.');
+			stmt->arg.import.isScriptImport = ending != NULL && strcmp(ending, ".ptrs") == 0;
+
 			consumec(code, ';');
 			break;
 		}
