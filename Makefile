@@ -4,6 +4,10 @@ LIBJIT_BIN = libjit/jit/.libs/libjit.a
 JIT_INCLUDE = "../jit/jit.h"
 
 BIN = bin
+BIN_DIRS += $(BIN)
+BIN_DIRS += $(BIN)/lib
+BIN_DIRS += $(BIN)/ops
+
 RUN = $(BIN)/ptrs
 
 PARSER_OBJECTS += $(BIN)/ast.o
@@ -68,13 +72,14 @@ clean:
 clean-deps:
 	$(MAKE) -C libjit clean
 
-$(RUN): $(LIBJIT_BIN) $(BIN) $(PARSER_OBJECTS) $(RUN_OBJECTS)
+$(RUN): $(LIBJIT_BIN) $(BIN_DIRS) $(PARSER_OBJECTS) $(RUN_OBJECTS)
 	$(CC) $(PARSER_OBJECTS) $(RUN_OBJECTS) -o $(BIN)/ptrs -rdynamic $(EXTERN_LIBS)
 
 $(BIN):
 	mkdir $(BIN)
-	mkdir $(BIN)/lib
-	mkdir $(BIN)/ops
+
+$(BIN)/%:
+	mkdir $@
 
 $(LIBJIT_BIN):
 	cd libjit && ./bootstrap

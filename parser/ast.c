@@ -2134,8 +2134,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			symbolScope_increase(code, true);
 
 			const char *nameFormat = NULL;
-			const char *opLabel = NULL;
-			char *otherName = NULL;
+			char *param0Name = NULL;
+			char *param1Name = NULL;
 
 			ptrs_function_t *func = talloc(ptrs_function_t);
 			addSymbol(code, strdup("this"), &func->thisVal);
@@ -2157,27 +2157,27 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				if(curr == '[')
 				{
 					next(code);
-					otherName = readIdentifier(code);
+					param0Name = readIdentifier(code);
 					consumec(code, ']');
 
 					if(isAddressOf)
 					{
-						func->args = createParameterList(code, 1, otherName, PTRS_TYPE_POINTER, PTRS_NATIVETYPE_INDEX_CHAR, 0);
+						func->args = createParameterList(code, 1, param0Name, PTRS_TYPE_POINTER, PTRS_NATIVETYPE_INDEX_CHAR, 0);
 						parseOptionalTyping(code, &func->retType);
 
-						nameFormat = "%1$s.op &this[%3$s]";
+						nameFormat = "%s.op &this[%s]";
 						overload->op = ptrs_ast_vtable_member.addressof;
 					}
 					else if(lookahead(code, "="))
 					{
-						opLabel = readIdentifier(code);
+						param1Name = readIdentifier(code);
 						func->args = createParameterList(code, 2,
-							otherName, PTRS_TYPE_POINTER, PTRS_NATIVETYPE_INDEX_CHAR, 0,
-							opLabel, (ptrs_vartype_t)-1
+							param0Name, PTRS_TYPE_POINTER, PTRS_NATIVETYPE_INDEX_CHAR, 0,
+							param1Name, (ptrs_vartype_t)-1
 						);
 						func->retType.meta.type = -1;
 
-						nameFormat = "%1$s.op this[%3$s] = %2$s";
+						nameFormat = "%s.op this[%s] = %s";
 						overload->op = ptrs_ast_vtable_member.set;
 					}
 					else if(code->curr == '(')
@@ -2186,7 +2186,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 						parseOptionalTyping(code, &func->retType);
 
 						ptrs_funcparameter_t *nameArg = talloc(ptrs_funcparameter_t);
-						nameArg->name = otherName;
+						nameArg->name = param0Name;
 						nameArg->arg.val = NULL;
 						nameArg->arg.meta = NULL;
 						nameArg->arg.constType = -1;
@@ -2194,17 +2194,17 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 						nameArg->next = func->args;
 
 						func->args = nameArg;
-						addSymbol(code, strdup(otherName), &nameArg->arg);
+						addSymbol(code, strdup(param0Name), &nameArg->arg);
 
-						nameFormat = "%1$s.op this[%3$s]()";
+						nameFormat = "%s.op this[%s]()";
 						overload->op = ptrs_ast_vtable_member.call;
 					}
 					else
 					{
-						func->args = createParameterList(code, 1, otherName, PTRS_TYPE_POINTER, PTRS_NATIVETYPE_INDEX_CHAR, 0);
+						func->args = createParameterList(code, 1, param0Name, PTRS_TYPE_POINTER, PTRS_NATIVETYPE_INDEX_CHAR, 0);
 						parseOptionalTyping(code, &func->retType);
 
-						nameFormat = "%1$s.op this[%3$s]";
+						nameFormat = "%s.op this[%s]";
 						overload->op = ptrs_ast_vtable_member.get;
 					}
 				}
@@ -2214,7 +2214,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 					parseOptionalTyping(code, &func->retType);
 					overload->op = ptrs_ast_vtable_call.get;
 
-					nameFormat = "%1$s.op this()";
+					nameFormat = "%s.op this()";
 				}
 				else
 				{
@@ -2225,7 +2225,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			{
 				consume(code, "this");
 
-				nameFormat = "%1$s.op sizeof this";
+				nameFormat = "%s.op sizeof this";
 				overload->op = ptrs_ast_vtable_prefix_sizeof.get;
 
 				func->args = NULL;
@@ -2234,20 +2234,20 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			else if(lookahead(code, "foreach"))
 			{
 				consumec(code, '(');
-				opLabel = readIdentifier(code);
+				param0Name = readIdentifier(code);
 				consumec(code, ',');
-				otherName = readIdentifier(code);
+				param1Name = readIdentifier(code);
 				consumec(code, ')');
 
 				consume(code, "in");
 				consume(code, "this");
 
-				nameFormat = "%1$s.op foreach(%2$s, %3$s) in this";
+				nameFormat = "%s.op foreach(%s, %s) in this";
 				overload->op = ptrs_ast_vtable_forin_step.get;
 
 				func->args = createParameterList(code, 2,
-					opLabel, PTRS_TYPE_POINTER, PTRS_NATIVETYPE_INDEX_VAR, 1,
-					otherName, PTRS_TYPE_POINTER, PTRS_NATIVETYPE_INDEX_VAR, 1
+					param0Name, PTRS_TYPE_POINTER, PTRS_NATIVETYPE_INDEX_VAR, 1,
+					param1Name, PTRS_TYPE_POINTER, PTRS_NATIVETYPE_INDEX_VAR, 1
 				);
 				func->retType.meta.type = PTRS_TYPE_INT;
 			}
@@ -2257,8 +2257,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 
 				if(lookahead(code, "string"))
 				{
-					otherName = NULL;
-					nameFormat = "%1$s.op cast<string>this";
+					param0Name = NULL;
+					nameFormat = "%s.op cast<string>this";
 					overload->op = ptrs_ast_vtable_tostring.get;
 
 					func->args = NULL;
@@ -2268,11 +2268,11 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				}
 				else
 				{
-					otherName = readIdentifier(code);
-					nameFormat = "%1$s.op cast<%3$s>this";
+					param0Name = readIdentifier(code);
+					nameFormat = "%s.op cast<%s>this";
 					overload->op = ptrs_ast_vtable_cast_builtin.get;
 
-					func->args = createParameterList(code, 1, otherName, PTRS_TYPE_INT);
+					func->args = createParameterList(code, 1, param0Name, PTRS_TYPE_INT);
 					// TODO add seprate overloads for cast<int> and cast<float>?
 					func->retType.meta.type = -1;
 				}
@@ -2282,14 +2282,14 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			}
 			else
 			{
-				otherName = readIdentifier(code);
+				param0Name = readIdentifier(code);
 				if(lookahead(code, "in"))
 				{
 					consume(code, "this");
-					nameFormat = "%1$s.op %3$s in this";
+					nameFormat = "%s.op %s in this";
 					overload->op = ptrs_ast_vtable_op_in.get;
 
-					func->args = createParameterList(code, 1, otherName, PTRS_TYPE_POINTER, PTRS_NATIVETYPE_INDEX_CHAR, 0);
+					func->args = createParameterList(code, 1, param0Name, PTRS_TYPE_POINTER, PTRS_NATIVETYPE_INDEX_CHAR, 0);
 					func->retType.meta.type = PTRS_TYPE_INT;
 				}
 			}
@@ -2297,8 +2297,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			if(overload->op == NULL)
 				unexpected(code, "Operator");
 
-			func->name = malloc(snprintf(NULL, 0, nameFormat, structName, opLabel, otherName) + 1);
-			sprintf(func->name, nameFormat, structName, opLabel, otherName);
+			func->name = malloc(snprintf(NULL, 0, nameFormat, structName, param0Name, param1Name) + 1);
+			sprintf(func->name, nameFormat, structName, param0Name, param1Name);
 
 			parseFunctionBody(code, func);
 			symbolScope_decrease(code);
@@ -2310,8 +2310,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 		}
 		else if(lookahead(code, "constructor"))
 		{
-			name = malloc(structNameLen + strlen("constructor") + 2);
-			sprintf(name, "%s.constructor", structName);
+			name = malloc(structNameLen + strlen(".op constructor") + 1);
+			sprintf(name, "%s.op constructor", structName);
 
 			struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
 			overload->op = ptrs_ast_vtable_new.get;
@@ -2324,8 +2324,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 		}
 		else if(lookahead(code, "destructor"))
 		{
-			name = malloc(structNameLen + strlen("destructor") + 2);
-			sprintf(name, "%s.destructor", structName);
+			name = malloc(structNameLen + strlen(".op destructor") + 1);
+			sprintf(name, "%s.op destructor", structName);
 
 			struct ptrs_opoverload *overload = talloc(struct ptrs_opoverload);
 			overload->op = ptrs_ast_vtable_delete.get;
