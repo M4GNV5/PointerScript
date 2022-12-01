@@ -1216,7 +1216,8 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 	{
 		analyzeExpression(flow, node->arg.astval, ret);
 
-		if(ret->knownType && ret->knownMeta && ret->meta.type == PTRS_TYPE_POINTER)
+		if(ret->knownType && ret->knownMeta && ret->meta.type == PTRS_TYPE_POINTER
+			&& ret->meta.array.typeIndex != PTRS_NATIVETYPE_INDEX_VAR)
 		{
 			ret->knownType = true;
 			ret->knownValue = false;
@@ -1244,7 +1245,8 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		analyzeExpression(flow, expr->left, ret);
 		analyzeExpression(flow, expr->right, &dummy);
 
-		if(ret->knownType && ret->knownMeta && ret->meta.type == PTRS_TYPE_POINTER && ret->meta.array.typeIndex != PTRS_NATIVETYPE_INDEX_VAR)
+		if(ret->knownType && ret->knownMeta && ret->meta.type == PTRS_TYPE_POINTER
+			&& ret->meta.array.typeIndex != PTRS_NATIVETYPE_INDEX_VAR)
 		{
 			ret->knownType = true;
 			ret->knownValue = false;
