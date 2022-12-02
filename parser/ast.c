@@ -1961,6 +1961,9 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 	ast->arg.newexpr.arguments = NULL;
 
 	structExpr->vtable = &ptrs_ast_vtable_struct;
+	structExpr->codepos = code->pos;
+	structExpr->code = code->src;
+	structExpr->file = code->filename;
 
 	struc->location = NULL;
 	struc->size = 0;

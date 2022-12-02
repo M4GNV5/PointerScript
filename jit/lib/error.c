@@ -244,7 +244,7 @@ ptrs_error_t *ptrs_createError(ptrs_ast_t *ast, int skipTrace, const char *messa
 
 	ptrs_error_t *error = malloc(sizeof(ptrs_error_t));
 	error->ast = ast;
-	error->file = ast ? ast->file : "<unknown>";
+	error->file = (ast && ast->file) ? ast->file : "<unknown>";
 	error->fileLen = strlen(error->file) + 1;
 	error->message = message;
 	error->messageLen = strlen(error->message) + 1;
