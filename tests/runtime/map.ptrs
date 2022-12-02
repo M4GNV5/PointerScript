@@ -1,0 +1,39 @@
+import assert, assertEq from "../common.ptrs";
+
+var end_with_comma = map {
+    a: 3,
+    b: 5,
+};
+var end_without_comma = map {
+    a: 3,
+    b: 5
+};
+assertEq(8, end_with_comma.a + end_with_comma.b);
+assertEq(8, end_without_comma.a + end_without_comma.b);
+
+var string_names = map {
+    "a.b": 3,
+    "x.y": 5,
+    "nnn": 7,
+    mmm: 11,
+};
+assertEq(8, string_names["a.b"] + string_names["x.y"]);
+assertEq(10, string_names["a.b"] + string_names["nnn"]);
+assertEq(10, string_names["a.b"] + string_names.nnn);
+assertEq(18, string_names["nnn"] + string_names.mmm);
+assertEq(18, string_names.nnn + string_names["mmm"]);
+
+var functions = map {
+    a: 3,
+    b: 5,
+    calc() -> this.a + this.b,
+    "calcS"() -> this.a * 2,
+    calcP(x, y) -> this.a + x + y,
+};
+assertEq(type<int>, typeof functions.a);
+assertEq(type<int>, typeof functions.b);
+assertEq(type<function>, typeof functions.calc);
+assertEq(8, functions.calc());
+assertEq(6, functions.calcS());
+//assertEq(6, functions["calcS"]());
+assertEq(21, functions.calcP(7, 11));

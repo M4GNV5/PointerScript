@@ -51,6 +51,7 @@ runTest runtime/switch "$1"
 #runTest runtime/trycatch TODO
 runTest runtime/strformat "$1"
 runTest runtime/struct "$1"
+runTest runtime/map "$1"
 runTest runtime/overload "$1"
 runTest runtime/functions "$1"
 runTest runtime/alignment "$1"
