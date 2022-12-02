@@ -493,7 +493,7 @@ static bool prediction2float(ptrs_prediction_t *prediction, double *ret)
 
 static char *prediction2str(ptrs_prediction_t *prediction, char *buff, size_t len)
 {
-	if(!prediction->knownType || !prediction->knownValue)
+	if(!prediction->knownType || !prediction->knownMeta || !prediction->knownValue)
 		return NULL;
 
 	if(prediction->meta.type == PTRS_TYPE_STRUCT)
@@ -632,6 +632,37 @@ static void analyzeFunction(ptrs_flow_t *outerFlow, ptrs_function_t *ast, ptrs_s
 
 	// instead of merging predictions we just drop the inner prediction
 	freePredictions(functionFlow.predictions);
+}
+
+static void analyzeStruct(ptrs_flow_t *flow, ptrs_struct_t *struc, ptrs_prediction_t *ret)
+{
+	for(int i = 0; i < struc->memberCount; i++)
+	{
+		struct ptrs_structmember *curr = &struc->member[i];
+		if(curr->name == NULL) //hashmap filler entry
+			continue;
+
+		if(curr->type == PTRS_STRUCTMEMBER_FUNCTION
+			|| curr->type == PTRS_STRUCTMEMBER_GETTER
+			|| curr->type == PTRS_STRUCTMEMBER_SETTER)
+		{
+			analyzeFunction(flow, curr->value.function.ast, struc);
+		}
+	}
+
+	struct ptrs_opoverload *curr = struc->overloads;
+	while(curr != NULL)
+	{
+		analyzeFunction(flow, curr->handler, struc);
+		curr = curr->next;
+	}
+
+	ret->knownType = true;
+	ret->knownValue = true;
+	ret->knownMeta = true;
+	ret->value.structval = NULL;
+	ret->meta.type = PTRS_TYPE_STRUCT;
+	ptrs_meta_setPointer(ret->meta, struc);
 }
 
 static void analyzeLValue(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_prediction_t *value)
@@ -966,6 +997,10 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		ret->knownType = true;
 		ret->meta.type = PTRS_TYPE_POINTER;
 	}
+	else if(node->vtable == &ptrs_ast_vtable_struct)
+	{
+		analyzeStruct(flow, &node->arg.structval, ret);
+	}
 	else if(node->vtable == &ptrs_ast_vtable_function)
 	{
 		analyzeFunction(flow, &node->arg.function.func, NULL);
@@ -1256,7 +1291,8 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 			memset(&ret->meta, 0, sizeof(ptrs_meta_t));
 			ret->meta.type = type->varType;
 		}
-		else if(ret->knownType && ret->knownMeta && ret->meta.type == PTRS_TYPE_STRUCT)
+		else if(ret->knownType && ret->knownMeta && ret->meta.type == PTRS_TYPE_STRUCT
+			&& dummy.knownType && dummy.knownMeta && dummy.knownValue)
 		{
 			char buff[32];
 			char *name = prediction2str(&dummy, buff, 32);
@@ -1880,34 +1916,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 	else if(node->vtable == &ptrs_ast_vtable_struct)
 	{
 		ptrs_struct_t *struc = &node->arg.structval;
-
-		for(int i = 0; i < struc->memberCount; i++)
-		{
-			struct ptrs_structmember *curr = &struc->member[i];
-			if(curr->name == NULL) //hashmap filler entry
-				continue;
-
-			if(curr->type == PTRS_STRUCTMEMBER_FUNCTION
-				|| curr->type == PTRS_STRUCTMEMBER_GETTER
-				|| curr->type == PTRS_STRUCTMEMBER_SETTER)
-			{
-				analyzeFunction(flow, curr->value.function.ast, struc);
-			}
-		}
-
-		struct ptrs_opoverload *curr = struc->overloads;
-		while(curr != NULL)
-		{
-			analyzeFunction(flow, curr->handler, struc);
-			curr = curr->next;
-		}
-
-		ret->knownType = true;
-		ret->knownValue = true;
-		ret->knownMeta = true;
-		ret->value.structval = NULL;
-		ret->meta.type = PTRS_TYPE_STRUCT;
-		ptrs_meta_setPointer(ret->meta, struc);
+		analyzeStruct(flow, struc, ret);
 		setVariablePrediction(flow, struc->location, ret);
 	}
 	else if(node->vtable == &ptrs_ast_vtable_function)

@@ -2038,6 +2038,8 @@ static void parseMap(code_t *code, ptrs_ast_t *ast)
 		if(code->curr == '}')
 			break;
 		consumec(code, ',');
+		if(code->curr == '}')
+			break;
 	}
 
 	curr->next = NULL;
