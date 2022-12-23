@@ -351,66 +351,6 @@ static ptrs_ast_t *appendAstToAst(ptrs_ast_t *ast, ptrs_ast_t *elem)
 	return ast;
 }
 
-int parseIdentifierList(code_t *code, char *end, ptrs_jit_var_t **symbols, char ***fields)
-{
-	int pos = code->pos;
-	int count = 1;
-	for(;;)
-	{
-		if(lookahead(code, end))
-		{
-			break;
-		}
-		else if(code->curr == ',' || code->curr == '_' || isspace(code->curr) || isalnum(code->curr))
-		{
-			if(code->curr == ',')
-				count++;
-			rawnext(code);
-		}
-		else
-		{
-			break;
-		}
-	}
-
-	code->pos = pos;
-	code->curr = code->src[pos];
-	if(fields != NULL)
-		*fields = calloc(count, sizeof(char *));
-	*symbols = calloc(count, sizeof(ptrs_jit_var_t));
-
-	for(int i = 0; i < count; i++)
-	{
-		if(fields != NULL && lookahead(code, "_"))
-		{
-			(*symbols)[i].constType = -1;
-		}
-		else
-		{
-			char *name = readIdentifier(code);
-			if(fields != NULL)
-			{
-				if(lookahead(code, "as"))
-				{
-					(*fields)[i] = name;
-					name = readIdentifier(code);
-				}
-				else
-				{
-					(*fields)[i] = strdup(name);
-				}
-			}
-
-			addSymbol(code, name, *symbols + i);
-		}
-
-		if(i < count - 1)
-			consumec(code, ',');
-	}
-
-	return count;
-}
-
 static ptrs_funcparameter_t *parseArgumentDefinitionList(code_t *code,
 	ptrs_jit_var_t **vararg, ptrs_typing_t *retType)
 {
@@ -780,8 +720,22 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		symbolScope_increase(code, false);
 
 		consumec(code, '(');
-		stmt->arg.forin.varcount = parseIdentifierList(code, "in", &stmt->arg.forin.varsymbols, NULL);
-		consume(code, "in");
+		stmt->arg.forin.varsymbols = calloc(10, sizeof(ptrs_jit_var_t));
+		int i = 0;
+		for(i = 0; i < 10; i++)
+		{
+			char *name = readIdentifier(code);
+			addSymbol(code, name, stmt->arg.forin.varsymbols + i);
+
+			if(lookahead(code, "in"))
+				break;
+			consumec(code, ',');
+		}
+		stmt->arg.forin.varcount = i + 1;
+
+		if(code->curr == ',')
+			unexpectedm(code, "in", "for-in expressions can define a maximum of 10 variables");
+
 		stmt->arg.forin.valueAst = parseExpression(code, true);
 		consumec(code, ')');
 

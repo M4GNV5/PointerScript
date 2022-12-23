@@ -84,3 +84,13 @@ for(i = 0; i < 3; i++)
 	cycles++;
 }
 assertEq(3, cycles);
+
+cycles = 0;
+var vals: i32[5] = [-1, 0, 42, 666, 1337];
+foreach(i, val in vals)
+{
+	if(i == 1 || val == 666)
+		continue;
+	cycles++;
+}
+assertEq(3, cycles);
