@@ -485,7 +485,7 @@ static bool prediction2float(ptrs_prediction_t *prediction, double *ret)
 		return false;
 
 	if(prediction->meta.type == PTRS_TYPE_STRUCT)
-		return false; // TODO handle cast<int> overload
+		return false; // TODO handle cast<float> overload
 
 	*ret = ptrs_vartof(prediction->value, prediction->meta);
 	return true;
@@ -1367,40 +1367,18 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 			ret->knownValue = false;
 		}
 	}
-	else if(node->vtable == &ptrs_ast_vtable_cast_builtin)
+	else if(node->vtable == &ptrs_ast_vtable_toint)
 	{
 		struct ptrs_ast_cast *expr = &node->arg.cast;
-
 		analyzeExpression(flow, expr->value, ret);
-
 		if(!ret->knownType || ret->meta.type == PTRS_TYPE_STRUCT)
 			clearAddressablePredictions(flow); // TODO cast<int> overload
 
-		if(expr->meta.type == PTRS_TYPE_INT)
+		int64_t value;
+		if(prediction2int(ret, &value))
 		{
-			int64_t value;
-			if(prediction2int(ret, &value))
-			{
-				ret->knownValue = true;
-				ret->value.intval = value;
-			}
-			else
-			{
-				ret->knownValue = false;
-			}
-		}
-		else if(expr->meta.type == PTRS_TYPE_FLOAT)
-		{
-			double value;
-			if(prediction2float(ret, &value))
-			{
-				ret->knownValue = true;
-				ret->value.floatval = value;
-			}
-			else
-			{
-				ret->knownValue = false;
-			}
+			ret->knownValue = true;
+			ret->value.intval = value;
 		}
 		else
 		{
@@ -1409,7 +1387,31 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 
 		ret->knownType = true;
 		ret->knownMeta = true;
-		ret->meta = expr->meta;
+		memset(&ret->meta, 0, sizeof(ptrs_meta_t));
+		ret->meta.type = PTRS_TYPE_INT;
+	}
+	else if(node->vtable == &ptrs_ast_vtable_tofloat)
+	{
+		struct ptrs_ast_cast *expr = &node->arg.cast;
+		analyzeExpression(flow, expr->value, ret);
+		if(!ret->knownType || ret->meta.type == PTRS_TYPE_STRUCT)
+			clearAddressablePredictions(flow); // TODO cast<int> overload
+
+		double value;
+		if(prediction2float(ret, &value))
+		{
+			ret->knownValue = true;
+			ret->value.floatval = value;
+		}
+		else
+		{
+			ret->knownValue = false;
+		}
+
+		ret->knownType = true;
+		ret->knownMeta = true;
+		memset(&ret->meta, 0, sizeof(ptrs_meta_t));
+		ret->meta.type = PTRS_TYPE_FLOAT;
 	}
 	else if(node->vtable == &ptrs_ast_vtable_tostring)
 	{

@@ -117,8 +117,8 @@ struct ptrs_ast_cast
 {
 	union
 	{
-		ptrs_meta_t meta;
-		struct ptrs_ast *type;
+		ptrs_meta_t meta; // used for as<type>...
+		struct ptrs_ast *type; // used for as<struct>...
 	};
 	struct ptrs_ast *value;
 };

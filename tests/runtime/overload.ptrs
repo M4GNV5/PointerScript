@@ -11,11 +11,15 @@ struct Test
 	}
 
 
-	operator cast<typ>this
+	operator cast<int>this
 	{
-		op = "cast";
-		val = typ;
+		op = "toint";
 		return 3;
+	}
+	operator cast<float>this
+	{
+		op = "tofloat";
+		return 3.14;
 	}
 	operator cast<string>this
 	{
@@ -97,8 +101,10 @@ assertEq(3.14, val[2]);
 delete val;
 
 assertEq(3, cast<int>test);
-assertEq("cast", op);
-assertEq(type<int>, val);
+assertEq("toint", op);
+
+assertEq(3.14, cast<float>test);
+assertEq("tofloat", op);
 
 assertEq("4", cast<string>test);
 assertEq("tostr", op);

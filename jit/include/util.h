@@ -65,7 +65,7 @@ jit_value_t ptrs_jit_import(ptrs_ast_t *node, jit_function_t func, jit_value_t v
 
 //TODO libjit needs jit_function_apply_nested and jit_apply_nested
 //TODO, dont use ptrs_jit_function_to_closure but instead call it using the custom ABI
-#define ptrs_jit_applyNested(func, ret, parentFrame, thisArg, argPtrs) \
+#define ptrs_jit_applyNestedTyped(func, ret, retType, parentFrame, thisArg, argPtrs) \
 	do \
 	{ \
 		void *closure = ptrs_jit_function_to_closure(NULL, func); \
@@ -76,13 +76,15 @@ jit_value_t ptrs_jit_import(ptrs_ast_t *node, jit_function_t func, jit_value_t v
 			argDef[i] = jit_type_ulong; \
 		\
 		jit_type_t signature = jit_type_create_signature(jit_abi_cdecl, \
-			ptrs_jit_getVarType(), argDef, \
+			retType, argDef, \
 			sizeof(argDef) / sizeof(jit_type_t), 0); \
 		\
 		jit_apply(signature, closure, args, sizeof(args) / sizeof(void *), ret); \
 		jit_type_free(signature); \
 	} while(0)
 
+#define ptrs_jit_applyNested(func, ret, parentFrame, thisArg, argPtrs) \
+	ptrs_jit_applyNestedTyped(func, ret, ptrs_jit_getVarType(), parentFrame, thisArg, argPtrs)
 
 #define ptrs_jit_typeCheck(node, func, scope, val, type, msg) \
 	do \

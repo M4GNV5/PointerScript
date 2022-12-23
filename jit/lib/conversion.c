@@ -148,7 +148,7 @@ jit_value_t ptrs_jit_vartoi(jit_function_t func, ptrs_jit_var_t val)
 			{
 				ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(val.meta);
 				ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
-				if(ptrs_struct_getOverload(struc, ptrs_handle_cast_builtin, true) == NULL)
+				if(ptrs_struct_getOverload(struc, ptrs_handle_toint, true) == NULL)
 					return val.val;
 			}
 			break; //use intrinsic
@@ -188,7 +188,7 @@ jit_value_t ptrs_jit_vartof(jit_function_t func, ptrs_jit_var_t val)
 			{
 				ptrs_meta_t meta = ptrs_jit_value_getMetaConstant(val.meta);
 				ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
-				if(ptrs_struct_getOverload(struc, ptrs_handle_cast_builtin, true) == NULL)
+				if(ptrs_struct_getOverload(struc, ptrs_handle_tofloat, true) == NULL)
 					return jit_insn_convert(func, val.val, jit_type_float64, 0);
 			}
 			break; //use intrinsic
@@ -394,16 +394,15 @@ int64_t ptrs_vartoi(ptrs_val_t val, ptrs_meta_t meta)
 		case PTRS_TYPE_STRUCT:
 			;
 			ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
-			jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_cast_builtin, val.ptrval != NULL);
+			jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_toint, val.ptrval != NULL);
 			if(overload != NULL)
 			{
-				ptrs_var_t ret;
-				ptrs_val_t arg0 = {.intval = PTRS_TYPE_INT};
-				ptrs_meta_t arg1 = {.type = PTRS_TYPE_INT};
-				ptrs_jit_applyNested(overload, &ret, struc->parentFrame, val.ptrval,
-					(&arg0, &arg1));
+				int64_t ret;
+				ptrs_jit_applyNestedTyped(overload, &ret, jit_type_long,
+					struc->parentFrame, val.ptrval, ()
+				);
 
-				return ptrs_vartoi(ret.value, ret.meta);
+				return ret;
 			}
 			/* fallthrough */
 		default: //pointer type
@@ -440,16 +439,15 @@ double ptrs_vartof(ptrs_val_t val, ptrs_meta_t meta)
 		case PTRS_TYPE_STRUCT:
 			;
 			ptrs_struct_t *struc = ptrs_meta_getPointer(meta);
-			jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_cast_builtin, val.ptrval != NULL);
+			jit_function_t overload = ptrs_struct_getOverload(struc, ptrs_handle_tofloat, val.ptrval != NULL);
 			if(overload != NULL)
 			{
-				ptrs_var_t ret;
-				ptrs_val_t arg0 = {.intval = PTRS_TYPE_FLOAT};
-				ptrs_meta_t arg1 = {.type = PTRS_TYPE_INT};
-				ptrs_jit_applyNested(overload, &ret, struc->parentFrame, val.ptrval,
-					(&arg0, &arg1));
+				double ret;
+				ptrs_jit_applyNestedTyped(overload, &ret, jit_type_float64,
+					struc->parentFrame, val.ptrval, ()
+				);
 
-				return ptrs_vartoi(ret.value, ret.meta);
+				return ret;
 			}
 			/* fallthrough */
 		default: //pointer type

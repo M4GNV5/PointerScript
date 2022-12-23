@@ -1140,14 +1140,12 @@ static ptrs_ast_t *parseUnaryExpr(code_t *code, bool ignoreCalls)
 		if(lookahead(code, "int"))
 		{
 			ast = talloc(ptrs_ast_t);
-			ast->vtable = &ptrs_ast_vtable_cast_builtin;
-			ast->arg.cast.meta.type = PTRS_TYPE_INT;
+			ast->vtable = &ptrs_ast_vtable_toint;
 		}
 		else if(lookahead(code, "float"))
 		{
 			ast = talloc(ptrs_ast_t);
-			ast->vtable = &ptrs_ast_vtable_cast_builtin;
-			ast->arg.cast.meta.type = PTRS_TYPE_FLOAT;
+			ast->vtable = &ptrs_ast_vtable_tofloat;
 		}
 		else if(lookahead(code, "string"))
 		{
@@ -2213,27 +2211,32 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			else if(lookahead(code, "cast"))
 			{
 				consumec(code, '<');
+				param0Name = NULL;
+				param1Name = NULL;
+				func->args = NULL;
 
-				if(lookahead(code, "string"))
+				if(lookahead(code, "int"))
 				{
-					param0Name = NULL;
+					nameFormat = "%s.op cast<int>this";
+					overload->op = ptrs_ast_vtable_toint.get;
+
+					func->retType.meta.type = PTRS_TYPE_INT;
+				}
+				else if(lookahead(code, "float"))
+				{
+					nameFormat = "%s.op cast<float>this";
+					overload->op = ptrs_ast_vtable_tofloat.get;
+
+					func->retType.meta.type = PTRS_TYPE_FLOAT;
+				}
+				else if(lookahead(code, "string"))
+				{
 					nameFormat = "%s.op cast<string>this";
 					overload->op = ptrs_ast_vtable_tostring.get;
 
-					func->args = NULL;
 					func->retType.meta.type = PTRS_TYPE_POINTER;
 					func->retType.meta.array.typeIndex = PTRS_NATIVETYPE_INDEX_CHAR;
 					func->retType.meta.array.size = 0;
-				}
-				else
-				{
-					param0Name = readIdentifier(code);
-					nameFormat = "%s.op cast<%s>this";
-					overload->op = ptrs_ast_vtable_cast_builtin.get;
-
-					func->args = createParameterList(code, 1, param0Name, PTRS_TYPE_INT);
-					// TODO add seprate overloads for cast<int> and cast<float>?
-					func->retType.meta.type = -1;
 				}
 
 				consumec(code, '>');
