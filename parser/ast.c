@@ -578,13 +578,6 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		stmt->arg.astval = parseExpression(code, true);
 		consumec(code, ';');
 	}
-	else if(lookahead(code, "scoped"))
-	{
-		stmt->vtable = &ptrs_ast_vtable_scopestatement;
-		symbolScope_increase(code, true);
-		stmt->arg.astval = parseBody(code, true);
-		symbolScope_decrease(code);
-	}
 	else if(lookahead(code, "try"))
 	{
 		code->usesTryCatch = true;

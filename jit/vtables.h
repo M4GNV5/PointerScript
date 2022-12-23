@@ -23,7 +23,6 @@ extern ptrs_ast_vtable_t ptrs_ast_vtable_switch;
 extern ptrs_ast_vtable_t ptrs_ast_vtable_loop;
 extern ptrs_ast_vtable_t ptrs_ast_vtable_forin_setup;
 extern ptrs_ast_vtable_t ptrs_ast_vtable_forin_step;
-extern ptrs_ast_vtable_t ptrs_ast_vtable_scopestatement;
 extern ptrs_ast_vtable_t ptrs_ast_vtable_exprstatement;
 
 extern ptrs_ast_vtable_t ptrs_ast_vtable_call;

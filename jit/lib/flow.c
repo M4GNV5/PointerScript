@@ -2075,10 +2075,6 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 			clearAddressablePredictions(flow);
 		}
 	}
-	else if(node->vtable == &ptrs_ast_vtable_scopestatement)
-	{
-		analyzeStatement(flow, node->arg.astval, ret);
-	}
 	else if(node->vtable == &ptrs_ast_vtable_body)
 	{
 		struct ptrs_astlist *curr = node->arg.astlist;

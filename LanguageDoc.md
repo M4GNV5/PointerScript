@@ -18,7 +18,6 @@
 	- [VarArrayDefinitionStatement](#vararraydefinitionstatement)
 	- [ConstDefinition](#constdefinition)
 	- [ImportStatement](#importstatement)
-	- [ScopeStatement](#scopestatement)
 	- [TryStatement](#trystatement)
 	- [TryCatchStatement](#trycatchstatement)
 	- [TryFinallyStatement](#tryfinallystatement)
@@ -444,20 +443,6 @@ var ctx = curl_easy_init();
 curl_easy_setopt(ctx, 10002/*CURLOPT_URL*/, "https://pointerscript.org");
 curl_easy_perform(ctx);
 curl_easy_cleanup(ctx);
-```
-
-## ScopeStatement
-Variables and stack allocations within a scoped statement won't be available outside the statement. Please note that all statements dont create a scope by themselves so doing stack allocations within a loop (e.g. by doing `var buff = new_stack array{1024};`) is probably a bad idea
-```js
-//'scoped' '{' StatementList '}'
-var myPublicVar = 42;
-
-scoped {
-	var myHiddenVar = "supersecret";
-	var myData{1024};
-}
-
-//the 1024 bytes used by myData are available again here
 ```
 
 ## TryStatement

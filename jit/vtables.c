@@ -36,7 +36,6 @@ GETONLY(switch)
 GETONLY(loop)
 GETONLY(forin_setup)
 GETONLY(forin_step)
-GETONLY(scopestatement)
 GETONLY(exprstatement)
 
 GETONLY(call)

@@ -56,36 +56,6 @@ for(i = 0; i < 4; i++)
 assertEq(3, cycles);
 
 cycles = 0;
-while(true)
-{
-	scoped break;
-	cycles++;
-}
-assertEq(0, cycles);
-
-cycles = 0;
-for(i = 0; i < 4; i++)
-{
-	if(i == 1)
-		scoped continue;
-	cycles++;
-}
-assertEq(3, cycles);
-
-cycles = 0;
-for(i = 0; i < 3; i++)
-{
-	scoped {
-		for(var j = 0; j < 2; j++)
-		{
-			break;
-		}
-	}
-	cycles++;
-}
-assertEq(3, cycles);
-
-cycles = 0;
 var vals: i32[5] = [-1, 0, 42, 666, 1337];
 foreach(i, val in vals)
 {

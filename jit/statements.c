@@ -15,7 +15,6 @@
 #include "include/util.h"
 #include "include/call.h"
 #include "include/run.h"
-#include "jit/jit-value.h"
 
 ptrs_jit_var_t ptrs_handle_initroot(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
@@ -321,7 +320,21 @@ ptrs_jit_var_t ptrs_handle_return(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 	else
 		funcName = "(unknown)";
 
-	if(scope->returnType.type != (uint8_t)-1)
+	if(scope->returnType.type == PTRS_TYPE_UNDEFINED)
+	{
+		if(value != NULL)
+		{
+			ptrs_error(node, "Function %s defined to not return a value, but a value was returned",
+				funcName);
+		}
+
+		jit_insn_default_return(func);
+	}
+	else if(scope->returnType.type == (uint8_t)-1)
+	{
+		jit_insn_return_struct_from_values(func, ret.val, ret.meta);
+	}
+	else
 	{
 		if(value == NULL)
 		{
@@ -329,29 +342,24 @@ ptrs_jit_var_t ptrs_handle_return(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 				funcName, scope->returnType);
 		}
 
-		jit_value_t retType = NULL;
-		if(ret.constType != -1)
-			retType = jit_const_int(func, ubyte, ret.constType);
-
 		jit_value_t retMetaJit = jit_const_long(func, ulong, *(uint64_t *)&scope->returnType);
 		jit_value_t fakeCondition = jit_const_int(func, ubyte, 1);
 		struct ptrs_assertion *assertion = ptrs_jit_assert(value, func, scope, fakeCondition,
 			3, "Function %s defines a return type %m, but a value of type %m was returned",
 			jit_const_int(func, void_ptr, (uintptr_t)funcName), retMetaJit, ret.meta);
 
-		ptrs_jit_assertMetaCompatibility(func, assertion, scope->returnType, ret.meta, retType);
-	}
+		ptrs_jit_assertMetaCompatibility(func, assertion, scope->returnType, ret.meta, NULL);
 
-	if(scope->returnAddr == NULL)
-	{
-		ret.val = ptrs_jit_reinterpretCast(func, ret.val, jit_type_long);
-		ptrs_jit_returnFromFunction(func, scope, ret);
-	}
-	else
-	{
-		jit_insn_store_relative(func, scope->returnAddr, 0, ret.val);
-		jit_insn_store_relative(func, scope->returnAddr, sizeof(ptrs_val_t), ret.meta);
-		jit_insn_return(func, jit_const_int(func, ubyte, 3));
+		if(scope->returnType.type == PTRS_TYPE_INT
+			|| scope->returnType.type == PTRS_TYPE_FLOAT
+			|| scope->returnType.type == PTRS_TYPE_STRUCT)
+		{
+			jit_insn_return(func, ret.val);
+		}
+		else
+		{
+			jit_insn_return_struct_from_values(func, ret.val, ret.meta);
+		}
 	}
 
 	return ret;
@@ -1205,66 +1213,6 @@ ptrs_jit_var_t ptrs_handle_forin_step(ptrs_ast_t *node, jit_function_t func, ptr
 		iterateArray(stmt, func, scope);
 	else
 		iterateWithIteratorFunction(stmt, func, scope);
-}
-
-ptrs_jit_var_t ptrs_handle_scopestatement(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
-{
-	ptrs_ast_t *body = node->arg.astval;
-	ptrs_jit_reusableSignature(func, bodySignature, jit_type_ubyte, (jit_type_void_ptr));
-	jit_function_t bodyFunc = ptrs_jit_createFunction(node, func, bodySignature, "(scoped body)");
-
-	ptrs_function_t *funcAst = jit_function_get_meta(func, PTRS_JIT_FUNCTIONMETA_FUNCAST);
-	jit_function_set_meta(bodyFunc, PTRS_JIT_FUNCTIONMETA_FUNCAST, funcAst, NULL, 0);
-
-	ptrs_scope_t bodyScope;
-	ptrs_initScope(&bodyScope, scope);
-	bodyScope.loopControlAllowed = scope->loopControlAllowed;
-	bodyScope.returnForLoopControl = true;
-	bodyScope.hasCustomContinueLabel = false;
-	bodyScope.returnAddr = jit_value_get_param(bodyFunc, 0);
-
-	body->vtable->get(body, bodyFunc, &bodyScope);
-	jit_insn_return(bodyFunc, jit_const_int(func, ubyte, 0));
-	ptrs_jit_placeAssertions(bodyFunc, &bodyScope);
-
-	if(ptrs_compileAot && jit_function_compile(bodyFunc) == 0)
-		ptrs_error(node, "Failed compiling the scoped statement body");
-
-	jit_value_t returnAddr;
-	if(scope->returnAddr != NULL)
-		returnAddr = scope->returnAddr;
-	else
-		returnAddr = jit_insn_address_of(func, jit_value_create(func, ptrs_jit_getVarType()));
-	jit_value_t status = jit_insn_call(func, "(scoped body)", bodyFunc, bodySignature, &returnAddr, 1, 0);
-
-	jit_label_t ok = jit_label_undefined;
-	jit_insn_branch_if(func, jit_insn_eq(func, status, jit_const_int(func, ubyte, 0)), &ok);
-
-	if(scope->returnAddr != NULL)
-	{
-		jit_insn_return(func, status);
-	}
-	else
-	{
-		if(scope->loopControlAllowed)
-		{
-			//continue;
-			jit_insn_branch_if(func, jit_insn_eq(func, status, jit_const_int(func, ubyte, 1)),
-				&scope->continueLabel);
-
-			//break;
-			jit_insn_branch_if(func, jit_insn_eq(func, status, jit_const_int(func, ubyte, 2)),
-				&scope->breakLabel);
-		}
-
-		//return;
-		ptrs_jit_returnPtrFromFunction(func, scope, returnAddr);
-	}
-
-	jit_insn_label(func, &ok);
-
-	ptrs_jit_var_t stmtRet = {NULL, NULL, -1};
-	return stmtRet;
 }
 
 ptrs_jit_var_t ptrs_handle_exprstatement(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
