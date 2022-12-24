@@ -36,10 +36,6 @@
 	- [SizeofExpression](#sizeofexpression)
 	- [NewExpression](#newexpression)
 	- [NewStackExpression](#newstackexpression)
-	- [ArrayExpression](#arrayexpression)
-	- [VarArrayExpression](#vararrayexpression)
-	- [ArrayStackExpression](#arraystackexpression)
-	- [VarArrayStackExpression](#vararraystackexpression)
 	- [MapExpression](#mapexpression)
 	- [MapStackExpression](#mapstackexpression)
 	- [MemberExpression](#memberexpression)
@@ -47,8 +43,6 @@
 	- [SliceExpression](#sliceexpression)
 	- [IndexLengthExpression](#indexlengthexpression)
 	- [AsExpression](#asexpression)
-	- [CastBuiltinExpression](#castbuiltinexpression)
-	- [CastToStringExpression](#casttostringexpression)
 	- [CastExpression](#castexpression)
 	- [IdentifierExpression](#identifierexpression)
 	- [ConstantExpression](#constantexpression)
@@ -66,10 +60,15 @@ Valid options are:
 |--------|----------|-------------|---------|
 | `--help` | - | Print usage and argument information | - |
 | `--array-max` | `size` | Set maximal allowed array size to 'size' bytes | `UINT32_MAX` |
+| `--error` | `file` | Set where error messages are written to | `/dev/stderr` |
 | `--no-sig` | - | Do not listen to signals | `false` |
 | `--no-aot` | - | Do not compile functions ahead of time | `false` |
-| `--asmdump` | - | Dump the generated assembly instructions | `false` |
-| `--error` | `file` | Set where error messages are written to | `/dev/stderr` |
+| `--no-predictions` | - | Do not predict types and values of expressions | `false` |
+| `-O0, -O1, -O2` | - | Set libjit optimization level | `-O2` |
+| `--dump-asm` | - | Dump the generated assembly instructions | `false` |
+| `--dump-jit` | - | Dump the generated libjit immediate instructions | `false` |
+| `--dump-predictions` | - | Dump value and type predictions | `false` |
+| `--unsafe` | - | Disable all assertions such as boundary and type checks | `false` |
 
 The script options will be passed to the script in a global variable called `arguments`:
 ```js
@@ -101,7 +100,7 @@ if(typeof myVal == type<int>)
 
 Converting a variable to an `int` or `float` or `string`.
 Casting to string will allocate memory on the stack and return a stringified
-value of type `native`.
+value of type `char[]`.
 ```js
 var myVal = cast<float>"3.14";
 var myInt = cast<int>myVal;
@@ -123,8 +122,7 @@ var ptr = malloc!native(1024);
 | `undefined` | - | A not defined value |
 | `int` | `int64_t` | 64 bit integer |
 | `float` | `double` | 64 bit IEEE Float |
-| `native` | `char *` | Pointer to a byte sequence or a function |
-| `pointer` | `ptrs_var_t *` | Pointer to another variable |
+| `pointer` | `*` and `[n]` | Pointer to one or `n` variables of a specific type |
 | `struct` | `ptrs_struct_t *` | A PointerScript struct |
 
 ## Constants
@@ -132,7 +130,6 @@ var ptr = malloc!native(1024);
 |------|------|-------|
 | `true` | `int` | 1 |
 | `false` | `int` | 0 |
-| `NULL` | `native` | 0 |
 | `null` | `pointer` | 0 |
 | `undefined` | `undefined` | - |
 | `NaN` | `float` | NaN |
@@ -150,7 +147,7 @@ struct Request
 	host;
 	port;
 	error = false;
-	buff{1024}; //byte array
+	buff: char[1024]; //byte array
 
 	constructor(host = "localhost", port = 80)
 	{
@@ -229,10 +226,11 @@ When you have a function that returns `val` - a pointer to a struct you can also
 | `uchar ushort uint ulong ulonglong` | unsigned integers | same as above but prefixed with `unsigned` |
 | `i8 i16 i32 i64` | explicitly sized signed integers | `int8_t int16_t int32_t int64_t` |
 | `u8 u16 u32 u64` | explicitly sized unsigned integers | `uint8_t uint16_t uint32_t uint64_t` |
-| `ssize size intptr uintptr ptrdiff` | special types | `size_t ssize_t intptr_t uintptr_t ptrdiff_t`
-| `single double` | floating point values | `float double` |
-| `native` | pointer to u8's | `uint8_t *` |
-| `pointer` | pointer to var's | `ptrs_var_t *` |
+| `ssize size intptr uintptr ptrdiff` | special types | `size_t ssize_t intptr_t uintptr_t ptrdiff_t` |
+| `single double f32 f64` | floating point values | `float double float double` |
+| `cfunc` | function pointer | `intptr_t (*)(...)` |
+| `pointer` | generic pointer | `void *` |
+| `var` | pointerscript variable | `ptrs_var_t` |
 
 
 ## Variable Arguments
@@ -385,29 +383,16 @@ var tar = 42 * 3112;
 ```
 
 ## ArrayDefinitionStatement
-Creates an array of bytes on the Stack, optionally initialized with values from a string or an array literal.
+Creates an array on the Stack, optionally initialized with values.
 ```js
-//'var' Identifier '{' Expression '}' ';'
-var foo{32};
+//'var' Identifier ':' NativeType '[' Expression ']' ';'
+var foo: char[1024];
+fgets(foo, 1024, stdin);
 
-//	'var' Identifier '{' [ Expression ] '}' '=' String ';'
-var foo{} = "Hello World!";
-var bar{128} = "Ahoi!";
+//'var' Identifier ':' NativeType '[' Expression ']' '=' '[' ExpressionList ']' ';'
+var bar: i32[4] = [-1, 42, 666, 1337];
 
-//'var' Identifier '{' [ Expression ] '}' '=' '{' ExpressionList '}' ';'
-var foo{} = {31 * 12, 666};
-var bar{32} = {42, 1337};
-```
-
-## VarArrayDefinitionStatement
-Creates an array of variables on the Stack, optionally initialized with values from an array literal.
-```js
-//'var' Identifier '[' Expression ']' ';'
-var foo[32];
-
-//'var' Identifier '[]' [ Expression ] '}' '=' '[' ExpressionList ']' ';'
-var foo[] = [31 * 12, 3.14, "Ahoi"];
-var bar[32] = [42, 13.37, foo];
+var tar: var[4] = [foo, 3.14, bar, "mixed types!"];
 ```
 
 ## ConstDefinition
@@ -569,9 +554,9 @@ struct Person
 	name{128}; //128 bytes
 	items[16]; //16 variables (16 * sizeof var bytes)
 
-	operator this + val
+	operator cast<string>this
 	{
-		return _age + val;
+		return this.name;
 	}
 
 	constructor(familyCount)
@@ -616,7 +601,7 @@ age = 18;
 
 #### Typed member
 ```js
-//Identifier ':' NativeType
+//Identifier ':' NativeType ';'
 foo : long //char, int, long, longlong, uchar, uint, ulong, ulonglong
 bar : i64 //i8, i16, i32, i64, u8, u16, u32, u64
 tar : pointer
@@ -626,10 +611,9 @@ zar : ptrdiff //ssize, size, intptr, uintptr, ptrdiff
 
 #### Array member
 ```js
-//Identifier '{' ConstantExpression '}' ';'
-name{128};
-//Identifier '[' ConstantExpression ']' ';'
-items[16];
+//Identifier ':' NativeType '[' Expression ']'
+name: i64[16];
+items: var[16];
 ```
 
 #### Function member
@@ -666,6 +650,26 @@ destructor()
 {
 }
 
+// 'operator' 'sizeof' 'this'
+operator sizeof this
+{
+	return 42;
+}
+
+// 'operator' 'cast' '<' ('int' | 'float' | 'string') '>' 'this'
+operator cast<int>this
+{
+	return 3;
+}
+operator cast<float>this
+{
+	return 3.14;
+}
+operator cast<string>this
+{
+	return "42";
+}
+
 /*
 	Note that the following overloads both with with foo.bar and foo["bar"]
 	even though their syntax may suggest they only work with the latter.
@@ -687,7 +691,7 @@ operator &this[key]
 	printf("tried to get the address of this.%s\n", key);
 }
 //'operator' 'this' '.' Identifier '(' ArgumentDefinitionList ')' '{' StatementList '}'
-operator this[key](foo, bar...)
+operator this[key](foo, bar)
 {
 	printf("calling this.%s\n", key);
 }
@@ -697,6 +701,7 @@ operator this(a, b) //will be called when the struct is called like a function
 {
 	return a + b;
 }
+
 //'operator' 'foreach' '(' Identifier ',' Identifier ')' 'in' 'this' '{' StatementList '}'
 operator foreach(fields, saveArea) in this //overloads the foreach statement
 {
@@ -780,7 +785,7 @@ Note that having more than one iterator is optional.
 ```js
 //'foreach' '(' IdentifierList 'in' Expression ')' Statement
 
-var items[16];
+var items: i64[16];
 foreach(i in items)
 {
 
@@ -869,7 +874,7 @@ printf("x = %d\n", x)
 pow!double(3.14, 7.2)
 powf!single(31.12, 5.0)
 
-dlerror!native()
+dlerror!char*()
 atol!long("-42")
 ```
 
@@ -934,13 +939,12 @@ You can optionally put braces around the type (like in C)
 ```js
 //'sizeof' Expression
 //'sizeof' [ '(' ] NativeType [ ')' ]
-//'sizeof' [ '(' ] 'var' [ ')' ]
 
-var foo[16];
-var bar{} = "hello!";
+var foo: var[16];
+var bar: char[8] = ['h', 'i', 0];
 
 sizeof foo; //16 same as sizeof(foo)
-sizeof bar; //7  same as sizeof(bar), same as strlen(bar) + 1
+sizeof bar; //8  same as sizeof(bar)
 sizeof(foo);
 sizeof(bar);
 
@@ -952,53 +956,27 @@ sizeof(var);
 ```
 
 ## NewExpression
-Creates an instance of a struct allocating its memory using `malloc`
+Creates an array. Memory will be allocated using `calloc`
 ```js
-//'new' Identifier '(' ExpressionList ')'
+//'new' NativeType '[' Expression ']' [ '[' ExpressionList ']' ]
+new i32[16];
+new char[128] ['h', 'i', 0];
+new var[8] [42, "hello", 31.12];
+
+//'new' Expression '(' ExpressionList ')'
 new MyStruct(32);
 ```
 
 ## NewStackExpression
-Creates an instance of a struct allocating its memory on the stack
-```js
-//'new_stack' Identifier '(' ExpressionList ')'
-new_stack MyStruct(32);
-```
-
-## ArrayExpression
-Creates an array. Memory will be allocated using `malloc`
-```js
-//'new' 'array' '{' Expression '}' [ '{' ExpressionList '}' ]
-new array{1024};
-new array{128} {'h', 'i', 0};
-new array{} {'h', 'e', 'l', 'l', 'o', 0};
-```
-
-## VarArrayExpression
-Creates a var-array. Memory will be allocated using `malloc`
-```js
-//'new' 'array' '[' Expression ']' [ '[' ExpressionList ']' ]
-new array[16];
-new array[8] [42, "hello", 31.12];
-new array[] ["hi", 1337, PI, 9.11];
-```
-
-## ArrayStackExpression
 Same as [ArrayExpression](#arrayexpression) but memory will be allocated on the stack
 ```js
-//'new_stack' 'array' '{' Expression '}' [ '{' ExpressionList '}' ]
-new_stack array{1024};
-new_stack array{128} {'h', 'i', 0};
-new_stack array{} {'h', 'e', 'l', 'l', 'o', 0};
-```
+//'new_stack' NativeType '[' Expression ']' [ '[' ExpressionList ']' ]
+new_stack i32[16];
+new_stack char[128] ['h', 'i', 0];
+new_stack var[8] [42, "hello", 31.12];
 
-## VarArrayStackExpression
-Same as [VarArrayExpression](#vararrayexpression) but memory will be allocated on the stack
-```js
-//'new_stack' 'array' '[' Expression ']' [ '[' ExpressionList ']' ]
-new_stack array[16];
-new_stack array[8] [42, "hello", 31.12];
-new_stack array[] ["hi", 1337, PI, 9.11];
+//'new_stack' Expression '(' ExpressionList ')'
+new_stack MyStruct(32);
 ```
 
 ## MapExpression
@@ -1008,6 +986,8 @@ defining a struct, useful when defining constant data.
 //MapExpression		:=	'map' '{' MapEntryList '}'
 //MapEntryList		:=	Identifier ':' Expression [ ',' MapEntryList ]
 //					|	StringLiteral ':' Expression [ ',' MapEntryList ]
+//					|	Identifier '(' IdentifierList ')' LambdaBody [ ',' MapEntryList ]
+//					|	StringLiteral '(' IdentifierList ')' LambdaBody [ ',' MapEntryList ]
 
 var escapes = map {
 	n: '\n',
@@ -1015,6 +995,14 @@ var escapes = map {
 	r: '\r',
 	"\\": '\\'
 };
+
+var handlers = map {
+	add(x, y) -> x + y,
+	sub(x, y) -> x - y,
+	print(val) -> {
+		printf("val = %lld", val);
+	},
+}
 ```
 
 ## MapStackExpression
@@ -1024,7 +1012,6 @@ Same as [MapExpression](#mapexpression) but memory for the map is allocated on t
 
 map_stack {
 	foo: 3,
-	bar: function(a, b) { return a + b; }
 	foobar: "1337",
 }
 ```
@@ -1070,38 +1057,16 @@ var tar = foo[0 .. $ - 2];
 ```
 
 ## AsExpression
+Expression used for reinterpreting a given value as a new variable, native or struct type.
 Note this will not convert any values, it will only change the type
 ```js
 //'as' '<' TypeName '>' Expression
 as<float>0x7fc00000
-```
 
-## CastBuiltinExpression
-Converts a value to either `int` or `float`.
-```js
-//'cast' '<' TypeName '>' Expression
-cast<int>3.14 //returns 3
-cast<int>"3.14" //returns 3
-cast<float>"3.14" //returns 3.14
-```
+//'as' '<' NativeType '>' Expression
+as<i32>1337
 
-## CastToStringExpression
-Converts an expression to a string (0-terminated byte sequence). Useful for printing a value.
-The result is a read-only string with a lifetime bound to the lifetime of the current function.
-```js
-//'cast' '<' 'string' '>' Expression
-cast<string>3.14 //returns "3.14"
-cast<string>"foo" //returns "foo" (a copy on the stack)
-cast<string>(new SomeStruct()) //returns "struct:0xc00000de" where 0xc00000de is the address of the struct
-```
-
-## CastExpression
-Creates a struct of a specific type using the provided expression as the memory region.
-This allows interop to C structs. This will **not** call the struct constructor
-```js
-//'cast' '<' Identifier '>' Expression
-
-//see `man readdir` or http://man7.org/linux/man-pages/man3/readdir.3.html
+//'as' '<' Expression '>' Expression
 struct dirent
 {
 	ino : u64;
@@ -1110,9 +1075,24 @@ struct dirent
 	type : uchar;
 	name{256};
 };
-//... (you probably want to do a diropen first)
 var entry = cast<dirent>readdir(dp);
-//... (you probably want to use 'entry' here)
+```
+
+## CastExpression
+Converts a value to either `int` or `float`.
+```js
+//'cast' '<' 'int' '>' Expression
+cast<int>3.14 //returns 3
+cast<int>"3.14" //returns 3
+
+//'cast' '<' 'float' '>' Expression
+cast<float>"3.14" //returns 3.14
+
+//   cast<string> converts an expression to a string (0-terminated byte sequence). Useful for printing a value.
+//   The result is a read-only string with a lifetime bound to the lifetime of the current function.
+//'cast' '<' 'string' '>' Expression
+cast<string>3.14 //returns "3.14"
+cast<string>"foo" //returns "foo" (a copy on the stack)
 ```
 
 ## IdentifierExpression

@@ -64,7 +64,6 @@ static int parseOptions(int argc, char **argv)
 						"\t--dump-asm           Dump generated assembly code\n"
 						"\t--dump-jit           Dump JIT intermediate representation (same as --dump-asm --no-aot)\n"
 						"\t--dump-predictions   Dump value/type predictions\n"
-						"\t--asmdump            Output disassembly of generated instructions\n"
 						"\t--unsafe             Disable all assertions (including type checks)\n"
 					"Source code can be found at https://github.com/M4GNV5/PointerScript\n", UINT32_MAX);
 				exit(EXIT_SUCCESS);

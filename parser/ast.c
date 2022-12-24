@@ -2158,7 +2158,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 						overload->op = ptrs_ast_vtable_member.get;
 					}
 				}
-				else if(curr == '(')
+				else if(!isAddressOf && curr == '(')
 				{
 					func->args = parseArgumentDefinitionList(code, &func->vararg, &func->retType);
 					parseOptionalTyping(code, &func->retType);
