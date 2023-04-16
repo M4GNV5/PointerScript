@@ -6,8 +6,6 @@ even though you have direct low level access your code is more safe thanks to bo
 checks. Additionally finding errors is less painful as you get a full backtrace when a
 runtime error occurs or you receive e.g. a segmentation fault.
 
-### You can try the language online on the [playground](https://pointerscript.org/play/)
-
 ## Language
 
 ### Documentation
@@ -22,32 +20,74 @@ in [this repository](https://github.com/M4GNV5/PtrsStuff)
 You can run tests for the interpreter by executing the `runTests.sh` script in the repository.
 
 ### Introduction
-The following is quite a bit of unknown code, we'll go through it (and some other things) below.
-Remember you can run and modify this code in your browser on the [playground](https://pointerscript.org/play/)
+The following is a small code sample, annotated with comments to explain what is happening.
 ```javascript
-//import the C functions puts and qsort
 //using the import statement you can import any function from the C standard library
-//using import foo, bar from "file.so" you can import functions from any C library
-//using import foo, bar from "otherScript.ptrs" allows you to put your code into multiple files
 import puts, qsort;
 
-//this defines an array of 4 variables, here they are all initialized with int's,
-//but you can actually put anything in there (floats, strings, functions, etc.).
-//defining arrays using curly brackets like var foo{128}; creates byte arrays instead
-var nums[4] = [1337, 666, 3112, 42];
+//this defines an array of 4 signed 32-bit integers.
+//Using var nums: var[4]; we could create an array of dynamically typed variables instead.
+var nums: i32[4] = [1337, 666, 3112, 42];
 
-//as we can call any C function here we call qsort to sort the array we just defined.
+//here we cann the standard C function qsort to sort the array
 //the last argument to qsort is a function pointer, here we use a lambda expression
-qsort(nums, sizeof nums, sizeof var, (a, b) -> *as<pointer>a - *as<pointer>b);
+qsort(nums, sizeof nums, sizeof i32, (a: i32*, b: i32*) -> *a - *b);
 
-//foreach allows us to easily iterate over arrays. Of course you could also use
-//for(var i = 0; i < sizeof nums; i++) { /*...*/ } instead
+//using the foreach loop on arrays is similar to a for loop from 0 to sizeof nums
 foreach(i, val in nums)
 {
-	//string literals can be turned into string format expressions by putting $variableName
-	//inside. Alternatively you could just use printf("nums[%d] = %d", i, val);
+	// the language as built-in string formatting
 	puts("nums[$i] = $val");
 }
+```
+
+## JIT Compilation
+There are three main steps involved when running PointerScript code:
+- parsing the source code (handeled by the built-in recusive descent parser)
+- predicting types of expressions
+- converting the code to GNU [libjit](https://www.gnu.org/software/libjit/) IR
+- converting the IR to machine code (handled by [my fork of libjit](https://github.com/M4GNV5/libjit/tree/ptrs-graphalloc))
+
+The following shows the process of these steps inspecting the lambda function from the above
+code example.
+
+### Predicting types
+Using the `--dump-predictions` flag to view predictions made by PointerScript:
+```
+(a: i32*, b: i32*) -> *a - *b
+                      ││ │ │└─> meta: i32[1] ast: identifier
+                      ││ │ └──> meta: int ast: prefix_dereference
+                      ││ └────> type: int ast: op_sub
+                      │└──────> meta: i32[1] ast: identifier
+                      └───────> meta: int ast: prefix_dereference
+```
+
+### libjit IR
+Using the `--dump-jit` flag to dump libjit IR of the lambda expresssion:
+```
+function (lambda expression)([l1 : parent_frame], l2 : ptr, l3 : long, l4 : ulong, l5 : long, l6 : ulong) : struct<16>
+[...]
+	i18 = load_relative_int(l3, 0)
+	l19 = expand_int(i18)
+	i22 = load_relative_int(l5, 0)
+	l23 = expand_int(i22)
+	l26 = l19 - l23
+	return_struct_from_regs(l26, 1)
+[...]
+end
+```
+
+### x64 machine code
+Using the `--dump-asm` flag to dump assembly of the lambda expresssion:
+```asm
+function (lambda expression)(ptr, long, ulong, long, ulong) : struct<16>
+    7fb7e050a260:	8b 12                	mov    (%rdx),%edx
+    7fb7e050a262:	48 63 c2             	movslq %edx,%rax
+    7fb7e050a265:	45 8b 00             	mov    (%r8),%r8d
+    7fb7e050a268:	4d 63 c0             	movslq %r8d,%r8
+    7fb7e050a26b:	49 2b c0             	sub    %r8,%rax
+    7fb7e050a26e:	ba 01 00 00 00       	mov    $0x1,%edx
+    7fb7e050a273:	c3                   	retq
 ```
 
 ### More example code
@@ -78,14 +118,6 @@ make -j4 #-j specifies the number of tasks to run in parallel
 
 #Done! PointerScript is at ./bin/ptrs
 bin/ptrs --help
-```
-
-There is also syntax highlighting for atom in the [language-atom](https://github.com/M4GNV5/language-pointerscript)
-repository. Use the following commands to install:
-```bash
-git clone https://github.com/M4GNV5/language-pointerscript
-cd language-pointerscript
-apm link
 ```
 
 ## License
