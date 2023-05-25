@@ -16,8 +16,6 @@ static bool interactive = false;
 static bool dumpOps = false;
 
 extern size_t ptrs_arraymax;
-extern bool ptrs_compileAot;
-extern bool ptrs_analyzeFlow;
 extern bool ptrs_dumpFlow;
 extern int ptrs_optimizationLevel;
 

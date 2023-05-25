@@ -15,6 +15,7 @@
 #include "include/util.h"
 #include "include/call.h"
 #include "include/run.h"
+#include "include/flow.h"
 
 ptrs_jit_var_t ptrs_handle_initroot(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope)
 {
@@ -213,13 +214,22 @@ static void importScript(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *sc
 
 		cache = malloc(sizeof(ptrs_cache_t));
 		cache->path = from;
+		cache->ast = NULL;
 		cache->symbols = NULL;
-		cache->ast = ptrs_parse(src, from, &cache->symbols, false);
-
-		cache->ast->vtable->get(cache->ast, func, scope);
-
 		cache->next = ptrs_cache;
 		ptrs_cache = cache;
+
+		ptrs_ast_t *ast = ptrs_parse(src, from, &cache->symbols, false);
+
+		if(ptrs_analyzeFlow)
+			ptrs_flow_analyze(ast);
+
+		ast->vtable->get(ast, func, scope);
+		cache->ast = ast;
+	}
+	else if(cache->ast == NULL)
+	{
+		ptrs_error(node, "Recursive and circular imports are not supported");
 	}
 
 	struct ptrs_importlist *curr = node->arg.import.imports;

@@ -29,7 +29,7 @@ import puts, qsort;
 //Using var nums: var[4]; we could create an array of dynamically typed variables instead.
 var nums: i32[4] = [1337, 666, 3112, 42];
 
-//here we cann the standard C function qsort to sort the array
+//here we use the standard C function qsort to sort the array
 //the last argument to qsort is a function pointer, here we use a lambda expression
 qsort(nums, sizeof nums, sizeof i32, (a: i32*, b: i32*) -> *a - *b);
 
