@@ -257,50 +257,40 @@ static bool retrieveParameterArray(ptrs_function_t *ast, jit_function_t func)
 		ptrs_jit_var_t param;
 		param.addressable = false;
 
-		if(argDef != NULL && argDef->typing.meta.type != (uint8_t)-1)
-		{
-			param.constType = argDef->typing.meta.type;
+		param.constType = argDef->typing.meta.type;
+		if(argDef->typing.meta.type != (uint8_t)-1)
 			usesCustomAbi = true;
 
-			switch(argDef->typing.meta.type)
-			{
-				case PTRS_TYPE_UNDEFINED:
-					param.val = jit_const_long(func, long, 0);
-					param.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
-					break;
-				case PTRS_TYPE_INT:
-					param.val = jit_value_get_param(func, argPos);
-					param.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
-					argPos++;
-					break;
-				case PTRS_TYPE_FLOAT:
-					param.val = jit_value_get_param(func, argPos);
-					param.meta = ptrs_jit_const_meta(func, PTRS_TYPE_FLOAT);
-					argPos++;
-					break;
-				case PTRS_TYPE_STRUCT:
-					if(ptrs_meta_getPointer(argDef->typing.meta) != NULL)
-					{
-						param.val = jit_value_get_param(func, argPos);
-						param.meta = jit_const_long(func, ulong, *(uint64_t *)&argDef->typing.meta);
-						argPos++;
-						break;
-					}
-					// else falthrough
-				case PTRS_TYPE_POINTER:
-				case PTRS_TYPE_FUNCTION:
-					param.val = jit_value_get_param(func, argPos);
-					param.meta = jit_value_get_param(func, argPos + 1);
-					argPos += 2;
-					break;
-			}
-		}
-		else
+		switch(argDef->typing.meta.type)
 		{
-			param.val = jit_value_get_param(func, argPos);
-			param.meta = jit_value_get_param(func, argPos + 1);
-			param.constType = -1;
-			argPos += 2;
+			case PTRS_TYPE_UNDEFINED:
+				param.val = jit_const_long(func, long, 0);
+				param.meta = ptrs_jit_const_meta(func, PTRS_TYPE_UNDEFINED);
+				break;
+			case PTRS_TYPE_INT:
+				param.val = jit_value_get_param(func, argPos);
+				param.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);
+				argPos++;
+				break;
+			case PTRS_TYPE_FLOAT:
+				param.val = jit_value_get_param(func, argPos);
+				param.meta = ptrs_jit_const_meta(func, PTRS_TYPE_FLOAT);
+				argPos++;
+				break;
+			case PTRS_TYPE_STRUCT:
+				if(ptrs_meta_getPointer(argDef->typing.meta) != NULL)
+				{
+					param.val = jit_value_get_param(func, argPos);
+					param.meta = jit_const_long(func, ulong, *(uint64_t *)&argDef->typing.meta);
+					argPos++;
+					break;
+				}
+				// else falthrough
+			default:
+				param.val = jit_value_get_param(func, argPos);
+				param.meta = jit_value_get_param(func, argPos + 1);
+				argPos += 2;
+				break;
 		}
 
 		argDef->arg = param;
@@ -318,75 +308,58 @@ static size_t fillCustomAbiArgumentArray(ptrs_function_t *ast, jit_type_t *typeD
 		typeDef[0] = jit_type_void_ptr;
 
 	ptrs_funcparameter_t *argDef = ast->args;
-	for(int i = 0; argDef != NULL; i++)
+	for(int i = 0; argDef != NULL; i++, argDef = argDef->next)
 	{
 		if(i >= narg)
 			ptrs_error(NULL, "Internal error: parameter counts dont match");
 
-		if(argDef != NULL && argDef->typing.meta.type != (uint8_t)-1)
+		uint8_t argType = argDef != NULL ? argDef->typing.meta.type : (uint8_t)-1;
+		jit_type_t type0 = NULL;
+		jit_type_t type1 = NULL;
+
+		switch(argType)
 		{
-			switch(argDef->typing.meta.type)
-			{
-				case PTRS_TYPE_UNDEFINED:
-					// nothing
+			case PTRS_TYPE_UNDEFINED:
+				// nothing
+				break;
+			case PTRS_TYPE_INT:
+				type0 = jit_type_long;
+				break;
+			case PTRS_TYPE_FLOAT:
+				type0 = jit_type_float64;
+				break;
+			case PTRS_TYPE_STRUCT:
+				if(argDef != NULL && ptrs_meta_getPointer(argDef->typing.meta) != NULL)
+				{
+					type0 = jit_type_long;
 					break;
-				case PTRS_TYPE_INT:
-					if(jitArgs != NULL && args != NULL)
-						jitArgs[argCount] = args[i].val;
-					if(typeDef != NULL)
-						typeDef[argCount] = jit_type_long;
-					argCount++;
-					break;
-				case PTRS_TYPE_FLOAT:
-					if(jitArgs != NULL && args != NULL)
-						jitArgs[argCount] = args[i].val;
-					if(typeDef != NULL)
-						typeDef[argCount] = jit_type_float64;
-					argCount++;
-					break;
-				case PTRS_TYPE_STRUCT:
-					if(ptrs_meta_getPointer(argDef->typing.meta) != NULL)
-					{
-						if(jitArgs != NULL && args != NULL)
-							jitArgs[argCount] = args[i].val;
-						if(typeDef != NULL)
-							typeDef[argCount] = jit_type_long; // TODO set void_ptr?
-						argCount++;
-						break;
-					}
-					// else falthrough
-				case PTRS_TYPE_POINTER:
-				case PTRS_TYPE_FUNCTION:
-					if(jitArgs != NULL && args != NULL)
-					{
-						jitArgs[argCount] = args[i].val;
-						jitArgs[argCount + 1] = args[i].meta;
-					}
-					if(typeDef != NULL)
-					{
-						typeDef[argCount] = jit_type_long; // TODO set void_ptr?
-						typeDef[argCount + 1] = jit_type_ulong;
-					}
-					argCount += 2;
-					break;
-			}
-		}
-		else
-		{
-			if(jitArgs != NULL && args != NULL)
-			{
-				jitArgs[argCount] = args[i].val;
-				jitArgs[argCount + 1] = args[i].meta;
-			}
-			if(typeDef != NULL)
-			{
-				typeDef[argCount] = jit_type_long;
-				typeDef[argCount + 1] = jit_type_ulong;
-			}
-			argCount += 2;
+				}
+				// else falthrough
+			default: // -1, POINTER and FUNCTION
+				type0 = jit_type_long;
+				type1 = jit_type_ulong;
+				break;
 		}
 
-		argDef = argDef->next;
+		if(jitArgs != NULL && args != NULL)
+		{
+			if(type0 != NULL)
+				jitArgs[argCount] = args[i].val;
+			if(type1 != NULL)
+				jitArgs[argCount + 1] = args[i].meta;
+		}
+		if(typeDef != NULL)
+		{
+			if(type0 != NULL)
+				typeDef[argCount] = type0;
+			if(type1 != NULL)
+				typeDef[argCount + 1] = type1;
+		}
+
+		if(type0 != NULL)
+			argCount++;
+		if(type1 != NULL)
+			argCount++;
 	}
 
 	return argCount;
