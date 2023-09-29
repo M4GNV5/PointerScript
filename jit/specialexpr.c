@@ -206,11 +206,11 @@ ptrs_jit_var_t ptrs_handle_prefix_dereference(ptrs_ast_t *node, jit_function_t f
 		if(meta.array.size <= 0)
 			ptrs_error(node, "Attempting to dereference an array of size 0");
 
-		if(type->varType == (uint8_t)-1)
+		if(type->varType == PTRS_TYPE_DYNAMIC)
 		{
 			ret.val = jit_insn_load_relative(func, val.val, 0, jit_type_long);
 			ret.meta = jit_insn_load_relative(func, val.val, sizeof(ptrs_val_t), jit_type_ulong);
-			ret.constType = -1;
+			ret.constType = PTRS_TYPE_DYNAMIC;
 		}
 		else if(type->varType == PTRS_TYPE_FLOAT)
 		{
@@ -270,7 +270,7 @@ void ptrs_assign_prefix_dereference(ptrs_ast_t *node, jit_function_t func, ptrs_
 			ptrs_error(node, "Attempting to dereference an array of size 0");
 
 		jit_value_t value;
-		if(type->varType == (uint8_t)-1)
+		if(type->varType == PTRS_TYPE_DYNAMIC)
 		{
 			jit_insn_store_relative(func, base.val, 0, val.val);
 			jit_insn_store_relative(func, base.val, sizeof(ptrs_val_t), val.meta);
@@ -361,13 +361,13 @@ ptrs_jit_var_t ptrs_handle_index(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 		ptrs_jit_var_t result;
 		result.addressable = false;
 
-		if(arrayType->varType == (uint8_t)-1)
+		if(arrayType->varType == PTRS_TYPE_DYNAMIC)
 		{
 			jit_value_t varIndex = jit_insn_shl(func, index.val, jit_const_long(func, ulong, 1));
 			result.val = jit_insn_load_elem(func, base.val, varIndex, jit_type_long);
 			varIndex = jit_insn_add(func, varIndex, jit_const_long(func, ulong, 1));
 			result.meta = jit_insn_load_elem(func, base.val, varIndex, jit_type_ulong);
-			result.constType = -1;
+			result.constType = PTRS_TYPE_DYNAMIC;
 		}
 		else if(arrayType->varType == PTRS_TYPE_FLOAT)
 		{
@@ -390,7 +390,7 @@ ptrs_jit_var_t ptrs_handle_index(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	{
 		return ptrs_jit_struct_get(node, func, scope, base, index.val, index.meta);
 	}
-	else if(base.constType == -1 || base.constType == PTRS_TYPE_POINTER)
+	else if(base.constType == PTRS_TYPE_DYNAMIC || base.constType == PTRS_TYPE_POINTER)
 	{
 		jit_value_t ret;
 		ptrs_jit_reusableCall(func, ptrs_intrinsic_index, ret, ptrs_jit_getVarType(),
@@ -420,7 +420,7 @@ void ptrs_intrinsic_assign_index(ptrs_ast_t *node, ptrs_val_t base, ptrs_meta_t 
 			ptrs_error(node, "Cannot get index %d of array of length %d", index.intval, baseMeta.array.size);
 
 		ptrs_nativetype_info_t *type = ptrs_getNativeTypeForArray(node, baseMeta);
-		if(type->varType != (uint8_t)-1 && type->varType != valMeta.type)
+		if(type->varType != PTRS_TYPE_DYNAMIC && type->varType != valMeta.type)
 			ptrs_error(node, "Cannot assign an array element to value of type %t", valMeta.type);
 
 		ptrs_var_t value = {
@@ -463,7 +463,7 @@ void ptrs_assign_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scop
 			2, "Attempting to access index %d of an array of size %d", index.val, baseArraySize);
 		ptrs_jit_appendAssert(func, sizeCheck, jit_insn_ge(func, index.val, jit_const_long(func, ulong, 0)));
 
-		if(arrayType->varType == (uint8_t)-1)
+		if(arrayType->varType == PTRS_TYPE_DYNAMIC)
 		{
 			jit_value_t indexPos = jit_insn_shl(func, index.val, jit_const_long(func, ulong, 1));
 			jit_insn_store_elem(func, base.val, indexPos, val.val);
@@ -487,7 +487,7 @@ void ptrs_assign_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scop
 	{
 		ptrs_jit_struct_set(node, func, scope, base, index.val, index.meta, val);
 	}
-	else if(base.constType == -1 || base.constType == PTRS_TYPE_POINTER)
+	else if(base.constType == PTRS_TYPE_DYNAMIC || base.constType == PTRS_TYPE_POINTER)
 	{
 		jit_value_t ret;
 		ptrs_jit_reusableCallVoid(func, ptrs_intrinsic_assign_index,
@@ -577,7 +577,7 @@ ptrs_jit_var_t ptrs_addressof_index(ptrs_ast_t *node, jit_function_t func, ptrs_
 	{
 		return ptrs_jit_struct_addressof(node, func, scope, base, index.val, index.meta);
 	}
-	else if(base.constType == -1)
+	else if(base.constType == PTRS_TYPE_DYNAMIC)
 	{
 		jit_value_t ret;
 		ptrs_jit_reusableCall(func, ptrs_intrinsic_addressof_index, ret, ptrs_jit_getVarType(),
@@ -621,7 +621,7 @@ ptrs_jit_var_t ptrs_call_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 		if(arrayType->varType != PTRS_TYPE_STRUCT
 			&& arrayType->varType != PTRS_TYPE_POINTER
 			&& arrayType->varType != PTRS_TYPE_FUNCTION
-			&& arrayType->varType != (uint8_t)-1)
+			&& arrayType->varType != PTRS_TYPE_DYNAMIC)
 			ptrs_error(node, "Cannot call value of type %t", arrayType->varType);
 
 		struct ptrs_assertion *sizeCheck = ptrs_jit_assert(node, func, scope,
@@ -629,13 +629,13 @@ ptrs_jit_var_t ptrs_call_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 			2, "Attempting to access index %d of an array of size %d", index.val, baseArraySize);
 		ptrs_jit_appendAssert(func, sizeCheck, jit_insn_ge(func, index.val, jit_const_long(func, ulong, 0)));
 
-		if(arrayType->varType == (uint8_t)-1)
+		if(arrayType->varType == PTRS_TYPE_DYNAMIC)
 		{
 			jit_value_t varIndex = jit_insn_shl(func, index.val, jit_const_long(func, ulong, 1));
 			callee.val = jit_insn_load_elem(func, base.val, varIndex, jit_type_long);
 			varIndex = jit_insn_add(func, varIndex, jit_const_long(func, ulong, 1));
 			callee.meta = jit_insn_load_elem(func, base.val, varIndex, jit_type_ulong);
-			callee.constType = -1;
+			callee.constType = PTRS_TYPE_DYNAMIC;
 			callee.addressable = false;
 		}
 		else
@@ -651,7 +651,7 @@ ptrs_jit_var_t ptrs_call_index(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 	{
 		return ptrs_jit_struct_call(node, func, scope, base, index.val, index.meta, typing, arguments);
 	}
-	else if(base.constType == -1 || base.constType == PTRS_TYPE_POINTER)
+	else if(base.constType == PTRS_TYPE_DYNAMIC || base.constType == PTRS_TYPE_POINTER)
 	{
 		jit_value_t ret;
 		ptrs_jit_reusableCall(func, ptrs_intrinsic_index, ret, ptrs_jit_getVarType(),
@@ -909,7 +909,7 @@ ptrs_jit_var_t ptrs_handle_identifier(ptrs_ast_t *node, jit_function_t func, ptr
 	if(expr->typePredicted)
 		ret.constType = expr->metaPrediction.type;
 	else
-		ret.constType = -1;
+		ret.constType = PTRS_TYPE_DYNAMIC;
 
 	if(expr->valuePredicted && expr->metaPredicted && expr->typePredicted)
 		return ret;
@@ -967,9 +967,9 @@ void ptrs_assign_identifier(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t 
 		jit_insn_store_relative(func, target.val, 0, val.val);
 	}
 
-	if(target.constType != -1)
+	if(target.constType != PTRS_TYPE_DYNAMIC)
 	{
-		if(val.constType == -1)
+		if(val.constType == PTRS_TYPE_DYNAMIC)
 		{
 			jit_value_t type = ptrs_jit_getType(func, val.meta);
 			ptrs_jit_assert(node, func, scope,
@@ -1064,7 +1064,7 @@ ptrs_jit_var_t ptrs_handle_prefix_typeof(ptrs_ast_t *node, jit_function_t func, 
 	node = node->arg.astval;
 	ptrs_jit_var_t val = node->vtable->get(node, func, scope);
 
-	if(val.constType == -1)
+	if(val.constType == PTRS_TYPE_DYNAMIC)
 	{
 		val.val = ptrs_jit_getType(func, val.meta);
 		val.meta = ptrs_jit_const_meta(func, PTRS_TYPE_INT);

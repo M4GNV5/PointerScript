@@ -333,7 +333,7 @@ ptrs_jit_var_t ptrs_jit_struct_get(ptrs_ast_t *node, jit_function_t func, ptrs_s
 				result.val = jit_insn_load_relative(func, data, member->offset, jit_type_long);
 				result.meta = jit_insn_load_relative(func, data,
 				member->offset + sizeof(ptrs_val_t), jit_type_long);
-				result.constType = -1;
+				result.constType = PTRS_TYPE_DYNAMIC;
 				return result;
 
 			case PTRS_STRUCTMEMBER_GETTER:
@@ -433,7 +433,7 @@ void ptrs_jit_struct_set(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *sc
 			args[0].constType = PTRS_TYPE_POINTER;
 			args[0].val = keyVal;
 			args[0].meta = ptrs_jit_const_arrayMeta(func, constKeyLen, PTRS_NATIVETYPE_INDEX_CHAR);
-			args[1].constType = -1;
+			args[1].constType = PTRS_TYPE_DYNAMIC;
 			args[1].val = ptrs_jit_reinterpretCast(func, value.val, jit_type_long);
 			args[1].meta = value.meta;
 

@@ -77,7 +77,9 @@ typedef enum
 	PTRS_TYPE_STRUCT,
 	PTRS_TYPE_FUNCTION,
 
-	PTRS_NUM_TYPES
+	PTRS_TYPE_DYNAMIC,
+
+	PTRS_NUM_TYPES,
 } ptrs_vartype_t;
 
 struct ptrs_error;

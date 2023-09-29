@@ -136,7 +136,7 @@ static jit_type_t getComparasionInstrinsicSignature()
 		ptrs_jit_var_t left = expr->left->vtable->get(expr->left, func, scope); \
 		ptrs_jit_var_t right = expr->right->vtable->get(expr->right, func, scope); \
 		\
-		if(left.constType != -1 && right.constType != -1) \
+		if(left.constType != PTRS_TYPE_DYNAMIC && right.constType != PTRS_TYPE_DYNAMIC) \
 		{ \
 			if(jit_value_is_constant(left.val) && jit_value_is_constant(right.val)) \
 			{ \
@@ -241,7 +241,7 @@ static jit_type_t getComparasionInstrinsicSignature()
 		ptrs_jit_var_t left = expr->left->vtable->get(expr->left, func, scope); \
 		ptrs_jit_var_t right = expr->right->vtable->get(expr->right, func, scope); \
 		\
-		if(left.constType != -1 && right.constType != -1) \
+		if(left.constType != PTRS_TYPE_DYNAMIC && right.constType != PTRS_TYPE_DYNAMIC) \
 		{ \
 			if(left.constType != PTRS_TYPE_INT || right.constType != PTRS_TYPE_INT) \
 			{ \
@@ -267,7 +267,7 @@ static jit_type_t getComparasionInstrinsicSignature()
 	}
 
 #define handle_binary_typecompare(comparer, constOp) \
-	if(left.constType != -1 && right.constType != -1) \
+	if(left.constType != PTRS_TYPE_DYNAMIC && right.constType != PTRS_TYPE_DYNAMIC) \
 	{ \
 		if(!(left.constType constOp right.constType)) \
 			left.val = jit_const_int(func, long, 0); \
@@ -303,7 +303,7 @@ static jit_type_t getComparasionInstrinsicSignature()
 		ptrs_jit_var_t left = expr->left->vtable->get(expr->left, func, scope); \
 		ptrs_jit_var_t right = expr->right->vtable->get(expr->right, func, scope); \
 		\
-		if(left.constType == -1 || right.constType == -1) \
+		if(left.constType == PTRS_TYPE_DYNAMIC || right.constType == PTRS_TYPE_DYNAMIC) \
 		{ \
 			jit_value_t args[5] = { \
 				jit_const_int(func, void_ptr, (uintptr_t)node), \

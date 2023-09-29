@@ -23,7 +23,7 @@ void ptrs_jit_branch_if(jit_function_t func, jit_label_t *target, ptrs_jit_var_t
 	bool placeIsUndefined = true;
 	bool placeIsZero = true;
 
-	if(val.constType != -1)
+	if(val.constType != PTRS_TYPE_DYNAMIC)
 	{
 		placeIsUndefined = false;
 
@@ -62,7 +62,7 @@ void ptrs_jit_branch_if_not(jit_function_t func, jit_label_t *target, ptrs_jit_v
 	bool placeIsUndefined = true;
 	bool placeIsZero = true;
 
-	if(val.constType != -1)
+	if(val.constType != PTRS_TYPE_DYNAMIC)
 	{
 		placeIsUndefined = false;
 
@@ -98,7 +98,7 @@ void ptrs_jit_branch_if_not(jit_function_t func, jit_label_t *target, ptrs_jit_v
 
 jit_value_t ptrs_jit_vartob(jit_function_t func, ptrs_jit_var_t val)
 {
-	if(val.constType != -1 && jit_value_is_constant(val.val))
+	if(val.constType != PTRS_TYPE_DYNAMIC && jit_value_is_constant(val.val))
 	{
 		if(val.constType == PTRS_TYPE_UNDEFINED
 			|| ptrs_jit_value_getValConstant(val.val).intval == 0)
@@ -106,7 +106,7 @@ jit_value_t ptrs_jit_vartob(jit_function_t func, ptrs_jit_var_t val)
 		else
 			return jit_const_long(func, long, 1);
 	}
-	else if(val.constType != -1)
+	else if(val.constType != PTRS_TYPE_DYNAMIC)
 	{
 		if(val.constType == PTRS_TYPE_UNDEFINED)
 			return jit_const_long(func, long, 0);
@@ -141,7 +141,7 @@ jit_value_t ptrs_jit_vartoi(jit_function_t func, ptrs_jit_var_t val)
 
 	switch(val.constType)
 	{
-		case -1:
+		case PTRS_TYPE_DYNAMIC:
 			break; //use intrinsic
 		case PTRS_TYPE_STRUCT:
 			if(jit_value_is_constant(val.meta))
@@ -181,7 +181,7 @@ jit_value_t ptrs_jit_vartof(jit_function_t func, ptrs_jit_var_t val)
 
 	switch(val.constType)
 	{
-		case -1:
+		case PTRS_TYPE_DYNAMIC:
 			break; //use instrinsic
 		case PTRS_TYPE_STRUCT:
 			if(jit_value_is_constant(val.meta))
@@ -261,7 +261,7 @@ ptrs_jit_var_t ptrs_jit_vartoa(jit_function_t func, ptrs_jit_var_t val)
 	ptrs_jit_var_t ret;
 	ret.constType = PTRS_TYPE_POINTER;
 
-	if(val.constType == -1)
+	if(val.constType == PTRS_TYPE_DYNAMIC)
 	{
 		buff = jit_insn_array(func, 32);
 
@@ -555,6 +555,7 @@ const char * const ptrs_typeStrings[] = {
 	[PTRS_TYPE_POINTER] = "pointer",
 	[PTRS_TYPE_STRUCT] = "struct",
 	[PTRS_TYPE_FUNCTION] = "function",
+	[PTRS_TYPE_DYNAMIC] = "dynamic",
 };
 const char *ptrs_typetoa(ptrs_vartype_t type)
 {

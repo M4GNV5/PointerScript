@@ -608,7 +608,7 @@ static void analyzeFunction(ptrs_flow_t *outerFlow, ptrs_function_t *ast, ptrs_s
 	for(; curr != NULL; curr = curr->next)
 	{
 		memcpy(&prediction.meta, &curr->typing.meta, sizeof(ptrs_meta_t));
-		prediction.knownType = prediction.meta.type != (uint8_t)-1;
+		prediction.knownType = prediction.meta.type != PTRS_TYPE_DYNAMIC;
 
 		if(prediction.meta.type == PTRS_TYPE_POINTER
 			|| (prediction.meta.type == PTRS_TYPE_STRUCT && ptrs_meta_getPointer(prediction.meta) != NULL))
@@ -1027,7 +1027,7 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 
 			if(expr->typing.nativetype != NULL)
 				ret->meta.type = expr->typing.nativetype->varType;
-			else if(expr->typing.meta.type != (uint8_t)-1)
+			else if(expr->typing.meta.type != PTRS_TYPE_DYNAMIC)
 				memcpy(&ret->meta, &expr->typing.meta, sizeof(ptrs_meta_t));
 			else
 				ret->meta.type = PTRS_TYPE_INT;
@@ -1038,7 +1038,7 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 			clearPrediction(ret);
 
 			ptrs_function_t *func = ret->value.ptrval;
-			if(func->retType.meta.type != (uint8_t)-1)
+			if(func->retType.meta.type != PTRS_TYPE_DYNAMIC)
 			{
 				ret->knownType = true;
 				ret->knownMeta = true;
@@ -2054,7 +2054,7 @@ static void analyzeStatement(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predictio
 		if(dummy.knownType)
 			stmt->value.constType = dummy.meta.type;
 		else
-			stmt->value.constType = -1;
+			stmt->value.constType = PTRS_TYPE_DYNAMIC;
 	}
 	else if(node->vtable == &ptrs_ast_vtable_forin_step)
 	{

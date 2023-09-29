@@ -137,7 +137,7 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 
 				jit_type_t _retType = ptrs_jit_jitTypeFromTyping(retType);
 				ptrs_meta_t retMeta = {0};
-				if(retType == NULL || retType->meta.type == (uint8_t)-1)
+				if(retType == NULL || retType->meta.type == PTRS_TYPE_DYNAMIC)
 					retMeta.type = PTRS_TYPE_INT;
 				else
 					memcpy(&retMeta, &retType->meta, sizeof(ptrs_meta_t));
@@ -189,7 +189,7 @@ static void checkFunctionParameter(ptrs_ast_t *node, jit_function_t func, ptrs_s
 			param = curr->arg;
 
 		jit_value_t paramType = NULL;
-		if(param.constType != -1)
+		if(param.constType != PTRS_TYPE_DYNAMIC)
 			paramType = jit_const_long(func, ulong, param.constType);
 
 		if(curr->argv != NULL)
@@ -197,7 +197,7 @@ static void checkFunctionParameter(ptrs_ast_t *node, jit_function_t func, ptrs_s
 			if(paramType == NULL)
 				paramType = ptrs_jit_getType(func, param.meta);
 
-			if(param.constType == -1)
+			if(param.constType == PTRS_TYPE_DYNAMIC)
 			{
 				jit_label_t given = jit_label_undefined;
 				jit_value_t isGiven = jit_insn_ne(func, paramType, jit_const_int(func, ubyte, PTRS_TYPE_UNDEFINED));
@@ -217,7 +217,7 @@ static void checkFunctionParameter(ptrs_ast_t *node, jit_function_t func, ptrs_s
 			}
 		}
 
-		if(ptrs_enableSafety && curr->typing.meta.type != (uint8_t)-1)
+		if(ptrs_enableSafety && curr->typing.meta.type != PTRS_TYPE_DYNAMIC)
 		{
 			jit_value_t fakeCondition = jit_const_int(func, ubyte, 1);
 			jit_value_t funcName = jit_const_int(func, void_ptr, (uintptr_t)ast->name);
@@ -258,7 +258,7 @@ static bool retrieveParameterArray(ptrs_function_t *ast, jit_function_t func)
 		param.addressable = false;
 
 		param.constType = argDef->typing.meta.type;
-		if(argDef->typing.meta.type != (uint8_t)-1)
+		if(argDef->typing.meta.type != PTRS_TYPE_DYNAMIC)
 			usesCustomAbi = true;
 
 		switch(argDef->typing.meta.type)
@@ -313,7 +313,7 @@ static size_t fillCustomAbiArgumentArray(ptrs_function_t *ast, jit_type_t *typeD
 		if(i >= narg)
 			ptrs_error(NULL, "Internal error: parameter counts dont match");
 
-		uint8_t argType = argDef != NULL ? argDef->typing.meta.type : (uint8_t)-1;
+		uint8_t argType = argDef != NULL ? argDef->typing.meta.type : PTRS_TYPE_DYNAMIC;
 		jit_type_t type0 = NULL;
 		jit_type_t type1 = NULL;
 
@@ -465,7 +465,7 @@ void ptrs_jit_returnPtrFromFunction(jit_function_t func, ptrs_scope_t *scope, ji
 	ptrs_jit_var_t ret;
 	ret.val = jit_insn_load_relative(func, addr, 0, jit_type_long);
 	ret.meta = jit_insn_load_relative(func, addr, sizeof(ptrs_val_t), jit_type_ulong);
-	ret.constType = -1;
+	ret.constType = PTRS_TYPE_DYNAMIC;
 	ret.addressable = false;
 	ptrs_jit_returnFromFunction(func, scope, ret);
 }
@@ -632,7 +632,7 @@ void *ptrs_jit_createCallback(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 		jit_value_t meta;
 		if(curr->typing.nativetype != NULL)
 			meta = ptrs_jit_const_meta(callback, curr->typing.nativetype->varType);
-		else if(curr->typing.meta.type != (uint8_t)-1)
+		else if(curr->typing.meta.type != PTRS_TYPE_DYNAMIC)
 			meta = jit_const_long(callback, ulong, *(uint64_t *)&curr->typing.meta);
 		else
 			meta = ptrs_jit_const_meta(callback, PTRS_TYPE_INT);
@@ -709,7 +709,7 @@ void *ptrs_jit_function_to_closure(ptrs_ast_t *node, jit_function_t func)
 	{
 		args[i].val = jit_value_get_param(checker, i * 2 + 1);
 		args[i].meta = jit_value_get_param(checker, i * 2 + 2);
-		args[i].constType = -1;
+		args[i].constType = PTRS_TYPE_DYNAMIC;
 		args[i].addressable = false;
 	}
 
@@ -780,7 +780,7 @@ void ptrs_jit_buildFunction(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t 
 
 	ast->body->vtable->get(ast->body, func, &funcScope);
 
-	if(ast->retType.meta.type != (uint8_t)-1
+	if(ast->retType.meta.type != PTRS_TYPE_DYNAMIC
 		&& ast->retType.meta.type != PTRS_TYPE_UNDEFINED)
 	{
 		jit_value_t funcName = jit_const_int(func, void_ptr, (uintptr_t)ast->name);

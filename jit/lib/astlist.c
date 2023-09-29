@@ -23,7 +23,7 @@ int ptrs_astlist_length(struct ptrs_astlist *curr)
 
 void ptrs_fillArray(void *array, size_t len, ptrs_val_t val, ptrs_meta_t meta, ptrs_nativetype_info_t *type)
 {
-	if(type->varType == (uint8_t)-1)
+	if(type->varType == PTRS_TYPE_DYNAMIC)
 	{
 		ptrs_var_t *vararray = array;
 		for(int i = 0; i < len; i++)
@@ -103,7 +103,7 @@ void ptrs_astlist_handle(ptrs_ast_t *node, struct ptrs_astlist *list, jit_functi
 				ptrs_jit_typeCheck(list->entry, func, scope, result, PTRS_TYPE_POINTER, "Initializer of pointer array needs to be of type pointer not %t");
 				convertedResult = jit_insn_convert(func, result.val, type->jitType, 0);
 			}
-			else if(type->varType == (uint8_t)-1)
+			else if(type->varType == PTRS_TYPE_DYNAMIC)
 			{
 				// no conversion
 			}
@@ -112,7 +112,7 @@ void ptrs_astlist_handle(ptrs_ast_t *node, struct ptrs_astlist *list, jit_functi
 				ptrs_error(list->entry, "Unknown list type, initialization is not implemented.");
 			}
 
-			if(type->varType == (uint8_t)-1)
+			if(type->varType == PTRS_TYPE_DYNAMIC)
 			{
 				jit_insn_store_relative(func, val, i * sizeof(ptrs_var_t), result.val);
 				jit_insn_store_relative(func, val, i * sizeof(ptrs_var_t) + sizeof(ptrs_val_t), result.meta);
@@ -144,7 +144,7 @@ void ptrs_astlist_handle(ptrs_ast_t *node, struct ptrs_astlist *list, jit_functi
 		size_t len = jit_value_get_nint_constant(size);
 		for(; i < len; i++)
 		{
-			if(type->varType == (uint8_t)-1)
+			if(type->varType == PTRS_TYPE_DYNAMIC)
 			{
 				jit_insn_store_relative(func, val, i * sizeof(ptrs_var_t), result.val);
 				jit_insn_store_relative(func, val, i * sizeof(ptrs_var_t) + sizeof(ptrs_val_t), result.meta);

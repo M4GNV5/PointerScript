@@ -12,7 +12,7 @@
 		ptrs_ast_t *expr = node->arg.astval; \
 		ptrs_jit_var_t val = expr->vtable->get(expr, func, scope); \
 		\
-		if(val.constType != -1) \
+		if(val.constType != PTRS_TYPE_DYNAMIC) \
 		{ \
 			if(val.constType == PTRS_TYPE_FLOAT) \
 				val.val = jit_insn_##operator(func, ptrs_jit_reinterpretCast(func, val.val, jit_type_float64)); \
@@ -61,7 +61,7 @@ handle_prefix(minus, neg, false)
 		val.val = jit_insn_dup(func, val.val); \
 		val.meta = jit_insn_dup(func, val.meta); \
 		\
-		if(val.constType != -1) \
+		if(val.constType != PTRS_TYPE_DYNAMIC) \
 		{ \
 			if(val.constType == PTRS_TYPE_FLOAT) \
 				writeback.val = jit_insn_##operator(func, ptrs_jit_reinterpretCast(func, val.val, jit_type_float64)); \

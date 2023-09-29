@@ -47,7 +47,7 @@ void ptrs_initScope(ptrs_scope_t *scope, ptrs_scope_t *parent)
 	}
 	else
 	{
-		scope->returnType.type = -1;
+		scope->returnType.type = PTRS_TYPE_UNDEFINED;
 	}
 }
 
@@ -121,7 +121,7 @@ ptrs_jit_var_t ptrs_jit_valToVar(jit_function_t func, jit_value_t val)
 	ptrs_jit_var_t ret = {
 		.val = fields[0],
 		.meta = fields[1],
-		.constType = -1,
+		.constType = PTRS_TYPE_DYNAMIC,
 		.addressable = 0,
 	};
 
@@ -397,7 +397,7 @@ void ptrs_jit_typeSwitch_setup(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 	va_list ap;
 	va_start(ap, msg);
 
-	if(val->constType == -1)
+	if(val->constType == PTRS_TYPE_DYNAMIC)
 	{
 		for(int i = *count - 1; i > 0; i--)
 		{

@@ -89,7 +89,7 @@ jit_value_t ptrs_jit_import(ptrs_ast_t *node, jit_function_t func, jit_value_t v
 #define ptrs_jit_typeCheck(node, func, scope, val, type, msg) \
 	do \
 	{ \
-		if(val.constType == -1) \
+		if(val.constType == PTRS_TYPE_DYNAMIC) \
 		{ \
 			if(ptrs_enableSafety) \
 			{ \
@@ -118,7 +118,7 @@ void ptrs_jit_typeSwitch_setup(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 		jit_label_t end = jit_label_undefined; \
 		jit_value_t TYPESWITCH_TYPE; \
 		\
-		if(val.constType == -1) \
+		if(val.constType == PTRS_TYPE_DYNAMIC) \
 			TYPESWITCH_TYPE = ptrs_jit_getType(func, val.meta); \
 		\
 		ptrs_jit_typeSwitch_setup(node, func, scope, \
@@ -128,7 +128,7 @@ void ptrs_jit_typeSwitch_setup(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 		\
 		for(int i = 0; i < count; i++) \
 		{ \
-			if(val.constType == -1) \
+			if(val.constType == PTRS_TYPE_DYNAMIC) \
 				jit_insn_label(func, labels + i); \
 			\
 			switch(types[i]) \
@@ -136,7 +136,7 @@ void ptrs_jit_typeSwitch_setup(ptrs_ast_t *node, jit_function_t func, ptrs_scope
 				cases \
 			} \
 			\
-			if(val.constType == -1 && i < count - 1) \
+			if(val.constType == PTRS_TYPE_DYNAMIC && i < count - 1) \
 				jit_insn_branch(func, &end); \
 		} \
 		\

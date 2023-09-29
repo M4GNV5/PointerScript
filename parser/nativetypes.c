@@ -42,7 +42,7 @@ ptrs_nativetype_info_t ptrs_nativeTypes[] = {
 	define_nativetype("intptr",    uintptr_t,          PTRS_TYPE_INT, Int),
 	define_nativetype("uintptr",   intptr_t,           PTRS_TYPE_INT, UInt),
 	define_nativetype("ptrdiff",   ptrdiff_t,          PTRS_TYPE_INT, Int),
-	define_nativetype("var",       ptrs_var_t,         (uint8_t)-1, Var),
+	define_nativetype("var",       ptrs_var_t,         PTRS_TYPE_DYNAMIC, Var),
 };
 
 const int ptrs_nativeTypeCount = sizeof(ptrs_nativeTypes) / sizeof(ptrs_nativetype_info_t);

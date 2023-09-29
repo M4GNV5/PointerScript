@@ -396,8 +396,8 @@ static ptrs_funcparameter_t *parseArgumentDefinitionList(code_t *code,
 		nextPtr = &curr->next;
 
 		curr->name = name;
-		curr->arg.constType = -1;
-		curr->typing.meta.type = -1;
+		curr->arg.constType = PTRS_TYPE_DYNAMIC;
+		curr->typing.meta.type = PTRS_TYPE_DYNAMIC;
 		curr->typing.nativetype = NULL;
 
 		if(name != NULL)
@@ -533,14 +533,14 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		{
 			stmt->vtable = &ptrs_ast_vtable_define;
 			stmt->arg.define.value = parseExpression(code, true);
-			stmt->arg.define.type = (uint8_t)-1;
+			stmt->arg.define.type = PTRS_TYPE_DYNAMIC;
 			addSymbol(code, name, &stmt->arg.define.location);
 		}
 		else
 		{
 			stmt->vtable = &ptrs_ast_vtable_define;
 			stmt->arg.define.value = NULL;
-			stmt->arg.define.type = (uint8_t)-1;
+			stmt->arg.define.type = PTRS_TYPE_DYNAMIC;
 			addSymbol(code, name, &stmt->arg.define.location);
 		}
 
@@ -610,7 +610,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 			{
 				stmt->arg.trycatch.retVal.val = NULL;
 				stmt->arg.trycatch.retVal.meta = NULL;
-				stmt->arg.trycatch.retVal.constType = -1;
+				stmt->arg.trycatch.retVal.constType = PTRS_TYPE_DYNAMIC;
 			}
 
 			stmt->arg.trycatch.finallyBody = parseBody(code, true);
@@ -620,7 +620,7 @@ static ptrs_ast_t *parseStatement(code_t *code)
 		{
 			stmt->arg.trycatch.retVal.val = NULL;
 			stmt->arg.trycatch.retVal.meta = NULL;
-			stmt->arg.trycatch.retVal.constType = -1;
+			stmt->arg.trycatch.retVal.constType = PTRS_TYPE_DYNAMIC;
 			stmt->arg.trycatch.finallyBody = NULL;
 		}
 	}
@@ -1400,7 +1400,7 @@ static ptrs_ast_t *parseUnaryExtension(code_t *code, ptrs_ast_t *ast, bool ignor
 		else
 		{
 			call = talloc(ptrs_ast_t);
-			call->arg.call.typing.meta.type = -1;
+			call->arg.call.typing.meta.type = PTRS_TYPE_DYNAMIC;
 			call->arg.call.typing.nativetype = NULL;
 		}
 
@@ -1549,7 +1549,7 @@ static void parseOptionalTyping(code_t *code, ptrs_typing_t *typing)
 	}
 	else
 	{
-		typing->meta.type = (uint8_t)-1;
+		typing->meta.type = PTRS_TYPE_DYNAMIC;
 		typing->nativetype = NULL;
 	}
 }
@@ -2014,7 +2014,7 @@ static ptrs_funcparameter_t *createParameterList(code_t *code, size_t count, ...
 		curr->name = va_arg(ap, char *);
 		curr->arg.val = NULL;
 		curr->arg.meta = NULL;
-		curr->arg.constType = -1;
+		curr->arg.constType = PTRS_TYPE_DYNAMIC;
 		curr->typing.meta.type = va_arg(ap, ptrs_vartype_t);
 		curr->typing.nativetype = NULL;
 		curr->argv = NULL;
@@ -2123,9 +2123,9 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 						param1Name = readIdentifier(code);
 						func->args = createParameterList(code, 2,
 							param0Name, PTRS_TYPE_POINTER, PTRS_NATIVETYPE_INDEX_CHAR, 0,
-							param1Name, (ptrs_vartype_t)-1
+							param1Name, PTRS_TYPE_DYNAMIC
 						);
-						func->retType.meta.type = -1;
+						func->retType.meta.type = PTRS_TYPE_DYNAMIC;
 
 						nameFormat = "%s.op this[%s] = %s";
 						overload->op = ptrs_ast_vtable_member.set;
@@ -2139,7 +2139,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 						nameArg->name = param0Name;
 						nameArg->arg.val = NULL;
 						nameArg->arg.meta = NULL;
-						nameArg->arg.constType = -1;
+						nameArg->arg.constType = PTRS_TYPE_DYNAMIC;
 						nameArg->argv = NULL;
 						nameArg->next = func->args;
 
@@ -2361,8 +2361,8 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 			{
 				curr->type = PTRS_STRUCTMEMBER_SETTER;
 
-				func->args = createParameterList(code, 1, "value", (ptrs_vartype_t)-1);
-				func->retType.meta.type = -1;
+				func->args = createParameterList(code, 1, "value", PTRS_TYPE_DYNAMIC);
+				func->retType.meta.type = PTRS_TYPE_DYNAMIC;
 				sprintf(func->name, "%s.set %s", structName, name);
 			}
 

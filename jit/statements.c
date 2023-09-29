@@ -78,7 +78,7 @@ ptrs_jit_var_t ptrs_handle_define(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 		return val;
 	}
 
-	//stmt->type is set by flow.c to -1 if the type is dynamic or changes
+	//stmt->type is set by flow.c to PTRS_TYPE_DYANMIC if the type is dynamic or changes
 	// or a constant when it's the same over the whole lifetime
 	stmt->location.constType = stmt->type;
 
@@ -340,7 +340,7 @@ ptrs_jit_var_t ptrs_handle_return(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 
 		jit_insn_default_return(func);
 	}
-	else if(scope->returnType.type == (uint8_t)-1)
+	else if(scope->returnType.type == PTRS_TYPE_DYNAMIC)
 	{
 		jit_insn_return_struct_from_values(func, ret.val, ret.meta);
 	}
@@ -385,7 +385,7 @@ ptrs_jit_var_t ptrs_handle_break(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	else
 		jit_insn_branch(func, &scope->breakLabel);
 
-	ptrs_jit_var_t ret = {NULL, NULL, -1};
+	ptrs_jit_var_t ret = {NULL, NULL, PTRS_TYPE_UNDEFINED};
 	return ret;
 }
 
@@ -399,7 +399,7 @@ ptrs_jit_var_t ptrs_handle_continue(ptrs_ast_t *node, jit_function_t func, ptrs_
 	else
 		jit_insn_branch(func, &scope->continueLabel);
 
-	ptrs_jit_var_t ret = {NULL, NULL, -1};
+	ptrs_jit_var_t ret = {NULL, NULL, PTRS_TYPE_UNDEFINED};
 	return ret;
 }
 
@@ -416,7 +416,7 @@ ptrs_jit_var_t ptrs_handle_continue_label(ptrs_ast_t *node, jit_function_t func,
 	jit_insn_label(func, &scope->continueLabel);
 	scope->hasCustomContinueLabel = true;
 
-	ptrs_jit_var_t ret = {NULL, NULL, -1};
+	ptrs_jit_var_t ret = {NULL, NULL, PTRS_TYPE_UNDEFINED};
 	return ret;
 }
 
@@ -472,7 +472,7 @@ ptrs_jit_var_t ptrs_handle_delete(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 			(val.val)
 		);
 	}
-	else if(val.constType == PTRS_TYPE_STRUCT || val.constType == -1)
+	else if(val.constType == PTRS_TYPE_STRUCT || val.constType == PTRS_TYPE_DYNAMIC)
 	{
 		jit_value_t astval = jit_const_int(func, void_ptr, (uintptr_t)node);
 		ptrs_jit_reusableCallVoid(func, ptrs_delete,
@@ -670,7 +670,7 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 			ctor = curr->handlerFunc;
 			ctorData = jit_value_get_param(ctor, 0);
 			ptrs_initScope(&ctorScope, scope);
-			ctorScope.returnType.type = -1;
+			ctorScope.returnType.type = PTRS_TYPE_DYNAMIC;
 
 			hasCtorOverload = true;
 		}
@@ -714,7 +714,7 @@ ptrs_jit_var_t ptrs_handle_struct(ptrs_ast_t *node, jit_function_t func, ptrs_sc
 
 				ctorData = jit_value_get_param(ctor, 0);
 				ptrs_initScope(&ctorScope, scope);
-				ctorScope.returnType.type = -1;
+				ctorScope.returnType.type = PTRS_TYPE_DYNAMIC;
 			}
 
 			currFunc = ctor;
@@ -1121,7 +1121,7 @@ ptrs_jit_var_t ptrs_handle_forin_setup(ptrs_ast_t *node, jit_function_t func, pt
 		return stmt->value;
 	}
 
-	if(stmt->value.constType != -1 && stmt->value.constType != PTRS_TYPE_STRUCT)
+	if(stmt->value.constType != PTRS_TYPE_DYNAMIC && stmt->value.constType != PTRS_TYPE_STRUCT)
 		ptrs_error(node, "Cannot iterate over value of type %t", stmt->value.constType);
 
 	stmt->saveArea = jit_insn_array(func, sizeof(ptrs_var_t));
@@ -1211,7 +1211,7 @@ void iterateWithIteratorFunction(struct ptrs_ast_forin *stmt, jit_function_t fun
 		stmt->varsymbols[i].meta = jit_insn_load_relative(func, stmt->varlist,
 			i * sizeof(ptrs_var_t) + sizeof(ptrs_val_t), jit_type_ulong);
 
-		stmt->varsymbols[i].constType = -1;
+		stmt->varsymbols[i].constType = PTRS_TYPE_DYNAMIC;
 		stmt->varsymbols[i].addressable = false;
 	}
 }

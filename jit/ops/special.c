@@ -123,7 +123,7 @@ ptrs_jit_var_t ptrs_handle_op_ternary(ptrs_ast_t *node, jit_function_t func, ptr
 	ptrs_jit_var_t ret = {
 		.val = jit_value_create(func, jit_type_long),
 		.meta = jit_value_create(func, jit_type_ulong),
-		.constType = -1,
+		.constType = PTRS_TYPE_DYNAMIC,
 	};
 
 	ptrs_jit_branch_if_not(func, &isFalse, condition);
@@ -146,7 +146,7 @@ ptrs_jit_var_t ptrs_handle_op_ternary(ptrs_ast_t *node, jit_function_t func, ptr
 	jit_insn_store(func, ret.meta, falseVal.meta);
 
 	jit_insn_label(func, &done);
-	ret.constType = trueVal.constType == falseVal.constType ? trueVal.constType : -1;
+	ret.constType = trueVal.constType == falseVal.constType ? trueVal.constType : PTRS_TYPE_DYNAMIC;
 	return ret;
 }
 
