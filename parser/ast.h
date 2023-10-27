@@ -40,6 +40,7 @@ struct ptrs_ast_identifier
 	uint8_t typePredicted : 1;
 	uint8_t valuePredicted : 1;
 	uint8_t metaPredicted : 1;
+	uint8_t nativeTypePredicted : 1;
 };
 
 struct ptrs_ast_member

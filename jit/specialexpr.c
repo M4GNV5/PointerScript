@@ -346,17 +346,43 @@ ptrs_jit_var_t ptrs_handle_index(ptrs_ast_t *node, jit_function_t func, ptrs_sco
 	ptrs_jit_var_t index = expr->right->vtable->get(expr->right, func, scope);
 	scope->indexSize = oldArraySize;
 
-	if(base.constType == PTRS_TYPE_POINTER && jit_value_is_constant(base.meta))
+	if(base.constType == PTRS_TYPE_POINTER && base.constNativeType != -1)
 	{
 		ptrs_jit_typeCheck(node, func, scope, index, PTRS_TYPE_INT, "Array index needs to be of type int not %t");
-		ptrs_meta_t baseMeta = ptrs_jit_value_getMetaConstant(base.meta);
-		ptrs_nativetype_info_t *arrayType = ptrs_getNativeTypeForArray(node, baseMeta);
+		ptrs_nativetype_info_t *arrayType = ptrs_getNativeTypeFromIndex(node, base.constNativeType);
 
-		jit_value_t arraySize = jit_const_long(func, ulong, baseMeta.array.size);
-		struct ptrs_assertion *sizeCheck = ptrs_jit_assert(node, func, scope,
-			jit_insn_lt(func, index.val, arraySize),
-			2, "Attempting to access index %d of an array of size %d", index.val, arraySize);
-		ptrs_jit_appendAssert(func, sizeCheck, jit_insn_ge(func, index.val, jit_const_long(func, ulong, 0)));
+		jit_value_t arraySize = NULL;
+		if(jit_value_is_constant(base.meta))
+		{
+			ptrs_meta_t baseMeta = ptrs_jit_value_getMetaConstant(base.meta);
+			ptrs_nativetype_info_t *metaArrayType = ptrs_getNativeTypeForArray(node, baseMeta);
+			if(arrayType != metaArrayType)
+				ptrs_error(node, "Mismatched predicted and constant native type. This is probably a bug with PointerScript");
+
+
+			if(jit_value_is_constant(index.val))
+			{
+				int64_t constIndex = jit_value_get_long_constant(index.val);
+				if(constIndex < 0 || constIndex >= baseMeta.array.size)
+					ptrs_error(node, "Attempting to access index %d of an array of size %d", constIndex, baseMeta.array.size);
+			}
+			else
+			{
+				arraySize = jit_const_long(func, ulong, baseMeta.array.size);
+			}
+		}
+		else
+		{
+			arraySize = ptrs_jit_getArraySize(func, base.meta);
+		}
+
+		if(arraySize)
+		{
+			struct ptrs_assertion *sizeCheck = ptrs_jit_assert(node, func, scope,
+				jit_insn_lt(func, index.val, arraySize),
+				2, "Attempting to access index %d of an array of size %d", index.val, arraySize);
+			ptrs_jit_appendAssert(func, sizeCheck, jit_insn_ge(func, index.val, jit_const_long(func, ulong, 0)));
+		}
 
 		ptrs_jit_var_t result;
 		result.addressable = false;
@@ -717,8 +743,14 @@ ptrs_jit_var_t ptrs_handle_as(ptrs_ast_t *node, jit_function_t func, ptrs_scope_
 
 	if(expr->meta.type != PTRS_TYPE_FLOAT)
 		val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long);
+	if(expr->meta.type != PTRS_TYPE_POINTER || expr->meta.array.size != 0)
+		val.meta = jit_const_long(func, ulong, *(uint64_t *)&expr->meta);
 
-	val.meta = jit_const_long(func, ulong, *(uint64_t *)&expr->meta);
+	if(expr->meta.type != PTRS_TYPE_POINTER)
+		val.constNativeType = expr->meta.array.typeIndex;
+	else
+		val.constNativeType = -1;
+
 	val.constType = expr->meta.type;
 	return val;
 }
@@ -911,6 +943,11 @@ ptrs_jit_var_t ptrs_handle_identifier(ptrs_ast_t *node, jit_function_t func, ptr
 	else
 		ret.constType = PTRS_TYPE_DYNAMIC;
 
+	if(expr->nativeTypePredicted)
+		ret.constNativeType = expr->metaPrediction.array.typeIndex;
+	else
+		ret.constNativeType = -1;
+
 	if(expr->valuePredicted && expr->metaPredicted && expr->typePredicted)
 		return ret;
 
@@ -930,6 +967,15 @@ ptrs_jit_var_t ptrs_handle_identifier(ptrs_ast_t *node, jit_function_t func, ptr
 
 		if(!expr->metaPredicted)
 			ret.meta = ptrs_jit_import(node, func, target.meta, false);
+	}
+
+	// when running with --no-predictions the meta might be constant, but not predicted
+	if(!expr->typePredicted && jit_value_is_constant(ret.meta))
+	{
+		ptrs_meta_t constMeta = ptrs_jit_value_getMetaConstant(ret.meta);
+		ret.constType = constMeta.type;
+		if(constMeta.type == PTRS_TYPE_POINTER)
+			ret.constNativeType = constMeta.array.typeIndex;
 	}
 
 	return ret;

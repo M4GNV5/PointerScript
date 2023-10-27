@@ -1565,7 +1565,7 @@ static void parseArrayTyping(code_t *code, ptrs_nativetype_info_t *nativeType, p
 
 	if(lookahead(code, "*"))
 	{
-		result->array.size = 1;
+		result->array.size = 0;
 		if(sizePtr != NULL)
 			*sizePtr = NULL;
 		return;
@@ -1578,6 +1578,13 @@ static void parseArrayTyping(code_t *code, ptrs_nativetype_info_t *nativeType, p
 	if(size->vtable == &ptrs_ast_vtable_constant)
 	{
 		result->array.size = size->arg.constval.value.intval;
+		if(result->array.size == 0)
+		{
+			code->pos = oldpos;
+			code->curr = code->src[oldpos];
+			unexpected(code, "Cannot define array type with size 0");
+		}
+
 		if(sizePtr != NULL)
 			*sizePtr = NULL;
 	}

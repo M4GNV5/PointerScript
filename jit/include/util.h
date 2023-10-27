@@ -12,6 +12,7 @@ char *ptrs_readFile(const char *path);
 
 void ptrs_initScope(ptrs_scope_t *scope, ptrs_scope_t *parent);
 
+ptrs_nativetype_info_t *ptrs_getNativeTypeFromIndex(ptrs_ast_t *node, int8_t index);
 ptrs_nativetype_info_t *ptrs_getNativeTypeForArray(ptrs_ast_t *node, ptrs_meta_t meta);
 jit_value_t ptrs_jit_getArrayTypeSize(ptrs_ast_t *node, jit_function_t func,
 	jit_value_t meta, jit_value_t typeIndex);

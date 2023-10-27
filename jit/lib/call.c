@@ -8,6 +8,7 @@
 #include "../include/astlist.h"
 #include "../include/conversion.h"
 #include "../include/call.h"
+#include "jit/jit-type.h"
 
 int ptrs_optimizationLevel = -1;
 
@@ -277,15 +278,32 @@ static bool retrieveParameterArray(ptrs_function_t *ast, jit_function_t func)
 				param.meta = ptrs_jit_const_meta(func, PTRS_TYPE_FLOAT);
 				argPos++;
 				break;
+			case PTRS_TYPE_POINTER:
+				param.val = jit_value_get_param(func, argPos);
+				argPos++;
+				if(argDef->typing.meta.array.size == 0)
+				{
+					param.meta = jit_value_get_param(func, argPos);
+					argPos++;
+				}
+				else
+				{
+					param.meta = jit_const_long(func, ulong, *(uint64_t *)&argDef->typing.meta);
+				}
+				break;
 			case PTRS_TYPE_STRUCT:
+				param.val = jit_value_get_param(func, argPos);
+				argPos++;
 				if(ptrs_meta_getPointer(argDef->typing.meta) != NULL)
 				{
-					param.val = jit_value_get_param(func, argPos);
 					param.meta = jit_const_long(func, ulong, *(uint64_t *)&argDef->typing.meta);
-					argPos++;
-					break;
 				}
-				// else falthrough
+				else
+				{
+					param.meta = jit_value_get_param(func, argPos);
+					argPos++;
+				}
+				break;
 			default:
 				param.val = jit_value_get_param(func, argPos);
 				param.meta = jit_value_get_param(func, argPos + 1);
@@ -328,14 +346,17 @@ static size_t fillCustomAbiArgumentArray(ptrs_function_t *ast, jit_type_t *typeD
 			case PTRS_TYPE_FLOAT:
 				type0 = jit_type_float64;
 				break;
+			case PTRS_TYPE_POINTER:
+				type0 = jit_type_long;
+				if(argDef->typing.meta.array.size == 0) // no size => the caller provides a meta
+					type1 = jit_type_ulong;
+				break;
 			case PTRS_TYPE_STRUCT:
-				if(argDef != NULL && ptrs_meta_getPointer(argDef->typing.meta) != NULL)
-				{
-					type0 = jit_type_long;
-					break;
-				}
-				// else falthrough
-			default: // -1, POINTER and FUNCTION
+				type0 = jit_type_long;
+				if(argDef == NULL || ptrs_meta_getPointer(argDef->typing.meta) == NULL)
+					type1 = jit_type_ulong;
+				break;
+			default: // POINTER, FUNCTION and DYNAMIC
 				type0 = jit_type_long;
 				type1 = jit_type_ulong;
 				break;

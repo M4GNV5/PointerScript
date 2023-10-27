@@ -17,6 +17,7 @@ typedef struct
 	uint8_t knownValue : 1;
 	uint8_t knownMeta : 1;
 	uint8_t knownType : 1;
+	uint8_t knownNativeType : 1;
 } ptrs_prediction_t;
 
 typedef struct ptrs_flowprediction
@@ -176,6 +177,7 @@ static inline void clearPrediction(ptrs_prediction_t *prediction)
 	prediction->knownType = false;
 	prediction->knownValue = false;
 	prediction->knownMeta = false;
+	prediction->knownNativeType = false;
 }
 
 static void dupFlow(ptrs_flow_t *dest, ptrs_flow_t *src)
@@ -610,7 +612,18 @@ static void analyzeFunction(ptrs_flow_t *outerFlow, ptrs_function_t *ast, ptrs_s
 		memcpy(&prediction.meta, &curr->typing.meta, sizeof(ptrs_meta_t));
 		prediction.knownType = prediction.meta.type != PTRS_TYPE_DYNAMIC;
 
-		if(prediction.meta.type == PTRS_TYPE_POINTER
+		if(prediction.meta.type == PTRS_TYPE_POINTER)
+		{
+			prediction.knownNativeType = true;
+			if(prediction.meta.array.size != 0)
+				prediction.knownMeta = true;
+		}
+		else if(prediction.meta.type == PTRS_TYPE_STRUCT && ptrs_meta_getPointer(prediction.meta) != NULL)
+		{
+			prediction.knownMeta = true;
+		}
+
+		if((prediction.meta.type == PTRS_TYPE_POINTER && prediction.meta.array.size != 0)
 			|| (prediction.meta.type == PTRS_TYPE_STRUCT && ptrs_meta_getPointer(prediction.meta) != NULL))
 			prediction.knownMeta = true;
 
@@ -956,6 +969,16 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 			{
 				expr->typePredicted = false;
 			}
+
+			if(ret->knownNativeType)
+			{
+				expr->nativeTypePredicted = true;
+				expr->metaPrediction.array.typeIndex = ret->meta.array.typeIndex;
+			}
+			else
+			{
+				expr->nativeTypePredicted = false;
+			}
 		}
 		else
 		{
@@ -1251,7 +1274,7 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 	{
 		analyzeExpression(flow, node->arg.astval, ret);
 
-		if(ret->knownType && ret->knownMeta && ret->meta.type == PTRS_TYPE_POINTER
+		if(ret->knownType && ret->knownNativeType && ret->meta.type == PTRS_TYPE_POINTER
 			&& ret->meta.array.typeIndex != PTRS_NATIVETYPE_INDEX_VAR)
 		{
 			ret->knownType = true;
@@ -1280,7 +1303,7 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		analyzeExpression(flow, expr->left, ret);
 		analyzeExpression(flow, expr->right, &dummy);
 
-		if(ret->knownType && ret->knownMeta && ret->meta.type == PTRS_TYPE_POINTER
+		if(ret->knownType && ret->knownNativeType && ret->meta.type == PTRS_TYPE_POINTER
 			&& ret->meta.array.typeIndex != PTRS_NATIVETYPE_INDEX_VAR)
 		{
 			ret->knownType = true;
@@ -1345,6 +1368,7 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 
 		ret->knownType = true;
 		ret->knownMeta = true;
+		ret->knownNativeType = true;
 		ret->meta = expr->meta;
 	}
 	else if(node->vtable == &ptrs_ast_vtable_as_struct)
@@ -1436,6 +1460,7 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 
 		ret->knownType = true;
 		ret->knownMeta = false;
+		ret->knownNativeType = true;
 		ret->meta.type = PTRS_TYPE_POINTER;
 		ret->meta.array.typeIndex = PTRS_NATIVETYPE_INDEX_CHAR;
 	}

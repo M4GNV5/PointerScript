@@ -51,6 +51,19 @@ void ptrs_initScope(ptrs_scope_t *scope, ptrs_scope_t *parent)
 	}
 }
 
+ptrs_nativetype_info_t *ptrs_getNativeTypeFromIndex(ptrs_ast_t *node, int8_t index)
+{
+	if(index < 0 || index >= ptrs_nativeTypeCount)
+	{
+		if(node)
+			ptrs_error(node, "Attempting to dereference a pointer with an invalid array kind");
+		else
+			return NULL;
+	}
+
+	return &ptrs_nativeTypes[index];
+}
+
 ptrs_nativetype_info_t *ptrs_getNativeTypeForArray(ptrs_ast_t *node, ptrs_meta_t meta)
 {
 	if(meta.type != PTRS_TYPE_POINTER)
@@ -60,15 +73,7 @@ ptrs_nativetype_info_t *ptrs_getNativeTypeForArray(ptrs_ast_t *node, ptrs_meta_t
 		else
 			return NULL;
 	}
-	if(meta.array.typeIndex < 0 || meta.array.typeIndex >= ptrs_nativeTypeCount)
-	{
-		if(node)
-			ptrs_error(node, "Attempting to dereference a pointer with an invalid array kind");
-		else
-			return NULL;
-	}
-
-	return &ptrs_nativeTypes[meta.array.typeIndex];
+	return ptrs_getNativeTypeFromIndex(node, meta.array.typeIndex);
 }
 
 jit_value_t ptrs_jit_getArrayTypeSize(ptrs_ast_t *node, jit_function_t func,

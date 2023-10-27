@@ -65,6 +65,7 @@ typedef struct
 	jit_value_t val;
 	jit_value_t meta;
 	int8_t constType;
+	int8_t constNativeType;
 	uint8_t addressable : 1;
 } ptrs_jit_var_t;
 
