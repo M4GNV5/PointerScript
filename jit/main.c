@@ -58,11 +58,11 @@ static int parseOptions(int argc, char **argv)
 						"\t--no-sig             Do not listen to signals.\n"
 						"\t--no-aot             Disable AOT compilation\n"
 						"\t--no-predictions     Disable value/type predictions using data flow analyzation\n"
-						"\t-O0, -O1 or -O2      Set optimization level of the jit backend\n"
+						"\t-O0, -O1, -O2 or -O3 Set optimization level of the jit backend\n"
 						"\t--dump-asm           Dump generated assembly code\n"
 						"\t--dump-jit           Dump JIT intermediate representation (same as --dump-asm --no-aot)\n"
 						"\t--dump-predictions   Dump value/type predictions\n"
-						"\t--unsafe             Disable all assertions (including type checks)\n"
+						"\t--unsafe             Disable all assertions (such as type and boundary checks)\n"
 					"Source code can be found at https://github.com/M4GNV5/PointerScript\n", UINT32_MAX);
 				exit(EXIT_SUCCESS);
 			case 2:

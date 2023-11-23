@@ -12,21 +12,7 @@ for(var i = 0; i < len; i++)
 /*
 note: if you want speed use 'qsort' (see `man 3 qsort`)
 
-qsort(parts, len, sizeof var, (a: pointer, b: pointer) -> *a - *b);
-
-
-
-if you want even more speed (e.g. when sorting arrays of length >10mio)
-and if you can be sure the array only contains values of one type you
-can add type annotations:
-
-function compareInts(a: pointer, b: pointer)
-{
-	var a2 = as<i32[1]>*a;
-	var b2 = as<i32[1]>*b;
-	return a2 - b2;
-}
-qsort(parts, len, sizeof var, compareInts);
+qsort(parts, len, sizeof i32, (a: i32[1], b: i32[1]) -> *a - *b);
 */
 
 //simple bubble sort
