@@ -1018,7 +1018,9 @@ static void analyzeExpression(ptrs_flow_t *flow, ptrs_ast_t *node, ptrs_predicti
 		}
 
 		ret->knownType = true;
+		ret->knownNativeType = true;
 		ret->meta.type = PTRS_TYPE_POINTER;
+		ret->meta.array.typeIndex = stmt->meta.array.typeIndex;
 	}
 	else if(node->vtable == &ptrs_ast_vtable_struct)
 	{
