@@ -1,0 +1,263 @@
+//
+// EBNF to be viewd at
+//    (IPV6) https://www.bottlecaps.de/rr/ui
+//    (IPV4) https://rr.red-dove.com/ui
+//
+// Copy and paste this at one of the urls shown above in the 'Edit Grammar' tab
+// then click the 'View Diagram' tab.
+//
+
+ptrs_parse ::=
+	shebang_opt parseStmtList
+
+parseStmtList ::=
+	parseStatement+
+
+parseStatement ::=
+	parseBody
+	| "const" readIdentifier parseExpression ';'
+	| "var" readIdentifier type_opt var_assing_opt ';'
+	| parseImport
+	| "return" parseExpression ';'
+	| "break" ';'
+	| "continue" ';'
+	| "delete" parseExpression ';'
+	| "throw" parseExpression ';'
+	| "try" parseBody parseCatch_opt parseFinally_opt
+	| "function" readIdentifier parseFunctionInto
+	| parseStruct
+	| "if" '(' parseExpression ')' parseBody
+	| "if" '(' parseExpression ')' parseBody "else" parseBody
+	| parseSwitchCase
+	| "loop" parseBody
+	| "while" '(' parseExpression ')' parseBody
+	| "do" parseScopelessBody "while" '(' parseExpression ')' ';'
+	| "foreach" '(' readIdentifier (',' readIdentifier)* "in" parseExpression ')' parseScopelessBody
+	| "for" '(' parseStatement parseExpression_opt ';' parseExpression ')' parseScopelessBody
+	| parseExpression ';'
+
+parseCatch_opt ::=
+	/*empty*/
+	| "catch" parseArgumentDefinitionList parseBody
+
+parseFinally_opt ::=
+	"finally" parseBody
+	| "finally" '(' readIdentifier ')' parseBody
+
+parseImport ::=
+	"import"  importElement_oom ';'
+
+importElement_oom ::=
+	importElement
+	| importElement_oom ',' importElement
+
+importElement ::=
+	readIdentifier '*'? (':' readNativeType)? ("as" readIdentifier)? ("from" readString)?
+
+parseBody ::=
+	parseScopelessBody
+
+parseScopelessBody ::=
+	'{' parseStmtList '}'
+
+parseFunctionInto ::=
+	parseArgumentDefinitionList parseFunctionBody
+
+parseArgumentDefinitionList ::=
+	'(' argumentDefinition_zom ')' parseOptionalTyping
+
+argumentDefinition_zom ::=
+	/*empty*/
+	| "..."
+	| argumentDefinition_oom
+	| argumentDefinition_oom ',' "..."
+
+argumentDefinition_oom ::=
+	argumentDefinition
+	| argumentDefinition_zom ',' argumentDefinition
+
+argumentDefinition ::=
+	'_'
+	| readIdentifier parseOptionalTyping assignExpression_opt
+
+assignExpression_opt ::=
+	'=' Expression
+
+parseOptionalTyping ::=
+	/*empty*/
+	| parseTyping
+
+parseTyping ::=
+	':' readTypeName
+	| ':' readNativeType
+	| ':' readNativeType parseArrayTyping
+	| ':' readIdentifier
+
+parseFunctionBody ::=
+	parseScopelessBody
+
+parseStruct ::=
+	"struct" readIdentifier '{' parseStructElements '}' ';'
+
+parseStructElements ::=
+	"static"? parseStructElement
+	| parseStructElements "static"? parseStructElement
+
+parseStructElement ::=
+	"operator" '&' "this" '[' readIdentifier createParameterList parseOptionalTyping ']' ('=' readIdentifier createParameterList)?
+	| "operator" '&' "this"  parseArgumentDefinitionList parseOptionalTyping ')'
+	| "sizeof" "this"
+	| "foreach" '(' readIdentifier ',' readIdentifier ')' "in" "this" createParameterList
+	| "cast" '<' ("int"|"float"|"string") '>' "this"
+	| readIdentifier "in" "this" createParameterList parseFunctionBody
+	| readIdentifier
+	| "constructor" parseFunction
+	| "destructor" parseFunction
+	| ("private"|"public"|"internal") ("get"|"set")? readIdentifier
+
+parseSwitchCase ::=
+	"switch" '(' parseExpression ')' '{' switchCaseElements '}'
+
+switchCaseElements ::=
+	"default" ':' parseStatement
+	| switchCaseElement
+	| switchCaseElements switchCaseElement
+
+switchCaseElement ::=
+	"case" switchCaseExpression (',' switchCaseExpression)* ':' parseStatement
+
+switchCaseExpression ::=
+	parseExpression
+	| parseExpression ".." parseExpression
+
+var_assing_opt ::=
+	'='	parseExpression
+
+parseExpression_opt ::=
+	/*empty*/
+	| parseExpression
+
+parseExpression ::=
+	parseUnaryExpr
+	| parseBinaryExpr
+
+parseUnaryExpr ::=
+	readPrefixOperator parseUnaryExpr parseNew
+	| readPrefixOperator parseUnaryExpr parseType
+	| readPrefixOperator parseUnaryExpr parseSizeof
+	| readPrefixOperator parseUnaryExpr "var" '(' ')'
+	| readPrefixOperator parseUnaryExpr "as" '<' readTypeName '>'
+	| readPrefixOperator parseUnaryExpr "cast" '<' ("int"|"float"|"string") '>'
+	| readPrefixOperator parseUnaryExpr "function" parseFunctionInto
+	| readPrefixOperator parseUnaryExpr parseMap
+
+parseBinaryExpr ::=
+	// >> and << need to be before > and < or we will always lookahead greater / less
+	| parseBinaryExpr ">>" parseExpression //12, false, &ptrs_ast_vtable_op_sshr}, //signed shift right
+	| parseBinaryExpr ">>" parseExpression //12, false, &ptrs_ast_vtable_op_ushr}, //unsigned shift right
+	| parseBinaryExpr "<<" parseExpression //12, false, &ptrs_ast_vtable_op_shl}, //shift left
+
+	| parseBinaryExpr "===" parseExpression //9, false, &ptrs_ast_vtable_op_typeequal},
+	| parseBinaryExpr "!==" parseExpression //9, false, &ptrs_ast_vtable_op_typeinequal},
+
+	| parseBinaryExpr "==" parseExpression //9, false, &ptrs_ast_vtable_op_equal},
+	| parseBinaryExpr "!=" parseExpression //9, false, &ptrs_ast_vtable_op_inequal},
+	| parseBinaryExpr "<=" parseExpression //10, false, &ptrs_ast_vtable_op_lessequal},
+	| parseBinaryExpr ">=" parseExpression //10, false, &ptrs_ast_vtable_op_greaterequal},
+	| parseBinaryExpr "<" parseExpression //10, false, &ptrs_ast_vtable_op_less},
+	| parseBinaryExpr ">" parseExpression //10, false, &ptrs_ast_vtable_op_greater},
+
+	| parseBinaryExpr "=" parseExpression //1, true, &ptrs_ast_vtable_op_assign},
+	| parseBinaryExpr "+=" parseExpression //1, true, &ptrs_ast_vtable_op_add},
+	| parseBinaryExpr "-=" parseExpression //1, true, &ptrs_ast_vtable_op_sub},
+	| parseBinaryExpr "*=" parseExpression //1, true, &ptrs_ast_vtable_op_mul},
+	| parseBinaryExpr "/=" parseExpression //1, true, &ptrs_ast_vtable_op_div},
+	| parseBinaryExpr "%=" parseExpression // 1, true, &ptrs_ast_vtable_op_mod},
+	| parseBinaryExpr ">>=" parseExpression //1, true, &ptrs_ast_vtable_op_sshr},
+	| parseBinaryExpr "<<=" parseExpression //1, true, &ptrs_ast_vtable_op_shl},
+	| parseBinaryExpr "&=" parseExpression //1, true, &ptrs_ast_vtable_op_and},
+	| parseBinaryExpr "^=" parseExpression //1, true, &ptrs_ast_vtable_op_xor},
+	| parseBinaryExpr "|=" parseExpression //1, true, &ptrs_ast_vtable_op_or},
+
+	//| parseBinaryExpr "?" parseExpression // 2, true, &ptrs_ast_vtable_op_ternary},
+	//| parseBinaryExpr ":" parseExpression //-1, true, &ptrs_ast_vtable_op_ternary},
+	| parseBinaryExpr "?" parseExpression ":" parseExpression
+
+	| parseBinaryExpr "instanceof" parseExpression //11, false, &ptrs_ast_vtable_op_instanceof},
+	| parseBinaryExpr "in" parseExpression //11, false, &ptrs_ast_vtable_op_in},
+
+	| parseBinaryExpr "||" parseExpression //3, false, &ptrs_ast_vtable_op_logicor},
+	| parseBinaryExpr "^^" parseExpression //4, false, &ptrs_ast_vtable_op_logicxor},
+	| parseBinaryExpr "&&" parseExpression //5, false, &ptrs_ast_vtable_op_logicand},
+
+	| parseBinaryExpr "|" parseExpression //6 parseExpression //false, &ptrs_ast_vtable_op_or},
+	| parseBinaryExpr "^" parseExpression //7, false, &ptrs_ast_vtable_op_xor},
+	| parseBinaryExpr "&" parseExpression //8, false, &ptrs_ast_vtable_op_and},
+
+	| parseBinaryExpr "+" parseExpression //13, false, &ptrs_ast_vtable_op_add},
+	| parseBinaryExpr "-" parseExpression //13, false, &ptrs_ast_vtable_op_sub},
+
+	| parseBinaryExpr "*" parseExpression //14, false, &ptrs_ast_vtable_op_mul},
+	| parseBinaryExpr "/" parseExpression //14, false, &ptrs_ast_vtable_op_div},
+	| parseBinaryExpr "%" parseExpression //14, false, &ptrs_ast_vtable_op_mod}
+
+parseNew_opt ::=
+	/*empty*/
+	| parseNew
+
+parseNew ::=
+	"new"
+
+parseType_opt ::=
+	/*empty*/
+	| parseType
+
+parseType ::=
+	"type" '<' readTypeName '>'
+
+parseSizeof ::=
+	"sizeof" '(' readNativeType ')'
+
+parseMap ::=
+	"map_stack"
+	| "map"
+
+type_opt ::=
+	':' readNativeType parseArrayTyping array_init_opt
+
+array_init_opt ::=
+	'=' '[' parseExpressionList ']'
+
+shebang_opt ::=
+	"#!".*
+
+comments ::=
+	"//".*
+	| "/*".*?"*/"
+
+constants ::=
+	"true"
+	| "false"
+	| "null"
+	| "undefined"
+	| "NaN"
+	| "Infinity"
+	| "PI"
+	| "E"
+
+typeNames ::=
+	"undefined"
+	| "int"
+	| "float"
+	| "pointer"
+	| "struct"
+	| "function"
+
+readTypeName ::=
+	typeNames
+
+readNativeType ::=
+
+
+readIdentifier ::=
+	[a-zA-Z_][a-zA-Z0-9_]*
