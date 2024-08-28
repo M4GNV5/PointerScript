@@ -7,58 +7,59 @@
 // then click the 'View Diagram' tab.
 //
 
-ptrs_parse ::=
-	shebang_opt parseStmtList
+MainProgram ::=
+	shebang_opt StatementList
 
-parseStmtList ::=
-	parseStatement+
+StatementList ::=
+	Statement+
 
-parseStatement ::=
-	parseBody
-	| "const" readIdentifier parseExpression ';'
-	| "var" readIdentifier type_opt var_assing_opt ';'
+Statement ::=
+	StatementBody
+	| "const" Identifier Expression ';'
+	| "var" Identifier type_opt var_assing_opt ';'
 	| parseImport
-	| "return" parseExpression ';'
+	| "return" Expression ';'
 	| "break" ';'
 	| "continue" ';'
-	| "delete" parseExpression ';'
-	| "throw" parseExpression ';'
-	| "try" parseBody parseCatch_opt parseFinally_opt
-	| "function" readIdentifier parseFunctionInto
+	| "delete" Expression ';'
+	| "throw" Expression ';'
+	| "try" StatementBody parseCatch_opt parseFinally_opt
+	| "function" Identifier parseFunctionInto
 	| parseStruct
-	| "if" '(' parseExpression ')' parseBody
-	| "if" '(' parseExpression ')' parseBody "else" parseBody
+	| "if" '(' Expression ')' StatementBody
+	| "if" '(' Expression ')' StatementBody "else" StatementBody
 	| parseSwitchCase
-	| "loop" parseBody
-	| "while" '(' parseExpression ')' parseBody
-	| "do" parseScopelessBody "while" '(' parseExpression ')' ';'
-	| "foreach" '(' readIdentifier (',' readIdentifier)* "in" parseExpression ')' parseScopelessBody
-	| "for" '(' parseStatement parseExpression_opt ';' parseExpression ')' parseScopelessBody
-	| parseExpression ';'
+	| "loop" StatementBody
+	| "while" '(' Expression ')' StatementBody
+	| "do" ScopelessStatementBody "while" '(' Expression ')' ';'
+	| "foreach" '(' Identifier (',' Identifier)* "in" Expression ')' ScopelessStatementBody
+	| "for" '(' Statement Expression_opt ';' Expression ')' ScopelessStatementBody
+	| Expression ';'
 
 parseCatch_opt ::=
 	/*empty*/
-	| "catch" parseArgumentDefinitionList parseBody
+	| "catch" parseArgumentDefinitionList StatementBody
 
 parseFinally_opt ::=
-	"finally" parseBody
-	| "finally" '(' readIdentifier ')' parseBody
+	/*empty*/
+	| "finally" StatementBody
+	| "finally" '(' Identifier ')' StatementBody
 
 parseImport ::=
-	"import"  importElement_oom ';'
+	"import"  importElement_oom ("from" readString)? ';'
 
 importElement_oom ::=
 	importElement
 	| importElement_oom ',' importElement
 
 importElement ::=
-	readIdentifier '*'? (':' readNativeType)? ("as" readIdentifier)? ("from" readString)?
+	Identifier '*'? (':' readNativeType)? ("as" Identifier)?
 
-parseBody ::=
-	parseScopelessBody
+StatementBody ::=
+	ScopelessStatementBody
 
-parseScopelessBody ::=
-	'{' parseStmtList '}'
+ScopelessStatementBody ::=
+	'{' StatementList '}'
 
 parseFunctionInto ::=
 	parseArgumentDefinitionList parseFunctionBody
@@ -78,7 +79,7 @@ argumentDefinition_oom ::=
 
 argumentDefinition ::=
 	'_'
-	| readIdentifier parseOptionalTyping assignExpression_opt
+	| Identifier parseOptionalTyping assignExpression_opt
 
 assignExpression_opt ::=
 	'=' Expression
@@ -88,135 +89,141 @@ parseOptionalTyping ::=
 	| parseTyping
 
 parseTyping ::=
-	':' readTypeName
+	':' BuiltinTypeName
 	| ':' readNativeType
 	| ':' readNativeType parseArrayTyping
-	| ':' readIdentifier
+	| ':' Identifier
 
 parseFunctionBody ::=
-	parseScopelessBody
+	ScopelessStatementBody
 
 parseStruct ::=
-	"struct" readIdentifier '{' parseStructElements '}' ';'
+	"struct" Identifier '{' parseStructElements '}' ';'
 
 parseStructElements ::=
 	"static"? parseStructElement
 	| parseStructElements "static"? parseStructElement
 
 parseStructElement ::=
-	"operator" '&' "this" '[' readIdentifier createParameterList parseOptionalTyping ']' ('=' readIdentifier createParameterList)?
+	"operator" '&' "this" '[' Identifier createParameterList parseOptionalTyping ']' ('=' Identifier createParameterList)?
 	| "operator" '&' "this"  parseArgumentDefinitionList parseOptionalTyping ')'
 	| "sizeof" "this"
-	| "foreach" '(' readIdentifier ',' readIdentifier ')' "in" "this" createParameterList
+	| "foreach" '(' Identifier ',' Identifier ')' "in" "this" createParameterList
 	| "cast" '<' ("int"|"float"|"string") '>' "this"
-	| readIdentifier "in" "this" createParameterList parseFunctionBody
-	| readIdentifier
+	| Identifier "in" "this" createParameterList parseFunctionBody
+	| Identifier
 	| "constructor" parseFunction
 	| "destructor" parseFunction
-	| ("private"|"public"|"internal") ("get"|"set")? readIdentifier
+	| ("private"|"public"|"internal") ("get"|"set")? Identifier
 
 parseSwitchCase ::=
-	"switch" '(' parseExpression ')' '{' switchCaseElements '}'
+	"switch" '(' Expression ')' '{' switchCaseElements '}'
 
 switchCaseElements ::=
-	"default" ':' parseStatement
+	"default" ':' Statement
 	| switchCaseElement
 	| switchCaseElements switchCaseElement
 
 switchCaseElement ::=
-	"case" switchCaseExpression (',' switchCaseExpression)* ':' parseStatement
+	"case" switchCaseExpression (',' switchCaseExpression)* ':' Statement
 
 switchCaseExpression ::=
-	parseExpression
-	| parseExpression ".." parseExpression
+	Expression
+	| Expression ".." Expression
 
 var_assing_opt ::=
-	'='	parseExpression
+	'='	Expression
 
-parseExpression_opt ::=
+Expression_opt ::=
 	/*empty*/
-	| parseExpression
+	| Expression
 
-parseExpression ::=
-	parseUnaryExpr
-	| parseBinaryExpr
+Expression ::=
+	"(" Expression ")"
+	| UnaryPrefixExpression
+	| UnarySuffixExpression
+	| BinaryExpression
+	| BuiltinConstant
+	| Expression "." Identifier
+	| Expression "!" Typename "(" ExpressionList ")"
+	| Expression "[" Expression "]"
+	| "type" "<" BuiltinTypeName ">"
+	| "typeof" Expression
+	| "sizeof" "var"
+	| "sizeof" NativeTypeName
+	| "sizeof" Expression
+	| "as" "<" NativeTypeName ">" Expression
+	| "as" "<" Expression ">" Expression
+	| "cast" "<" "int" ">" Expression
+	| "cast" "<" "float" ">" Expression
+	| "cast" "<" "string" ">" Expression
+	| "new" Expression "(" ExpressionList ")"
+	| "new_stack" Expression "(" ExpressionList ")"
+	| "map" // TODO
+	| "map_stack" // TODO
+	| "function" // TODO
+	| "(" argumentDefinition ")" "->" parseFunctionBody // TODO allow expressions
+	| "$"
+	| "\'" . "\'"
+	| "\"" .* "\""
+	| "`" .* "`"
+	| Identifier
+	| NumberConstant
 
-parseUnaryExpr ::=
-	readPrefixOperator parseUnaryExpr parseNew
-	| readPrefixOperator parseUnaryExpr parseType
-	| readPrefixOperator parseUnaryExpr parseSizeof
-	| readPrefixOperator parseUnaryExpr "var" '(' ')'
-	| readPrefixOperator parseUnaryExpr "as" '<' readTypeName '>'
-	| readPrefixOperator parseUnaryExpr "cast" '<' ("int"|"float"|"string") '>'
-	| readPrefixOperator parseUnaryExpr "function" parseFunctionInto
-	| readPrefixOperator parseUnaryExpr parseMap
+UnaryPrefixExpression ::=
+	"typeof" Expression
+	| "++" Expression
+	| "--" Expression
+	| "!" Expression
+	| "~" Expression
+	| "&" Expression
+	| "*" Expression
+	| "+" Expression
+	| "-" Expression
 
-parseBinaryExpr ::=
-	// >> and << need to be before > and < or we will always lookahead greater / less
-	| parseBinaryExpr ">>" parseExpression //12, false, &ptrs_ast_vtable_op_sshr}, //signed shift right
-	| parseBinaryExpr ">>" parseExpression //12, false, &ptrs_ast_vtable_op_ushr}, //unsigned shift right
-	| parseBinaryExpr "<<" parseExpression //12, false, &ptrs_ast_vtable_op_shl}, //shift left
+UnarySuffixExpression ::=
+	Expression "++"
+	| Expression "--"
 
-	| parseBinaryExpr "===" parseExpression //9, false, &ptrs_ast_vtable_op_typeequal},
-	| parseBinaryExpr "!==" parseExpression //9, false, &ptrs_ast_vtable_op_typeinequal},
-
-	| parseBinaryExpr "==" parseExpression //9, false, &ptrs_ast_vtable_op_equal},
-	| parseBinaryExpr "!=" parseExpression //9, false, &ptrs_ast_vtable_op_inequal},
-	| parseBinaryExpr "<=" parseExpression //10, false, &ptrs_ast_vtable_op_lessequal},
-	| parseBinaryExpr ">=" parseExpression //10, false, &ptrs_ast_vtable_op_greaterequal},
-	| parseBinaryExpr "<" parseExpression //10, false, &ptrs_ast_vtable_op_less},
-	| parseBinaryExpr ">" parseExpression //10, false, &ptrs_ast_vtable_op_greater},
-
-	| parseBinaryExpr "=" parseExpression //1, true, &ptrs_ast_vtable_op_assign},
-	| parseBinaryExpr "+=" parseExpression //1, true, &ptrs_ast_vtable_op_add},
-	| parseBinaryExpr "-=" parseExpression //1, true, &ptrs_ast_vtable_op_sub},
-	| parseBinaryExpr "*=" parseExpression //1, true, &ptrs_ast_vtable_op_mul},
-	| parseBinaryExpr "/=" parseExpression //1, true, &ptrs_ast_vtable_op_div},
-	| parseBinaryExpr "%=" parseExpression // 1, true, &ptrs_ast_vtable_op_mod},
-	| parseBinaryExpr ">>=" parseExpression //1, true, &ptrs_ast_vtable_op_sshr},
-	| parseBinaryExpr "<<=" parseExpression //1, true, &ptrs_ast_vtable_op_shl},
-	| parseBinaryExpr "&=" parseExpression //1, true, &ptrs_ast_vtable_op_and},
-	| parseBinaryExpr "^=" parseExpression //1, true, &ptrs_ast_vtable_op_xor},
-	| parseBinaryExpr "|=" parseExpression //1, true, &ptrs_ast_vtable_op_or},
-
-	//| parseBinaryExpr "?" parseExpression // 2, true, &ptrs_ast_vtable_op_ternary},
-	//| parseBinaryExpr ":" parseExpression //-1, true, &ptrs_ast_vtable_op_ternary},
-	| parseBinaryExpr "?" parseExpression ":" parseExpression
-
-	| parseBinaryExpr "instanceof" parseExpression //11, false, &ptrs_ast_vtable_op_instanceof},
-	| parseBinaryExpr "in" parseExpression //11, false, &ptrs_ast_vtable_op_in},
-
-	| parseBinaryExpr "||" parseExpression //3, false, &ptrs_ast_vtable_op_logicor},
-	| parseBinaryExpr "^^" parseExpression //4, false, &ptrs_ast_vtable_op_logicxor},
-	| parseBinaryExpr "&&" parseExpression //5, false, &ptrs_ast_vtable_op_logicand},
-
-	| parseBinaryExpr "|" parseExpression //6 parseExpression //false, &ptrs_ast_vtable_op_or},
-	| parseBinaryExpr "^" parseExpression //7, false, &ptrs_ast_vtable_op_xor},
-	| parseBinaryExpr "&" parseExpression //8, false, &ptrs_ast_vtable_op_and},
-
-	| parseBinaryExpr "+" parseExpression //13, false, &ptrs_ast_vtable_op_add},
-	| parseBinaryExpr "-" parseExpression //13, false, &ptrs_ast_vtable_op_sub},
-
-	| parseBinaryExpr "*" parseExpression //14, false, &ptrs_ast_vtable_op_mul},
-	| parseBinaryExpr "/" parseExpression //14, false, &ptrs_ast_vtable_op_div},
-	| parseBinaryExpr "%" parseExpression //14, false, &ptrs_ast_vtable_op_mod}
-
-parseNew_opt ::=
-	/*empty*/
-	| parseNew
-
-parseNew ::=
-	"new"
-
-parseType_opt ::=
-	/*empty*/
-	| parseType
-
-parseType ::=
-	"type" '<' readTypeName '>'
-
-parseSizeof ::=
-	"sizeof" '(' readNativeType ')'
+BinaryExpression ::=
+	Expression ">>" Expression
+	| Expression ">>" Expression
+	| Expression "<<" Expression
+	| Expression "===" Expression
+	| Expression "!==" Expression
+	| Expression "==" Expression
+	| Expression "!=" Expression
+	| Expression "<=" Expression
+	| Expression ">=" Expression
+	| Expression "<" Expression
+	| Expression ">" Expression
+	| Expression "=" Expression
+	| Expression "+=" Expression
+	| Expression "-=" Expression
+	| Expression "*=" Expression
+	| Expression "/=" Expression
+	| Expression "%=" Expression
+	| Expression ">>=" Expression
+	| Expression "<<=" Expression
+	| Expression "&=" Expression
+	| Expression "^=" Expression
+	| Expression "|=" Expression
+	//| BinaryExpression "?" Expression // 2, true, &ptrs_ast_vtable_op_ternary},
+	//| BinaryExpression ":" Expression //-1, true, &ptrs_ast_vtable_op_ternary},
+	| Expression "?" Expression ":" Expression
+	| Expression "instanceof" Expression
+	| Expression "in" Expression
+	| Expression "||" Expression
+	| Expression "^^" Expression
+	| Expression "&&" Expression
+	| Expression "|" Expression
+	| Expression "^" Expression
+	| Expression "&" Expression
+	| Expression "+" Expression
+	| Expression "-" Expression
+	| Expression "*" Expression
+	| Expression "/" Expression
+	| Expression "%" Expression
 
 parseMap ::=
 	"map_stack"
@@ -226,7 +233,7 @@ type_opt ::=
 	':' readNativeType parseArrayTyping array_init_opt
 
 array_init_opt ::=
-	'=' '[' parseExpressionList ']'
+	'=' '[' ExpressionList ']'
 
 shebang_opt ::=
 	"#!".*
@@ -235,7 +242,7 @@ comments ::=
 	"//".*
 	| "/*".*?"*/"
 
-constants ::=
+BuiltinConstant ::=
 	"true"
 	| "false"
 	| "null"
@@ -245,7 +252,7 @@ constants ::=
 	| "PI"
 	| "E"
 
-typeNames ::=
+BuiltinTypeName ::=
 	"undefined"
 	| "int"
 	| "float"
@@ -253,11 +260,10 @@ typeNames ::=
 	| "struct"
 	| "function"
 
-readTypeName ::=
-	typeNames
-
 readNativeType ::=
 
-
-readIdentifier ::=
+Identifier ::=
 	[a-zA-Z_][a-zA-Z0-9_]*
+
+NumberConstant ::=
+	[-]?[0-9]+((e|.)[0-9]+)?
