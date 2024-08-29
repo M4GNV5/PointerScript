@@ -8,52 +8,35 @@
 //
 
 MainProgram ::=
-	shebang_opt StatementList
+	( "#!" [^\n]* )? StatementList
 
 StatementList ::=
 	Statement+
 
 Statement ::=
 	StatementBody
-	| "const" Identifier Expression ';'
-	| "var" Identifier type_opt var_assing_opt ';'
-	| parseImport
-	| "return" Expression ';'
-	| "break" ';'
-	| "continue" ';'
-	| "delete" Expression ';'
-	| "throw" Expression ';'
-	| "try" StatementBody parseCatch_opt parseFinally_opt
-	| "function" Identifier parseFunctionInto
-	| parseStruct
-	| "if" '(' Expression ')' StatementBody
-	| "if" '(' Expression ')' StatementBody "else" StatementBody
-	| parseSwitchCase
+	| "const" Identifier "=" Expression ";"
+	| "var" Identifier ( "=" Expression )? ";"
+	| "var" Identifier ":" parseArrayTyping ( "=" "[" ExpressionList "]" ) ";"
+	| "import" ImportElementList ("from" readString)? ";"
+	| "return" Expression ";"
+	| "break" ";"
+	| "continue" ";"
+	| "delete" Expression ";"
+	| "throw" Expression ";"
+	| "try" StatementBody
+		( "catch" "(" IdentifierList ")" StatementBody )?
+		( "finally" ( "(" Identifier ")" )? StatementBody )
+	| "function" Identifier "(" ArgumentDefinitionList ")" StatementBody
+	| "struct" Identifier '{' parseStructElements '}' ";"
+	| "switch" '(' Expression ')' '{' switchCaseElements '}'
+	| "if" '(' Expression ')' StatementBody ( "else" StatementBody )?
 	| "loop" StatementBody
 	| "while" '(' Expression ')' StatementBody
-	| "do" ScopelessStatementBody "while" '(' Expression ')' ';'
-	| "foreach" '(' Identifier (',' Identifier)* "in" Expression ')' ScopelessStatementBody
-	| "for" '(' Statement Expression_opt ';' Expression ')' ScopelessStatementBody
-	| Expression ';'
-
-parseCatch_opt ::=
-	/*empty*/
-	| "catch" parseArgumentDefinitionList StatementBody
-
-parseFinally_opt ::=
-	/*empty*/
-	| "finally" StatementBody
-	| "finally" '(' Identifier ')' StatementBody
-
-parseImport ::=
-	"import"  importElement_oom ("from" readString)? ';'
-
-importElement_oom ::=
-	importElement
-	| importElement_oom ',' importElement
-
-importElement ::=
-	Identifier '*'? (':' readNativeType)? ("as" Identifier)?
+	| "do" ScopelessStatementBody "while" '(' Expression ')' ";"
+	| "for" '(' Statement Expression_opt ";" Expression ')' ScopelessStatementBody
+	| "foreach" '(' IdentifierList "in" Expression ')' StatementBody
+	| Expression ";"
 
 StatementBody ::=
 	ScopelessStatementBody
@@ -61,44 +44,36 @@ StatementBody ::=
 ScopelessStatementBody ::=
 	'{' StatementList '}'
 
-parseFunctionInto ::=
-	parseArgumentDefinitionList parseFunctionBody
+ImportElementList ::=
+	ImportElement
+	| ImportElementList ',' ImportElement
 
-parseArgumentDefinitionList ::=
-	'(' argumentDefinition_zom ')' parseOptionalTyping
+ImportElement ::=
+	Identifier '*'? (':' NativeTypeName)? ("as" Identifier)?
 
-argumentDefinition_zom ::=
+ArgumentDefinitionList ::=
 	/*empty*/
-	| "..."
-	| argumentDefinition_oom
-	| argumentDefinition_oom ',' "..."
+	| ArgumentDefinition
+	| ArgumentDefinition ',' ArgumentDefinitionList 
 
-argumentDefinition_oom ::=
-	argumentDefinition
-	| argumentDefinition_zom ',' argumentDefinition
-
-argumentDefinition ::=
+ArgumentDefinition ::=
 	'_'
-	| Identifier parseOptionalTyping assignExpression_opt
+	| Identifier "..."
+	| Identifier ( ':' Typing )? ( '=' Expression )?
 
-assignExpression_opt ::=
-	'=' Expression
-
-parseOptionalTyping ::=
+SimpleArgumentDefinitionList ::=
 	/*empty*/
-	| parseTyping
+	| Identifier
+	| Identifier ',' SimpleArgumentDefinitionList
 
 parseTyping ::=
 	':' BuiltinTypeName
-	| ':' readNativeType
-	| ':' readNativeType parseArrayTyping
+	| ':' NativeTypeName
+	| ':' NativeTypeName parseArrayTyping
 	| ':' Identifier
 
 parseFunctionBody ::=
 	ScopelessStatementBody
-
-parseStruct ::=
-	"struct" Identifier '{' parseStructElements '}' ';'
 
 parseStructElements ::=
 	"static"? parseStructElement
@@ -106,7 +81,7 @@ parseStructElements ::=
 
 parseStructElement ::=
 	"operator" '&' "this" '[' Identifier createParameterList parseOptionalTyping ']' ('=' Identifier createParameterList)?
-	| "operator" '&' "this"  parseArgumentDefinitionList parseOptionalTyping ')'
+	| "operator" '&' "this"  ArgumentDefinitionList
 	| "sizeof" "this"
 	| "foreach" '(' Identifier ',' Identifier ')' "in" "this" createParameterList
 	| "cast" '<' ("int"|"float"|"string") '>' "this"
@@ -115,9 +90,6 @@ parseStructElement ::=
 	| "constructor" parseFunction
 	| "destructor" parseFunction
 	| ("private"|"public"|"internal") ("get"|"set")? Identifier
-
-parseSwitchCase ::=
-	"switch" '(' Expression ')' '{' switchCaseElements '}'
 
 switchCaseElements ::=
 	"default" ':' Statement
@@ -147,6 +119,7 @@ Expression ::=
 	| Expression "." Identifier
 	| Expression "!" Typename "(" ExpressionList ")"
 	| Expression "[" Expression "]"
+	| Expression "?" Expression ":" Expression
 	| "type" "<" BuiltinTypeName ">"
 	| "typeof" Expression
 	| "sizeof" "var"
@@ -164,9 +137,9 @@ Expression ::=
 	| "function" // TODO
 	| "(" argumentDefinition ")" "->" parseFunctionBody // TODO allow expressions
 	| "$"
-	| "\'" . "\'"
-	| "\"" .* "\""
-	| "`" .* "`"
+	| ['] . [']
+	| ["] .* ["]
+	| [`] .* [`]
 	| Identifier
 	| NumberConstant
 
@@ -208,9 +181,6 @@ BinaryExpression ::=
 	| Expression "&=" Expression
 	| Expression "^=" Expression
 	| Expression "|=" Expression
-	//| BinaryExpression "?" Expression // 2, true, &ptrs_ast_vtable_op_ternary},
-	//| BinaryExpression ":" Expression //-1, true, &ptrs_ast_vtable_op_ternary},
-	| Expression "?" Expression ":" Expression
 	| Expression "instanceof" Expression
 	| Expression "in" Expression
 	| Expression "||" Expression
@@ -224,23 +194,6 @@ BinaryExpression ::=
 	| Expression "*" Expression
 	| Expression "/" Expression
 	| Expression "%" Expression
-
-parseMap ::=
-	"map_stack"
-	| "map"
-
-type_opt ::=
-	':' readNativeType parseArrayTyping array_init_opt
-
-array_init_opt ::=
-	'=' '[' ExpressionList ']'
-
-shebang_opt ::=
-	"#!".*
-
-comments ::=
-	"//".*
-	| "/*".*?"*/"
 
 BuiltinConstant ::=
 	"true"
@@ -260,10 +213,45 @@ BuiltinTypeName ::=
 	| "struct"
 	| "function"
 
-readNativeType ::=
+NativeTypeName ::=
+	"char"
+	| "short"
+	| "int"
+	| "long"
+	| "longlong"
+	| "uchar"
+	| "ushort"
+	| "uint"
+	| "ulong"
+	| "ulonglong"
+	| "i8"
+	| "i16"
+	| "i32"
+	| "i64"
+	| "u8"
+	| "u16"
+	| "u32"
+	| "u64"
+	| "float"
+	| "double"
+	| "f32"
+	| "f64"
+	| "cfunc"
+	| "pointer"
+	| "bool"
+	| "ssize"
+	| "size"
+	| "intptr"
+	| "uintptr"
+	| "ptrdiff"
+	| "var"
 
 Identifier ::=
 	[a-zA-Z_][a-zA-Z0-9_]*
 
 NumberConstant ::=
 	[-]?[0-9]+((e|.)[0-9]+)?
+
+Comment ::=
+	"//" .*
+	| "/*" .*? "*/"
