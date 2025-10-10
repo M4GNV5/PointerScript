@@ -1,7 +1,6 @@
 name: Release vsix to OpenVSX
 on:
-  release:
-    types: [published]
+  workflow_dispatch: {}
 
 jobs:
   release:
@@ -16,6 +15,7 @@ jobs:
       uses: actions/setup-node@v5
 
     - name: npm install
+      working-directory: ./code-pointerscript/
       run: npm install
 
     # - name: typescript
@@ -25,6 +25,7 @@ jobs:
       uses: HaaLeo/publish-vscode-extension@v2
       id: publishToOpenVSX
       with:
+        packagePath: ./code-pointerscript/
         pat: ${{ secrets.OPEN_VSX_TOKEN }}
       # - name: Publish to Visual Studio Marketplace
       #   uses: HaaLeo/publish-vscode-extension@v0
