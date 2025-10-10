@@ -1,0 +1,182 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "PointerScript",
+	"scopeName": "source.pointerscript",
+	"fileTypes": [
+		"ptrs"
+	],
+	"patterns": [{
+			"include": "#keyword"
+		},
+		{
+			"include": "#shebang"
+		},
+		{
+			"include": "#comment"
+		},
+		{
+			"include": "#string"
+		},
+		{
+			"include": "#number"
+		},
+		{
+			"include": "#operator"
+		},
+		{
+			"include": "#builtin-constant"
+		},
+		{
+			"include": "#type"
+		},
+		{
+			"include": "#call"
+		},
+		{
+			"include": "#identifier"
+		},
+		{
+			"include": "#punctuation"
+		}
+	],
+	"repository": {
+		"shebang": {
+			"patterns": [{
+				"name": "comment.block.shebang.pointerscript",
+				"match": "^#!.*$"
+			}]
+		},
+		"comment": {
+			"patterns": [{
+					"name": "comment.line.double-slash.pointerscript",
+					"begin": "//",
+					"end": "$"
+				},
+				{
+					"name": "comment.block.pointerscript",
+					"begin": "/\\*",
+					"end": "\\*/"
+				}
+			]
+		},
+		"string": {
+			"patterns": [{
+					"name": "string.quoted.double.pointerscript",
+					"begin": "\"",
+					"end": "\"",
+					"patterns": [{
+						"include": "#escaped"
+					}]
+				},
+				{
+					"name": "string.quoted.single.pointerscript",
+					"begin": "'",
+					"end": "'",
+					"patterns": [{
+						"include": "#escaped"
+					}]
+				},
+				{
+					"name": "string.quoted.backtick.pointerscript",
+					"begin": "`",
+					"end": "`",
+					"patterns": [{
+						"include": "#escaped"
+					}]
+				}
+			]
+		},
+		"escaped": {
+			"patterns": [{
+				"name": "constant.character.escape.pointerscript",
+				"match": "\\\\."
+			}]
+		},
+		"number": {
+			"patterns": [{
+				"name": "constant.numeric.pointerscript",
+				"match": "-?\\b\\d+(?:\\.\\d+)?(?:e[+-]?\\d+)?\\b"
+			}]
+		},
+		"keyword": {
+			"patterns": [{
+				"name": "keyword.control.pointerscript",
+				"match": "\\b(break|continue|delete|throw|try|catch|finally|function|struct|switch|if|else|loop|while|do|for|foreach|return|import|as|in|from|var|const|sizeof|new|new_stack|operator|constructor|destructor|private|public|internal|static|get|set|default|case|instanceof|type|typeof|map|map_stack|cast|throw)\\b"
+			}]
+		},
+		"operator": {
+			"patterns": [{
+				"name": "keyword.operator.pointerscript",
+				"match": "(===|!==|==|!=|<=|>=|<<=|>>=|\\+\\+|--|\\+=|-=|\\*=|/=|%=|>>|<<|&&|\\|\\||\\^\\^|\\||\\^|&|=|\\?|:|\\+|\\-|\\*|/|%|!|~|\\.|,)"
+			}]
+		},
+		"type": {
+			"patterns": [{
+					"name": "storage.type.builtin.pointerscript",
+					"match": "\\b(undefined|int|float|pointer|struct|function)\\b"
+				},
+				{
+					"name": "storage.type.native.pointerscript",
+					"match": "\\b(char|short|int|long|longlong|uchar|ushort|uint|ulong|ulonglong|i8|i16|i32|i64|u8|u16|u32|u64|float|double|f32|f64|cfunc|pointer|bool|ssize|size|intptr|uintptr|ptrdiff|var)\\b"
+				}
+			]
+		},
+		"builtin-constant": {
+			"patterns": [{
+				"name": "constant.language.pointerscript",
+				"match": "\\b(true|false|null|undefined|NaN|Infinity|PI|E)\\b"
+			}]
+		},
+		"call": {
+			"patterns": [{
+				"match": "\\b([_a-zA-Z][_a-zA-Z0-9]*)\\b\\s*(\\()",
+				"captures": {
+					"1": {
+						"name": "entity.name.function.pointerscript"
+					}
+				}
+			}]
+		},
+		"identifier": {
+			"patterns": [{
+				"name": "variable.other.pointerscript",
+				"match": "\\b[_a-zA-Z][_a-zA-Z0-9]*\\b"
+			}]
+		},
+		"punctuation": {
+			"patterns": [{
+					"name": "punctuation.terminator.statement.pointerscript",
+					"match": ";"
+				},
+				{
+					"name": "punctuation.separator.parameter.pointerscript",
+					"match": ","
+				},
+				{
+					"name": "punctuation.section.block.begin.pointerscript",
+					"match": "\\{"
+				},
+				{
+					"name": "punctuation.section.block.end.pointerscript",
+					"match": "\\}"
+				},
+				{
+					"name": "punctuation.section.group.begin.pointerscript",
+					"match": "\\("
+				},
+				{
+					"name": "punctuation.section.group.end.pointerscript",
+					"match": "\\)"
+				},
+				{
+					"name": "punctuation.section.array.begin.pointerscript",
+					"match": "\\["
+				},
+				{
+					"name": "punctuation.section.array.end.pointerscript",
+					"match": "\\]"
+				}
+			]
+		}
+	}
+}

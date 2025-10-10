@@ -1,0 +1,25 @@
+{
+  "name": "code-pointerscript",
+  "displayName": "code-pointerscript",
+  "description": "Language support for PointerScript",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": ">=1.100.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "pointerscript",
+      "aliases": ["PointerScript", "pointerscript"],
+      "extensions": [".ptrs"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "pointerscript",
+      "scopeName": "source.pointerscript",
+      "path": "./syntaxes/pointerscript.tmLanguage.json"
+    }]
+  }
+}
