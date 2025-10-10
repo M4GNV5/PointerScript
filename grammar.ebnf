@@ -26,7 +26,7 @@ Statement ::=
 	| "throw" Expression ";"
 	| "try" StatementBody
 		( "catch" "(" IdentifierList ")" StatementBody )?
-		( "finally" ( "(" Identifier ")" )? StatementBody )
+		( "finally" ( "(" Identifier ")" )? StatementBody )?
 	| "function" Identifier "(" ArgumentDefinitionList ")" StatementBody
 	| "struct" Identifier '{' parseStructElements '}' ";"
 	| "switch" '(' Expression ')' '{' switchCaseElements '}'
@@ -252,6 +252,7 @@ Identifier ::=
 NumberConstant ::=
 	[-]?[0-9]+((e|.)[0-9]+)?
 
-Comment ::=
-	"//" .*
-	| "/*" .*? "*/"
+Whitespace ::=
+	[ \n\t]+
+	| "//" .*
+	| "/*" .* "*/"
