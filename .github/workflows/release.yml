@@ -1,0 +1,40 @@
+name: Release vsix to OpenVSX
+on:
+  release:
+    types: [published]
+
+jobs:
+  release:
+    name: "Release"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        submodules: true
+
+    - name: Set Node.js
+      uses: actions/setup-node@v5
+
+    - name: npm install
+      run: npm install
+
+    # - name: typescript
+    #   run: npx tsc
+
+    - name: Publish to Open VSX Registry
+      uses: HaaLeo/publish-vscode-extension@v2
+      id: publishToOpenVSX
+      with:
+        pat: ${{ secrets.OPEN_VSX_TOKEN }}
+      # - name: Publish to Visual Studio Marketplace
+      #   uses: HaaLeo/publish-vscode-extension@v0
+      #   with:
+      #     pat: ${{ secrets.VS_MARKETPLACE_TOKEN }}
+      #     registryUrl: https://marketplace.visualstudio.com
+      #     extensionFile: ${{ steps.publishToOpenVSX.outputs.vsixPath }}
+      #     packagePath: ''
+    - name: Upload
+      uses: djn24/add-asset-to-release@v1
+      with:
+        token: ${{secrets.GITHUB_TOKEN}}
+        path: ${{ steps.publishToOpenVSX.outputs.vsixPath }}

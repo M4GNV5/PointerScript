@@ -1,25 +1,44 @@
 {
   "name": "code-pointerscript",
-  "displayName": "code-pointerscript",
-  "description": "Language support for PointerScript",
-  "version": "0.0.1",
-  "engines": {
-    "vscode": ">=1.100.0"
+  "displayName": "PointerScript Language",
+  "description": "Language support for PointerScript (grammar)",
+  "publisher": "m4gnv5",
+  "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/M4GNV5/PointerScript.git"
   },
+  "engines": {
+    "vscode": ">=1.90.0"
+  },
+	"license": "EUPL",
+	"bugs": {
+		"email": "pointerscript@m4gnus.de",
+		"url": "https://github.com/M4GNV5/PointerScript/issues"
+	},
   "categories": [
     "Programming Languages"
   ],
   "contributes": {
-    "languages": [{
-      "id": "pointerscript",
-      "aliases": ["PointerScript", "pointerscript"],
-      "extensions": [".ptrs"],
-      "configuration": "./language-configuration.json"
-    }],
-    "grammars": [{
-      "language": "pointerscript",
-      "scopeName": "source.pointerscript",
-      "path": "./syntaxes/pointerscript.tmLanguage.json"
-    }]
+    "languages": [
+      {
+        "id": "pointerscript",
+        "aliases": [
+          "PointerScript",
+          "pointerscript"
+        ],
+        "extensions": [
+          ".ptrs"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "pointerscript",
+        "scopeName": "source.pointerscript",
+        "path": "./syntaxes/pointerscript.tmLanguage.json"
+      }
+    ]
   }
 }

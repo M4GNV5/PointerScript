@@ -5,7 +5,11 @@
 	"fileTypes": [
 		"ptrs"
 	],
-	"patterns": [{
+	"patterns": [
+		{
+			"include": "#import"
+		},
+		{
 			"include": "#keyword"
 		},
 		{
@@ -41,13 +45,16 @@
 	],
 	"repository": {
 		"shebang": {
-			"patterns": [{
-				"name": "comment.block.shebang.pointerscript",
-				"match": "^#!.*$"
-			}]
+			"patterns": [
+				{
+					"name": "comment.block.shebang.pointerscript",
+					"match": "^#!.*$"
+				}
+			]
 		},
 		"comment": {
-			"patterns": [{
+			"patterns": [
+				{
 					"name": "comment.line.double-slash.pointerscript",
 					"begin": "//",
 					"end": "$"
@@ -60,58 +67,183 @@
 			]
 		},
 		"string": {
-			"patterns": [{
+			"patterns": [
+				{
 					"name": "string.quoted.double.pointerscript",
 					"begin": "\"",
 					"end": "\"",
-					"patterns": [{
-						"include": "#escaped"
-					}]
+					"patterns": [
+						{
+							"include": "#escaped"
+						},
+						{
+							"include": "#string-interpolation"
+						},
+						{
+							"include": "#string-placeholder"
+						}
+					]
 				},
 				{
 					"name": "string.quoted.single.pointerscript",
 					"begin": "'",
 					"end": "'",
-					"patterns": [{
-						"include": "#escaped"
-					}]
+					"patterns": [
+						{
+							"include": "#escaped"
+						}
+					]
 				},
 				{
 					"name": "string.quoted.backtick.pointerscript",
 					"begin": "`",
 					"end": "`",
-					"patterns": [{
-						"include": "#escaped"
-					}]
+					"patterns": [
+						{
+							"include": "#string-interpolation"
+						},
+						{
+							"include": "#string-placeholder"
+						}
+					]
 				}
 			]
 		},
 		"escaped": {
-			"patterns": [{
-				"name": "constant.character.escape.pointerscript",
-				"match": "\\\\."
-			}]
+			"patterns": [
+				{
+					"name": "constant.character.escape.pointerscript",
+					"match": "\\\\."
+				}
+			]
+		},
+		"string-interpolation": {
+			"name": "meta.template.expression.pointerscript",
+			"begin": "(?x) \\$(%\n(\\d+\\$)?\t\t\t\t\t\t   # field (argument #)\n[#0\\- +']*\t\t\t\t\t\t  # flags\n[,;:_]?\t\t\t\t\t\t\t  # separator character (AltiVec)\n((-?\\d+)|\\*(-?\\d+\\$)?)?\t\t  # minimum field width\n(\\.((-?\\d+)|\\*(-?\\d+\\$)?)?)?\t# precision\n(hh|h|ll|l|j|t|z|q|L|vh|vl|v|hv|hl)? # length modifier\n[diouxXDOUeEfFgGaACcSspn%]\t\t   # conversion type\n)?\\{",
+			"beginCaptures": {
+				"0": {
+					"name": "punctuation.definition.template-expression.begin.pointerscript"
+				},
+				"1": {
+					"name": "constant.other.placeholder.pointerscript"
+				}
+			},
+			"end": "\\}",
+			"endCaptures": {
+				"0": {
+					"name": "punctuation.definition.template-expression.end.pointerscript"
+				}
+			},
+			"patterns": [
+				{
+					"include": "$self"
+				}
+			],
+			"contentName": "meta.embedded.line.pointerscript"
+		},
+		"string-placeholder": {
+			"patterns": [
+				{
+					"match": "(?x) %\n(\\d+\\$)?\t\t\t\t\t\t   # field (argument #)\n[#0\\- +']*\t\t\t\t\t\t  # flags\n[,;:_]?\t\t\t\t\t\t\t  # separator character (AltiVec)\n((-?\\d+)|\\*(-?\\d+\\$)?)?\t\t  # minimum field width\n(\\.((-?\\d+)|\\*(-?\\d+\\$)?)?)?\t# precision\n(hh|h|ll|l|j|t|z|q|L|vh|vl|v|hv|hl)? # length modifier\n[diouxXDOUeEfFgGaACcSspn%]\t\t   # conversion type",
+					"name": "constant.other.placeholder.pointerscript"
+				},
+				{
+					"match": "(%)(?!\"\\s*(PRI|SCN))",
+					"captures": {
+						"1": {
+							"name": "invalid.illegal.placeholder.pointerscript"
+						}
+					}
+				}
+			]
 		},
 		"number": {
-			"patterns": [{
-				"name": "constant.numeric.pointerscript",
-				"match": "-?\\b\\d+(?:\\.\\d+)?(?:e[+-]?\\d+)?\\b"
-			}]
+			"patterns": [
+				{
+					"name": "constant.numeric.pointerscript",
+					"match": "[+-]?\\b(0x[0-9a-fA-F]+|0[0-7]*|[1-9]\\d*(?:\\.\\d+)?(?:e[+-]?\\d+)?[fF]?|0(?:\\.\\d+)(?:e[+-]?\\d+)?[fF]?|0[fF]?)\\b"
+				}
+			]
 		},
 		"keyword": {
-			"patterns": [{
-				"name": "keyword.control.pointerscript",
-				"match": "\\b(break|continue|delete|throw|try|catch|finally|function|struct|switch|if|else|loop|while|do|for|foreach|return|import|as|in|from|var|const|sizeof|new|new_stack|operator|constructor|destructor|private|public|internal|static|get|set|default|case|instanceof|type|typeof|map|map_stack|cast|throw)\\b"
-			}]
+			"patterns": [
+				{
+					"name": "keyword.control.pointerscript",
+					"match": "\\b(break|continue|delete|throw|try|catch|finally|function|struct|switch|if|else|loop|while|do|for|foreach|return|import|as|in|from|var|const|sizeof|new|new_stack|operator|constructor|destructor|private|public|internal|static|get|set|default|case|instanceof|type|typeof|map|map_stack|cast|throw|this)\\b"
+				}
+			]
+		},
+		"import": {
+			"patterns": [
+				{
+					"beginCaptures": {
+						"1": {
+							"name": "keyword.control.pointerscript"
+						}
+					},
+					"begin": "\\b(import)\\b",
+					"end": ";",
+					"patterns": [
+						{
+							"include": "#keyword"
+						},
+						{
+							"include": "#import-variable"
+						},
+						{
+							"include": "#import-function"
+						},
+						{
+							"include": "$self"
+						}
+					]
+				}
+			]
+		},
+		"import-function": {
+			"patterns": [
+				{
+					"name": "entity.name.function.pointerscript",
+					"match": "\\b[_a-zA-Z][_a-zA-Z0-9]*\\b"
+				}
+			]
+		},
+		"import-variable": {
+			"patterns": [
+				{
+					"match": "\\b(?:([_a-zA-Z][_a-zA-Z0-9]*)|\\*)\\s*:\\s*(\\w+)(?:\\s+(as)\\s+([_a-zA-Z][_a-zA-Z0-9]*))?\\b",
+					"captures": {
+						"1": {
+							"name": "variable.name.constant.pointerscript"
+						},
+						"2": {
+							"patterns": [
+								{
+									"include": "#type"
+								}
+							]
+						},
+						"3": {
+							"name": "keyword.control.pointerscript"
+						},
+						"4": {
+							"name": "variable.name.constant.pointerscript"
+						}
+					}
+				}
+			]
 		},
 		"operator": {
-			"patterns": [{
-				"name": "keyword.operator.pointerscript",
-				"match": "(===|!==|==|!=|<=|>=|<<=|>>=|\\+\\+|--|\\+=|-=|\\*=|/=|%=|>>|<<|&&|\\|\\||\\^\\^|\\||\\^|&|=|\\?|:|\\+|\\-|\\*|/|%|!|~|\\.|,)"
-			}]
+			"patterns": [
+				{
+					"name": "keyword.operator.pointerscript",
+					"match": "(===|!==|==|!=|<=|>=|<<=|>>=|\\+\\+|--|\\+=|-=|\\*=|/=|%=|>>|<<|&&|\\|\\||\\^\\^|\\||\\^|&|=|\\?|:|\\+|\\-|\\*|/|%|!|~|\\.|,)"
+				}
+			]
 		},
 		"type": {
-			"patterns": [{
+			"patterns": [
+				{
 					"name": "storage.type.builtin.pointerscript",
 					"match": "\\b(undefined|int|float|pointer|struct|function)\\b"
 				},
@@ -122,29 +254,42 @@
 			]
 		},
 		"builtin-constant": {
-			"patterns": [{
-				"name": "constant.language.pointerscript",
-				"match": "\\b(true|false|null|undefined|NaN|Infinity|PI|E)\\b"
-			}]
+			"patterns": [
+				{
+					"name": "constant.language.pointerscript",
+					"match": "\\b(true|false|null|undefined|NaN|Infinity|PI|E)\\b"
+				}
+			]
 		},
 		"call": {
-			"patterns": [{
-				"match": "\\b([_a-zA-Z][_a-zA-Z0-9]*)\\b\\s*(\\()",
-				"captures": {
-					"1": {
-						"name": "entity.name.function.pointerscript"
-					}
+			"patterns": [
+				{
+					"begin": "\\b([_a-zA-Z][_a-zA-Z0-9]*)\\b\\s*(\\()",
+					"end": "\\)",
+					"beginCaptures": {
+						"1": {
+							"name": "entity.name.function.pointerscript"
+						}
+					},
+					"patterns": [
+						{
+							"include": "$self"
+						}
+					]
 				}
-			}]
+			]
 		},
 		"identifier": {
-			"patterns": [{
-				"name": "variable.other.pointerscript",
-				"match": "\\b[_a-zA-Z][_a-zA-Z0-9]*\\b"
-			}]
+			"patterns": [
+				{
+					"name": "variable.other.pointerscript",
+					"match": "\\b[_a-zA-Z][_a-zA-Z0-9]*\\b"
+				}
+			]
 		},
 		"punctuation": {
-			"patterns": [{
+			"patterns": [
+				{
 					"name": "punctuation.terminator.statement.pointerscript",
 					"match": ";"
 				},
