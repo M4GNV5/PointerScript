@@ -54,7 +54,10 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 		case PTRS_TYPE_FUNCTION:
 			{
 				paramDef[0] = jit_type_void_ptr;
-				_args[0] = thisPtr;
+				_args[0] = jit_insn_or(func,
+					thisPtr,
+					jit_const_long(func, ulong, (uint64_t)narg << 56)
+				);
 
 				for(int i = 0; i < narg; i++)
 				{
@@ -181,7 +184,7 @@ static size_t getParameterCount(ptrs_function_t *ast)
 	return count;
 }
 static void checkFunctionParameter(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t *scope,
-	ptrs_function_t *ast, ptrs_jit_var_t *args)
+	ptrs_function_t *ast, ptrs_jit_var_t *args, jit_value_t actualNarg)
 {
 	ptrs_funcparameter_t *curr = ast->args;
 
@@ -205,8 +208,31 @@ static void checkFunctionParameter(ptrs_ast_t *node, jit_function_t func, ptrs_s
 			if(param.constType == PTRS_TYPE_DYNAMIC)
 			{
 				jit_label_t given = jit_label_undefined;
-				jit_value_t isGiven = jit_insn_ne(func, paramType, jit_const_int(func, ubyte, PTRS_TYPE_UNDEFINED));
-				jit_insn_branch_if(func, isGiven, &given);
+				jit_value_t isGiven = NULL;
+				if(jit_value_is_constant(actualNarg))
+				{
+					if(jit_value_get_nint_constant(actualNarg) <= i)
+					{
+						// we need to set the default value, since the arg is not given
+					}
+					else
+					{
+						jit_value_t isGiven = jit_insn_ne(
+							func,
+							paramType,
+							jit_const_int(func, ubyte, PTRS_TYPE_UNDEFINED)
+						);
+						jit_insn_branch_if(func, isGiven, &given);
+					}
+				}
+				else
+				{
+					jit_value_t isGiven = jit_insn_and(func,
+						jit_insn_gt(func, actualNarg, jit_const_int(func, ubyte, i)),
+						jit_insn_ne(func, paramType, jit_const_int(func, ubyte, PTRS_TYPE_UNDEFINED))
+					);
+					jit_insn_branch_if(func, isGiven, &given);
+				}
 
 				ptrs_jit_var_t val = curr->argv->vtable->get(curr->argv, func, scope);
 				val.val = ptrs_jit_reinterpretCast(func, val.val, jit_type_long); // TODO is this needed / a problem?
@@ -232,7 +258,7 @@ static void checkFunctionParameter(ptrs_ast_t *node, jit_function_t func, ptrs_s
 				4, "Function %s requires the %d. parameter to be a of type %m but a variable of type %m was given",
 				funcName, iPlus1, metaJit, param.meta);
 
-			ptrs_jit_assertMetaCompatibility(func, assertion, curr->typing.meta, param.meta, paramType);
+			ptrs_jit_assertMetaCompatibility(func, assertion, curr->typing.meta, param.meta, NULL);
 
 			param.constType = curr->typing.meta.type;
 			// TODO also set param.meta for undefined, int and float params
@@ -502,7 +528,7 @@ ptrs_jit_var_t ptrs_jit_ncallnested(ptrs_ast_t *node, jit_function_t func, ptrs_
 	if(calleeAst == NULL)
 		ptrs_error(node, "Internal error: Could not get function ast for unchecked entry point of target function");
 
-	checkFunctionParameter(node, func, scope, calleeAst, args);
+	checkFunctionParameter(node, func, scope, calleeAst, args, jit_const_int(func, ubyte, narg));
 	return callWithCustomAbi(func, callee, NULL, calleeAst, thisPtr, narg, args, 0);
 }
 
@@ -728,20 +754,32 @@ void *ptrs_jit_function_to_closure(ptrs_ast_t *node, jit_function_t func)
 	jit_function_t checker = ptrs_jit_createFunction(node, funcParent, checkerSig, strdup(checkerName));
 	jit_function_set_meta(checker, PTRS_JIT_FUNCTIONMETA_UNCHECKED, func, NULL, 0);
 
-	jit_value_t thisArg = jit_value_get_param(checker, 0);
+	jit_value_t thisAndNarg = jit_value_get_param(checker, 0);
+	jit_value_t thisArg = jit_insn_and(checker,
+		thisAndNarg,
+		jit_const_long(checker, ulong, (1llu << 56) - 1)
+	);
+	jit_value_t narg = jit_insn_shr(checker, thisAndNarg, jit_const_int(checker, ubyte, 56));
+
 	ptrs_jit_var_t args[argc];
+	jit_label_t skipArgs = jit_label_undefined;
 	for(int i = 0; i < argc; i++)
 	{
+		jit_value_t hasArg = jit_insn_gt(checker, narg, jit_const_int(checker, ubyte, i));
+		jit_insn_branch_if_not(checker, hasArg, &skipArgs);
+
 		args[i].val = jit_value_get_param(checker, i * 2 + 1);
 		args[i].meta = jit_value_get_param(checker, i * 2 + 2);
 		args[i].constType = PTRS_TYPE_DYNAMIC;
 		args[i].addressable = false;
 	}
+	jit_insn_label(checker, &skipArgs);
+
 
 	ptrs_scope_t checkerScope;
 	ptrs_initScope(&checkerScope, NULL);
 
-	checkFunctionParameter(node, checker, &checkerScope, ast, args);
+	checkFunctionParameter(node, checker, &checkerScope, ast, args, narg);
 	ptrs_jit_var_t ret = callWithCustomAbi(checker, func, NULL, ast, thisArg, argc, args, JIT_CALL_TAIL);
 
 	jit_insn_return_struct_from_values(checker, ret.val, ret.meta);
@@ -780,16 +818,7 @@ void ptrs_jit_buildFunction(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t 
 		ast->thisVal.addressable = false;
 	}
 
-	bool usesCustomAbi = retrieveParameterArray(ast, func);
-
-	if(!usesCustomAbi)
-	{
-		// the function uses the default ABI, we prevent having a custom .checked
-		// function by checking parameters here and setting the function to be
-		// its own closure
-		checkFunctionParameter(node, func, &funcScope, ast, NULL);
-		jit_function_set_meta(func, PTRS_JIT_FUNCTIONMETA_CLOSURE, func, NULL, 0);
-	}
+	retrieveParameterArray(ast, func);
 
 	for(ptrs_funcparameter_t *curr = ast->args; curr != NULL; curr = curr->next)
 	{
