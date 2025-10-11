@@ -123,9 +123,13 @@ ptrs_jit_var_t ptrs_jit_call(ptrs_ast_t *node, jit_function_t func, ptrs_scope_t
 
 							//TODO create callbacks at runtime
 							curr = args;
-							while(i-- > 0)
+							int j = i;
+							while(j-- > 0)
 								curr = curr->next;
-							ptrs_error(curr->entry, "Cannot pass nested PointerScript function"
+
+							ptrs_jit_assert(curr->entry, func, scope,
+								jit_const_int(func, ubyte, 0),
+								0, "Cannot pass nested PointerScript function"
 								" as an argument to a native function");
 
 							break;
