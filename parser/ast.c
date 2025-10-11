@@ -2203,7 +2203,7 @@ static void parseStruct(code_t *code, ptrs_struct_t *struc)
 				overload->op = ptrs_ast_vtable_forin_step.get;
 
 				func->args = createParameterList(code, 2,
-					param0Name, PTRS_TYPE_POINTER, PTRS_NATIVETYPE_INDEX_VAR, 1,
+					param0Name, PTRS_TYPE_POINTER, PTRS_NATIVETYPE_INDEX_VAR, 0,
 					param1Name, PTRS_TYPE_POINTER, PTRS_NATIVETYPE_INDEX_VAR, 1
 				);
 				func->retType.meta.type = PTRS_TYPE_INT;
