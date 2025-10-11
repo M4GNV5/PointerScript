@@ -18,6 +18,7 @@ typedef struct
 	uint8_t knownMeta : 1;
 	uint8_t knownType : 1;
 	uint8_t knownNativeType : 1;
+	uint8_t isConstant : 1;
 } ptrs_prediction_t;
 
 typedef struct ptrs_flowprediction
@@ -178,6 +179,7 @@ static inline void clearPrediction(ptrs_prediction_t *prediction)
 	prediction->knownValue = false;
 	prediction->knownMeta = false;
 	prediction->knownNativeType = false;
+	prediction->isConstant = false;
 }
 
 static void dupFlow(ptrs_flow_t *dest, ptrs_flow_t *src)
@@ -337,7 +339,7 @@ static void setVariablePrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var, ptrs_p
 		{
 			if(curr->variable == var)
 			{
-				if(curr->depth != flow->depth)
+				if(!curr->prediction.isConstant && curr->depth != flow->depth)
 				{
 					curr->addressable = true;
 					newIsAddressable = true;
@@ -406,7 +408,7 @@ static void getVariablePrediction(ptrs_flow_t *flow, ptrs_jit_var_t *var, ptrs_p
 	{
 		if(curr->variable == var)
 		{
-			if(flow->depth != curr->depth)
+			if(!curr->prediction.isConstant && flow->depth != curr->depth)
 			{
 				curr->addressable = true;
 			}
@@ -673,6 +675,7 @@ static void analyzeStruct(ptrs_flow_t *flow, ptrs_struct_t *struc, ptrs_predicti
 	ret->knownType = true;
 	ret->knownValue = true;
 	ret->knownMeta = true;
+	ret->isConstant = true;
 	ret->value.structval = NULL;
 	ret->meta.type = PTRS_TYPE_STRUCT;
 	ptrs_meta_setPointer(ret->meta, struc);
